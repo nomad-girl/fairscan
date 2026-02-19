@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db.js';
+import db from '../db.js';
 import * as api from '../api/client.js';
 
 /**
