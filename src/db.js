@@ -4,8 +4,8 @@ const db = new Dexie('FairScanDB');
 
 db.version(1).stores({
   districts: '++id, name',
-  suppliers: '++id, districtId, company',
-  products:  '++id, supplierId, districtId, name, category, createdAt',
+  suppliers: '++id, districtId, company, ai_processed',
+  products:  '++id, supplierId, districtId, name, category, createdAt, ai_processed',
   settings:  'key',
 });
 
