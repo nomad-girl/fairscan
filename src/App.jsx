@@ -279,21 +279,23 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
   const parseQRContent = (qrData) => {
     if (!qrData) return null;
     const info = {};
-    // WhatsApp: https://wa.me/NUMBER or whatsapp://send?phone=NUMBER
-    const waMatch = qrData.match(/wa\.me\/(\+?\d+)|whatsapp.*phone=(\+?\d+)/i);
-    if (waMatch) { info.whatsapp = waMatch[1] || waMatch[2]; info.name = "Proveedor (WhatsApp)"; }
+    // WhatsApp: wa.me/NUMBER, wa.me/qr/CODE, wa.me/message/CODE, api.whatsapp.com/send?phone=
+    if (/wa\.me|whatsapp\.com|whatsapp/i.test(qrData)) {
+      info.whatsappLink = qrData; // save full link for direct access
+      const numMatch = qrData.match(/wa\.me\/(\+?\d{6,})/);
+      const phoneMatch = qrData.match(/phone=(\+?\d{6,})/);
+      if (numMatch) info.whatsapp = numMatch[1];
+      else if (phoneMatch) info.whatsapp = phoneMatch[1];
+      info.name = "Proveedor (WhatsApp)";
+    }
     // WeChat: weixin://dl/chat?..., or just a WeChat ID string
-    const wxMatch = qrData.match(/weixin:\/\/|wechat/i);
-    if (wxMatch) { info.wechat = qrData; info.name = "Proveedor (WeChat)"; }
+    if (/weixin:\/\/|wechat/i.test(qrData)) { info.wechat = qrData; info.name = info.name || "Proveedor (WeChat)"; }
     // Phone: tel:NUMBER
     const telMatch = qrData.match(/tel:(\+?\d[\d\s-]+)/i);
     if (telMatch) { info.phone = telMatch[1].replace(/\s/g, ""); info.name = info.name || "Proveedor (teléfono)"; }
     // Email: mailto:EMAIL
     const mailMatch = qrData.match(/mailto:([^\s?]+)/i);
     if (mailMatch) { info.email = mailMatch[1]; info.name = info.name || "Proveedor (email)"; }
-    // URL
-    const urlMatch = qrData.match(/^https?:\/\/[^\s]+$/i);
-    if (urlMatch && !info.whatsapp) { info.website = qrData; info.name = info.name || "Proveedor (web)"; }
     // vCard
     if (qrData.includes("BEGIN:VCARD")) {
       const fn = qrData.match(/FN:(.+)/); if (fn) info.name = fn[1].trim();
@@ -302,11 +304,29 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
       const em = qrData.match(/EMAIL[^:]*:(.+)/); if (em) info.email = em[1].trim();
       const url = qrData.match(/URL:(.+)/); if (url) info.website = url[1].trim();
     }
+    // Generic URL (only if nothing else matched)
+    if (!info.whatsappLink && !info.wechat && /^https?:\/\//i.test(qrData)) {
+      info.website = qrData; info.name = info.name || "Proveedor (web)";
+    }
     // Generic: if nothing matched but has digits, treat as phone
     if (Object.keys(info).length === 0 && /^\+?\d{6,}$/.test(qrData.trim())) {
       info.phone = qrData.trim(); info.name = "Proveedor (escaneado)";
     }
     return Object.keys(info).length > 0 ? info : null;
+  };
+
+  // Apply contact info to supplier fields
+  const applyContactInfo = (info) => {
+    if (info.company) setSupplierName(prev => prev || info.company);
+    else if (info.name && !supplierName) setSupplierName(info.name);
+    if (info.contactName) setSupplierContact(prev => prev || info.contactName);
+    if (info.phone) setSupplierPhone(prev => prev || info.phone);
+    if (info.email) setSupplierEmail(prev => prev || info.email);
+    if (info.wechat) setSupplierWechat(prev => prev || info.wechat);
+    if (info.whatsapp) setSupplierWhatsapp(prev => prev || info.whatsapp);
+    if (info.whatsappLink) setSupplierWhatsapp(prev => prev || info.whatsappLink);
+    if (info.website) setSupplierWebsite(prev => prev || info.website);
+    if (info.address) setSupplierAddress(prev => prev || info.address);
   };
 
   // Process business card / QR photo with AI + QR decoding
@@ -316,40 +336,30 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
     try {
       // Try QR decode first
       const qrData = await decodeQR(photo);
+      let qrInfo = null;
       if (qrData) {
         console.log("📱 QR detectado:", qrData);
-        const qrInfo = parseQRContent(qrData);
-        if (qrInfo) {
-          if (qrInfo.company) setSupplierName(qrInfo.company);
-          else if (qrInfo.name) setSupplierName(qrInfo.name);
-          if (qrInfo.phone) setSupplierPhone(qrInfo.phone);
-          if (qrInfo.email) setSupplierEmail(qrInfo.email);
-          if (qrInfo.wechat) setSupplierWechat(qrInfo.wechat);
-          if (qrInfo.whatsapp) setSupplierWhatsapp(qrInfo.whatsapp);
-          if (qrInfo.website) setSupplierWebsite(qrInfo.website);
-          setCardData({ ...qrInfo, qrRaw: qrData, qrDetected: true });
-          setCardProcessing(false);
-          return; // QR decoded successfully, no need for AI
-        }
+        qrInfo = parseQRContent(qrData);
+        if (qrInfo) applyContactInfo(qrInfo);
       }
 
-      // Fallback: process with AI
+      // Always run AI to get name, company, and other visible text
       console.log("🔄 Procesando imagen con IA...");
       const result = await processCard(photo);
       console.log("✓ Imagen procesada:", result);
-      setCardData(result);
-      if (result.company) setSupplierName(result.company);
-      else if (result.contactName) setSupplierName(result.contactName);
-      else if (result.wechat || result.whatsapp || result.phone || result.email) setSupplierName("Proveedor (escaneado)");
-      if (result.contactName) setSupplierContact(result.contactName + (result.contactTitle ? ` (${result.contactTitle})` : ""));
-      if (result.phone || result.mobile) setSupplierPhone(result.mobile || result.phone || "");
-      if (result.email) setSupplierEmail(result.email);
-      if (result.wechat) setSupplierWechat(result.wechat);
-      if (result.whatsapp) setSupplierWhatsapp(result.whatsapp || "");
-      if (result.website) setSupplierWebsite(result.website);
-      if (result.address) setSupplierAddress(result.address);
+      setCardData({ ...result, ...(qrInfo || {}), qrRaw: qrData || null });
+
+      // Apply AI results (only if field not already set by QR)
+      if (result.company) setSupplierName(prev => prev === qrInfo?.name ? result.company : prev || result.company);
+      else if (result.contactName && (!supplierName || supplierName.startsWith("Proveedor ("))) setSupplierName(result.contactName);
+      if (result.contactName) setSupplierContact(prev => prev || (result.contactName + (result.contactTitle ? ` (${result.contactTitle})` : "")));
+      if (result.phone || result.mobile) setSupplierPhone(prev => prev || result.mobile || result.phone || "");
+      if (result.email) setSupplierEmail(prev => prev || result.email);
+      if (result.wechat) setSupplierWechat(prev => prev || result.wechat);
+      if (result.whatsapp) setSupplierWhatsapp(prev => prev || result.whatsapp);
+      if (result.website) setSupplierWebsite(prev => prev || result.website);
+      if (result.address) setSupplierAddress(prev => prev || result.address);
       if (result.products) setSupplierProducts(result.products);
-      if (result.otherInfo) setSupplierProducts(prev => prev ? prev + " | " + result.otherInfo : result.otherInfo);
     } catch (err) {
       console.warn("⚠️ Error procesando imagen:", err);
     } finally {
@@ -1003,7 +1013,7 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
                 </button>
               )}
               {supplier.whatsapp && (
-                <a href={`https://wa.me/${supplier.whatsapp.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer"
+                <a href={supplier.whatsapp.startsWith("http") ? supplier.whatsapp : `https://wa.me/${supplier.whatsapp.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer"
                   style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4, background:"#25D366", color:"#fff", borderRadius:10, padding:"8px 10px", fontSize:11, fontWeight:700, textDecoration:"none" }}>
                   📱 WhatsApp
                 </a>
@@ -2061,7 +2071,7 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onNavigateProduc
             </button>
           )}
           {supplier.whatsapp && (
-            <a href={`https://wa.me/${supplier.whatsapp.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer"
+            <a href={supplier.whatsapp.startsWith("http") ? supplier.whatsapp : `https://wa.me/${supplier.whatsapp.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer"
               style={{ display:"flex", alignItems:"center", gap:6, background:"#25D366", color:"#fff", borderRadius:12, padding:"12px 18px", fontSize:13, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center", whiteSpace:"nowrap", minWidth:0 }}>
               📱 WhatsApp
             </a>
