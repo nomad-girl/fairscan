@@ -234,6 +234,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
   const [price, setPrice] = useState("");
   const [moq, setMoq] = useState("");
   const [audioURL, setAudioURL] = useState(null);
+  const [audioTranscript, setAudioTranscript] = useState("");
   const [textNote, setTextNote] = useState("");
   const [recording, setRecording] = useState(false);
   const [recordTime, setRecordTime] = useState(0);
@@ -242,6 +243,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
   const recorderRef = useRef(null);
   const timerRef = useRef(null);
   const fileInputRef = useRef(null);
+  const speechRef = useRef(null);
 
   const streamRef = useRef(null);
 
@@ -266,7 +268,10 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
       const result = await processCard(photo);
       console.log("✓ Tarjeta procesada:", result);
       setCardData(result);
+      // Set supplier name: prefer company, fallback to contact name or "Proveedor (scan)"
       if (result.company) setSupplierName(result.company);
+      else if (result.contactName) setSupplierName(result.contactName);
+      else if (result.wechat || result.whatsapp || result.phone || result.email) setSupplierName("Proveedor (escaneado)");
       if (result.contactName) setSupplierContact(result.contactName + (result.contactTitle ? ` (${result.contactTitle})` : ""));
       if (result.phone || result.mobile) setSupplierPhone(result.mobile || result.phone || "");
       if (result.email) setSupplierEmail(result.email);
@@ -275,6 +280,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
       if (result.website) setSupplierWebsite(result.website);
       if (result.address) setSupplierAddress(result.address);
       if (result.products) setSupplierProducts(result.products);
+      if (result.otherInfo) setSupplierProducts(prev => prev ? prev + " | " + result.otherInfo : result.otherInfo);
     } catch (err) {
       console.warn("⚠️ Error procesando tarjeta:", err);
     } finally {
@@ -316,6 +322,28 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
       setRecording(true);
       setRecordTime(0);
       timerRef.current = setInterval(() => setRecordTime(t => t + 1), 1000);
+
+      // Start speech recognition for live transcription
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const sr = new SpeechRecognition();
+        sr.continuous = true;
+        sr.interimResults = true;
+        sr.lang = "es-AR";
+        let finalText = "";
+        sr.onresult = (e) => {
+          let interim = "";
+          for (let i = e.resultIndex; i < e.results.length; i++) {
+            if (e.results[i].isFinal) finalText += e.results[i][0].transcript + " ";
+            else interim = e.results[i][0].transcript;
+          }
+          setAudioTranscript((finalText + interim).trim());
+        };
+        sr.onerror = () => {};
+        sr.onend = () => { if (recorderRef.current) sr.start(); }; // restart if still recording
+        sr.start();
+        speechRef.current = sr;
+      }
     } catch {
       setMicAvailable(false);
     }
@@ -326,6 +354,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
     recorderRef.current = null;
     setRecording(false);
     clearInterval(timerRef.current);
+    if (speechRef.current) { speechRef.current.onend = null; speechRef.current.stop(); speechRef.current = null; }
   };
 
   const handleSave = () => {
@@ -346,6 +375,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
       price: price.trim(),
       moq: moq.trim(),
       audioURL,
+      audioTranscript: audioTranscript.trim(),
       textNote: textNote.trim(),
       rating,
     });
@@ -455,6 +485,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
                       {recording ? "⏹" : "🎙"}
                     </button>
                     {recording && <p style={{ fontSize:14, fontWeight:700, color:t.red, marginTop:8 }}>{Math.floor(recordTime/60)}:{String(recordTime%60).padStart(2,"0")}</p>}
+                    {recording && audioTranscript && <p style={{ fontSize:12, color:t.text, marginTop:6, fontStyle:"italic", padding:"8px 12px", background:t.card, borderRadius:10, border:`1px solid ${t.border}`, textAlign:"left" }}>"{audioTranscript}"</p>}
                     <p style={{ fontSize:11, color:t.dim, marginTop:4 }}>{recording ? "Tocá para detener" : "Tocá para grabar"}</p>
                   </>
                 ) : (
@@ -466,8 +497,9 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
                 <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                   <span style={{ fontSize:18 }}>🎙</span>
                   <audio src={audioURL} controls style={{ flex:1, height:32 }} />
-                  <button onClick={() => { setAudioURL(null); setRecordTime(0); }} style={{ background:t.redSoft, border:"none", borderRadius:8, width:28, height:28, color:t.red, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                  <button onClick={() => { setAudioURL(null); setRecordTime(0); setAudioTranscript(""); }} style={{ background:t.redSoft, border:"none", borderRadius:8, width:28, height:28, color:t.red, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
                 </div>
+                {audioTranscript && <p style={{ fontSize:12, color:t.text, margin:"8px 0 0", fontStyle:"italic" }}>📝 "{audioTranscript}"</p>}
               </div>
             )}
 
@@ -739,9 +771,9 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
 
             <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px" }}>Proveedor</p>
             <select value={editSupplierId || ""} onChange={e => setEditSupplierId(e.target.value ? parseInt(e.target.value) : null)}
-              style={{ ...inp({ marginBottom:10 }), fontFamily:"inherit" }}>
+              style={{ ...inp({ marginBottom:10 }), fontFamily:"inherit", WebkitAppearance:"none" }}>
               <option value="">Sin proveedor</option>
-              {suppliers.filter(s => s.districtId === p.districtId).map(s => (
+              {suppliers.map(s => (
                 <option key={s.id} value={s.id}>{s.company || `Proveedor #${s.id}`}</option>
               ))}
             </select>
@@ -1691,9 +1723,10 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
 // ═══════════════════════════════════════════
 // PRODUCT LIST (main screen)
 // ═══════════════════════════════════════════
-function ProductList({ products, suppliers, districts, activeDistrictId, activeDistrict, settings, onNavigate, onSwitchDistrict, t, isDark, onToggleTheme }) {
+function ProductList({ products, suppliers, districts, activeDistrictId, activeDistrict, settings, onNavigate, onSwitchDistrict, t, isDark, onToggleTheme, activeTab, onTabChange }) {
   const [search, setSearch] = useState("");
-  const [view, setView] = useState("products");
+  const view = activeTab || "products";
+  const setView = (v) => { if (onTabChange) onTabChange(v); };
   const [filterCat, setFilterCat] = useState("all");
   const [filterDistrict, setFilterDistrict] = useState("active");
   const [filterMaterial, setFilterMaterial] = useState("all");
@@ -2031,6 +2064,7 @@ export default function App() {
   const [screen, setScreen] = useState("list");
   const [screenData, setScreenData] = useState(null);
   const [prevScreen, setPrevScreen] = useState(null);
+  const [listTab, setListTab] = useState("products");
   const [toast, setToast] = useState("");
   const [ready, setReady] = useState(false);
   const [isDark, setIsDark] = useState(true);
@@ -2145,21 +2179,10 @@ export default function App() {
         }
       }
 
-      // Process audio with Claude if available
-      if (data.audioURL) {
-        try {
-          console.log("🔄 Procesando audio con IA...");
-          const audioBlob = await fetch(data.audioURL).then(r => r.blob());
-          const audioResult = await processAudio(audioBlob);
-          aiAudioTranscript = audioResult.transcript;
-          if (audioResult.extracted_data) {
-            aiPrice = audioResult.extracted_data.price || aiPrice;
-            aiMoq = audioResult.extracted_data.moq || aiMoq;
-          }
-          console.log("✓ Audio procesado:", audioResult);
-        } catch (audioErr) {
-          console.warn("⚠️ Error procesando audio:", audioErr);
-        }
+      // Use browser speech transcript (captured during recording)
+      if (data.audioTranscript) {
+        aiAudioTranscript = data.audioTranscript;
+        console.log("✓ Transcripción del navegador:", aiAudioTranscript);
       }
 
       // Add product with AI-enriched data
@@ -2262,7 +2285,8 @@ export default function App() {
 
       {screen === "list" && (
         <ProductList products={products} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} activeDistrict={activeDistrict} settings={settings}
-          onNavigate={navigate} onSwitchDistrict={switchDistrict} t={t} isDark={isDark} onToggleTheme={toggleTheme} />
+          onNavigate={navigate} onSwitchDistrict={switchDistrict} t={t} isDark={isDark} onToggleTheme={toggleTheme}
+          activeTab={listTab} onTabChange={setListTab} />
       )}
       {(screen === "capture" || screen === "capture-supplier") && (
         <CaptureFlow suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings}
