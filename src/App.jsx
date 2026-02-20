@@ -259,16 +259,85 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
     }).catch(() => setMicAvailable(false));
   }, []);
 
-  // Process business card photo with AI
+  // Decode QR code from base64 image
+  const decodeQR = async (dataURL) => {
+    try {
+      const jsQR = (await import('jsqr')).default;
+      const img = new Image();
+      await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = dataURL; });
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width; canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      return code?.data || null;
+    } catch { return null; }
+  };
+
+  // Parse QR content into contact fields
+  const parseQRContent = (qrData) => {
+    if (!qrData) return null;
+    const info = {};
+    // WhatsApp: https://wa.me/NUMBER or whatsapp://send?phone=NUMBER
+    const waMatch = qrData.match(/wa\.me\/(\+?\d+)|whatsapp.*phone=(\+?\d+)/i);
+    if (waMatch) { info.whatsapp = waMatch[1] || waMatch[2]; info.name = "Proveedor (WhatsApp)"; }
+    // WeChat: weixin://dl/chat?..., or just a WeChat ID string
+    const wxMatch = qrData.match(/weixin:\/\/|wechat/i);
+    if (wxMatch) { info.wechat = qrData; info.name = "Proveedor (WeChat)"; }
+    // Phone: tel:NUMBER
+    const telMatch = qrData.match(/tel:(\+?\d[\d\s-]+)/i);
+    if (telMatch) { info.phone = telMatch[1].replace(/\s/g, ""); info.name = info.name || "Proveedor (teléfono)"; }
+    // Email: mailto:EMAIL
+    const mailMatch = qrData.match(/mailto:([^\s?]+)/i);
+    if (mailMatch) { info.email = mailMatch[1]; info.name = info.name || "Proveedor (email)"; }
+    // URL
+    const urlMatch = qrData.match(/^https?:\/\/[^\s]+$/i);
+    if (urlMatch && !info.whatsapp) { info.website = qrData; info.name = info.name || "Proveedor (web)"; }
+    // vCard
+    if (qrData.includes("BEGIN:VCARD")) {
+      const fn = qrData.match(/FN:(.+)/); if (fn) info.name = fn[1].trim();
+      const org = qrData.match(/ORG:(.+)/); if (org) info.company = org[1].trim();
+      const tel = qrData.match(/TEL[^:]*:(.+)/); if (tel) info.phone = tel[1].trim();
+      const em = qrData.match(/EMAIL[^:]*:(.+)/); if (em) info.email = em[1].trim();
+      const url = qrData.match(/URL:(.+)/); if (url) info.website = url[1].trim();
+    }
+    // Generic: if nothing matched but has digits, treat as phone
+    if (Object.keys(info).length === 0 && /^\+?\d{6,}$/.test(qrData.trim())) {
+      info.phone = qrData.trim(); info.name = "Proveedor (escaneado)";
+    }
+    return Object.keys(info).length > 0 ? info : null;
+  };
+
+  // Process business card / QR photo with AI + QR decoding
   const handleCardPhoto = async (photo) => {
     setCardPhoto(photo);
     setCardProcessing(true);
     try {
-      console.log("🔄 Procesando tarjeta de visita con IA...");
+      // Try QR decode first
+      const qrData = await decodeQR(photo);
+      if (qrData) {
+        console.log("📱 QR detectado:", qrData);
+        const qrInfo = parseQRContent(qrData);
+        if (qrInfo) {
+          if (qrInfo.company) setSupplierName(qrInfo.company);
+          else if (qrInfo.name) setSupplierName(qrInfo.name);
+          if (qrInfo.phone) setSupplierPhone(qrInfo.phone);
+          if (qrInfo.email) setSupplierEmail(qrInfo.email);
+          if (qrInfo.wechat) setSupplierWechat(qrInfo.wechat);
+          if (qrInfo.whatsapp) setSupplierWhatsapp(qrInfo.whatsapp);
+          if (qrInfo.website) setSupplierWebsite(qrInfo.website);
+          setCardData({ ...qrInfo, qrRaw: qrData, qrDetected: true });
+          setCardProcessing(false);
+          return; // QR decoded successfully, no need for AI
+        }
+      }
+
+      // Fallback: process with AI
+      console.log("🔄 Procesando imagen con IA...");
       const result = await processCard(photo);
-      console.log("✓ Tarjeta procesada:", result);
+      console.log("✓ Imagen procesada:", result);
       setCardData(result);
-      // Set supplier name: prefer company, fallback to contact name or "Proveedor (scan)"
       if (result.company) setSupplierName(result.company);
       else if (result.contactName) setSupplierName(result.contactName);
       else if (result.wechat || result.whatsapp || result.phone || result.email) setSupplierName("Proveedor (escaneado)");
@@ -282,7 +351,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
       if (result.products) setSupplierProducts(result.products);
       if (result.otherInfo) setSupplierProducts(prev => prev ? prev + " | " + result.otherInfo : result.otherInfo);
     } catch (err) {
-      console.warn("⚠️ Error procesando tarjeta:", err);
+      console.warn("⚠️ Error procesando imagen:", err);
     } finally {
       setCardProcessing(false);
     }
@@ -770,13 +839,22 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
             </div>
 
             <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px" }}>Proveedor</p>
-            <select value={editSupplierId || ""} onChange={e => setEditSupplierId(e.target.value ? parseInt(e.target.value) : null)}
-              style={{ ...inp({ marginBottom:10 }), fontFamily:"inherit", WebkitAppearance:"none" }}>
-              <option value="">Sin proveedor</option>
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 }}>
+              <button onClick={() => setEditSupplierId(null)} style={{
+                padding:"6px 12px", borderRadius:16, fontSize:11, fontWeight:600, cursor:"pointer",
+                border:`1.5px solid ${!editSupplierId?t.accent:t.border}`,
+                background:!editSupplierId?t.accentSoft:"transparent",
+                color:!editSupplierId?t.accent:t.muted,
+              }}>Sin proveedor</button>
               {suppliers.map(s => (
-                <option key={s.id} value={s.id}>{s.company || `Proveedor #${s.id}`}</option>
+                <button key={s.id} onClick={() => setEditSupplierId(s.id)} style={{
+                  padding:"6px 12px", borderRadius:16, fontSize:11, fontWeight:600, cursor:"pointer",
+                  border:`1.5px solid ${editSupplierId===s.id?t.accent:t.border}`,
+                  background:editSupplierId===s.id?t.accentSoft:"transparent",
+                  color:editSupplierId===s.id?t.accent:t.muted,
+                }}>{s.company || `#${s.id}`}</button>
               ))}
-            </select>
+            </div>
 
             <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px" }}>Categoría</p>
             <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 }}>
