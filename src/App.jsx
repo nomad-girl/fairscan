@@ -1345,14 +1345,14 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
 
   const generateGoogleSheetsURL = () => {
     const pHeaders = ["Nombre","Proveedor","Precio USD","MOQ","Categoría","Material","Rating","Costo Importado","Viabilidad","Notas","Feria",
-      ...(hasCloudPhotos ? ["Foto_1","Foto_2","Foto_3","Foto_4","Foto_5"] : [])];
+      ...(hasCloudPhotos ? ["Foto"] : [])];
     const pRows = scopeProducts.map(p => {
       const sup = suppliers.find(s => s.id === p.supplierId);
       const dist = districts.find(d => d.id === p.districtId);
       const row = [p.name||"", sup?.company||"", p.price||"", p.moq||"", p.category||"", (p.material||[]).join("; "), p.rating||"", p.costTotal||"", p.viability||"", (p.notes||"").replace(/\n/g," "), dist?.name||""];
       if (hasCloudPhotos) {
-        const urls = p.photoUrls || [];
-        row.push(urls[0]||"", urls[1]||"", urls[2]||"", urls[3]||"", urls[4]||"");
+        const url = (p.photoUrls || []).find(Boolean) || "";
+        row.push(url ? `=IMAGE("${url}")` : "");
       }
       return row;
     });
