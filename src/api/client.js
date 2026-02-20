@@ -3,7 +3,7 @@
  * Handles calls to backend IA processing
  */
 
-const API_BASE = process.env.VITE_API_URL || 'http://localhost:5173';
+const API_BASE = '';
 
 /**
  * Process product image with Claude Vision

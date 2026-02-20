@@ -8,7 +8,10 @@
       "Bash(/Users/nati/Developer/FairScan/src/api/client.js:*)",
       "Bash(/Users/nati/Developer/FairScan/api/process-image.js:*)",
       "Bash(/Users/nati/Developer/FairScan/api/process-audio.js:*)",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(/Users/nati/Developer/FairScan/netlify/functions/process-image.js:*)",
+      "Bash(/Users/nati/Developer/FairScan/netlify/functions/process-audio.js:*)",
+      "Bash(/Users/nati/Developer/FairScan/netlify.toml:*)"
     ]
   }
 }

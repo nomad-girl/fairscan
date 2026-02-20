@@ -1,0 +1,19 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/process-image"
+  to = "/.netlify/functions/process-image"
+  status = 200
+
+[[redirects]]
+  from = "/api/process-audio"
+  to = "/.netlify/functions/process-audio"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
