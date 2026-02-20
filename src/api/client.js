@@ -81,6 +81,31 @@ export async function processCard(base64Image) {
 }
 
 /**
+ * Upload a photo to Cloudflare R2
+ * Returns { url, key } on success, null if R2 not configured
+ */
+export async function uploadPhoto(base64Image, key) {
+  try {
+    const response = await fetch(`${API_BASE}/api/upload-photo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: base64Image, key }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      if (err.error === 'R2 not configured') return null;
+      throw new Error(`Upload error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.warn('Photo upload failed:', error);
+    return null;
+  }
+}
+
+/**
  * Helper: Convert Blob to Base64
  */
 function blobToBase64(blob) {

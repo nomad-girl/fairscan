@@ -80,7 +80,7 @@ function calcImportCost(fobPrice, ncm, freightPct = 12, insurancePct = 1.5) {
   };
 }
 import { initDB, getSettings, saveSettings as dbSaveSettings, getDistricts, addDistrict, getSuppliers, addSupplier, updateSupplier as dbUpdateSupplier, getProducts, addProduct, updateProduct as dbUpdateProduct, deleteProduct as dbDeleteProduct } from './db';
-import { processImage, processAudio, processCard, urlToBase64 } from './api/client';
+import { processImage, processAudio, processCard, urlToBase64, uploadPhoto } from './api/client';
 import SyncStatus from './components/SyncStatus.jsx';
 
 const DEFAULT_SETTINGS_FALLBACK = { activeDistrictId:1, theme:"dark", preset:"vajilla", minMargin:40, ...PRESETS.vajilla };
@@ -1252,12 +1252,14 @@ function SettingsScreen({ settings, onSave, onBack, t }) {
 // ═══════════════════════════════════════════
 // EXPORT
 // ═══════════════════════════════════════════
-function ExportScreen({ products, suppliers, districts, onBack, onExported, t }) {
+function ExportScreen({ products, suppliers, districts, onBack, onExported, onUpdateProduct, onUpdateSupplier, t }) {
   const [scope, setScope] = useState("all");
   const [format, setFormat] = useState("zip");
   const [includeSuppliers, setIncludeSuppliers] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState("");
 
   const scopeProducts = scope === "all" ? products : products.filter(p => p.districtId === parseInt(scope));
   const totalPhotos = scopeProducts.reduce((n, p) => n + (p.photos?.length || 0), 0);
@@ -1266,12 +1268,51 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, t })
 
   const csvEscape = (c) => '"' + String(c).replace(/"/g, '""') + '"';
 
+  const hasCloudPhotos = scopeProducts.some(p => p.photoUrls?.some(Boolean));
+  const photosNotUploaded = scopeProducts.filter(p => p.photos?.length && !p.photoUrls?.some(Boolean)).length;
+  const totalPhotosToSync = scopeProducts.filter(p => p.photos?.length && !p.photoUrls?.some(Boolean))
+    .reduce((n, p) => n + p.photos.length, 0);
+
+  const syncPhotosToCloud = async () => {
+    setSyncing(true);
+    let done = 0;
+    const toSync = scopeProducts.filter(p => p.photos?.length && !p.photoUrls?.some(Boolean));
+    for (const product of toSync) {
+      const sup = suppliers.find(s => s.id === product.supplierId);
+      const prefix = `photos/${slugify(sup?.company || 'product')}`;
+      const urls = [];
+      for (let i = 0; i < product.photos.length; i++) {
+        const key = `${prefix}/${product.id}_${i + 1}.jpg`;
+        const result = await uploadPhoto(product.photos[i], key);
+        urls.push(result?.url || null);
+        done++;
+        setSyncProgress(`☁️ ${done}/${totalPhotosToSync}`);
+      }
+      if (urls.some(Boolean)) {
+        await onUpdateProduct(product.id, { photoUrls: urls });
+      }
+    }
+    // Also sync supplier cards
+    for (const id of uniqueSupIds) {
+      const s = suppliers.find(s => s.id === id);
+      if (s?.cardPhoto && !s.cardPhotoUrl) {
+        const key = `cards/${slugify(s.company)}_${s.id}.jpg`;
+        const result = await uploadPhoto(s.cardPhoto, key);
+        if (result?.url) await onUpdateSupplier(s.id, { cardPhotoUrl: result.url }, true);
+      }
+    }
+    setSyncing(false);
+    setSyncProgress("");
+    onExported(`☁️ ${done} fotos subidas a la nube`);
+  };
+
   const generateCSV = () => {
-    const pHeaders = ["Nombre","Proveedor","Contacto","Precio USD","MOQ","Categoría","Material","Rating","Costo Importado","Viabilidad","Notas","Feria","Fecha"];
+    const pHeaders = ["Nombre","Proveedor","Contacto","Precio USD","MOQ","Categoría","Material","Rating","Costo Importado","Viabilidad","Notas","Feria","Fecha",
+      ...(hasCloudPhotos ? ["Foto_1","Foto_2","Foto_3","Foto_4","Foto_5"] : [])];
     const pRows = scopeProducts.map(p => {
       const sup = suppliers.find(s => s.id === p.supplierId);
       const dist = districts.find(d => d.id === p.districtId);
-      return [
+      const row = [
         p.name || "", sup?.company || "", sup?.contact || "",
         p.price || "", p.moq || "", p.category || "",
         (p.material||[]).join("; "), p.rating || "",
@@ -1279,6 +1320,11 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, t })
         (p.notes||"").replace(/\n/g, " "), dist?.name || "",
         p.createdAt ? new Date(p.createdAt).toLocaleDateString("es-AR") : "",
       ];
+      if (hasCloudPhotos) {
+        const urls = p.photoUrls || [];
+        row.push(urls[0]||"", urls[1]||"", urls[2]||"", urls[3]||"", urls[4]||"");
+      }
+      return row;
     });
     let csv = "PRODUCTOS\n" + pHeaders.join(",") + "\n" +
       pRows.map(r => r.map(csvEscape).join(",")).join("\n");
@@ -1298,11 +1344,17 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, t })
   };
 
   const generateGoogleSheetsURL = () => {
-    const pHeaders = ["Nombre","Proveedor","Precio USD","MOQ","Categoría","Material","Rating","Costo Importado","Viabilidad","Notas","Feria"];
+    const pHeaders = ["Nombre","Proveedor","Precio USD","MOQ","Categoría","Material","Rating","Costo Importado","Viabilidad","Notas","Feria",
+      ...(hasCloudPhotos ? ["Foto_1","Foto_2","Foto_3","Foto_4","Foto_5"] : [])];
     const pRows = scopeProducts.map(p => {
       const sup = suppliers.find(s => s.id === p.supplierId);
       const dist = districts.find(d => d.id === p.districtId);
-      return [p.name||"", sup?.company||"", p.price||"", p.moq||"", p.category||"", (p.material||[]).join("; "), p.rating||"", p.costTotal||"", p.viability||"", (p.notes||"").replace(/\n/g," "), dist?.name||""];
+      const row = [p.name||"", sup?.company||"", p.price||"", p.moq||"", p.category||"", (p.material||[]).join("; "), p.rating||"", p.costTotal||"", p.viability||"", (p.notes||"").replace(/\n/g," "), dist?.name||""];
+      if (hasCloudPhotos) {
+        const urls = p.photoUrls || [];
+        row.push(urls[0]||"", urls[1]||"", urls[2]||"", urls[3]||"", urls[4]||"");
+      }
+      return row;
     });
     return pHeaders.join("\t") + "\n" + pRows.map(r => r.join("\t")).join("\n");
   };
@@ -1369,14 +1421,15 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, t })
         }
       }
 
-      // Generate productos.csv with photo columns
+      // Generate productos.csv with photo columns (local paths + cloud URLs)
       setExportProgress("Generando CSV...");
-      const pHeaders = ["Nombre","Proveedor","Contacto","Precio USD","MOQ","Categoria","Material","Rating","Costo Importado","Viabilidad","Notas","Transcripcion Audio","Feria","Fecha","Foto_1","Foto_2","Foto_3","Foto_4","Foto_5"];
+      const pHeaders = ["Nombre","Proveedor","Contacto","Precio USD","MOQ","Categoria","Material","Rating","Costo Importado","Viabilidad","Notas","Transcripcion Audio","Feria","Fecha","Foto_1","Foto_2","Foto_3","Foto_4","Foto_5",
+        ...(hasCloudPhotos ? ["URL_Foto_1","URL_Foto_2","URL_Foto_3","URL_Foto_4","URL_Foto_5"] : [])];
       const pRows = scopeProducts.map(p => {
         const sup = suppliers.find(s => s.id === p.supplierId);
         const dist = districts.find(d => d.id === p.districtId);
         const paths = productPhotoMap.get(p.id) || [];
-        return [
+        const row = [
           p.name||"", sup?.company||"", sup?.contact||"",
           p.price||"", p.moq||"", p.category||"",
           (p.material||[]).join("; "), p.rating||"",
@@ -1387,24 +1440,33 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, t })
           p.createdAt ? new Date(p.createdAt).toLocaleDateString("es-AR") : "",
           paths[0]||"", paths[1]||"", paths[2]||"", paths[3]||"", paths[4]||"",
         ];
+        if (hasCloudPhotos) {
+          const urls = p.photoUrls || [];
+          row.push(urls[0]||"", urls[1]||"", urls[2]||"", urls[3]||"", urls[4]||"");
+        }
+        return row;
       });
       const productosCsv = "\uFEFF" + pHeaders.join(",") + "\n" + pRows.map(r => r.map(csvEscape).join(",")).join("\n");
       root.file("productos.csv", productosCsv);
 
       // Generate proveedores.csv with all contact fields
       if (includeSuppliers) {
-        const sHeaders = ["Empresa","Contacto","Telefono","WeChat","WhatsApp","Email","Website","Direccion","Productos_Desc","Feria","Num_Productos","Rating_Promedio","Tarjeta_Foto"];
+        const hasCardUrls = [...supplierMap.values()].some(({ supplier: s }) => s.cardPhotoUrl);
+        const sHeaders = ["Empresa","Contacto","Telefono","WeChat","WhatsApp","Email","Website","Direccion","Productos_Desc","Feria","Num_Productos","Rating_Promedio","Tarjeta_Foto",
+          ...(hasCardUrls ? ["URL_Tarjeta"] : [])];
         const sRows = [...supplierMap.values()].map(({ supplier: s, slug }) => {
           const prods = scopeProducts.filter(p => p.supplierId === s.id);
           const dist = districts.find(d => d.id === s.districtId);
           const avg = prods.length > 0 ? (prods.reduce((a, p) => a + (p.rating||0), 0) / prods.length).toFixed(1) : "";
           const cardPath = s.cardPhoto ? `tarjetas/${slug}.jpg` : "";
-          return [
+          const row = [
             s.company||"", s.contact||"", s.phone||"",
             s.wechat||"", s.whatsapp||"", s.email||"",
             s.website||"", s.address||"", s.products||"",
             dist?.name||"", prods.length, avg, cardPath,
           ];
+          if (hasCardUrls) row.push(s.cardPhotoUrl||"");
+          return row;
         });
         const proveedoresCsv = "\uFEFF" + sHeaders.join(",") + "\n" + sRows.map(r => r.map(csvEscape).join(",")).join("\n");
         root.file("proveedores.csv", proveedoresCsv);
@@ -1555,12 +1617,40 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, t })
           </div>
         </div>
 
+        {/* Cloud sync */}
+        {totalPhotos > 0 && (
+          <div style={{ background:hasCloudPhotos ? t.greenSoft : t.blueSoft, borderRadius:14, padding:14, border:`1px solid ${hasCloudPhotos ? t.green+"40" : t.blue+"40"}`, marginBottom:16 }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
+              <div>
+                <p style={{ fontSize:13, fontWeight:700, color:hasCloudPhotos ? t.green : t.blue, margin:0 }}>
+                  {hasCloudPhotos ? "☁️ Fotos en la nube" : "☁️ Subir fotos a la nube"}
+                </p>
+                <p style={{ fontSize:11, color:t.muted, margin:"4px 0 0" }}>
+                  {photosNotUploaded === 0
+                    ? "Todas las fotos tienen URL pública"
+                    : `${photosNotUploaded} productos sin subir (${totalPhotosToSync} fotos)`}
+                </p>
+                {hasCloudPhotos && <p style={{ fontSize:10, color:t.dim, margin:"2px 0 0" }}>Los CSV/Sheets incluirán URLs de fotos</p>}
+              </div>
+              {photosNotUploaded > 0 && (
+                <button onClick={syncPhotosToCloud} disabled={syncing} style={{
+                  padding:"8px 14px", borderRadius:10, border:"none", cursor:"pointer",
+                  background:syncing ? t.dim : t.blue, color:"#fff",
+                  fontSize:12, fontWeight:700, whiteSpace:"nowrap", opacity:syncing?0.7:1,
+                }}>
+                  {syncing ? syncProgress : "Subir"}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ZIP structure preview */}
         {format === "zip" && (
           <div style={{ background:t.surface, borderRadius:12, padding:12, border:`1px solid ${t.border}`, marginBottom:16, fontFamily:"monospace", fontSize:11, color:t.muted, lineHeight:1.6 }}>
             <p style={{ color:t.text, fontWeight:700, margin:"0 0 4px", fontFamily:"inherit" }}>📂 Estructura del ZIP:</p>
             <div style={{ paddingLeft:8 }}>
-              productos.csv <span style={{ color:t.accent }}>(con columnas Foto_1..5)</span><br/>
+              productos.csv <span style={{ color:t.accent }}>(con columnas Foto_1..5{hasCloudPhotos ? " + URLs" : ""})</span><br/>
               {includeSuppliers && <>proveedores.csv <span style={{ color:t.accent }}>(todos los datos)</span><br/></>}
               fotos/<br/>
               <span style={{ paddingLeft:12 }}>└ {uniqueSupIds.length > 0 ? "por-proveedor/" : "sin-proveedor/"}</span><br/>
@@ -1571,7 +1661,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, t })
       </div>
 
       <div style={{ padding:"12px 20px", paddingBottom:"calc(16px + env(safe-area-inset-bottom, 0px))", borderTop:`1px solid ${t.border}` }}>
-        <Btn onClick={handleExport} disabled={scopeProducts.length===0 || exporting} full t={t}>
+        <Btn onClick={handleExport} disabled={scopeProducts.length===0 || exporting || syncing} full t={t}>
           {exporting ? exportProgress :
             format==="zip" ? `📁 Descargar ZIP (${totalPhotos} fotos)` :
             format==="csv" ? "📊 Descargar CSV" :
@@ -1961,6 +2051,24 @@ export default function App() {
     showToast(`→ ${d?.name}`);
   };
 
+  // Upload photos to R2 in background, update product record with URLs
+  const uploadPhotosToCloud = async (productId, photos, supplierName) => {
+    const urls = [];
+    const prefix = `photos/${slugify(supplierName || 'product')}`;
+    for (let i = 0; i < photos.length; i++) {
+      const key = `${prefix}/${productId}_${i + 1}.jpg`;
+      const result = await uploadPhoto(photos[i], key);
+      if (result?.url) urls.push(result.url);
+      else urls.push(null);
+    }
+    const validUrls = urls.filter(Boolean);
+    if (validUrls.length > 0) {
+      await dbUpdateProduct(productId, { photoUrls: urls });
+      setProducts(prev => prev.map(p => p.id === productId ? { ...p, photoUrls: urls } : p));
+      console.log(`☁️ ${validUrls.length}/${photos.length} fotos subidas a la nube`);
+    }
+  };
+
   // Handle capture save
   const handleCaptureSave = async (data) => {
     try {
@@ -2032,13 +2140,14 @@ export default function App() {
       }
 
       // Add product with AI-enriched data
-      await addProduct({
+      const productId = await addProduct({
         name: aiName || (data.supplierName ? `Producto de ${data.supplierName}` : `Producto ${products.length + 1}`),
         description: aiDescription || null,
         supplierCompany: data.supplierName || null,
         supplierId,
         districtId: activeDistrictId,
         photos: data.photos,
+        photoUrls: null,
         price: data.price || aiPrice || null,
         moq: data.moq || aiMoq || null,
         audioURL: data.audioURL,
@@ -2059,6 +2168,23 @@ export default function App() {
       await reloadAll();
       navigate("list");
       showToast("✓ Producto guardado con IA");
+
+      // Background: upload photos to R2 cloud storage
+      if (data.photos?.length && navigator.onLine) {
+        uploadPhotosToCloud(productId, data.photos, data.supplierName).catch(e =>
+          console.warn("Cloud upload failed:", e)
+        );
+        // Also upload supplier card if new
+        if (data.cardPhoto && supplierId) {
+          const cardKey = `cards/${slugify(data.supplierName || 'card')}_${supplierId}.jpg`;
+          uploadPhoto(data.cardPhoto, cardKey).then(result => {
+            if (result?.url) {
+              dbUpdateSupplier(supplierId, { cardPhotoUrl: result.url });
+              setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, cardPhotoUrl: result.url } : s));
+            }
+          }).catch(() => {});
+        }
+      }
     } catch (err) {
       console.error("Error en handleCaptureSave:", err);
       showToast("❌ Error guardando producto");
@@ -2077,10 +2203,10 @@ export default function App() {
     showToast("Producto eliminado");
   };
 
-  const handleUpdateSupplier = async (id, changes) => {
+  const handleUpdateSupplier = async (id, changes, silent) => {
     await dbUpdateSupplier(id, changes);
     setSuppliers(prev => prev.map(s => s.id === id ? { ...s, ...changes } : s));
-    showToast("Proveedor actualizado");
+    if (!silent) showToast("Proveedor actualizado");
   };
 
   const handleSaveSettings = async (s, silent) => {
@@ -2144,7 +2270,8 @@ export default function App() {
       )}
       {screen === "export" && (
         <ExportScreen products={products} suppliers={suppliers} districts={districts}
-          onBack={() => navigate("list")} onExported={msg => { navigate("list"); showToast(msg); }} t={t} />
+          onBack={() => navigate("list")} onExported={msg => { navigate("list"); showToast(msg); }}
+          onUpdateProduct={handleUpdateProduct} onUpdateSupplier={handleUpdateSupplier} t={t} />
       )}
     </div>
   );

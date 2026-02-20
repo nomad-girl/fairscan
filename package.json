@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
+    "@aws-sdk/client-s3": "^3.994.0",
     "dexie": "^4.0.4",
     "dexie-react-hooks": "^1.1.7",
     "jszip": "^3.10.1",
