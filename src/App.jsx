@@ -79,7 +79,7 @@ function calcImportCost(fobPrice, ncm, freightPct = 12, insurancePct = 1.5) {
     ],
   };
 }
-import { initDB, getSettings, saveSettings as dbSaveSettings, getDistricts, addDistrict, getSuppliers, addSupplier, getProducts, addProduct, updateProduct as dbUpdateProduct, deleteProduct as dbDeleteProduct } from './db';
+import { initDB, getSettings, saveSettings as dbSaveSettings, getDistricts, addDistrict, getSuppliers, addSupplier, updateSupplier as dbUpdateSupplier, getProducts, addProduct, updateProduct as dbUpdateProduct, deleteProduct as dbDeleteProduct } from './db';
 import { processImage, processAudio, processCard, urlToBase64 } from './api/client';
 import SyncStatus from './components/SyncStatus.jsx';
 
@@ -325,7 +325,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
         right={step < 3 && <button onClick={() => setStep(s=>s+1)} style={{ background:"none", border:"none", color:t.accent, fontSize:13, fontWeight:700, cursor:"pointer" }}>Saltar →</button>}
       />
 
-      <div style={{ flex:1, padding:"20px", overflow:"auto", paddingBottom:100 }}>
+      <div style={{ flex:1, padding:"20px", overflowY:"scroll", WebkitOverflowScrolling:"touch", paddingBottom:120 }}>
         {/* STEP 0: Supplier */}
         {step === 0 && (
           <div>
@@ -1439,11 +1439,11 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
             const dist = districts.find(d => d.id === g.districtId);
             return (
               <div key={gi} style={{ background:t.card, borderRadius:16, padding:"12px 14px", marginBottom:10, border:`1px solid ${t.border}`, animation:`fadeIn 0.3s ease ${gi*0.05}s both` }}>
-                <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+                <button onClick={() => g.supplier && onNavigate("supplier", g.supplier)} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8, width:"100%", background:"none", border:"none", cursor:"pointer", padding:0, textAlign:"left" }}>
                   <div style={{ width:40, height:40, borderRadius:10, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, border:`1px solid ${t.border}` }}>🏭</div>
-                  <div style={{ flex:1 }}><div style={{ fontSize:14, fontWeight:700, color:t.text }}>{g.supplier?.company || "—"}</div><span style={{ fontSize:11, color:t.muted }}>{isAllFairs&&dist?dist.emoji+" "+dist.name+" · ":""}{g.products.length} prod.</span></div>
+                  <div style={{ flex:1 }}><div style={{ fontSize:14, fontWeight:700, color:t.text }}>{g.supplier?.company || "—"}</div><span style={{ fontSize:11, color:t.muted }}>{isAllFairs&&dist?dist.emoji+" "+dist.name+" · ":""}{g.products.length} prod. →</span></div>
                   <MiniStars rating={avgR} t={t} />
-                </div>
+                </button>
                 {g.products.map(p => (
                   <button key={p.id} onClick={() => onNavigate("detail", p)} style={{ width:"100%", textAlign:"left", display:"flex", alignItems:"center", gap:8, padding:"8px 10px", borderRadius:10, background:t.surface, border:`1px solid ${t.border}`, marginBottom:4, cursor:"pointer" }}>
                     {p.photos?.[0] ? <img src={p.photos[0]} alt="" style={{ width:32, height:32, borderRadius:6, objectFit:"cover" }} /> : <div style={{ width:32, height:32, borderRadius:6, background:t.card, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, border:`1px solid ${t.border}` }}>📷</div>}
@@ -1466,6 +1466,129 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
         background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff", fontSize:28, fontWeight:300,
         boxShadow:`0 6px 30px ${t.accent}80`, display:"flex", alignItems:"center", justifyContent:"center", zIndex:10, cursor:"pointer",
       }}>+</button>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// SUPPLIER DETAIL
+// ═══════════════════════════════════════════
+function SupplierDetail({ supplier, products, onBack, onUpdate, onNavigateProduct, t }) {
+  const [editing, setEditing] = useState(false);
+  const [editData, setEditData] = useState({ ...supplier });
+
+  const supplierProducts = products.filter(p => p.supplierId === supplier.id);
+
+  const handleSave = () => {
+    onUpdate(supplier.id, editData);
+    setEditing(false);
+  };
+
+  const field = (label, icon, key, placeholder) => (
+    <div style={{ marginBottom:12 }}>
+      <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, textTransform:"uppercase" }}>{icon} {label}</p>
+      {editing ? (
+        <input value={editData[key] || ""} onChange={e => setEditData(d => ({ ...d, [key]: e.target.value }))}
+          placeholder={placeholder} style={{ width:"100%", padding:"10px 14px", borderRadius:12, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }} />
+      ) : (
+        <p style={{ fontSize:14, color: supplier[key] ? t.text : t.dim, padding:"4px 0" }}>{supplier[key] || "—"}</p>
+      )}
+    </div>
+  );
+
+  return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
+      <Header title={supplier.company || "Proveedor"} subtitle={supplier.contact || ""} onBack={onBack} t={t}
+        right={
+          editing ? (
+            <button onClick={handleSave} style={{ background:"none", border:"none", color:t.green, fontSize:13, fontWeight:700, cursor:"pointer" }}>✓ Guardar</button>
+          ) : (
+            <button onClick={() => setEditing(true)} style={{ background:"none", border:"none", color:t.accent, fontSize:13, fontWeight:700, cursor:"pointer" }}>✏️ Editar</button>
+          )
+        }
+      />
+
+      <div style={{ flex:1, overflowY:"scroll", WebkitOverflowScrolling:"touch", padding:20, paddingBottom:40 }}>
+        {/* Card photo */}
+        {supplier.cardPhoto && (
+          <div style={{ marginBottom:20 }}>
+            <img src={supplier.cardPhoto} alt="Tarjeta" style={{ width:"100%", borderRadius:14, border:`1px solid ${t.border}` }} />
+          </div>
+        )}
+
+        {/* AI badge */}
+        {supplier.cardData && (
+          <div style={{ background:t.greenSoft, border:`1px solid ${t.green}40`, borderRadius:12, padding:"8px 14px", marginBottom:16 }}>
+            <p style={{ fontSize:12, fontWeight:700, color:t.green }}>🤖 Datos extraídos por IA</p>
+          </div>
+        )}
+
+        {/* Contact buttons */}
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:20 }}>
+          {supplier.wechat && (
+            <a href={`weixin://dl/chat?${supplier.wechat}`} target="_blank" rel="noopener noreferrer"
+              style={{ display:"flex", alignItems:"center", gap:6, background:"#07C160", color:"#fff", borderRadius:12, padding:"10px 16px", fontSize:13, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center" }}>
+              💬 WeChat
+            </a>
+          )}
+          {supplier.whatsapp && (
+            <a href={`https://wa.me/${supplier.whatsapp.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer"
+              style={{ display:"flex", alignItems:"center", gap:6, background:"#25D366", color:"#fff", borderRadius:12, padding:"10px 16px", fontSize:13, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center" }}>
+              📱 WhatsApp
+            </a>
+          )}
+          {supplier.phone && (
+            <a href={`tel:${supplier.phone}`}
+              style={{ display:"flex", alignItems:"center", gap:6, background:t.blueSoft, color:t.blue, borderRadius:12, padding:"10px 16px", fontSize:13, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center" }}>
+              📞 Llamar
+            </a>
+          )}
+          {supplier.email && (
+            <a href={`mailto:${supplier.email}`}
+              style={{ display:"flex", alignItems:"center", gap:6, background:t.purpleSoft, color:t.purple, borderRadius:12, padding:"10px 16px", fontSize:13, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center" }}>
+              ✉️ Email
+            </a>
+          )}
+        </div>
+
+        {/* Supplier info */}
+        <div style={{ background:t.card, borderRadius:16, padding:16, border:`1px solid ${t.border}`, marginBottom:20 }}>
+          <p style={{ fontSize:13, fontWeight:700, color:t.text, marginBottom:12 }}>📋 Información del proveedor</p>
+          {field("Empresa", "🏭", "company", "Nombre de la empresa")}
+          {field("Contacto", "👤", "contact", "Nombre del contacto")}
+          {field("Teléfono", "📱", "phone", "+86...")}
+          {field("WeChat", "💬", "wechat", "WeChat ID")}
+          {field("WhatsApp", "📱", "whatsapp", "Número WhatsApp")}
+          {field("Email", "📧", "email", "email@company.com")}
+          {field("Website", "🌐", "website", "www.company.com")}
+          {field("Dirección", "📍", "address", "Dirección")}
+          {field("Productos", "📦", "products", "Productos que ofrece")}
+        </div>
+
+        {/* Linked products */}
+        <div style={{ marginBottom:20 }}>
+          <p style={{ fontSize:13, fontWeight:700, color:t.text, marginBottom:12 }}>📦 Productos vinculados ({supplierProducts.length})</p>
+          {supplierProducts.length === 0 ? (
+            <p style={{ fontSize:13, color:t.dim, textAlign:"center", padding:20 }}>No hay productos vinculados aún</p>
+          ) : (
+            supplierProducts.map(p => (
+              <button key={p.id} onClick={() => onNavigateProduct(p)}
+                style={{ display:"flex", alignItems:"center", gap:12, width:"100%", background:t.card, border:`1px solid ${t.border}`, borderRadius:14, padding:12, marginBottom:8, cursor:"pointer", textAlign:"left" }}>
+                {p.photos?.[0] ? (
+                  <img src={p.photos[0]} alt="" style={{ width:50, height:50, borderRadius:10, objectFit:"cover" }} />
+                ) : (
+                  <div style={{ width:50, height:50, borderRadius:10, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>📦</div>
+                )}
+                <div style={{ flex:1 }}>
+                  <p style={{ fontSize:14, fontWeight:600, color:t.text, marginBottom:2 }}>{p.name || "Sin nombre"}</p>
+                  <p style={{ fontSize:12, color:t.green, fontWeight:700 }}>{p.price ? `$ ${p.price}` : "Sin precio"}</p>
+                </div>
+                <span style={{ fontSize:16, color:t.dim }}>→</span>
+              </button>
+            ))
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1638,6 +1761,12 @@ export default function App() {
     showToast("Producto eliminado");
   };
 
+  const handleUpdateSupplier = async (id, changes) => {
+    await dbUpdateSupplier(id, changes);
+    setSuppliers(prev => prev.map(s => s.id === id ? { ...s, ...changes } : s));
+    showToast("Proveedor actualizado");
+  };
+
   const handleSaveSettings = async (s) => {
     await dbSaveSettings(s);
     setSettings(prev => ({ ...prev, ...s }));
@@ -1675,6 +1804,11 @@ export default function App() {
       {screen === "detail" && screenData && (
         <ProductDetail product={products.find(p => p.id === screenData.id) || screenData} allProducts={products} suppliers={suppliers} districts={districts}
           onBack={() => navigate("list")} onUpdate={(id, changes) => { handleUpdateProduct(id, changes); }} onCalc={p => navigate("calc", p)} onDelete={handleDeleteProduct} t={t} isDark={isDark} settings={settings} />
+      )}
+      {screen === "supplier" && screenData && (
+        <SupplierDetail supplier={suppliers.find(s => s.id === screenData.id) || screenData} products={products}
+          onBack={() => navigate("list")} onUpdate={handleUpdateSupplier}
+          onNavigateProduct={p => navigate("detail", p)} t={t} />
       )}
       {screen === "calc" && screenData && (
         <Calculator product={products.find(p => p.id === screenData.id) || screenData} settings={settings}
