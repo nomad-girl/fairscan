@@ -207,6 +207,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
   const [supplierWebsite, setSupplierWebsite] = useState("");
   const [supplierAddress, setSupplierAddress] = useState("");
   const [supplierProducts, setSupplierProducts] = useState("");
+  const [linkedSupplierId, setLinkedSupplierId] = useState(null);
   const [photos, setPhotos] = useState([]);
   const [price, setPrice] = useState("");
   const [moq, setMoq] = useState("");
@@ -218,6 +219,14 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
   const [rating, setRating] = useState(0);
   const recorderRef = useRef(null);
   const timerRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  // Auto-open camera on mount (Step 0)
+  useEffect(() => {
+    if (step === 0 && photos.length === 0 && fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  }, []);
 
   // Process business card photo with AI
   const handleCardPhoto = async (photo) => {
@@ -244,8 +253,22 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
     }
   };
 
-  // Suppliers from active district for autocomplete
+  // Link to existing supplier
+  const linkSupplier = (s) => {
+    setLinkedSupplierId(s.id);
+    setSupplierName(s.company || "");
+    setSupplierContact(s.contact || "");
+    setSupplierPhone(s.phone || "");
+    setSupplierEmail(s.email || "");
+    setSupplierWechat(s.wechat || "");
+    setSupplierWhatsapp(s.whatsapp || "");
+    setSupplierWebsite(s.website || "");
+    setSupplierAddress(s.address || "");
+    if (s.cardPhoto) setCardPhoto(s.cardPhoto);
+  };
+
   const districtSuppliers = suppliers.filter(s => s.districtId === activeDistrictId);
+  const recentSuppliers = [...districtSuppliers].sort((a,b) => (b.createdAt||0) - (a.createdAt||0)).slice(0, 5);
   const suggestions = supplierName.length > 0 ? districtSuppliers.filter(s => s.company?.toLowerCase().includes(supplierName.toLowerCase())) : [];
 
   const startRec = async () => {
@@ -287,6 +310,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
       supplierWebsite: supplierWebsite.trim(),
       supplierAddress: supplierAddress.trim(),
       supplierProducts: supplierProducts.trim(),
+      linkedSupplierId,
       cardPhoto,
       cardData,
       photos,
@@ -298,15 +322,15 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
     });
   };
 
+  // NEW FLOW: Step 0=Photo, Step 1=Price+MOQ+Audio+Rating, Step 2=Supplier
   const canNext = [
-    true,
     photos.length > 0,
-    price.trim().length > 0,
+    true,
     true,
   ];
 
-  const stepTitles = ["Proveedor", "Fotos del producto", "Precio", "Notas y rating"];
-  const progress = ((step + 1) / 4) * 100;
+  const stepTitles = ["Foto del producto", "Precio y notas", "Proveedor"];
+  const progress = ((step + 1) / 3) * 100;
 
   const inp = (extra = {}) => ({
     width:"100%", padding:"14px 16px", borderRadius:14, border:`1px solid ${t.border}`,
@@ -321,195 +345,204 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
         <div style={{ height:"100%", width:`${progress}%`, background:t.accent, borderRadius:2, transition:"width 0.3s" }} />
       </div>
 
-      <Header title={stepTitles[step]} subtitle={`Paso ${step+1} de 4`} onBack={step > 0 ? () => setStep(s=>s-1) : onClose} t={t}
-        right={step < 3 && <button onClick={() => setStep(s=>s+1)} style={{ background:"none", border:"none", color:t.accent, fontSize:13, fontWeight:700, cursor:"pointer" }}>Saltar →</button>}
+      <Header title={stepTitles[step]} subtitle={`Paso ${step+1} de 3`} onBack={step > 0 ? () => setStep(s=>s-1) : onClose} t={t}
+        right={step < 2 && <button onClick={() => setStep(s=>s+1)} style={{ background:"none", border:"none", color:t.accent, fontSize:13, fontWeight:700, cursor:"pointer" }}>Saltar →</button>}
       />
 
       <div style={{ flex:1, padding:"20px", overflowY:"scroll", WebkitOverflowScrolling:"touch", paddingBottom:120 }}>
-        {/* STEP 0: Supplier */}
+
+        {/* ═══ STEP 0: FOTO DEL PRODUCTO (instant camera) ═══ */}
         {step === 0 && (
           <div>
-            <p style={{ fontSize:13, color:t.muted, marginBottom:16, lineHeight:1.5 }}>Sacale foto a la tarjeta de visita y la IA extrae todos los datos automáticamente. O escribí manualmente.</p>
+            {/* Hidden file input that auto-opens camera */}
+            <input ref={fileInputRef} type="file" accept="image/*" capture="environment" style={{ display:"none" }}
+              onChange={async e => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const dataUrl = await resizeImage(file, 400, 0.75);
+                  setPhotos(p => [...p, dataUrl]);
+                }
+              }}
+            />
 
-            {/* Card photo section - PROMINENTE */}
-            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:8, textTransform:"uppercase" }}>📸 Tarjeta de visita</p>
-            {cardPhoto ? (
-              <div style={{ position:"relative", marginBottom:12 }}>
-                <img src={cardPhoto} alt="Card" style={{ width:"100%", borderRadius:14, border:`1px solid ${t.border}` }} />
-                <button onClick={() => { setCardPhoto(null); setCardData(null); }} style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:14, background:"#000a", color:"#fff", border:"none", fontSize:14, cursor:"pointer" }}>✕</button>
-                {cardProcessing && (
-                  <div style={{ position:"absolute", bottom:0, left:0, right:0, background:"rgba(0,0,0,0.7)", borderRadius:"0 0 14px 14px", padding:"10px", textAlign:"center" }}>
-                    <span style={{ color:"#fff", fontSize:13, fontWeight:600 }}>⏳ Procesando tarjeta con IA...</span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div style={{ display:"flex", gap:10, marginBottom:12 }}>
-                <FilePickerBtn onFile={handleCardPhoto} capture="environment" t={t}>📷 Cámara</FilePickerBtn>
-                <FilePickerBtn onFile={handleCardPhoto} t={t}>🖼 Galería</FilePickerBtn>
-              </div>
-            )}
+            <p style={{ fontSize:13, color:t.muted, marginBottom:16 }}>Sacale foto al producto. La IA identifica nombre, categoría y materiales.</p>
 
-            {/* AI extracted data badge */}
-            {cardData && !cardProcessing && (
-              <div style={{ background:t.greenSoft, border:`1px solid ${t.green}40`, borderRadius:12, padding:"10px 14px", marginBottom:16 }}>
-                <p style={{ fontSize:12, fontWeight:700, color:t.green, marginBottom:4 }}>✓ Datos extraídos por IA</p>
-                <p style={{ fontSize:11, color:t.muted }}>Revisá y editá los campos si es necesario</p>
-              </div>
-            )}
-
-            {/* Supplier fields */}
-            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, textTransform:"uppercase" }}>🏭 Empresa</p>
-            <input value={supplierName} onChange={e => setSupplierName(e.target.value)} placeholder="Nombre de la empresa..." style={inp({ marginBottom:8 })} />
-            {suggestions.length > 0 && !suggestions.find(s => s.company === supplierName) && (
-              <div style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:12, marginBottom:8, overflow:"hidden" }}>
-                {suggestions.slice(0,4).map(s => (
-                  <button key={s.id} onClick={() => { setSupplierName(s.company); setSupplierContact(s.contact || ""); }} style={{
-                    width:"100%", textAlign:"left", padding:"10px 14px", border:"none", borderBottom:`1px solid ${t.border}`,
-                    background:"transparent", color:t.text, fontSize:13, cursor:"pointer",
-                  }}>🏭 {s.company}{s.contact ? ` · ${s.contact}` : ""}</button>
-                ))}
-              </div>
-            )}
-
-            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:8, textTransform:"uppercase" }}>👤 Contacto</p>
-            <input value={supplierContact} onChange={e => setSupplierContact(e.target.value)} placeholder="Nombre del contacto..." style={inp({ marginBottom:8 })} />
-
-            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:8, textTransform:"uppercase" }}>📱 Teléfono / Mobile</p>
-            <input value={supplierPhone} onChange={e => setSupplierPhone(e.target.value)} placeholder="+86 ..." style={inp({ marginBottom:8 })} />
-
-            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:8, textTransform:"uppercase" }}>💬 WeChat ID</p>
-            <input value={supplierWechat} onChange={e => setSupplierWechat(e.target.value)} placeholder="WeChat ID..." style={inp({ marginBottom:8 })} />
-
-            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:8, textTransform:"uppercase" }}>📧 Email</p>
-            <input value={supplierEmail} onChange={e => setSupplierEmail(e.target.value)} placeholder="email@company.com" style={inp({ marginBottom:8 })} />
-
-            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:8, textTransform:"uppercase" }}>🌐 Website</p>
-            <input value={supplierWebsite} onChange={e => setSupplierWebsite(e.target.value)} placeholder="www.company.com" style={inp({ marginBottom:8 })} />
-
-            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:8, textTransform:"uppercase" }}>📍 Dirección</p>
-            <input value={supplierAddress} onChange={e => setSupplierAddress(e.target.value)} placeholder="Dirección..." style={inp({ marginBottom:8 })} />
-
-            {supplierWechat && (
-              <a href={`weixin://dl/chat?${supplierWechat}`} target="_blank" rel="noopener noreferrer"
-                style={{
-                  display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-                  background:"#07C160", color:"#fff", borderRadius:14, padding:"12px 16px",
-                  fontSize:14, fontWeight:700, textDecoration:"none", marginTop:12,
-                }}>
-                💬 Abrir WeChat: {supplierWechat}
-              </a>
-            )}
-          </div>
-        )}
-
-        {/* STEP 1: Product photos */}
-        {step === 1 && (
-          <div>
-            <p style={{ fontSize:13, color:t.muted, marginBottom:16 }}>Sacale al menos una foto al producto. Cuantas más, mejor para la IA.</p>
+            {/* Photos grid */}
             <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:16 }}>
               {photos.map((ph, i) => (
-                <div key={i} style={{ position:"relative", width:100, height:100, borderRadius:14, overflow:"hidden", border:`1px solid ${t.border}` }}>
+                <div key={i} style={{ position:"relative", width:"calc(50% - 4px)", aspectRatio:"1", borderRadius:14, overflow:"hidden", border:`1px solid ${t.border}` }}>
                   <img src={ph} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                  <button onClick={() => setPhotos(p => p.filter((_,j) => j !== i))} style={{ position:"absolute", top:4, right:4, width:22, height:22, borderRadius:11, background:"#000a", color:"#fff", border:"none", fontSize:11, cursor:"pointer" }}>✕</button>
+                  <button onClick={() => setPhotos(p => p.filter((_,j) => j !== i))} style={{ position:"absolute", top:6, right:6, width:26, height:26, borderRadius:13, background:"#000a", color:"#fff", border:"none", fontSize:12, cursor:"pointer" }}>✕</button>
+                  {i === 0 && <span style={{ position:"absolute", bottom:6, left:6, background:t.accent, color:"#fff", fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:6 }}>Principal</span>}
                 </div>
               ))}
-              {photos.length < 8 && (
-                <FilePickerBtn onFile={ph => setPhotos(p => [...p, ph])} capture="environment" t={t}
-                  style={{ width:100, height:100, flexDirection:"column", gap:4, padding:8, flex:"none" }}>
-                  <span style={{ fontSize:24 }}>📷</span>
-                  <span style={{ fontSize:10, fontWeight:700 }}>Foto</span>
-                </FilePickerBtn>
-              )}
             </div>
-            <FilePickerBtn onFile={ph => setPhotos(p => [...p, ph])} t={t} style={{ width:"100%" }}>
-              🖼 Elegir de galería
-            </FilePickerBtn>
+
+            {/* Add more photos */}
+            <div style={{ display:"flex", gap:10 }}>
+              <FilePickerBtn onFile={ph => setPhotos(p => [...p, ph])} capture="environment" t={t}
+                style={{ flex:1 }}>
+                📷 Otra foto
+              </FilePickerBtn>
+              <FilePickerBtn onFile={ph => setPhotos(p => [...p, ph])} t={t}
+                style={{ flex:1 }}>
+                🖼 Galería
+              </FilePickerBtn>
+            </div>
+
             {photos.length === 0 && <p style={{ fontSize:12, color:t.red, marginTop:12, textAlign:"center" }}>Se necesita al menos 1 foto</p>}
           </div>
         )}
 
-        {/* STEP 2: Price */}
-        {step === 2 && (
+        {/* ═══ STEP 1: PRECIO + MOQ + AUDIO + RATING ═══ */}
+        {step === 1 && (
           <div>
-            <p style={{ fontSize:13, color:t.muted, marginBottom:20 }}>¿Cuánto cuesta? Solo el precio es obligatorio.</p>
+            {/* Price */}
             <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:6, textTransform:"uppercase" }}>💲 Precio unitario (USD)</p>
-            <div style={{ position:"relative", marginBottom:20 }}>
+            <div style={{ position:"relative", marginBottom:16 }}>
               <span style={{ position:"absolute", left:16, top:"50%", transform:"translateY(-50%)", fontSize:18, fontWeight:800, color:t.green }}>$</span>
               <input value={price} onChange={e => setPrice(e.target.value.replace(/[^0-9.]/g, ""))} placeholder="0.00" inputMode="decimal"
                 style={inp({ paddingLeft:40, fontSize:28, fontWeight:800, color:t.green, textAlign:"center" })} />
             </div>
-            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:6, textTransform:"uppercase" }}>📦 MOQ - Mínimo de compra (opcional)</p>
-            <input value={moq} onChange={e => setMoq(e.target.value.replace(/[^0-9]/g, ""))} placeholder="Ej: 500" inputMode="numeric" style={inp()} />
-          </div>
-        )}
 
-        {/* STEP 3: Notes + Rating */}
-        {step === 3 && (
-          <div>
-            <p style={{ fontSize:13, color:t.muted, marginBottom:20, lineHeight:1.5 }}>Dejá una nota para recordar detalles. Podés grabar audio o escribir.</p>
+            {/* MOQ */}
+            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:6, textTransform:"uppercase" }}>📦 MOQ (opcional)</p>
+            <input value={moq} onChange={e => setMoq(e.target.value.replace(/[^0-9]/g, ""))} placeholder="Ej: 500" inputMode="numeric" style={inp({ marginBottom:16 })} />
 
             {/* Audio recorder */}
-            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:10, textTransform:"uppercase" }}>🎙 Nota de voz (opcional)</p>
+            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:10, textTransform:"uppercase" }}>🎙 Nota de voz (se transcribe automáticamente)</p>
             {!audioURL ? (
-              <div style={{ textAlign:"center", marginBottom:20 }}>
+              <div style={{ textAlign:"center", marginBottom:16 }}>
                 {micAvailable ? (
                   <>
                     <button onClick={recording ? stopRec : startRec} style={{
-                      width:72, height:72, borderRadius:36, border:"none",
+                      width:64, height:64, borderRadius:32, border:"none",
                       background: recording ? t.red : `linear-gradient(135deg, ${t.accent}, #FF8F35)`,
-                      color:"#fff", fontSize:28, cursor:"pointer",
-                      boxShadow: recording ? `0 0 0 8px ${t.redSoft}` : `0 6px 30px ${t.accent}80`,
+                      color:"#fff", fontSize:24, cursor:"pointer",
+                      boxShadow: recording ? `0 0 0 6px ${t.redSoft}` : `0 4px 20px ${t.accent}60`,
                       animation: recording ? "pulse 1.5s ease infinite" : "none",
                       display:"flex", alignItems:"center", justifyContent:"center",
                     }}>
                       {recording ? "⏹" : "🎙"}
                     </button>
-                    {recording && <p style={{ fontSize:16, fontWeight:700, color:t.red, marginTop:10 }}>{Math.floor(recordTime/60)}:{String(recordTime%60).padStart(2,"0")}</p>}
-                    <p style={{ fontSize:11, color:t.dim, marginTop:6 }}>{recording ? "Tocá para detener" : "Tocá para grabar"}</p>
+                    {recording && <p style={{ fontSize:14, fontWeight:700, color:t.red, marginTop:8 }}>{Math.floor(recordTime/60)}:{String(recordTime%60).padStart(2,"0")}</p>}
+                    <p style={{ fontSize:11, color:t.dim, marginTop:4 }}>{recording ? "Tocá para detener" : "Tocá para grabar"}</p>
                   </>
                 ) : (
-                  <p style={{ fontSize:12, color:t.dim, padding:"10px 0" }}>Micrófono no disponible en este entorno — usá la nota de texto</p>
+                  <p style={{ fontSize:12, color:t.dim }}>Micrófono no disponible</p>
                 )}
               </div>
             ) : (
-              <div style={{ background:t.card, borderRadius:14, padding:14, marginBottom:20, border:`1px solid ${t.border}` }}>
-                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                  <span style={{ fontSize:20 }}>🎙</span>
-                  <audio src={audioURL} controls style={{ flex:1, height:36 }} />
-                  <button onClick={() => { setAudioURL(null); setRecordTime(0); }} style={{ background:t.redSoft, border:"none", borderRadius:8, width:32, height:32, color:t.red, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+              <div style={{ background:t.card, borderRadius:14, padding:12, marginBottom:16, border:`1px solid ${t.border}` }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <span style={{ fontSize:18 }}>🎙</span>
+                  <audio src={audioURL} controls style={{ flex:1, height:32 }} />
+                  <button onClick={() => { setAudioURL(null); setRecordTime(0); }} style={{ background:t.redSoft, border:"none", borderRadius:8, width:28, height:28, color:t.red, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
                 </div>
               </div>
             )}
 
             {/* Text note */}
-            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:8, textTransform:"uppercase" }}>📝 Nota de texto (opcional)</p>
-            <textarea value={textNote} onChange={e => setTextNote(e.target.value)} placeholder="Ej: Buena calidad, 3 colores disponibles, negociar precio en volumen..."
-              rows={3} style={{
+            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:6, textTransform:"uppercase" }}>📝 Nota escrita (opcional)</p>
+            <textarea value={textNote} onChange={e => setTextNote(e.target.value)} placeholder="Detalles, colores, negociación..."
+              rows={2} style={{
                 width:"100%", padding:"12px 14px", borderRadius:14, border:`1px solid ${t.border}`,
                 background:t.surface, color:t.text, fontSize:14, outline:"none", boxSizing:"border-box",
-                fontFamily:"inherit", resize:"vertical", lineHeight:1.5, marginBottom:20,
+                fontFamily:"inherit", resize:"vertical", lineHeight:1.5, marginBottom:16,
               }} />
 
             {/* Rating */}
-            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:10, textTransform:"uppercase" }}>⭐ Rating del producto (opcional)</p>
-            <div style={{ display:"flex", justifyContent:"center", marginBottom:24 }}>
-              <Stars value={rating} onChange={setRating} size={36} t={t} />
+            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:8, textTransform:"uppercase" }}>⭐ Rating (opcional)</p>
+            <div style={{ display:"flex", justifyContent:"center" }}>
+              <Stars value={rating} onChange={setRating} size={32} t={t} />
             </div>
+          </div>
+        )}
 
-            {/* Summary */}
-            <div style={{ background:t.card, borderRadius:14, padding:14, border:`1px solid ${t.border}`, marginBottom:16 }}>
-              <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:8, textTransform:"uppercase" }}>📋 Resumen</p>
-              <div style={{ display:"flex", gap:8, flexWrap:"wrap", fontSize:12, color:t.text }}>
-                {supplierName && <span style={{ padding:"4px 10px", borderRadius:8, background:t.surface }}>🏭 {supplierName}</span>}
-                <span style={{ padding:"4px 10px", borderRadius:8, background:t.surface }}>📷 {photos.length} foto{photos.length !== 1 ? "s" : ""}</span>
-                <span style={{ padding:"4px 10px", borderRadius:8, background:t.greenSoft, color:t.green, fontWeight:700 }}>$ {price || "—"}</span>
-                {moq && <span style={{ padding:"4px 10px", borderRadius:8, background:t.surface }}>MOQ: {moq}</span>}
-                {audioURL && <span style={{ padding:"4px 10px", borderRadius:8, background:t.surface }}>🎙 Audio</span>}
-                {textNote && <span style={{ padding:"4px 10px", borderRadius:8, background:t.surface }}>📝 Nota</span>}
-                {rating > 0 && <span style={{ padding:"4px 10px", borderRadius:8, background:t.surface }}>{"⭐".repeat(rating)}</span>}
+        {/* ═══ STEP 2: PROVEEDOR ═══ */}
+        {step === 2 && (
+          <div>
+            {/* Recent suppliers - quick link */}
+            {recentSuppliers.length > 0 && !linkedSupplierId && !cardPhoto && (
+              <div style={{ marginBottom:16 }}>
+                <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:8, textTransform:"uppercase" }}>⚡ Vincular con proveedor reciente</p>
+                {recentSuppliers.map(s => (
+                  <button key={s.id} onClick={() => linkSupplier(s)} style={{
+                    width:"100%", display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
+                    background:t.card, border:`1px solid ${t.border}`, borderRadius:12, marginBottom:6,
+                    cursor:"pointer", textAlign:"left",
+                  }}>
+                    <div style={{ width:36, height:36, borderRadius:8, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16 }}>🏭</div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:13, fontWeight:700, color:t.text }}>{s.company || "—"}</div>
+                      <div style={{ fontSize:11, color:t.muted }}>{s.contact || ""}{s.wechat ? ` · WeChat: ${s.wechat}` : ""}</div>
+                    </div>
+                    <span style={{ fontSize:12, color:t.accent, fontWeight:700 }}>Vincular</span>
+                  </button>
+                ))}
               </div>
-            </div>
+            )}
+
+            {linkedSupplierId && (
+              <div style={{ background:t.greenSoft, border:`1px solid ${t.green}40`, borderRadius:12, padding:"10px 14px", marginBottom:16, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                <p style={{ fontSize:13, fontWeight:700, color:t.green }}>✓ Vinculado: {supplierName}</p>
+                <button onClick={() => { setLinkedSupplierId(null); setSupplierName(""); setSupplierContact(""); }} style={{ background:"none", border:"none", color:t.red, fontSize:12, fontWeight:700, cursor:"pointer" }}>Desvincular</button>
+              </div>
+            )}
+
+            {/* Scan card OR manual */}
+            {!linkedSupplierId && (
+              <>
+                <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:8, textTransform:"uppercase" }}>📸 Escanear tarjeta de visita</p>
+                {cardPhoto ? (
+                  <div style={{ position:"relative", marginBottom:12 }}>
+                    <img src={cardPhoto} alt="Card" style={{ width:"100%", borderRadius:14, border:`1px solid ${t.border}` }} />
+                    <button onClick={() => { setCardPhoto(null); setCardData(null); }} style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:14, background:"#000a", color:"#fff", border:"none", fontSize:14, cursor:"pointer" }}>✕</button>
+                    {cardProcessing && (
+                      <div style={{ position:"absolute", bottom:0, left:0, right:0, background:"rgba(0,0,0,0.7)", borderRadius:"0 0 14px 14px", padding:"10px", textAlign:"center" }}>
+                        <span style={{ color:"#fff", fontSize:13, fontWeight:600 }}>⏳ Procesando con IA...</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ display:"flex", gap:10, marginBottom:12 }}>
+                    <FilePickerBtn onFile={handleCardPhoto} capture="environment" t={t}>📷 Cámara</FilePickerBtn>
+                    <FilePickerBtn onFile={handleCardPhoto} t={t}>🖼 Galería</FilePickerBtn>
+                  </div>
+                )}
+
+                {cardData && !cardProcessing && (
+                  <div style={{ background:t.greenSoft, border:`1px solid ${t.green}40`, borderRadius:12, padding:"8px 14px", marginBottom:12 }}>
+                    <p style={{ fontSize:12, fontWeight:700, color:t.green }}>✓ Datos extraídos por IA</p>
+                  </div>
+                )}
+
+                <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:8, textTransform:"uppercase" }}>🏭 Empresa</p>
+                <input value={supplierName} onChange={e => setSupplierName(e.target.value)} placeholder="Nombre..." style={inp({ marginBottom:6 })} />
+                {suggestions.length > 0 && !suggestions.find(s => s.company === supplierName) && (
+                  <div style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:12, marginBottom:6, overflow:"hidden" }}>
+                    {suggestions.slice(0,3).map(s => (
+                      <button key={s.id} onClick={() => linkSupplier(s)} style={{
+                        width:"100%", textAlign:"left", padding:"8px 14px", border:"none", borderBottom:`1px solid ${t.border}`,
+                        background:"transparent", color:t.text, fontSize:12, cursor:"pointer",
+                      }}>🏭 {s.company}{s.contact ? ` · ${s.contact}` : ""}</button>
+                    ))}
+                  </div>
+                )}
+
+                <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:6, textTransform:"uppercase" }}>👤 Contacto</p>
+                <input value={supplierContact} onChange={e => setSupplierContact(e.target.value)} placeholder="Nombre contacto..." style={inp({ marginBottom:6 })} />
+
+                <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:6, textTransform:"uppercase" }}>💬 WeChat</p>
+                <input value={supplierWechat} onChange={e => setSupplierWechat(e.target.value)} placeholder="WeChat ID..." style={inp({ marginBottom:6 })} />
+
+                <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:6, textTransform:"uppercase" }}>📱 Teléfono</p>
+                <input value={supplierPhone} onChange={e => setSupplierPhone(e.target.value)} placeholder="+86..." style={inp({ marginBottom:6 })} />
+
+                <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:6, textTransform:"uppercase" }}>📧 Email</p>
+                <input value={supplierEmail} onChange={e => setSupplierEmail(e.target.value)} placeholder="email@company.com" style={inp({ marginBottom:6 })} />
+              </>
+            )}
           </div>
         )}
       </div>
@@ -521,7 +554,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
         borderTop:`1px solid ${t.border}`, background:t.bg,
         zIndex:100,
       }}>
-        {step < 3 ? (
+        {step < 2 ? (
           <Btn onClick={() => setStep(s=>s+1)} disabled={!canNext[step]} full t={t}>
             Siguiente →
           </Btn>
@@ -538,7 +571,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
 // ═══════════════════════════════════════════
 // PRODUCT DETAIL
 // ═══════════════════════════════════════════
-function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, onUpdate, onCalc, onDelete, t, isDark, settings }) {
+function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, onUpdate, onCalc, onDelete, onNavigateSupplier, t, isDark, settings }) {
   const [tab, setTab] = useState("info");
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -588,19 +621,57 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
           <button key={tb.k} onClick={()=>setTab(tb.k)} style={{ flex:1, padding:8, borderRadius:8, border:"none", background:tab===tb.k?t.card:"transparent", color:tab===tb.k?t.text:t.muted, fontSize:12, fontWeight:700, cursor:"pointer", boxShadow:tab===tb.k?`0 2px 8px ${t.border}`:"none" }}>{tb.l}</button>
         ))}
       </div>
-      <div style={{ flex:1, overflow:"auto", padding:"14px 20px 40px" }}>
+      <div style={{ flex:1, overflow:"auto", padding:"0 0 40px" }}>
         {tab === "info" && <>
-          {/* Photos */}
+          {/* HERO PHOTO - center of the view */}
           {p.photos?.length > 0 && (
-            <div style={{ display:"flex", gap:8, marginBottom:14, overflowX:"auto" }}>
+            <div style={{ position:"relative", width:"100%", aspectRatio:"1", background:t.surface }}>
+              <img src={p.photos[0]} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+              {/* Price overlay on photo */}
+              <div style={{ position:"absolute", bottom:0, left:0, right:0, background:"linear-gradient(transparent, rgba(0,0,0,0.75))", padding:"30px 16px 12px" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
+                  <div>
+                    <span style={{ fontSize:28, fontWeight:900, color:"#fff" }}>USD {p.price || "—"}</span>
+                    {p.moq && <span style={{ fontSize:12, color:"rgba(255,255,255,0.7)", display:"block", marginTop:2 }}>MOQ: {p.moq}</span>}
+                  </div>
+                  {p.costTotal && (
+                    <div style={{ textAlign:"right" }}>
+                      <span style={{ fontSize:10, color:"rgba(255,255,255,0.6)" }}>Costo importado</span>
+                      <span style={{ fontSize:18, fontWeight:800, color:t.accent, display:"block" }}>USD {p.costTotal}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {/* Viability badge */}
+              {p.viability && (
+                <span style={{
+                  position:"absolute", top:12, right:12, fontSize:11, fontWeight:700, padding:"5px 10px", borderRadius:10,
+                  backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)",
+                  ...(p.viability==="viable" ? { color:"#fff", background:"rgba(34,197,94,0.85)" } :
+                     p.viability==="marginal" ? { color:"#fff", background:"rgba(251,191,36,0.85)" } :
+                     { color:"#fff", background:"rgba(239,68,68,0.85)" }),
+                }}>
+                  {p.viability==="viable"?"✅ Viable":p.viability==="marginal"?"⚠️ Marginal":"❌ No viable"}
+                </span>
+              )}
+              {/* AI badge */}
+              {p.ai_processed && (
+                <span style={{ position:"absolute", top:12, left:12, fontSize:10, fontWeight:700, padding:"4px 8px", borderRadius:8, background:"rgba(0,0,0,0.6)", color:"#fff", backdropFilter:"blur(10px)" }}>🤖 IA</span>
+              )}
+            </div>
+          )}
+          {/* Thumbnail strip for additional photos */}
+          {p.photos?.length > 1 && (
+            <div style={{ display:"flex", gap:6, padding:"8px 16px", overflowX:"auto" }}>
               {p.photos.map((ph,i) => (
-                <div key={i} style={{ width:110, height:110, borderRadius:14, overflow:"hidden", flexShrink:0, border:`1px solid ${t.border}` }}>
+                <div key={i} style={{ width:52, height:52, borderRadius:8, overflow:"hidden", flexShrink:0, border:`2px solid ${i===0?t.accent:t.border}`, opacity:i===0?1:0.7 }}>
                   <img src={ph} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
                 </div>
               ))}
             </div>
           )}
 
+          <div style={{ padding:"12px 20px 0" }}>
           {editing ? <>
             {/* EDIT MODE */}
             <p style={{ fontSize:10, fontWeight:700, color:t.accent, margin:"0 0 8px", textTransform:"uppercase" }}>✏️ Editando producto</p>
@@ -669,27 +740,6 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
             </div>
           </> : <>
             {/* VIEW MODE */}
-            {/* Price */}
-            <div style={{ background:t.card, borderRadius:14, padding:14, marginBottom:10, border:`1px solid ${t.border}` }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-                <div><p style={{ fontSize:10, color:t.muted, margin:"0 0 2px" }}>Precio proveedor</p><span style={{ fontSize:28, fontWeight:900, color:t.green }}>USD {p.price || "—"}</span></div>
-                {p.costTotal && <div style={{ textAlign:"right" }}><p style={{ fontSize:10, color:t.muted, margin:"0 0 2px" }}>Costo importado</p><span style={{ fontSize:20, fontWeight:800, color:t.accent }}>USD {p.costTotal}</span></div>}
-              </div>
-              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                {p.moq && <span style={{ fontSize:12, color:t.muted }}>MOQ: <b style={{ color:t.text }}>{p.moq}</b></span>}
-                {p.viability && (
-                  <span style={{
-                    fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:8, marginLeft:"auto",
-                    ...(p.viability==="viable" ? { color:t.green, background:t.greenSoft } :
-                       p.viability==="marginal" ? { color:t.yellow, background:t.yellow+"18" } :
-                       { color:t.red, background:t.redSoft }),
-                  }}>
-                    {p.viability==="viable"?"✅ Viable":p.viability==="marginal"?"⚠️ Marginal":"❌ No viable"}
-                  </span>
-                )}
-              </div>
-            </div>
-
             {/* Category + Material tags */}
             {(p.category || p.material?.length > 0) && (
               <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 }}>
@@ -698,16 +748,30 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
               </div>
             )}
 
+            {/* AI Description */}
+            {p.description && (
+              <div style={{ background:t.card, borderRadius:14, padding:12, marginBottom:10, border:`1px solid ${t.border}` }}>
+                <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 4px" }}>🤖 Descripción IA</p>
+                <p style={{ fontSize:13, color:t.text, margin:0, lineHeight:1.5 }}>{p.description}</p>
+              </div>
+            )}
+
             {/* Rating */}
-            <div style={{ background:t.card, borderRadius:14, padding:14, marginBottom:10, border:`1px solid ${t.border}` }}>
-              <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>⭐ Tu rating</p>
+            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
               <Stars value={p.rating || 0} onChange={r => onUpdate(p.id, { rating: r })} size={28} t={t} />
             </div>
-            {/* Audio */}
-            {p.audioURL && (
+
+            {/* Audio + Transcription */}
+            {(p.audioURL || p.audioTranscript) && (
               <div style={{ background:t.card, borderRadius:14, padding:12, marginBottom:10, border:`1px solid ${t.accent}20` }}>
                 <p style={{ fontSize:10, fontWeight:700, color:t.accent, margin:"0 0 8px" }}>🎙 Nota de voz</p>
-                <audio src={p.audioURL} controls style={{ width:"100%", height:36 }} />
+                {p.audioURL && <audio src={p.audioURL} controls style={{ width:"100%", height:36, marginBottom: p.audioTranscript ? 8 : 0 }} />}
+                {p.audioTranscript && (
+                  <div style={{ background:t.surface, borderRadius:10, padding:"8px 12px", marginTop:4 }}>
+                    <p style={{ fontSize:10, fontWeight:600, color:t.muted, margin:"0 0 4px" }}>📝 Transcripción</p>
+                    <p style={{ fontSize:12, color:t.text, margin:0, lineHeight:1.5, fontStyle:"italic" }}>{p.audioTranscript}</p>
+                  </div>
+                )}
               </div>
             )}
             {/* Notes */}
@@ -730,10 +794,14 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
               🧮 {p.costTotal ? "Ver / editar cálculo" : "Calcular costo importación"}
             </Btn>
           </>}
+          </div>
         </>}
 
-        {tab === "supplier" && supplier && <>
-          <div style={{ background:t.card, borderRadius:14, padding:14, marginBottom:10, border:`1px solid ${t.border}` }}>
+        {tab === "supplier" && supplier && <div style={{ padding:"12px 20px 0" }}>
+          <button onClick={() => onNavigateSupplier && onNavigateSupplier(supplier)} style={{
+            width:"100%", background:t.card, borderRadius:14, padding:14, marginBottom:10, border:`1px solid ${t.border}`,
+            cursor:"pointer", textAlign:"left",
+          }}>
             <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
               {supplier.cardPhoto ? (
                 <img src={supplier.cardPhoto} alt="" style={{ width:48, height:48, borderRadius:12, objectFit:"cover", border:`1px solid ${t.border}` }} />
@@ -744,16 +812,40 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
                 <div style={{ fontSize:16, fontWeight:700, color:t.text }}>{supplier.company}</div>
                 {supplier.contact && <div style={{ fontSize:12, color:t.muted }}>{supplier.contact}</div>}
               </div>
+              <span style={{ fontSize:14, color:t.accent, fontWeight:700 }}>Ver →</span>
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
               <MiniStars rating={avgRating} t={t} />
               <span style={{ fontSize:11, color:t.muted }}>promedio de {supplierProducts.length} productos</span>
             </div>
-          </div>
+          </button>
           {supplier.cardPhoto && (
             <div style={{ marginBottom:10 }}>
               <p style={{ fontSize:10, fontWeight:700, color:t.muted, marginBottom:6, textTransform:"uppercase" }}>📇 Tarjeta</p>
               <img src={supplier.cardPhoto} alt="" style={{ width:"100%", borderRadius:14, border:`1px solid ${t.border}` }} />
+            </div>
+          )}
+          {/* Contact quick buttons */}
+          {(supplier.wechat || supplier.phone || supplier.whatsapp) && (
+            <div style={{ display:"flex", gap:6, marginBottom:12 }}>
+              {supplier.wechat && (
+                <a href={`weixin://dl/chat?${supplier.wechat}`} target="_blank" rel="noopener noreferrer"
+                  style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4, background:"#07C160", color:"#fff", borderRadius:10, padding:"8px 10px", fontSize:11, fontWeight:700, textDecoration:"none" }}>
+                  💬 WeChat
+                </a>
+              )}
+              {supplier.whatsapp && (
+                <a href={`https://wa.me/${supplier.whatsapp.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer"
+                  style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4, background:"#25D366", color:"#fff", borderRadius:10, padding:"8px 10px", fontSize:11, fontWeight:700, textDecoration:"none" }}>
+                  📱 WhatsApp
+                </a>
+              )}
+              {supplier.phone && (
+                <a href={`tel:${supplier.phone}`}
+                  style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4, background:t.blueSoft, color:t.blue, borderRadius:10, padding:"8px 10px", fontSize:11, fontWeight:700, textDecoration:"none" }}>
+                  📞 Llamar
+                </a>
+              )}
             </div>
           )}
           <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Otros productos de este proveedor</p>
@@ -766,7 +858,7 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
               </div>
             </div>
           ))}
-        </>}
+        </div>}
       </div>
     </div>
   );
@@ -1478,6 +1570,7 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onNavigateProduc
   const [editData, setEditData] = useState({ ...supplier });
 
   const supplierProducts = products.filter(p => p.supplierId === supplier.id);
+  const avgRating = supplierProducts.length > 0 ? supplierProducts.reduce((a,p) => a + (p.rating||0), 0) / supplierProducts.length : 0;
 
   const handleSave = () => {
     onUpdate(supplier.id, editData);
@@ -1491,10 +1584,12 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onNavigateProduc
         <input value={editData[key] || ""} onChange={e => setEditData(d => ({ ...d, [key]: e.target.value }))}
           placeholder={placeholder} style={{ width:"100%", padding:"10px 14px", borderRadius:12, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }} />
       ) : (
-        <p style={{ fontSize:14, color: supplier[key] ? t.text : t.dim, padding:"4px 0" }}>{supplier[key] || "—"}</p>
+        <p style={{ fontSize:14, color: supplier[key] ? t.text : t.dim, padding:"4px 0", margin:0 }}>{supplier[key] || "—"}</p>
       )}
     </div>
   );
+
+  const hasContactButtons = supplier.wechat || supplier.whatsapp || supplier.phone || supplier.email;
 
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
@@ -1508,52 +1603,31 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onNavigateProduc
         }
       />
 
-      <div style={{ flex:1, overflowY:"scroll", WebkitOverflowScrolling:"touch", padding:20, paddingBottom:40 }}>
+      <div style={{ flex:1, overflowY:"scroll", WebkitOverflowScrolling:"touch", padding:20, paddingBottom: hasContactButtons ? 90 : 40 }}>
         {/* Card photo */}
         {supplier.cardPhoto && (
-          <div style={{ marginBottom:20 }}>
+          <div style={{ marginBottom:16 }}>
             <img src={supplier.cardPhoto} alt="Tarjeta" style={{ width:"100%", borderRadius:14, border:`1px solid ${t.border}` }} />
           </div>
         )}
 
-        {/* AI badge */}
-        {supplier.cardData && (
-          <div style={{ background:t.greenSoft, border:`1px solid ${t.green}40`, borderRadius:12, padding:"8px 14px", marginBottom:16 }}>
-            <p style={{ fontSize:12, fontWeight:700, color:t.green }}>🤖 Datos extraídos por IA</p>
-          </div>
-        )}
-
-        {/* Contact buttons */}
-        <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:20 }}>
-          {supplier.wechat && (
-            <a href={`weixin://dl/chat?${supplier.wechat}`} target="_blank" rel="noopener noreferrer"
-              style={{ display:"flex", alignItems:"center", gap:6, background:"#07C160", color:"#fff", borderRadius:12, padding:"10px 16px", fontSize:13, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center" }}>
-              💬 WeChat
-            </a>
+        {/* AI badge + Rating summary */}
+        <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+          {supplier.cardData && (
+            <div style={{ background:t.greenSoft, border:`1px solid ${t.green}40`, borderRadius:10, padding:"6px 12px", flex:0 }}>
+              <p style={{ fontSize:11, fontWeight:700, color:t.green, margin:0, whiteSpace:"nowrap" }}>🤖 IA</p>
+            </div>
           )}
-          {supplier.whatsapp && (
-            <a href={`https://wa.me/${supplier.whatsapp.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer"
-              style={{ display:"flex", alignItems:"center", gap:6, background:"#25D366", color:"#fff", borderRadius:12, padding:"10px 16px", fontSize:13, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center" }}>
-              📱 WhatsApp
-            </a>
-          )}
-          {supplier.phone && (
-            <a href={`tel:${supplier.phone}`}
-              style={{ display:"flex", alignItems:"center", gap:6, background:t.blueSoft, color:t.blue, borderRadius:12, padding:"10px 16px", fontSize:13, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center" }}>
-              📞 Llamar
-            </a>
-          )}
-          {supplier.email && (
-            <a href={`mailto:${supplier.email}`}
-              style={{ display:"flex", alignItems:"center", gap:6, background:t.purpleSoft, color:t.purple, borderRadius:12, padding:"10px 16px", fontSize:13, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center" }}>
-              ✉️ Email
-            </a>
+          {supplierProducts.length > 0 && (
+            <div style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:10, padding:"6px 12px", display:"flex", alignItems:"center", gap:6 }}>
+              <MiniStars rating={avgRating} t={t} />
+              <span style={{ fontSize:11, color:t.muted }}>· {supplierProducts.length} prod.</span>
+            </div>
           )}
         </div>
 
         {/* Supplier info */}
         <div style={{ background:t.card, borderRadius:16, padding:16, border:`1px solid ${t.border}`, marginBottom:20 }}>
-          <p style={{ fontSize:13, fontWeight:700, color:t.text, marginBottom:12 }}>📋 Información del proveedor</p>
           {field("Empresa", "🏭", "company", "Nombre de la empresa")}
           {field("Contacto", "👤", "contact", "Nombre del contacto")}
           {field("Teléfono", "📱", "phone", "+86...")}
@@ -1580,8 +1654,8 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onNavigateProduc
                   <div style={{ width:50, height:50, borderRadius:10, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>📦</div>
                 )}
                 <div style={{ flex:1 }}>
-                  <p style={{ fontSize:14, fontWeight:600, color:t.text, marginBottom:2 }}>{p.name || "Sin nombre"}</p>
-                  <p style={{ fontSize:12, color:t.green, fontWeight:700 }}>{p.price ? `$ ${p.price}` : "Sin precio"}</p>
+                  <p style={{ fontSize:14, fontWeight:600, color:t.text, margin:0, marginBottom:2 }}>{p.name || "Sin nombre"}</p>
+                  <p style={{ fontSize:12, color:t.green, fontWeight:700, margin:0 }}>{p.price ? `USD ${p.price}` : "Sin precio"}</p>
                 </div>
                 <span style={{ fontSize:16, color:t.dim }}>→</span>
               </button>
@@ -1589,6 +1663,41 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onNavigateProduc
           )}
         </div>
       </div>
+
+      {/* FIXED contact buttons at bottom */}
+      {hasContactButtons && (
+        <div style={{
+          position:"sticky", bottom:0, left:0, right:0,
+          padding:"10px 16px", paddingBottom:"max(12px, env(safe-area-inset-bottom))",
+          background:t.bg, borderTop:`1px solid ${t.border}`,
+          display:"flex", gap:8, flexWrap:"nowrap", overflowX:"auto",
+        }}>
+          {supplier.wechat && (
+            <a href={`weixin://dl/chat?${supplier.wechat}`} target="_blank" rel="noopener noreferrer"
+              style={{ display:"flex", alignItems:"center", gap:6, background:"#07C160", color:"#fff", borderRadius:12, padding:"10px 14px", fontSize:12, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center", whiteSpace:"nowrap" }}>
+              💬 WeChat
+            </a>
+          )}
+          {supplier.whatsapp && (
+            <a href={`https://wa.me/${supplier.whatsapp.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer"
+              style={{ display:"flex", alignItems:"center", gap:6, background:"#25D366", color:"#fff", borderRadius:12, padding:"10px 14px", fontSize:12, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center", whiteSpace:"nowrap" }}>
+              📱 WhatsApp
+            </a>
+          )}
+          {supplier.phone && (
+            <a href={`tel:${supplier.phone}`}
+              style={{ display:"flex", alignItems:"center", gap:6, background:t.blueSoft, color:t.blue, borderRadius:12, padding:"10px 14px", fontSize:12, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center", whiteSpace:"nowrap" }}>
+              📞 Llamar
+            </a>
+          )}
+          {supplier.email && (
+            <a href={`mailto:${supplier.email}`}
+              style={{ display:"flex", alignItems:"center", gap:6, background:t.purpleSoft, color:t.purple, borderRadius:12, padding:"10px 14px", fontSize:12, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center", whiteSpace:"nowrap" }}>
+              ✉️ Email
+            </a>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1650,8 +1759,8 @@ export default function App() {
     try {
       showToast("⏳ Procesando con IA...");
 
-      let supplierId = null;
-      if (data.supplierName) {
+      let supplierId = data.linkedSupplierId || null;
+      if (!supplierId && data.supplierName) {
         const existing = suppliers.find(s => s.company === data.supplierName && s.districtId === activeDistrictId);
         if (existing) {
           supplierId = existing.id;
@@ -1803,7 +1912,8 @@ export default function App() {
       )}
       {screen === "detail" && screenData && (
         <ProductDetail product={products.find(p => p.id === screenData.id) || screenData} allProducts={products} suppliers={suppliers} districts={districts}
-          onBack={() => navigate("list")} onUpdate={(id, changes) => { handleUpdateProduct(id, changes); }} onCalc={p => navigate("calc", p)} onDelete={handleDeleteProduct} t={t} isDark={isDark} settings={settings} />
+          onBack={() => navigate("list")} onUpdate={(id, changes) => { handleUpdateProduct(id, changes); }} onCalc={p => navigate("calc", p)} onDelete={handleDeleteProduct}
+          onNavigateSupplier={s => navigate("supplier", s)} t={t} isDark={isDark} settings={settings} />
       )}
       {screen === "supplier" && screenData && (
         <SupplierDetail supplier={suppliers.find(s => s.id === screenData.id) || screenData} products={products}
