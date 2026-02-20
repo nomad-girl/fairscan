@@ -9,12 +9,12 @@ const API_BASE = '';
  * Process product image with Claude Vision
  * Extracts: name, description, features, materials, colors, category
  */
-export async function processImage(base64Image) {
+export async function processImage(base64Image, { categories, materials } = {}) {
   try {
     const response = await fetch(`${API_BASE}/api/process-image`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: base64Image }),
+      body: JSON.stringify({ image: base64Image, categories, materials }),
     });
 
     if (!response.ok) {

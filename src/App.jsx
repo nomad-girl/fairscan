@@ -215,8 +215,8 @@ const Btn = ({ children, onClick, variant = "primary", full, disabled, t, style:
 // ═══════════════════════════════════════════
 // CAPTURE FLOW
 // ═══════════════════════════════════════════
-function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave, onClose, t, isDark }) {
-  const [step, setStep] = useState(0);
+function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave, onClose, t, isDark, initialStep = 0, supplierOnly = false }) {
+  const [step, setStep] = useState(initialStep);
   const [supplierName, setSupplierName] = useState("");
   const [supplierContact, setSupplierContact] = useState("");
   const [cardPhoto, setCardPhoto] = useState(null);
@@ -243,11 +243,18 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
   const timerRef = useRef(null);
   const fileInputRef = useRef(null);
 
+  const streamRef = useRef(null);
+
   // Auto-open camera on mount (Step 0)
   useEffect(() => {
     if (step === 0 && photos.length === 0 && fileInputRef.current) {
       fileInputRef.current.click();
     }
+    // Pre-request mic permission
+    navigator.mediaDevices?.getUserMedia({ audio: true }).then(stream => {
+      streamRef.current = stream;
+      stream.getTracks().forEach(t => t.stop()); // release immediately, just cache permission
+    }).catch(() => setMicAvailable(false));
   }, []);
 
   // Process business card photo with AI
@@ -606,9 +613,10 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
   const [editNotes, setEditNotes] = useState(p.notes || "");
   const [editCategory, setEditCategory] = useState(p.category || "");
   const [editMaterial, setEditMaterial] = useState(p.material || []);
+  const [editSupplierId, setEditSupplierId] = useState(p.supplierId || null);
   const [activePhoto, setActivePhoto] = useState(0);
   const photoScrollRef = useRef(null);
-  const supplier = suppliers.find(s => s.id === p.supplierId);
+  const supplier = suppliers.find(s => s.id === (editing ? editSupplierId : p.supplierId));
   const district = districts.find(d => d.id === p.districtId);
   const supplierProducts = allProducts.filter(pr => pr.supplierId === p.supplierId);
   const avgRating = supplierProducts.length > 0 ? supplierProducts.reduce((a,pr) => a + (pr.rating||0), 0) / supplierProducts.length : 0;
@@ -624,6 +632,7 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
       notes: editNotes.trim(),
       category: editCategory || null,
       material: editMaterial,
+      supplierId: editSupplierId,
     });
     setEditing(false);
   };
@@ -727,6 +736,15 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
                 <input value={editMoq} onChange={e => setEditMoq(e.target.value.replace(/[^0-9]/g,""))} inputMode="numeric" style={inp()} />
               </div>
             </div>
+
+            <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px" }}>Proveedor</p>
+            <select value={editSupplierId || ""} onChange={e => setEditSupplierId(e.target.value ? parseInt(e.target.value) : null)}
+              style={{ ...inp({ marginBottom:10 }), fontFamily:"inherit" }}>
+              <option value="">Sin proveedor</option>
+              {suppliers.filter(s => s.districtId === p.districtId).map(s => (
+                <option key={s.id} value={s.id}>{s.company || `Proveedor #${s.id}`}</option>
+              ))}
+            </select>
 
             <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px" }}>Categoría</p>
             <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 }}>
@@ -1408,14 +1426,13 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
         productPhotoMap.set(product.id, paths);
       }
 
-      // Add business card photos
+      // Add business card photos inside each supplier's folder
       if (includeSuppliers) {
-        const tarjetasFolder = root.folder('tarjetas');
         for (const [id, { supplier: s, slug }] of supplierMap) {
           if (s.cardPhoto) {
             try {
               const bytes = dataURLtoUint8Array(s.cardPhoto);
-              tarjetasFolder.file(`${slug}.jpg`, bytes, { binary: true });
+              fotosFolder.folder(slug).file(`tarjeta_${slug}.jpg`, bytes, { binary: true });
             } catch (e) { console.warn("Error procesando tarjeta:", e); }
           }
         }
@@ -1458,7 +1475,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
           const prods = scopeProducts.filter(p => p.supplierId === s.id);
           const dist = districts.find(d => d.id === s.districtId);
           const avg = prods.length > 0 ? (prods.reduce((a, p) => a + (p.rating||0), 0) / prods.length).toFixed(1) : "";
-          const cardPath = s.cardPhoto ? `tarjetas/${slug}.jpg` : "";
+          const cardPath = s.cardPhoto ? `fotos/${slug}/tarjeta_${slug}.jpg` : "";
           const row = [
             s.company||"", s.contact||"", s.phone||"",
             s.wechat||"", s.whatsapp||"", s.email||"",
@@ -1653,8 +1670,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
               productos.csv <span style={{ color:t.accent }}>(con columnas Foto_1..5{hasCloudPhotos ? " + URLs" : ""})</span><br/>
               {includeSuppliers && <>proveedores.csv <span style={{ color:t.accent }}>(todos los datos)</span><br/></>}
               fotos/<br/>
-              <span style={{ paddingLeft:12 }}>└ {uniqueSupIds.length > 0 ? "por-proveedor/" : "sin-proveedor/"}</span><br/>
-              {includeSuppliers && totalCards > 0 && <>tarjetas/<br/></>}
+              <span style={{ paddingLeft:12 }}>└ {uniqueSupIds.length > 0 ? "por-proveedor/ (fotos + tarjetas)" : "sin-proveedor/"}</span><br/>
             </div>
           </div>
         )}
@@ -1683,6 +1699,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
   const [filterMaterial, setFilterMaterial] = useState("all");
   const [sortBy, setSortBy] = useState("recent");
   const [dd, setDd] = useState(false);
+  const [fabOpen, setFabOpen] = useState(false);
 
   const categories = [...new Set(products.map(p => p.category).filter(Boolean))];
   const materials = [...new Set(products.flatMap(p => p.material || []))];
@@ -1857,10 +1874,23 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
       )}
 
       {/* FAB */}
-      <button onClick={() => onNavigate("capture")} style={{
+      {view === "suppliers" && fabOpen && (
+        <div style={{ position:"fixed", bottom:"calc(100px + env(safe-area-inset-bottom, 0px))", right:24, display:"flex", flexDirection:"column", gap:8, zIndex:11 }}>
+          <button onClick={() => { setFabOpen(false); onNavigate("capture"); }} style={{
+            display:"flex", alignItems:"center", gap:8, padding:"12px 18px", borderRadius:16, border:"none",
+            background:t.card, color:t.text, fontSize:13, fontWeight:700, boxShadow:"0 4px 20px rgba(0,0,0,0.3)", cursor:"pointer",
+          }}>📦 Nuevo producto</button>
+          <button onClick={() => { setFabOpen(false); onNavigate("capture-supplier"); }} style={{
+            display:"flex", alignItems:"center", gap:8, padding:"12px 18px", borderRadius:16, border:"none",
+            background:t.card, color:t.text, fontSize:13, fontWeight:700, boxShadow:"0 4px 20px rgba(0,0,0,0.3)", cursor:"pointer",
+          }}>🏭 Nuevo proveedor</button>
+        </div>
+      )}
+      <button onClick={() => view === "suppliers" ? setFabOpen(!fabOpen) : onNavigate("capture")} style={{
         position:"fixed", bottom:"calc(30px + env(safe-area-inset-bottom, 0px))", right:24, width:60, height:60, borderRadius:30, border:"none",
         background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff", fontSize:28, fontWeight:300,
         boxShadow:`0 6px 30px ${t.accent}80`, display:"flex", alignItems:"center", justifyContent:"center", zIndex:10, cursor:"pointer",
+        transform: fabOpen ? "rotate(45deg)" : "none", transition: "transform 0.2s",
       }}>+</button>
     </div>
   );
@@ -1875,6 +1905,11 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onNavigateProduc
 
   const supplierProducts = products.filter(p => p.supplierId === supplier.id);
   const avgRating = supplierProducts.length > 0 ? supplierProducts.reduce((a,p) => a + (p.rating||0), 0) / supplierProducts.length : 0;
+
+  const handleBack = () => {
+    if (editing) { setEditing(false); setEditData({ ...supplier }); }
+    else onBack();
+  };
 
   const handleSave = () => {
     onUpdate(supplier.id, editData);
@@ -1895,7 +1930,7 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onNavigateProduc
 
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
-      <Header title={supplier.company || "Proveedor"} subtitle={supplier.contact || ""} onBack={onBack} t={t}
+      <Header title={supplier.company || "Proveedor"} subtitle={supplier.contact || ""} onBack={handleBack} t={t}
         right={
           editing ? (
             <button onClick={handleSave} style={{ background:"none", border:"none", color:t.green, fontSize:13, fontWeight:700, cursor:"pointer" }}>✓ Guardar</button>
@@ -1936,44 +1971,9 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onNavigateProduc
       )}
 
       <div style={{ flex:1, overflowY:"scroll", WebkitOverflowScrolling:"touch", padding:20, paddingBottom:40 }}>
-        {/* Card photo */}
-        {supplier.cardPhoto && (
-          <div style={{ marginBottom:16 }}>
-            <img src={supplier.cardPhoto} alt="Tarjeta" style={{ width:"100%", borderRadius:14, border:`1px solid ${t.border}` }} />
-          </div>
-        )}
-
-        {/* AI badge + Rating summary */}
-        <div style={{ display:"flex", gap:8, marginBottom:16 }}>
-          {supplier.cardData && (
-            <div style={{ background:t.greenSoft, border:`1px solid ${t.green}40`, borderRadius:10, padding:"6px 12px", flex:0 }}>
-              <p style={{ fontSize:11, fontWeight:700, color:t.green, margin:0, whiteSpace:"nowrap" }}>🤖 Datos de IA</p>
-            </div>
-          )}
-          {supplierProducts.length > 0 && (
-            <div style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:10, padding:"6px 12px", display:"flex", alignItems:"center", gap:6 }}>
-              <MiniStars rating={avgRating} t={t} />
-              <span style={{ fontSize:11, color:t.muted }}>· {supplierProducts.length} prod.</span>
-            </div>
-          )}
-        </div>
-
-        {/* Supplier info */}
-        <div style={{ background:t.card, borderRadius:16, padding:16, border:`1px solid ${t.border}`, marginBottom:20 }}>
-          {field("Empresa", "🏭", "company", "Nombre de la empresa")}
-          {field("Contacto", "👤", "contact", "Nombre del contacto")}
-          {field("Teléfono", "📱", "phone", "+86...")}
-          {field("WeChat", "💬", "wechat", "WeChat ID")}
-          {field("WhatsApp", "📱", "whatsapp", "Número WhatsApp")}
-          {field("Email", "📧", "email", "email@company.com")}
-          {field("Website", "🌐", "website", "www.company.com")}
-          {field("Dirección", "📍", "address", "Dirección")}
-          {field("Productos", "📦", "products", "Productos que ofrece")}
-        </div>
-
-        {/* Linked products */}
+        {/* Linked products FIRST */}
         <div style={{ marginBottom:20 }}>
-          <p style={{ fontSize:13, fontWeight:700, color:t.text, marginBottom:12 }}>📦 Productos vinculados ({supplierProducts.length})</p>
+          <p style={{ fontSize:13, fontWeight:700, color:t.text, marginBottom:12 }}>📦 Productos ({supplierProducts.length})</p>
           {supplierProducts.length === 0 ? (
             <p style={{ fontSize:13, color:t.dim, textAlign:"center", padding:20 }}>No hay productos vinculados aún</p>
           ) : (
@@ -1994,6 +1994,27 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onNavigateProduc
             ))
           )}
         </div>
+
+        {/* Card photo */}
+        {supplier.cardPhoto && (
+          <div style={{ marginBottom:16 }}>
+            <p style={{ fontSize:10, fontWeight:700, color:t.muted, marginBottom:6, textTransform:"uppercase" }}>📇 Tarjeta</p>
+            <img src={supplier.cardPhoto} alt="Tarjeta" style={{ width:"100%", borderRadius:14, border:`1px solid ${t.border}` }} />
+          </div>
+        )}
+
+        {/* Supplier info */}
+        <div style={{ background:t.card, borderRadius:16, padding:16, border:`1px solid ${t.border}`, marginBottom:20 }}>
+          {field("Empresa", "🏭", "company", "Nombre de la empresa")}
+          {field("Contacto", "👤", "contact", "Nombre del contacto")}
+          {field("Teléfono", "📱", "phone", "+86...")}
+          {field("WeChat", "💬", "wechat", "WeChat ID")}
+          {field("WhatsApp", "📱", "whatsapp", "Número WhatsApp")}
+          {field("Email", "📧", "email", "email@company.com")}
+          {field("Website", "🌐", "website", "www.company.com")}
+          {field("Dirección", "📍", "address", "Dirección")}
+          {field("Productos", "📦", "products", "Productos que ofrece")}
+        </div>
       </div>
     </div>
   );
@@ -2009,6 +2030,7 @@ export default function App() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS_FALLBACK);
   const [screen, setScreen] = useState("list");
   const [screenData, setScreenData] = useState(null);
+  const [prevScreen, setPrevScreen] = useState(null);
   const [toast, setToast] = useState("");
   const [ready, setReady] = useState(false);
   const [isDark, setIsDark] = useState(true);
@@ -2035,7 +2057,8 @@ export default function App() {
   }, []);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
-  const navigate = (s, data) => { setScreenData(data); setScreen(s); };
+  const navigate = (s, data) => { setPrevScreen({ screen, data: screenData }); setScreenData(data); setScreen(s); };
+  const goBack = () => { if (prevScreen) { setScreen(prevScreen.screen); setScreenData(prevScreen.data); setPrevScreen(null); } else { setScreen("list"); setScreenData(null); } };
 
   const toggleTheme = async () => {
     const next = !isDark;
@@ -2111,7 +2134,7 @@ export default function App() {
         try {
           console.log("🔄 Procesando imagen con IA...");
           const base64Image = data.photos[0];
-          const imageResult = await processImage(base64Image);
+          const imageResult = await processImage(base64Image, { categories: settings.categories, materials: settings.materials });
           aiName = imageResult.name;
           aiDescription = imageResult.description;
           aiCategory = imageResult.category;
@@ -2241,9 +2264,10 @@ export default function App() {
         <ProductList products={products} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} activeDistrict={activeDistrict} settings={settings}
           onNavigate={navigate} onSwitchDistrict={switchDistrict} t={t} isDark={isDark} onToggleTheme={toggleTheme} />
       )}
-      {screen === "capture" && (
+      {(screen === "capture" || screen === "capture-supplier") && (
         <CaptureFlow suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings}
-          onSave={handleCaptureSave} onClose={() => navigate("list")} t={t} isDark={isDark} />
+          onSave={handleCaptureSave} onClose={() => navigate("list")} t={t} isDark={isDark}
+          initialStep={screen === "capture-supplier" ? 2 : 0} supplierOnly={screen === "capture-supplier"} />
       )}
       {screen === "detail" && screenData && (
         <ProductDetail product={products.find(p => p.id === screenData.id) || screenData} allProducts={products} suppliers={suppliers} districts={districts}
@@ -2252,7 +2276,7 @@ export default function App() {
       )}
       {screen === "supplier" && screenData && (
         <SupplierDetail supplier={suppliers.find(s => s.id === screenData.id) || screenData} products={products}
-          onBack={() => navigate("list")} onUpdate={handleUpdateSupplier}
+          onBack={goBack} onUpdate={handleUpdateSupplier}
           onNavigateProduct={p => navigate("detail", p)} t={t} />
       )}
       {screen === "calc" && screenData && (

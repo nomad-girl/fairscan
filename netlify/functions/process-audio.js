@@ -28,27 +28,50 @@ exports.handler = async (event) => {
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    // For audio, we send it as text since Claude 3.5 Sonnet doesn't support audio input directly
-    // We'll just process any text notes instead
+    // Map format to supported media type
+    const formatMap = {
+      "webm": "audio/webm",
+      "mp4": "audio/mp4",
+      "ogg": "audio/ogg",
+      "wav": "audio/wav",
+      "mpeg": "audio/mpeg",
+      "mp3": "audio/mpeg",
+    };
+    const mediaType = formatMap[format] || "audio/webm";
+
     const response = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 1024,
       messages: [
         {
           role: "user",
-          content: `Se recibió una nota de audio en una feria comercial. El formato es ${format || "webm"}.
-Como no puedo transcribir el audio directamente, responde con este JSON indicando que se necesita transcripción manual:
+          content: [
+            {
+              type: "audio",
+              source: {
+                type: "base64",
+                media_type: mediaType,
+                data: audio,
+              },
+            },
+            {
+              type: "text",
+              text: `Transcribe este audio de una feria comercial. Es una nota de voz del usuario sobre un producto o proveedor.
+
+Responde en formato JSON:
 {
-  "transcript": null,
+  "transcript": "transcripción completa del audio en el idioma original",
   "extracted_data": {
-    "price": null,
-    "moq": null,
-    "contact": null,
-    "notes": "Audio pendiente de transcripción manual"
+    "price": null o número (precio mencionado en USD),
+    "moq": null o string (cantidad mínima mencionada),
+    "contact": null o string (datos de contacto mencionados),
+    "notes": "resumen breve de lo más importante"
   }
 }
 
 Responde SOLO con el JSON.`,
+            },
+          ],
         },
       ],
     });
@@ -62,7 +85,8 @@ Responde SOLO con el JSON.`,
       if (jsonMatch) {
         result = JSON.parse(jsonMatch[0]);
       } else {
-        result = { transcript: null, extracted_data: { price: null, moq: null, contact: null, notes: "Audio pendiente de transcripción" } };
+        // If we can't parse JSON, use the raw text as transcript
+        result = { transcript: content.text, extracted_data: { price: null, moq: null, contact: null, notes: null } };
       }
     }
 

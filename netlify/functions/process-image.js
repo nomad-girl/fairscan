@@ -21,7 +21,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { image } = JSON.parse(event.body);
+    const { image, categories, materials } = JSON.parse(event.body);
 
     if (!image) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: "Image is required" }) };
@@ -31,6 +31,13 @@ exports.handler = async (event) => {
     const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const categoryList = categories && categories.length > 0
+      ? `SOLO una de estas categorías: ${categories.join(", ")}`
+      : "categoría estimada (ej: Vajilla, Electrónica, Textil, Decoración, etc.)";
+    const materialList = materials && materials.length > 0
+      ? `SOLO de esta lista: ${materials.join(", ")}. Si ninguna aplica, usa la más cercana.`
+      : "materiales detectados";
 
     const response = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
@@ -54,9 +61,9 @@ exports.handler = async (event) => {
   "name": "nombre del producto en español",
   "description": "descripción breve del producto (1-2 oraciones)",
   "features": ["característica 1", "característica 2"],
-  "materials": ["material 1", "material 2"],
+  "materials": [${materialList}],
   "colors": ["color 1", "color 2"],
-  "category": "categoría estimada (ej: Vajilla, Electrónica, Textil, Decoración, etc.)",
+  "category": "${categoryList}",
   "confidence": 0.95
 }
 

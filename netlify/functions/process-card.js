@@ -47,7 +47,9 @@ exports.handler = async (event) => {
             },
             {
               type: "text",
-              text: `Esta es una tarjeta de visita / business card de un proveedor en una feria comercial (como Canton Fair).
+              text: `Analiza esta imagen de un proveedor o contacto en una feria comercial (como Canton Fair).
+Puede ser una tarjeta de visita, un código QR de WeChat/WhatsApp, un catálogo, un banner, un sticker, una pantalla con datos de contacto, o CUALQUIER imagen que contenga información de contacto o empresa.
+
 Extrae TODA la información visible en formato JSON:
 {
   "company": "nombre de la empresa",
@@ -57,7 +59,7 @@ Extrae TODA la información visible en formato JSON:
   "mobile": "número de celular si es diferente al teléfono",
   "email": "dirección de email",
   "website": "sitio web",
-  "wechat": "ID de WeChat si está visible",
+  "wechat": "ID de WeChat si está visible (buscar en QR labels, texto, etc.)",
   "whatsapp": "número de WhatsApp si está visible",
   "address": "dirección completa",
   "city": "ciudad",
