@@ -85,3 +85,4 @@ fairscan/
 - [ ] IA: naming automático de productos
 - [ ] WeChat integration
 - [ ] Base NCM completa de AFIP
+# FairScan IA Ready
