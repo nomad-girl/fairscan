@@ -109,13 +109,18 @@ function resizeImage(file, maxPx, quality) {
 }
 
 // Hidden file input component that works in sandboxed environments
-function FilePickerBtn({ onFile, accept = "image/*", capture, children, style: sx, t }) {
+function FilePickerBtn({ onFile, onFiles, accept = "image/*", capture, multiple, children, style: sx, t }) {
   const ref = useRef(null);
   const handleChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const dataUrl = await resizeImage(file, 400, 0.75);
-    onFile(dataUrl);
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    if (multiple && onFiles && files.length > 1) {
+      const results = await Promise.all(files.map(f => resizeImage(f, 400, 0.75)));
+      onFiles(results);
+    } else {
+      const dataUrl = await resizeImage(files[0], 400, 0.75);
+      onFile(dataUrl);
+    }
     if (ref.current) ref.current.value = "";
   };
   return (
@@ -126,7 +131,7 @@ function FilePickerBtn({ onFile, accept = "image/*", capture, children, style: s
       cursor:"pointer", flex:1, textAlign:"center", ...sx,
     }}>
       {children}
-      <input ref={ref} type="file" accept={accept} capture={capture} onChange={handleChange}
+      <input ref={ref} type="file" accept={accept} capture={capture} multiple={multiple} onChange={handleChange}
         style={{ position:"absolute", width:1, height:1, opacity:0, overflow:"hidden" }} />
     </label>
   );
@@ -384,9 +389,9 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
                 style={{ flex:1 }}>
                 📷 Otra foto
               </FilePickerBtn>
-              <FilePickerBtn onFile={ph => setPhotos(p => [...p, ph])} t={t}
+              <FilePickerBtn onFile={ph => setPhotos(p => [...p, ph])} onFiles={phs => setPhotos(p => [...p, ...phs])} multiple t={t}
                 style={{ flex:1 }}>
-                🖼 Galería
+                🖼 Galería (varias)
               </FilePickerBtn>
             </div>
 
@@ -536,7 +541,10 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
                 <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:6, textTransform:"uppercase" }}>💬 WeChat</p>
                 <input value={supplierWechat} onChange={e => setSupplierWechat(e.target.value)} placeholder="WeChat ID..." style={inp({ marginBottom:6 })} />
 
-                <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:6, textTransform:"uppercase" }}>📱 Teléfono</p>
+                <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:6, textTransform:"uppercase" }}>📱 WhatsApp</p>
+                <input value={supplierWhatsapp} onChange={e => setSupplierWhatsapp(e.target.value)} placeholder="+número con código de país" style={inp({ marginBottom:6 })} />
+
+                <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:6, textTransform:"uppercase" }}>📞 Teléfono</p>
                 <input value={supplierPhone} onChange={e => setSupplierPhone(e.target.value)} placeholder="+86..." style={inp({ marginBottom:6 })} />
 
                 <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:6, textTransform:"uppercase" }}>📧 Email</p>
@@ -550,7 +558,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
       {/* Bottom action - FIXED at bottom for mobile */}
       <div style={{
         position:"fixed", bottom:0, left:0, right:0,
-        padding:"12px 20px", paddingBottom:"max(16px, env(safe-area-inset-bottom))",
+        padding:"12px 20px", paddingBottom:"calc(16px + env(safe-area-inset-bottom, 0px))",
         borderTop:`1px solid ${t.border}`, background:t.bg,
         zIndex:100,
       }}>
@@ -581,6 +589,8 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
   const [editNotes, setEditNotes] = useState(p.notes || "");
   const [editCategory, setEditCategory] = useState(p.category || "");
   const [editMaterial, setEditMaterial] = useState(p.material || []);
+  const [activePhoto, setActivePhoto] = useState(0);
+  const photoScrollRef = useRef(null);
   const supplier = suppliers.find(s => s.id === p.supplierId);
   const district = districts.find(d => d.id === p.districtId);
   const supplierProducts = allProducts.filter(pr => pr.supplierId === p.supplierId);
@@ -623,12 +633,25 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
       </div>
       <div style={{ flex:1, overflow:"auto", padding:"0 0 80px" }}>
         {tab === "info" && <>
-          {/* HERO PHOTO - center of the view */}
+          {/* SWIPEABLE PHOTO CAROUSEL */}
           {p.photos?.length > 0 && (
-            <div style={{ position:"relative", width:"100%", aspectRatio:"1", background:t.surface }}>
-              <img src={p.photos[0]} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+            <div style={{ position:"relative", width:"100%", background:t.surface }}>
+              <div ref={photoScrollRef} onScroll={e => {
+                const el = e.target;
+                const idx = Math.round(el.scrollLeft / el.offsetWidth);
+                setActivePhoto(idx);
+              }} style={{
+                display:"flex", overflowX:"auto", scrollSnapType:"x mandatory",
+                WebkitOverflowScrolling:"touch", scrollbarWidth:"none",
+              }}>
+                {p.photos.map((ph,i) => (
+                  <div key={i} style={{ width:"100%", aspectRatio:"1", flexShrink:0, scrollSnapAlign:"start" }}>
+                    <img src={ph} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                  </div>
+                ))}
+              </div>
               {/* Price overlay on photo */}
-              <div style={{ position:"absolute", bottom:0, left:0, right:0, background:"linear-gradient(transparent, rgba(0,0,0,0.75))", padding:"30px 16px 12px" }}>
+              <div style={{ position:"absolute", bottom:0, left:0, right:0, background:"linear-gradient(transparent, rgba(0,0,0,0.75))", padding:"30px 16px 12px", pointerEvents:"none" }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
                   <div>
                     <span style={{ fontSize:28, fontWeight:900, color:"#fff" }}>USD {p.price || "—"}</span>
@@ -642,6 +665,14 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
                   )}
                 </div>
               </div>
+              {/* Photo counter dots */}
+              {p.photos.length > 1 && (
+                <div style={{ position:"absolute", bottom:56, left:"50%", transform:"translateX(-50%)", display:"flex", gap:6 }}>
+                  {p.photos.map((_,i) => (
+                    <div key={i} style={{ width: activePhoto===i ? 18 : 6, height:6, borderRadius:3, background: activePhoto===i ? "#fff" : "rgba(255,255,255,0.4)", transition:"all 0.2s" }} />
+                  ))}
+                </div>
+              )}
               {/* Viability badge */}
               {p.viability && (
                 <span style={{
@@ -658,16 +689,6 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
               {p.ai_processed && (
                 <span style={{ position:"absolute", top:12, left:12, fontSize:10, fontWeight:700, padding:"4px 8px", borderRadius:8, background:"rgba(0,0,0,0.6)", color:"#fff", backdropFilter:"blur(10px)" }}>🤖 IA</span>
               )}
-            </div>
-          )}
-          {/* Thumbnail strip for additional photos */}
-          {p.photos?.length > 1 && (
-            <div style={{ display:"flex", gap:6, padding:"8px 16px", overflowX:"auto" }}>
-              {p.photos.map((ph,i) => (
-                <div key={i} style={{ width:52, height:52, borderRadius:8, overflow:"hidden", flexShrink:0, border:`2px solid ${i===0?t.accent:t.border}`, opacity:i===0?1:0.7 }}>
-                  <img src={ph} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                </div>
-              ))}
             </div>
           )}
 
@@ -748,37 +769,29 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
               </div>
             )}
 
-            {/* AI Description */}
-            {p.description && (
-              <div style={{ background:t.card, borderRadius:14, padding:12, marginBottom:10, border:`1px solid ${t.border}` }}>
-                <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 4px" }}>🤖 Descripción IA</p>
-                <p style={{ fontSize:13, color:t.text, margin:0, lineHeight:1.5 }}>{p.description}</p>
-              </div>
-            )}
-
             {/* Rating */}
             <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
               <Stars value={p.rating || 0} onChange={r => onUpdate(p.id, { rating: r })} size={28} t={t} />
             </div>
 
-            {/* Audio + Transcription */}
+            {/* Audio + Transcription - TUS notas de voz */}
             {(p.audioURL || p.audioTranscript) && (
               <div style={{ background:t.card, borderRadius:14, padding:12, marginBottom:10, border:`1px solid ${t.accent}20` }}>
-                <p style={{ fontSize:10, fontWeight:700, color:t.accent, margin:"0 0 8px" }}>🎙 Nota de voz</p>
-                {p.audioURL && <audio src={p.audioURL} controls style={{ width:"100%", height:36, marginBottom: p.audioTranscript ? 8 : 0 }} />}
+                <p style={{ fontSize:10, fontWeight:700, color:t.accent, margin:"0 0 8px" }}>🎙 Tu nota de voz</p>
+                {p.audioURL && <audio src={p.audioURL} controls style={{ width:"100%", height:36 }} />}
                 {p.audioTranscript && (
-                  <div style={{ background:t.surface, borderRadius:10, padding:"8px 12px", marginTop:4 }}>
+                  <div style={{ background:t.surface, borderRadius:10, padding:"10px 12px", marginTop:8 }}>
                     <p style={{ fontSize:10, fontWeight:600, color:t.muted, margin:"0 0 4px" }}>📝 Transcripción</p>
-                    <p style={{ fontSize:12, color:t.text, margin:0, lineHeight:1.5, fontStyle:"italic" }}>{p.audioTranscript}</p>
+                    <p style={{ fontSize:13, color:t.text, margin:0, lineHeight:1.6 }}>{p.audioTranscript}</p>
                   </div>
                 )}
               </div>
             )}
-            {/* Notes */}
+            {/* Written notes */}
             {p.notes && (
               <div style={{ background:t.card, borderRadius:14, padding:12, marginBottom:10, border:`1px solid ${t.border}` }}>
                 <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 4px" }}>📝 Notas</p>
-                <p style={{ fontSize:12, color:t.text, margin:0, lineHeight:1.5 }}>{p.notes}</p>
+                <p style={{ fontSize:13, color:t.text, margin:0, lineHeight:1.6 }}>{p.notes}</p>
               </div>
             )}
             {/* Context */}
@@ -787,6 +800,20 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
                 <span style={{ fontSize:16 }}>{district.emoji}</span>
                 <div><p style={{ fontSize:11, fontWeight:600, color:t.text, margin:0 }}>{district.name}</p>
                 <p style={{ fontSize:10, color:t.muted, margin:0 }}>{new Date(p.createdAt).toLocaleString("es-AR", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })}</p></div>
+              </div>
+            )}
+            {/* Delete button - always visible in view mode */}
+            <button onClick={() => setConfirmDelete(true)} style={{
+              width:"100%", padding:"10px", borderRadius:12, border:`1px solid ${t.red}30`,
+              background:"transparent", color:t.red, fontSize:12, fontWeight:600, cursor:"pointer", marginTop:8,
+            }}>🗑 Eliminar producto</button>
+            {confirmDelete && (
+              <div style={{ background:t.redSoft, borderRadius:14, padding:14, border:`1.5px solid ${t.red}40`, marginTop:8 }}>
+                <p style={{ fontSize:13, fontWeight:700, color:t.red, margin:"0 0 10px", textAlign:"center" }}>¿Seguro? No se puede deshacer.</p>
+                <div style={{ display:"flex", gap:10 }}>
+                  <button onClick={() => setConfirmDelete(false)} style={{ flex:1, padding:"10px", borderRadius:10, border:`1px solid ${t.border}`, background:t.card, color:t.text, fontSize:13, fontWeight:600, cursor:"pointer" }}>Cancelar</button>
+                  <button onClick={() => onDelete(p.id)} style={{ flex:1, padding:"10px", borderRadius:10, border:"none", background:t.red, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>Sí, eliminar</button>
+                </div>
               </div>
             )}
           </>}
@@ -825,10 +852,10 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
           {(supplier.wechat || supplier.phone || supplier.whatsapp) && (
             <div style={{ display:"flex", gap:6, marginBottom:12 }}>
               {supplier.wechat && (
-                <a href={`weixin://dl/chat?${supplier.wechat}`} target="_blank" rel="noopener noreferrer"
-                  style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4, background:"#07C160", color:"#fff", borderRadius:10, padding:"8px 10px", fontSize:11, fontWeight:700, textDecoration:"none" }}>
-                  💬 WeChat
-                </a>
+                <button onClick={() => { navigator.clipboard.writeText(supplier.wechat).catch(()=>{}); window.location.href = "weixin://"; }}
+                  style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4, background:"#07C160", color:"#fff", borderRadius:10, padding:"8px 10px", fontSize:11, fontWeight:700, border:"none", cursor:"pointer" }}>
+                  💬 {supplier.wechat}
+                </button>
               )}
               {supplier.whatsapp && (
                 <a href={`https://wa.me/${supplier.whatsapp.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer"
@@ -861,7 +888,7 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
       {!editing && tab === "info" && (
         <div style={{
           position:"fixed", bottom:0, left:0, right:0,
-          padding:"10px 20px", paddingBottom:"max(14px, env(safe-area-inset-bottom))",
+          padding:"10px 20px", paddingBottom:"calc(16px + env(safe-area-inset-bottom, 0px))",
           background:t.bg, borderTop:`1px solid ${t.border}`, zIndex:50,
         }}>
           <Btn onClick={() => onCalc(p)} variant={p.costTotal ? "secondary" : "primary"} full t={t}>
@@ -1576,7 +1603,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
 
       {/* FAB */}
       <button onClick={() => onNavigate("capture")} style={{
-        position:"fixed", bottom:30, right:24, width:60, height:60, borderRadius:30, border:"none",
+        position:"fixed", bottom:"calc(30px + env(safe-area-inset-bottom, 0px))", right:24, width:60, height:60, borderRadius:30, border:"none",
         background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff", fontSize:28, fontWeight:300,
         boxShadow:`0 6px 30px ${t.accent}80`, display:"flex", alignItems:"center", justifyContent:"center", zIndex:10, cursor:"pointer",
       }}>+</button>
@@ -1627,10 +1654,10 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onNavigateProduc
       {(supplier.wechat || supplier.whatsapp || supplier.phone || supplier.email) && (
         <div style={{ padding:"10px 20px", display:"flex", gap:8, flexWrap:"nowrap", overflowX:"auto", borderBottom:`1px solid ${t.border}`, flexShrink:0 }}>
           {supplier.wechat && (
-            <a href={`weixin://dl/chat?${supplier.wechat}`} target="_blank" rel="noopener noreferrer"
-              style={{ display:"flex", alignItems:"center", gap:6, background:"#07C160", color:"#fff", borderRadius:12, padding:"12px 18px", fontSize:13, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center", whiteSpace:"nowrap", minWidth:0 }}>
-              💬 WeChat
-            </a>
+            <button onClick={() => { navigator.clipboard.writeText(supplier.wechat).catch(()=>{}); window.location.href = "weixin://"; }}
+              style={{ display:"flex", alignItems:"center", gap:6, background:"#07C160", color:"#fff", borderRadius:12, padding:"12px 18px", fontSize:13, fontWeight:700, border:"none", cursor:"pointer", flex:1, justifyContent:"center", whiteSpace:"nowrap", minWidth:0 }}>
+              💬 {supplier.wechat}
+            </button>
           )}
           {supplier.whatsapp && (
             <a href={`https://wa.me/${supplier.whatsapp.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer"
@@ -1907,7 +1934,7 @@ export default function App() {
   };
 
   if (!ready) return (
-    <div style={{ height:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:t.bg, flexDirection:"column", gap:12 }}>
+    <div style={{ height:"100dvh", display:"flex", alignItems:"center", justifyContent:"center", background:t.bg, flexDirection:"column", gap:12 }}>
       <span style={{ fontSize:48 }}>📸</span>
       <span style={{ fontSize:18, fontWeight:800, color:t.text }}>FairScan</span>
       <span style={{ fontSize:12, color:t.muted }}>Cargando...</span>
@@ -1915,7 +1942,7 @@ export default function App() {
   );
 
   return (
-    <div style={{ height:"100vh", background:t.bg, color:t.text, position:"relative", overflow:"hidden", fontFamily:"'DM Sans', -apple-system, sans-serif" }}>
+    <div style={{ height:"100dvh", background:t.bg, color:t.text, position:"relative", overflow:"hidden", fontFamily:"'DM Sans', -apple-system, sans-serif" }}>
       <Toast msg={toast} t={t} />
       {/* <SyncStatus theme={isDark ? "dark" : "light"} /> */}
 
