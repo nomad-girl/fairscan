@@ -58,6 +58,29 @@ export async function processAudio(audioBlob) {
 }
 
 /**
+ * Process business card with Claude Vision
+ * Extracts: company, contact name, phone, email, WeChat, address, etc.
+ */
+export async function processCard(base64Image) {
+  try {
+    const response = await fetch(`${API_BASE}/api/process-card`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: base64Image }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error processing card:', error);
+    throw error;
+  }
+}
+
+/**
  * Helper: Convert Blob to Base64
  */
 function blobToBase64(blob) {

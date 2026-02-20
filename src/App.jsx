@@ -80,7 +80,7 @@ function calcImportCost(fobPrice, ncm, freightPct = 12, insurancePct = 1.5) {
   };
 }
 import { initDB, getSettings, saveSettings as dbSaveSettings, getDistricts, addDistrict, getSuppliers, addSupplier, getProducts, addProduct, updateProduct as dbUpdateProduct, deleteProduct as dbDeleteProduct } from './db';
-import { processImage, processAudio, urlToBase64 } from './api/client';
+import { processImage, processAudio, processCard, urlToBase64 } from './api/client';
 import SyncStatus from './components/SyncStatus.jsx';
 
 const DEFAULT_SETTINGS_FALLBACK = { activeDistrictId:1, theme:"dark", preset:"vajilla", minMargin:40, ...PRESETS.vajilla };
@@ -198,6 +198,15 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
   const [supplierName, setSupplierName] = useState("");
   const [supplierContact, setSupplierContact] = useState("");
   const [cardPhoto, setCardPhoto] = useState(null);
+  const [cardData, setCardData] = useState(null);
+  const [cardProcessing, setCardProcessing] = useState(false);
+  const [supplierPhone, setSupplierPhone] = useState("");
+  const [supplierEmail, setSupplierEmail] = useState("");
+  const [supplierWechat, setSupplierWechat] = useState("");
+  const [supplierWhatsapp, setSupplierWhatsapp] = useState("");
+  const [supplierWebsite, setSupplierWebsite] = useState("");
+  const [supplierAddress, setSupplierAddress] = useState("");
+  const [supplierProducts, setSupplierProducts] = useState("");
   const [photos, setPhotos] = useState([]);
   const [price, setPrice] = useState("");
   const [moq, setMoq] = useState("");
@@ -209,6 +218,31 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
   const [rating, setRating] = useState(0);
   const recorderRef = useRef(null);
   const timerRef = useRef(null);
+
+  // Process business card photo with AI
+  const handleCardPhoto = async (photo) => {
+    setCardPhoto(photo);
+    setCardProcessing(true);
+    try {
+      console.log("🔄 Procesando tarjeta de visita con IA...");
+      const result = await processCard(photo);
+      console.log("✓ Tarjeta procesada:", result);
+      setCardData(result);
+      if (result.company) setSupplierName(result.company);
+      if (result.contactName) setSupplierContact(result.contactName + (result.contactTitle ? ` (${result.contactTitle})` : ""));
+      if (result.phone || result.mobile) setSupplierPhone(result.mobile || result.phone || "");
+      if (result.email) setSupplierEmail(result.email);
+      if (result.wechat) setSupplierWechat(result.wechat);
+      if (result.whatsapp) setSupplierWhatsapp(result.whatsapp || "");
+      if (result.website) setSupplierWebsite(result.website);
+      if (result.address) setSupplierAddress(result.address);
+      if (result.products) setSupplierProducts(result.products);
+    } catch (err) {
+      console.warn("⚠️ Error procesando tarjeta:", err);
+    } finally {
+      setCardProcessing(false);
+    }
+  };
 
   // Suppliers from active district for autocomplete
   const districtSuppliers = suppliers.filter(s => s.districtId === activeDistrictId);
@@ -246,7 +280,15 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
     onSave({
       supplierName: supplierName.trim(),
       supplierContact: supplierContact.trim(),
+      supplierPhone: supplierPhone.trim(),
+      supplierEmail: supplierEmail.trim(),
+      supplierWechat: supplierWechat.trim(),
+      supplierWhatsapp: supplierWhatsapp.trim(),
+      supplierWebsite: supplierWebsite.trim(),
+      supplierAddress: supplierAddress.trim(),
+      supplierProducts: supplierProducts.trim(),
       cardPhoto,
+      cardData,
       photos,
       price: price.trim(),
       moq: moq.trim(),
@@ -273,9 +315,9 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
   });
 
   return (
-    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg, position:"relative" }}>
       {/* Progress bar */}
-      <div style={{ height:3, background:t.border }}>
+      <div style={{ height:3, background:t.border, flexShrink:0 }}>
         <div style={{ height:"100%", width:`${progress}%`, background:t.accent, borderRadius:2, transition:"width 0.3s" }} />
       </div>
 
@@ -283,14 +325,44 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
         right={step < 3 && <button onClick={() => setStep(s=>s+1)} style={{ background:"none", border:"none", color:t.accent, fontSize:13, fontWeight:700, cursor:"pointer" }}>Saltar →</button>}
       />
 
-      <div style={{ flex:1, padding:"20px", overflow:"auto" }}>
+      <div style={{ flex:1, padding:"20px", overflow:"auto", paddingBottom:100 }}>
         {/* STEP 0: Supplier */}
         {step === 0 && (
           <div>
-            <p style={{ fontSize:13, color:t.muted, marginBottom:16, lineHeight:1.5 }}>¿De qué proveedor es? Podés escribir el nombre, sacar foto a la tarjeta, o saltar.</p>
+            <p style={{ fontSize:13, color:t.muted, marginBottom:16, lineHeight:1.5 }}>Sacale foto a la tarjeta de visita y la IA extrae todos los datos automáticamente. O escribí manualmente.</p>
+
+            {/* Card photo section - PROMINENTE */}
+            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:8, textTransform:"uppercase" }}>📸 Tarjeta de visita</p>
+            {cardPhoto ? (
+              <div style={{ position:"relative", marginBottom:12 }}>
+                <img src={cardPhoto} alt="Card" style={{ width:"100%", borderRadius:14, border:`1px solid ${t.border}` }} />
+                <button onClick={() => { setCardPhoto(null); setCardData(null); }} style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:14, background:"#000a", color:"#fff", border:"none", fontSize:14, cursor:"pointer" }}>✕</button>
+                {cardProcessing && (
+                  <div style={{ position:"absolute", bottom:0, left:0, right:0, background:"rgba(0,0,0,0.7)", borderRadius:"0 0 14px 14px", padding:"10px", textAlign:"center" }}>
+                    <span style={{ color:"#fff", fontSize:13, fontWeight:600 }}>⏳ Procesando tarjeta con IA...</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ display:"flex", gap:10, marginBottom:12 }}>
+                <FilePickerBtn onFile={handleCardPhoto} capture="environment" t={t}>📷 Cámara</FilePickerBtn>
+                <FilePickerBtn onFile={handleCardPhoto} t={t}>🖼 Galería</FilePickerBtn>
+              </div>
+            )}
+
+            {/* AI extracted data badge */}
+            {cardData && !cardProcessing && (
+              <div style={{ background:t.greenSoft, border:`1px solid ${t.green}40`, borderRadius:12, padding:"10px 14px", marginBottom:16 }}>
+                <p style={{ fontSize:12, fontWeight:700, color:t.green, marginBottom:4 }}>✓ Datos extraídos por IA</p>
+                <p style={{ fontSize:11, color:t.muted }}>Revisá y editá los campos si es necesario</p>
+              </div>
+            )}
+
+            {/* Supplier fields */}
+            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, textTransform:"uppercase" }}>🏭 Empresa</p>
             <input value={supplierName} onChange={e => setSupplierName(e.target.value)} placeholder="Nombre de la empresa..." style={inp({ marginBottom:8 })} />
             {suggestions.length > 0 && !suggestions.find(s => s.company === supplierName) && (
-              <div style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:12, marginBottom:12, overflow:"hidden" }}>
+              <div style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:12, marginBottom:8, overflow:"hidden" }}>
                 {suggestions.slice(0,4).map(s => (
                   <button key={s.id} onClick={() => { setSupplierName(s.company); setSupplierContact(s.contact || ""); }} style={{
                     width:"100%", textAlign:"left", padding:"10px 14px", border:"none", borderBottom:`1px solid ${t.border}`,
@@ -299,18 +371,34 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
                 ))}
               </div>
             )}
-            <input value={supplierContact} onChange={e => setSupplierContact(e.target.value)} placeholder="Contacto (opcional)" style={inp({ marginBottom:16 })} />
-            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:8, textTransform:"uppercase" }}>📸 Tarjeta de visita (opcional)</p>
-            {cardPhoto ? (
-              <div style={{ position:"relative", marginBottom:12 }}>
-                <img src={cardPhoto} alt="Card" style={{ width:"100%", borderRadius:14, border:`1px solid ${t.border}` }} />
-                <button onClick={() => setCardPhoto(null)} style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:14, background:"#000a", color:"#fff", border:"none", fontSize:14, cursor:"pointer" }}>✕</button>
-              </div>
-            ) : (
-              <div style={{ display:"flex", gap:10, marginBottom:12 }}>
-                <FilePickerBtn onFile={setCardPhoto} capture="environment" t={t}>📷 Cámara</FilePickerBtn>
-                <FilePickerBtn onFile={setCardPhoto} t={t}>🖼 Galería</FilePickerBtn>
-              </div>
+
+            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:8, textTransform:"uppercase" }}>👤 Contacto</p>
+            <input value={supplierContact} onChange={e => setSupplierContact(e.target.value)} placeholder="Nombre del contacto..." style={inp({ marginBottom:8 })} />
+
+            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:8, textTransform:"uppercase" }}>📱 Teléfono / Mobile</p>
+            <input value={supplierPhone} onChange={e => setSupplierPhone(e.target.value)} placeholder="+86 ..." style={inp({ marginBottom:8 })} />
+
+            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:8, textTransform:"uppercase" }}>💬 WeChat ID</p>
+            <input value={supplierWechat} onChange={e => setSupplierWechat(e.target.value)} placeholder="WeChat ID..." style={inp({ marginBottom:8 })} />
+
+            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:8, textTransform:"uppercase" }}>📧 Email</p>
+            <input value={supplierEmail} onChange={e => setSupplierEmail(e.target.value)} placeholder="email@company.com" style={inp({ marginBottom:8 })} />
+
+            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:8, textTransform:"uppercase" }}>🌐 Website</p>
+            <input value={supplierWebsite} onChange={e => setSupplierWebsite(e.target.value)} placeholder="www.company.com" style={inp({ marginBottom:8 })} />
+
+            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:8, textTransform:"uppercase" }}>📍 Dirección</p>
+            <input value={supplierAddress} onChange={e => setSupplierAddress(e.target.value)} placeholder="Dirección..." style={inp({ marginBottom:8 })} />
+
+            {supplierWechat && (
+              <a href={`weixin://dl/chat?${supplierWechat}`} target="_blank" rel="noopener noreferrer"
+                style={{
+                  display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+                  background:"#07C160", color:"#fff", borderRadius:14, padding:"12px 16px",
+                  fontSize:14, fontWeight:700, textDecoration:"none", marginTop:12,
+                }}>
+                💬 Abrir WeChat: {supplierWechat}
+              </a>
             )}
           </div>
         )}
@@ -426,8 +514,13 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
         )}
       </div>
 
-      {/* Bottom action */}
-      <div style={{ padding:"12px 20px 28px", borderTop:`1px solid ${t.border}` }}>
+      {/* Bottom action - FIXED at bottom for mobile */}
+      <div style={{
+        position:"fixed", bottom:0, left:0, right:0,
+        padding:"12px 20px", paddingBottom:"max(16px, env(safe-area-inset-bottom))",
+        borderTop:`1px solid ${t.border}`, background:t.bg,
+        zIndex:100,
+      }}>
         {step < 3 ? (
           <Btn onClick={() => setStep(s=>s+1)} disabled={!canNext[step]} full t={t}>
             Siguiente →
@@ -1443,7 +1536,15 @@ export default function App() {
           supplierId = await addSupplier({
             company: data.supplierName,
             contact: data.supplierContact || "",
+            phone: data.supplierPhone || "",
+            email: data.supplierEmail || "",
+            wechat: data.supplierWechat || "",
+            whatsapp: data.supplierWhatsapp || "",
+            website: data.supplierWebsite || "",
+            address: data.supplierAddress || "",
+            products: data.supplierProducts || "",
             cardPhoto: data.cardPhoto || null,
+            cardData: data.cardData || null,
             districtId: activeDistrictId,
             createdAt: Date.now(),
           });
