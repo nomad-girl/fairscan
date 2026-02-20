@@ -27,12 +27,14 @@ const T = {
 };
 
 export function SyncStatus({ theme = 'dark' }) {
-  const { isOnline, isSyncing, error, syncNow, pendingCount } = useSyncWithAI();
-  const colors = T[theme];
+  try {
+    const { isOnline, isSyncing, error, syncNow, pendingCount } = useSyncWithAI();
+    const colors = T[theme];
 
-  if (pendingCount === 0 && !isSyncing && !error) {
-    return null; // Don't show if nothing pending
-  }
+    // Don't show if nothing pending
+    if (!pendingCount || (pendingCount === 0 && !isSyncing && !error)) {
+      return null;
+    }
 
   const syncStatusText = isSyncing
     ? 'Sincronizando...'
@@ -123,7 +125,11 @@ export function SyncStatus({ theme = 'dark' }) {
         }
       `}</style>
     </div>
-  );
+    );
+  } catch (err) {
+    console.error('SyncStatus error:', err);
+    return null;
+  }
 }
 
 export default SyncStatus;

@@ -1,138 +1,95 @@
-/**
- * Process audio using Claude API
- * Transcribes audio and extracts: price, MOQ, notes, contact info
- *
- * POST /api/process-audio
- * Body: {
- *   audio_base64: string (base64 encoded audio),
- *   format: "wav" | "m4a" | "mp3" (optional, defaults to "wav"),
- *   context?: string (optional context about the supplier/product)
- * }
- */
-
 import Anthropic from '@anthropic-ai/sdk';
-import { requireApiKey, success, error, validateBody } from './middleware.js';
+
+const client = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
 
 export default async function handler(req, res) {
   // Only allow POST
   if (req.method !== 'POST') {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: 'Method not allowed' }),
-    };
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Verify API key is configured
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
   }
 
   try {
-    // Validate API key
-    const apiKey = requireApiKey(req);
+    const { audio, format } = req.body;
 
-    // Validate body
-    const bodyError = validateBody(req.body, ['audio_base64']);
-    if (bodyError) {
-      return error(bodyError, 400);
+    if (!audio) {
+      return res.status(400).json({ error: 'Audio is required' });
     }
 
-    const { audio_base64, format = 'wav', context } = req.body;
-
-    // Validate audio
-    if (!audio_base64 || typeof audio_base64 !== 'string') {
-      return error('audio_base64 must be a non-empty string', 400);
-    }
-
-    // Initialize Anthropic client
-    const client = new Anthropic({ apiKey });
-
-    // Build the prompt for extraction
-    const systemPrompt = `You are an expert at transcribing and analyzing sales conversations.
-Transcribe the audio and extract key information.
-Return a JSON object with this structure:
-{
-  "transcript": "string - full transcription of the audio",
-  "extracted_data": {
-    "price": "string or number - if mentioned",
-    "currency": "string - if mentioned",
-    "moq": "string or number - minimum order quantity if mentioned",
-    "notes": "string - any additional notes or details",
-    "contact": "string - if any contact info is mentioned",
-    "company_name": "string - if supplier name mentioned"
-  },
-  "language": "string - detected language",
-  "confidence": 0.95
-}
-Extract only information that is clearly stated in the audio.`;
-
-    const userMessage = context
-      ? `Transcribe and analyze this audio. Additional context: ${context}`
-      : 'Transcribe and analyze this audio, extracting key information.';
-
-    // Convert base64 to binary for audio processing
-    const audioBuffer = Buffer.from(
-      audio_base64.replace(/^data:audio\/[^;]+;base64,/, ''),
-      'base64'
-    );
-
-    // Map format to MIME type
-    const mimeType = {
-      wav: 'audio/wav',
-      m4a: 'audio/mp4',
-      mp3: 'audio/mpeg',
-    }[format] || 'audio/wav';
+    // Determine media type
+    const mediaType = format === 'wav' ? 'audio/wav' : 
+                     format === 'm4a' ? 'audio/mp4' :
+                     format === 'mp3' ? 'audio/mpeg' :
+                     'audio/webm';
 
     // Call Claude API with audio
     const response = await client.messages.create({
       model: 'claude-3-5-sonnet-20241022',
       max_tokens: 1024,
-      system: systemPrompt,
       messages: [
         {
           role: 'user',
           content: [
             {
-              type: 'document',
+              type: 'audio',
               source: {
                 type: 'base64',
-                media_type: mimeType,
-                data: audioBuffer.toString('base64'),
+                media_type: mediaType,
+                data: audio,
               },
             },
             {
               type: 'text',
-              text: userMessage,
+              text: `Transcribe este audio y extrae información en formato JSON:
+{
+  "transcript": "transcripción completa del audio",
+  "extracted_data": {
+    "price": "precio si se menciona o null",
+    "moq": "cantidad mínima si se menciona o null",
+    "contact": "información de contacto si se menciona o null",
+    "notes": "notas adicionales o null"
+  }
+}
+
+Responde SOLO con el JSON, sin explicaciones adicionales.`,
             },
           ],
         },
       ],
     });
 
-    // Extract the response content
+    // Extract JSON from response
     const content = response.content[0];
     if (content.type !== 'text') {
-      return error('Unexpected response type from Claude', 500);
+      throw new Error('Unexpected response type from Claude');
     }
 
     // Parse the JSON response
-    let extractedData;
+    let result;
     try {
-      // Extract JSON from the response (it might have markdown code blocks)
+      result = JSON.parse(content.text);
+    } catch (e) {
+      // Try to extract JSON if there's extra text
       const jsonMatch = content.text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        return error('Could not parse Claude response', 500);
+      if (jsonMatch) {
+        result = JSON.parse(jsonMatch[0]);
+      } else {
+        throw e;
       }
-      extractedData = JSON.parse(jsonMatch[0]);
-    } catch (parseError) {
-      console.error('Failed to parse Claude response:', content.text);
-      return error('Failed to parse Claude response', 500);
     }
 
-    // Return success
-    return success({
-      extracted: extractedData,
-      processed_at: new Date().toISOString(),
-      audio_processed: true,
-      format: format,
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error('Error processing audio:', error);
+    return res.status(500).json({
+      error: 'Error processing audio',
+      details: error.message,
     });
-  } catch (err) {
-    console.error('Error in process-audio:', err);
-    return error(err.message, 500);
   }
 }

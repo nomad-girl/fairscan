@@ -25,14 +25,14 @@ export function useSyncWithAI() {
     () =>
       db.products.where('ai_processed').equals(false).limit(100).toArray(),
     []
-  );
+  ) || [];
 
   // Query suppliers with pending processing
   const pendingSuppliers = useLiveQuery(
     () =>
       db.suppliers.where('ai_processed').equals(false).limit(100).toArray(),
     []
-  );
+  ) || [];
 
   // Listen to online/offline events
   useEffect(() => {

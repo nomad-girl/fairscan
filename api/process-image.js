@@ -1,71 +1,31 @@
-/**
- * Process product images using Claude Vision API
- * Extracts: name, description, features, materials, colors, category
- *
- * POST /api/process-image
- * Body: {
- *   base64_image: string (base64 encoded image),
- *   context?: string (optional context about the product/supplier)
- * }
- */
-
 import Anthropic from '@anthropic-ai/sdk';
-import { requireApiKey, success, error, validateBody } from './middleware.js';
+
+const client = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
 
 export default async function handler(req, res) {
   // Only allow POST
   if (req.method !== 'POST') {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: 'Method not allowed' }),
-    };
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Verify API key is configured
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
   }
 
   try {
-    // Validate API key
-    const apiKey = requireApiKey(req);
+    const { image } = req.body;
 
-    // Validate body
-    const bodyError = validateBody(req.body, ['base64_image']);
-    if (bodyError) {
-      return error(bodyError, 400);
+    if (!image) {
+      return res.status(400).json({ error: 'Image is required' });
     }
-
-    const { base64_image, context } = req.body;
-
-    // Validate base64 image
-    if (!base64_image || typeof base64_image !== 'string') {
-      return error('base64_image must be a non-empty string', 400);
-    }
-
-    // Initialize Anthropic client
-    const client = new Anthropic({ apiKey });
-
-    // Build the prompt
-    const systemPrompt = `You are an expert product analyzer. Analyze the provided product image and extract detailed information.
-Return ONLY a JSON object with this exact structure:
-{
-  "name": "string - product name/title",
-  "description": "string - brief product description",
-  "features": ["string - feature 1", "string - feature 2", ...],
-  "materials": ["string - material 1", "string - material 2", ...],
-  "colors": ["string - color 1", "string - color 2", ...],
-  "estimated_category": "string - product category",
-  "estimated_price_range": "string - estimated price range if visible",
-  "confidence": 0.95,
-  "warnings": ["string - if any"]
-}
-If information is not visible in the image, omit that field.`;
-
-    const userMessage = context
-      ? `Analyze this product image. Additional context: ${context}`
-      : 'Analyze this product image and extract all relevant information.';
 
     // Call Claude Vision API
     const response = await client.messages.create({
       model: 'claude-3-5-sonnet-20241022',
       max_tokens: 1024,
-      system: systemPrompt,
       messages: [
         {
           role: 'user',
@@ -75,46 +35,55 @@ If information is not visible in the image, omit that field.`;
               source: {
                 type: 'base64',
                 media_type: 'image/jpeg',
-                data: base64_image.replace(/^data:image\/[^;]+;base64,/, ''),
+                data: image,
               },
             },
             {
               type: 'text',
-              text: userMessage,
+              text: `Analiza esta imagen de un producto y extrae la siguiente información en formato JSON:
+{
+  "name": "nombre del producto",
+  "description": "descripción detallada",
+  "features": ["característica 1", "característica 2"],
+  "materials": ["material 1", "material 2"],
+  "colors": ["color 1", "color 2"],
+  "category": "categoría estimada",
+  "confidence": 0.95
+}
+
+Responde SOLO con el JSON, sin explicaciones adicionales.`,
             },
           ],
         },
       ],
     });
 
-    // Extract the response content
+    // Extract JSON from response
     const content = response.content[0];
     if (content.type !== 'text') {
-      return error('Unexpected response type from Claude', 500);
+      throw new Error('Unexpected response type from Claude');
     }
 
     // Parse the JSON response
-    let extractedData;
+    let result;
     try {
-      // Extract JSON from the response (it might have markdown code blocks)
+      result = JSON.parse(content.text);
+    } catch (e) {
+      // Try to extract JSON if there's extra text
       const jsonMatch = content.text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        return error('Could not parse Claude response', 500);
+      if (jsonMatch) {
+        result = JSON.parse(jsonMatch[0]);
+      } else {
+        throw e;
       }
-      extractedData = JSON.parse(jsonMatch[0]);
-    } catch (parseError) {
-      console.error('Failed to parse Claude response:', content.text);
-      return error('Failed to parse Claude response', 500);
     }
 
-    // Return success
-    return success({
-      extracted: extractedData,
-      processed_at: new Date().toISOString(),
-      image_processed: true,
+    return res.status(200).json(result);
+  } catch (error) {
+    console.error('Error processing image:', error);
+    return res.status(500).json({
+      error: 'Error processing image',
+      details: error.message,
     });
-  } catch (err) {
-    console.error('Error in process-image:', err);
-    return error(err.message, 500);
   }
 }

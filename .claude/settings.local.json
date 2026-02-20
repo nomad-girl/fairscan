@@ -4,7 +4,11 @@
       "Bash(npm install:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(/Users/nati/Developer/FairScan/src/api/client.js:*)",
+      "Bash(/Users/nati/Developer/FairScan/api/process-image.js:*)",
+      "Bash(/Users/nati/Developer/FairScan/api/process-audio.js:*)",
+      "Bash(git push)"
     ]
   }
 }

@@ -1,101 +1,89 @@
 /**
- * HTTP Client for FairScan API
- * Handles all communication with backend endpoints
+ * API Client for FairScan IA endpoints
+ * Handles calls to backend IA processing
  */
 
-const API_BASE =
-  import.meta.env.VITE_API_URL || window.location.origin + '/api';
+const API_BASE = process.env.VITE_API_URL || 'http://localhost:5173';
 
 /**
- * Generic API request wrapper
+ * Process product image with Claude Vision
+ * Extracts: name, description, features, materials, colors, category
  */
-async function apiRequest(endpoint, options = {}) {
-  const url = `${API_BASE}/${endpoint}`;
-
+export async function processImage(base64Image) {
   try {
-    const response = await fetch(url, {
-      method: options.method || 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      body: options.body ? JSON.stringify(options.body) : undefined,
+    const response = await fetch(`${API_BASE}/api/process-image`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: base64Image }),
     });
 
-    const data = await response.json();
-
     if (!response.ok) {
-      throw new Error(data.error || `HTTP ${response.status}`);
+      throw new Error(`API error: ${response.status}`);
     }
 
-    return data.data;
-  } catch (err) {
-    console.error(`API Error (${endpoint}):`, err);
-    throw err;
+    return await response.json();
+  } catch (error) {
+    console.error('Error processing image:', error);
+    throw error;
   }
 }
 
 /**
- * Process product image with Claude Vision
- * @param {string} base64Image - Base64 encoded image
- * @param {string} context - Optional context about the product
- * @returns {Object} Extracted image data
+ * Process audio recording with Claude
+ * Transcribes and extracts: price, MOQ, notes, contact info
  */
-export async function processImage(base64Image, context = null) {
-  return apiRequest('process-image', {
-    body: {
-      base64_image: base64Image,
-      context,
-    },
+export async function processAudio(audioBlob) {
+  try {
+    // Convert blob to base64
+    const base64Audio = await blobToBase64(audioBlob);
+
+    const response = await fetch(`${API_BASE}/api/process-audio`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        audio: base64Audio,
+        format: audioBlob.type.split('/')[1] || 'webm',
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error processing audio:', error);
+    throw error;
+  }
+}
+
+/**
+ * Helper: Convert Blob to Base64
+ */
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
   });
 }
 
 /**
- * Process audio recording
- * @param {string} audio_base64 - Base64 encoded audio
- * @param {string} format - Audio format (wav, m4a, mp3)
- * @param {string} context - Optional context
- * @returns {Object} Transcription and extracted data
+ * Helper: Convert URL to Base64 (for photos)
  */
-export async function processAudio(audio_base64, format = 'wav', context = null) {
-  return apiRequest('process-audio', {
-    body: {
-      audio_base64,
-      format,
-      context,
-    },
+export function urlToBase64(url) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.onload = () => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(xhr.response);
+    };
+    xhr.onerror = reject;
+    xhr.open('GET', url);
+    xhr.responseType = 'blob';
+    xhr.send();
   });
 }
-
-/**
- * Process QR code text
- * @param {string} qr_text - Raw QR code text
- * @returns {Object} Parsed supplier information
- */
-export async function processQR(qr_text) {
-  return apiRequest('process-qr', {
-    body: {
-      qr_text,
-    },
-  });
-}
-
-/**
- * Batch sync pending items
- * @param {Array} items - Array of items with pending_processing flags
- * @returns {Object} Synced items and errors
- */
-export async function syncWithAI(items) {
-  return apiRequest('sync', {
-    body: {
-      items,
-    },
-  });
-}
-
-export default {
-  processImage,
-  processAudio,
-  processQR,
-  syncWithAI,
-};

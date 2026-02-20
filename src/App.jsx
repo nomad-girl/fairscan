@@ -80,6 +80,7 @@ function calcImportCost(fobPrice, ncm, freightPct = 12, insurancePct = 1.5) {
   };
 }
 import { initDB, getSettings, saveSettings as dbSaveSettings, getDistricts, addDistrict, getSuppliers, addSupplier, getProducts, addProduct, updateProduct as dbUpdateProduct, deleteProduct as dbDeleteProduct } from './db';
+import { processImage, processAudio, urlToBase64 } from './api/client';
 import SyncStatus from './components/SyncStatus.jsx';
 
 const DEFAULT_SETTINGS_FALLBACK = { activeDistrictId:1, theme:"dark", preset:"vajilla", minMargin:40, ...PRESETS.vajilla };
@@ -1430,45 +1431,98 @@ export default function App() {
 
   // Handle capture save
   const handleCaptureSave = async (data) => {
-    let supplierId = null;
-    if (data.supplierName) {
-      const existing = suppliers.find(s => s.company === data.supplierName && s.districtId === activeDistrictId);
-      if (existing) {
-        supplierId = existing.id;
-      } else {
-        supplierId = await addSupplier({
-          company: data.supplierName,
-          contact: data.supplierContact || "",
-          cardPhoto: data.cardPhoto || null,
-          districtId: activeDistrictId,
-          createdAt: Date.now(),
-        });
+    try {
+      showToast("⏳ Procesando con IA...");
+
+      let supplierId = null;
+      if (data.supplierName) {
+        const existing = suppliers.find(s => s.company === data.supplierName && s.districtId === activeDistrictId);
+        if (existing) {
+          supplierId = existing.id;
+        } else {
+          supplierId = await addSupplier({
+            company: data.supplierName,
+            contact: data.supplierContact || "",
+            cardPhoto: data.cardPhoto || null,
+            districtId: activeDistrictId,
+            createdAt: Date.now(),
+          });
+        }
       }
+
+      let aiName = null;
+      let aiDescription = null;
+      let aiCategory = null;
+      let aiMaterials = [];
+      let aiAudioTranscript = null;
+      let aiPrice = null;
+      let aiMoq = null;
+
+      // Process first photo with Claude Vision if available
+      if (data.photos && data.photos.length > 0) {
+        try {
+          console.log("🔄 Procesando imagen con IA...");
+          const base64Image = data.photos[0];
+          const imageResult = await processImage(base64Image);
+          aiName = imageResult.name;
+          aiDescription = imageResult.description;
+          aiCategory = imageResult.category;
+          aiMaterials = imageResult.materials || [];
+          console.log("✓ Imagen procesada:", imageResult);
+        } catch (imgErr) {
+          console.warn("⚠️ Error procesando imagen:", imgErr);
+        }
+      }
+
+      // Process audio with Claude if available
+      if (data.audioURL) {
+        try {
+          console.log("🔄 Procesando audio con IA...");
+          const audioBlob = await fetch(data.audioURL).then(r => r.blob());
+          const audioResult = await processAudio(audioBlob);
+          aiAudioTranscript = audioResult.transcript;
+          if (audioResult.extracted_data) {
+            aiPrice = audioResult.extracted_data.price || aiPrice;
+            aiMoq = audioResult.extracted_data.moq || aiMoq;
+          }
+          console.log("✓ Audio procesado:", audioResult);
+        } catch (audioErr) {
+          console.warn("⚠️ Error procesando audio:", audioErr);
+        }
+      }
+
+      // Add product with AI-enriched data
+      await addProduct({
+        name: aiName || (data.supplierName ? `Producto de ${data.supplierName}` : `Producto ${products.length + 1}`),
+        description: aiDescription || null,
+        supplierCompany: data.supplierName || null,
+        supplierId,
+        districtId: activeDistrictId,
+        photos: data.photos,
+        price: data.price || aiPrice || null,
+        moq: data.moq || aiMoq || null,
+        audioURL: data.audioURL,
+        audioTranscript: aiAudioTranscript || null,
+        rating: data.rating,
+        category: aiCategory || null,
+        material: aiMaterials,
+        notes: data.textNote || null,
+        viability: null,
+        costTotal: null,
+        costData: null,
+        targetPrice: null,
+        ai_processed: !!(aiName || aiDescription || aiAudioTranscript),
+        ai_last_synced: navigator.onLine ? new Date() : null,
+        createdAt: Date.now(),
+      });
+
+      await reloadAll();
+      navigate("list");
+      showToast("✓ Producto guardado con IA");
+    } catch (err) {
+      console.error("Error en handleCaptureSave:", err);
+      showToast("❌ Error guardando producto");
     }
-
-    await addProduct({
-      name: data.supplierName ? `Producto de ${data.supplierName}` : `Producto ${products.length + 1}`,
-      supplierCompany: data.supplierName || null,
-      supplierId,
-      districtId: activeDistrictId,
-      photos: data.photos,
-      price: data.price,
-      moq: data.moq,
-      audioURL: data.audioURL,
-      rating: data.rating,
-      category: null,
-      material: [],
-      notes: data.textNote || null,
-      viability: null,
-      costTotal: null,
-      costData: null,
-      targetPrice: null,
-      createdAt: Date.now(),
-    });
-
-    await reloadAll();
-    navigate("list");
-    showToast("Producto guardado");
   };
 
   const handleUpdateProduct = async (id, changes) => {
@@ -1507,7 +1561,7 @@ export default function App() {
   return (
     <div style={{ height:"100vh", background:t.bg, color:t.text, position:"relative", overflow:"hidden", fontFamily:"'DM Sans', -apple-system, sans-serif" }}>
       <Toast msg={toast} t={t} />
-      <SyncStatus theme={isDark ? "dark" : "light"} />
+      {/* <SyncStatus theme={isDark ? "dark" : "light"} /> */}
 
       {screen === "list" && (
         <ProductList products={products} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} activeDistrict={activeDistrict} settings={settings}
