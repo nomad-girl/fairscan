@@ -621,7 +621,7 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
           <button key={tb.k} onClick={()=>setTab(tb.k)} style={{ flex:1, padding:8, borderRadius:8, border:"none", background:tab===tb.k?t.card:"transparent", color:tab===tb.k?t.text:t.muted, fontSize:12, fontWeight:700, cursor:"pointer", boxShadow:tab===tb.k?`0 2px 8px ${t.border}`:"none" }}>{tb.l}</button>
         ))}
       </div>
-      <div style={{ flex:1, overflow:"auto", padding:"0 0 40px" }}>
+      <div style={{ flex:1, overflow:"auto", padding:"0 0 80px" }}>
         {tab === "info" && <>
           {/* HERO PHOTO - center of the view */}
           {p.photos?.length > 0 && (
@@ -789,10 +789,6 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
                 <p style={{ fontSize:10, color:t.muted, margin:0 }}>{new Date(p.createdAt).toLocaleString("es-AR", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })}</p></div>
               </div>
             )}
-            {/* Calculator CTA */}
-            <Btn onClick={() => onCalc(p)} variant="outline" full t={t} style={{ marginTop:4 }}>
-              🧮 {p.costTotal ? "Ver / editar cálculo" : "Calcular costo importación"}
-            </Btn>
           </>}
           </div>
         </>}
@@ -860,6 +856,19 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
           ))}
         </div>}
       </div>
+
+      {/* Fixed calculator button at bottom */}
+      {!editing && tab === "info" && (
+        <div style={{
+          position:"fixed", bottom:0, left:0, right:0,
+          padding:"10px 20px", paddingBottom:"max(14px, env(safe-area-inset-bottom))",
+          background:t.bg, borderTop:`1px solid ${t.border}`, zIndex:50,
+        }}>
+          <Btn onClick={() => onCalc(p)} variant={p.costTotal ? "secondary" : "primary"} full t={t}>
+            🧮 {p.costTotal ? `Costo: USD ${p.costTotal} · Editar` : "Calcular costo importación"}
+          </Btn>
+        </div>
+      )}
     </div>
   );
 }
@@ -1133,14 +1142,29 @@ function SettingsScreen({ settings, onSave, onBack, t }) {
   const [loc, setLoc] = useState({ ...settings });
   const [editing, setEditing] = useState(null);
   const [ni, setNi] = useState("");
-  const add = (f) => { if(ni.trim()) { setLoc(p => ({ ...p, [f]:[...p[f], ni.trim()] })); setNi(""); setEditing(null); }};
+  const [dirty, setDirty] = useState(false);
+
+  // Auto-save: whenever loc changes and is dirty, save silently
+  useEffect(() => {
+    if (dirty) {
+      onSave(loc, true);
+      setDirty(false);
+    }
+  }, [loc, dirty]);
+
+  const updateLoc = (updater) => {
+    setLoc(updater);
+    setDirty(true);
+  };
+
+  const add = (f) => { if(ni.trim()) { updateLoc(p => ({ ...p, [f]:[...p[f], ni.trim()] })); setNi(""); setEditing(null); }};
   const sec = (title, icon, field, color) => (
     <div style={{ marginBottom:20 }}>
       <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.08em" }}>{icon} {title}</p>
       <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
         {loc[field]?.map(item => (
           <div key={item} style={{ display:"flex", alignItems:"center", gap:4, padding:"5px 10px 5px 12px", borderRadius:16, fontSize:12, fontWeight:600, background:color+"20", border:`1px solid ${color}30`, color }}>
-            {item}<button onClick={() => setLoc(p => ({ ...p, [field]:p[field].filter(i => i!==item) }))} style={{ background:"none", border:"none", color:color+"80", cursor:"pointer", fontSize:14, padding:"0 2px" }}>×</button>
+            {item}<button onClick={() => updateLoc(p => ({ ...p, [field]:p[field].filter(i => i!==item) }))} style={{ background:"none", border:"none", color:color+"80", cursor:"pointer", fontSize:14, padding:"0 2px" }}>×</button>
           </div>
         ))}
         {editing===field ? (
@@ -1159,7 +1183,7 @@ function SettingsScreen({ settings, onSave, onBack, t }) {
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>🚀 Preset por rubro</p>
         <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:24 }}>
-          {Object.entries(PRESETS).map(([k,p]) => <button key={k} onClick={() => setLoc(prev => ({ ...prev, preset:k, ...PRESETS[k] }))} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px", borderRadius:12, cursor:"pointer", background:loc.preset===k?t.accentSoft:t.card, border:`1.5px solid ${loc.preset===k?t.accent:t.border}`, textAlign:"left" }}><span style={{ fontSize:22 }}>{p.icon}</span><span style={{ fontSize:13, fontWeight:600, color:loc.preset===k?t.accent:t.text, flex:1 }}>{p.name}</span>{loc.preset===k && <span style={{ color:t.accent }}>✓</span>}</button>)}
+          {Object.entries(PRESETS).map(([k,p]) => <button key={k} onClick={() => updateLoc(prev => ({ ...prev, preset:k, ...PRESETS[k] }))} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px", borderRadius:12, cursor:"pointer", background:loc.preset===k?t.accentSoft:t.card, border:`1.5px solid ${loc.preset===k?t.accent:t.border}`, textAlign:"left" }}><span style={{ fontSize:22 }}>{p.icon}</span><span style={{ fontSize:13, fontWeight:600, color:loc.preset===k?t.accent:t.text, flex:1 }}>{p.name}</span>{loc.preset===k && <span style={{ color:t.accent }}>✓</span>}</button>)}
         </div>
         <div style={{ height:1, background:t.border, marginBottom:20 }} />
         {sec("Categorías","🏷","categories",t.accent)}
@@ -1171,13 +1195,11 @@ function SettingsScreen({ settings, onSave, onBack, t }) {
         <div style={{ height:1, background:t.border, margin:"4px 0 20px" }} />
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>🎯 Margen mínimo para importación</p>
         <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:24 }}>
-          <button onClick={() => setLoc(p=>({...p, minMargin:Math.max(10, (p.minMargin||40)-5)}))} style={{ width:40, height:40, borderRadius:12, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:18, cursor:"pointer" }}>−</button>
+          <button onClick={() => updateLoc(p=>({...p, minMargin:Math.max(10, (p.minMargin||40)-5)}))} style={{ width:40, height:40, borderRadius:12, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:18, cursor:"pointer" }}>−</button>
           <span style={{ fontSize:28, fontWeight:800, color:t.accent }}>{loc.minMargin || 40}%</span>
-          <button onClick={() => setLoc(p=>({...p, minMargin:Math.min(200, (p.minMargin||40)+5)}))} style={{ width:40, height:40, borderRadius:12, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:18, cursor:"pointer" }}>+</button>
+          <button onClick={() => updateLoc(p=>({...p, minMargin:Math.min(200, (p.minMargin||40)+5)}))} style={{ width:40, height:40, borderRadius:12, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:18, cursor:"pointer" }}>+</button>
         </div>
-      </div>
-      <div style={{ padding:"12px 20px 28px" }}>
-        <Btn onClick={() => onSave(loc)} full t={t}>✓ Guardar configuración</Btn>
+        <p style={{ fontSize:11, color:t.dim, textAlign:"center", fontStyle:"italic", marginTop:8 }}>Los cambios se guardan automáticamente</p>
       </div>
     </div>
   );
@@ -1450,7 +1472,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
             </div>
           )}
           <div style={{ display:"flex", gap:6 }}>
-            <button onClick={() => onNavigate("export")} style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:10, width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, cursor:"pointer" }}>↗</button>
+            <button onClick={() => onNavigate("export")} style={{ background:t.accent, border:"none", borderRadius:10, padding:"0 12px", height:36, display:"flex", alignItems:"center", justifyContent:"center", gap:4, fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer" }}>📊 Exportar</button>
             <button onClick={onToggleTheme} style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:10, width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, cursor:"pointer" }}>{isDark?"☀️":"🌙"}</button>
             <button onClick={() => onNavigate("settings")} style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:10, width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, color:t.muted, cursor:"pointer" }}>⚙</button>
           </div>
@@ -1584,12 +1606,10 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onNavigateProduc
         <input value={editData[key] || ""} onChange={e => setEditData(d => ({ ...d, [key]: e.target.value }))}
           placeholder={placeholder} style={{ width:"100%", padding:"10px 14px", borderRadius:12, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }} />
       ) : (
-        <p style={{ fontSize:14, color: supplier[key] ? t.text : t.dim, padding:"4px 0", margin:0 }}>{supplier[key] || "—"}</p>
+        supplier[key] ? <p style={{ fontSize:14, color:t.text, padding:"4px 0", margin:0 }}>{supplier[key]}</p> : null
       )}
     </div>
   );
-
-  const hasContactButtons = supplier.wechat || supplier.whatsapp || supplier.phone || supplier.email;
 
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
@@ -1603,7 +1623,37 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onNavigateProduc
         }
       />
 
-      <div style={{ flex:1, overflowY:"scroll", WebkitOverflowScrolling:"touch", padding:20, paddingBottom: hasContactButtons ? 90 : 40 }}>
+      {/* CONTACT BUTTONS - always visible at top */}
+      {(supplier.wechat || supplier.whatsapp || supplier.phone || supplier.email) && (
+        <div style={{ padding:"10px 20px", display:"flex", gap:8, flexWrap:"nowrap", overflowX:"auto", borderBottom:`1px solid ${t.border}`, flexShrink:0 }}>
+          {supplier.wechat && (
+            <a href={`weixin://dl/chat?${supplier.wechat}`} target="_blank" rel="noopener noreferrer"
+              style={{ display:"flex", alignItems:"center", gap:6, background:"#07C160", color:"#fff", borderRadius:12, padding:"12px 18px", fontSize:13, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center", whiteSpace:"nowrap", minWidth:0 }}>
+              💬 WeChat
+            </a>
+          )}
+          {supplier.whatsapp && (
+            <a href={`https://wa.me/${supplier.whatsapp.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer"
+              style={{ display:"flex", alignItems:"center", gap:6, background:"#25D366", color:"#fff", borderRadius:12, padding:"12px 18px", fontSize:13, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center", whiteSpace:"nowrap", minWidth:0 }}>
+              📱 WhatsApp
+            </a>
+          )}
+          {supplier.phone && (
+            <a href={`tel:${supplier.phone}`}
+              style={{ display:"flex", alignItems:"center", gap:6, background:t.blueSoft, color:t.blue, borderRadius:12, padding:"12px 18px", fontSize:13, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center", whiteSpace:"nowrap", minWidth:0 }}>
+              📞 Llamar
+            </a>
+          )}
+          {supplier.email && (
+            <a href={`mailto:${supplier.email}`}
+              style={{ display:"flex", alignItems:"center", gap:6, background:t.purpleSoft, color:t.purple, borderRadius:12, padding:"12px 18px", fontSize:13, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center", whiteSpace:"nowrap", minWidth:0 }}>
+              ✉️ Email
+            </a>
+          )}
+        </div>
+      )}
+
+      <div style={{ flex:1, overflowY:"scroll", WebkitOverflowScrolling:"touch", padding:20, paddingBottom:40 }}>
         {/* Card photo */}
         {supplier.cardPhoto && (
           <div style={{ marginBottom:16 }}>
@@ -1615,7 +1665,7 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onNavigateProduc
         <div style={{ display:"flex", gap:8, marginBottom:16 }}>
           {supplier.cardData && (
             <div style={{ background:t.greenSoft, border:`1px solid ${t.green}40`, borderRadius:10, padding:"6px 12px", flex:0 }}>
-              <p style={{ fontSize:11, fontWeight:700, color:t.green, margin:0, whiteSpace:"nowrap" }}>🤖 IA</p>
+              <p style={{ fontSize:11, fontWeight:700, color:t.green, margin:0, whiteSpace:"nowrap" }}>🤖 Datos de IA</p>
             </div>
           )}
           {supplierProducts.length > 0 && (
@@ -1663,41 +1713,6 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onNavigateProduc
           )}
         </div>
       </div>
-
-      {/* FIXED contact buttons at bottom */}
-      {hasContactButtons && (
-        <div style={{
-          position:"sticky", bottom:0, left:0, right:0,
-          padding:"10px 16px", paddingBottom:"max(12px, env(safe-area-inset-bottom))",
-          background:t.bg, borderTop:`1px solid ${t.border}`,
-          display:"flex", gap:8, flexWrap:"nowrap", overflowX:"auto",
-        }}>
-          {supplier.wechat && (
-            <a href={`weixin://dl/chat?${supplier.wechat}`} target="_blank" rel="noopener noreferrer"
-              style={{ display:"flex", alignItems:"center", gap:6, background:"#07C160", color:"#fff", borderRadius:12, padding:"10px 14px", fontSize:12, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center", whiteSpace:"nowrap" }}>
-              💬 WeChat
-            </a>
-          )}
-          {supplier.whatsapp && (
-            <a href={`https://wa.me/${supplier.whatsapp.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer"
-              style={{ display:"flex", alignItems:"center", gap:6, background:"#25D366", color:"#fff", borderRadius:12, padding:"10px 14px", fontSize:12, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center", whiteSpace:"nowrap" }}>
-              📱 WhatsApp
-            </a>
-          )}
-          {supplier.phone && (
-            <a href={`tel:${supplier.phone}`}
-              style={{ display:"flex", alignItems:"center", gap:6, background:t.blueSoft, color:t.blue, borderRadius:12, padding:"10px 14px", fontSize:12, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center", whiteSpace:"nowrap" }}>
-              📞 Llamar
-            </a>
-          )}
-          {supplier.email && (
-            <a href={`mailto:${supplier.email}`}
-              style={{ display:"flex", alignItems:"center", gap:6, background:t.purpleSoft, color:t.purple, borderRadius:12, padding:"10px 14px", fontSize:12, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center", whiteSpace:"nowrap" }}>
-              ✉️ Email
-            </a>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -1876,11 +1891,13 @@ export default function App() {
     showToast("Proveedor actualizado");
   };
 
-  const handleSaveSettings = async (s) => {
+  const handleSaveSettings = async (s, silent) => {
     await dbSaveSettings(s);
     setSettings(prev => ({ ...prev, ...s }));
-    navigate("list");
-    showToast("Config guardada");
+    if (!silent) {
+      navigate("list");
+      showToast("Config guardada");
+    }
   };
 
   const handleAddDistrict = async (d) => {
