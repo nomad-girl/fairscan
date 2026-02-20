@@ -31,7 +31,7 @@ exports.handler = async (event) => {
     // For audio, we send it as text since Claude 3.5 Sonnet doesn't support audio input directly
     // We'll just process any text notes instead
     const response = await client.messages.create({
-      model: "claude-3-haiku-20240307",
+      model: "claude-3-5-haiku-20241022",
       max_tokens: 1024,
       messages: [
         {
