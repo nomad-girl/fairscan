@@ -1,25 +1,39 @@
 const Anthropic = require("@anthropic-ai/sdk");
 
 exports.handler = async (event) => {
+  // Add CORS headers
+  const headers = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+
+  if (event.httpMethod === "OPTIONS") {
+    return { statusCode: 200, headers, body: "" };
+  }
+
   if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: JSON.stringify({ error: "Method not allowed" }) };
+    return { statusCode: 405, headers, body: JSON.stringify({ error: "Method not allowed" }) };
   }
 
   if (!process.env.ANTHROPIC_API_KEY) {
-    return { statusCode: 500, body: JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }) };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }) };
   }
 
   try {
     const { image } = JSON.parse(event.body);
 
     if (!image) {
-      return { statusCode: 400, body: JSON.stringify({ error: "Image is required" }) };
+      return { statusCode: 400, headers, body: JSON.stringify({ error: "Image is required" }) };
     }
+
+    // Remove data URL prefix if present
+    const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
     const response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-3-5-sonnet-20241022",
       max_tokens: 1024,
       messages: [
         {
@@ -30,7 +44,7 @@ exports.handler = async (event) => {
               source: {
                 type: "base64",
                 media_type: "image/jpeg",
-                data: image.replace(/^data:image\/\w+;base64,/, ""),
+                data: base64Data,
               },
             },
             {
@@ -66,15 +80,12 @@ Responde SOLO con el JSON, sin explicaciones adicionales.`,
       }
     }
 
-    return {
-      statusCode: 200,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(result),
-    };
+    return { statusCode: 200, headers, body: JSON.stringify(result) };
   } catch (error) {
     console.error("Error processing image:", error);
     return {
       statusCode: 500,
+      headers,
       body: JSON.stringify({ error: "Error processing image", details: error.message }),
     };
   }

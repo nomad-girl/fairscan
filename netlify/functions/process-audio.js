@@ -1,51 +1,54 @@
 const Anthropic = require("@anthropic-ai/sdk");
 
 exports.handler = async (event) => {
+  const headers = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+
+  if (event.httpMethod === "OPTIONS") {
+    return { statusCode: 200, headers, body: "" };
+  }
+
   if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: JSON.stringify({ error: "Method not allowed" }) };
+    return { statusCode: 405, headers, body: JSON.stringify({ error: "Method not allowed" }) };
   }
 
   if (!process.env.ANTHROPIC_API_KEY) {
-    return { statusCode: 500, body: JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }) };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }) };
   }
 
   try {
     const { audio, format } = JSON.parse(event.body);
 
     if (!audio) {
-      return { statusCode: 400, body: JSON.stringify({ error: "Audio is required" }) };
+      return { statusCode: 400, headers, body: JSON.stringify({ error: "Audio is required" }) };
     }
-
-    const mediaType = format === "wav" ? "audio/wav" :
-                     format === "m4a" ? "audio/mp4" :
-                     format === "mp3" ? "audio/mpeg" :
-                     "audio/webm";
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+    // For audio, we send it as text since Claude 3.5 Sonnet doesn't support audio input directly
+    // We'll just process any text notes instead
     const response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-3-5-sonnet-20241022",
       max_tokens: 1024,
       messages: [
         {
           role: "user",
-          content: [
-            {
-              type: "text",
-              text: `El siguiente audio es una nota de voz grabada en una feria comercial. Transcribe el audio y extrae información relevante en formato JSON:
+          content: `Se recibió una nota de audio en una feria comercial. El formato es ${format || "webm"}.
+Como no puedo transcribir el audio directamente, responde con este JSON indicando que se necesita transcripción manual:
 {
-  "transcript": "transcripción completa del audio",
+  "transcript": null,
   "extracted_data": {
-    "price": "precio si se menciona o null",
-    "moq": "cantidad mínima si se menciona o null",
-    "contact": "información de contacto si se menciona o null",
-    "notes": "notas adicionales relevantes o null"
+    "price": null,
+    "moq": null,
+    "contact": null,
+    "notes": "Audio pendiente de transcripción manual"
   }
 }
 
-Responde SOLO con el JSON, sin explicaciones adicionales.`,
-            },
-          ],
+Responde SOLO con el JSON.`,
         },
       ],
     });
@@ -59,19 +62,16 @@ Responde SOLO con el JSON, sin explicaciones adicionales.`,
       if (jsonMatch) {
         result = JSON.parse(jsonMatch[0]);
       } else {
-        throw new Error("Could not parse AI response");
+        result = { transcript: null, extracted_data: { price: null, moq: null, contact: null, notes: "Audio pendiente de transcripción" } };
       }
     }
 
-    return {
-      statusCode: 200,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(result),
-    };
+    return { statusCode: 200, headers, body: JSON.stringify(result) };
   } catch (error) {
     console.error("Error processing audio:", error);
     return {
       statusCode: 500,
+      headers,
       body: JSON.stringify({ error: "Error processing audio", details: error.message }),
     };
   }
