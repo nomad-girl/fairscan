@@ -135,3 +135,22 @@ export function urlToBase64(url) {
     xhr.send();
   });
 }
+
+/**
+ * Download an R2 image via server proxy (bypasses CORS).
+ * Returns base64 data URL or null on failure.
+ */
+export async function proxyImage(url) {
+  try {
+    const response = await fetch(`${API_BASE}/api/proxy-image`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    if (!response.ok) return null;
+    const { base64 } = await response.json();
+    return base64 || null;
+  } catch {
+    return null;
+  }
+}

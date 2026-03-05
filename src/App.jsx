@@ -80,7 +80,7 @@ function calcImportCost(fobPrice, ncm, freightPct = 12, insurancePct = 1.5) {
   };
 }
 import db, { initDB, getSettings, saveSettings as dbSaveSettings, getDistricts, addDistrict, getSuppliers, addSupplier, updateSupplier as dbUpdateSupplier, deleteSupplier as dbDeleteSupplier, getProducts, addProduct, updateProduct as dbUpdateProduct, deleteProduct as dbDeleteProduct, deleteDistrict as dbDeleteDistrict, setSyncEngine, getSyncQueue } from './db';
-import { processImage, processAudio, processCard, urlToBase64, uploadPhoto } from './api/client';
+import { processImage, processAudio, processCard, urlToBase64, uploadPhoto, proxyImage } from './api/client';
 import useSync from './hooks/useSync';
 import syncEngine from './lib/syncEngine';
 import RoomPanel from './components/RoomPanel';
@@ -2000,13 +2000,14 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
             const photo = photoSources[i];
             let bytes;
             if (photo.startsWith('http')) {
-              // Photo was replaced with cloud URL — fetch it
-              const resp = await fetch(photo);
-              if (!resp.ok) throw new Error(`Fetch failed: ${resp.status}`);
-              const blob = await resp.blob();
-              bytes = new Uint8Array(await blob.arrayBuffer());
-            } else {
+              // Photo is a cloud URL — download via server proxy (bypasses CORS)
+              const dataUrl = await proxyImage(photo);
+              if (!dataUrl) throw new Error('Proxy download failed');
+              bytes = dataURLtoUint8Array(dataUrl);
+            } else if (photo.startsWith('data:')) {
               bytes = dataURLtoUint8Array(photo);
+            } else {
+              continue; // Skip invalid entries
             }
             fotosFolder.folder(folderSlug).file(filename, bytes, { binary: true });
             paths.push(relativePath);
@@ -2026,12 +2027,13 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
             try {
               let bytes;
               if (cardSrc.startsWith('http')) {
-                const resp = await fetch(cardSrc);
-                if (!resp.ok) throw new Error(`Fetch failed: ${resp.status}`);
-                const blob = await resp.blob();
-                bytes = new Uint8Array(await blob.arrayBuffer());
-              } else {
+                const dataUrl = await proxyImage(cardSrc);
+                if (!dataUrl) throw new Error('Proxy download failed');
+                bytes = dataURLtoUint8Array(dataUrl);
+              } else if (cardSrc.startsWith('data:')) {
                 bytes = dataURLtoUint8Array(cardSrc);
+              } else {
+                continue;
               }
               fotosFolder.folder(slug).file(`tarjeta_${slug}.jpg`, bytes, { binary: true });
             } catch (e) { console.warn("Error procesando tarjeta:", e); }
@@ -2913,6 +2915,8 @@ export default function App() {
     const urls = [];
     const prefix = `photos/${slugify(supplierName || 'product')}`;
     for (let i = 0; i < photos.length; i++) {
+      // Skip if already a URL (already uploaded)
+      if (photos[i]?.startsWith('http')) { urls.push(photos[i]); continue; }
       const key = `${prefix}/${productId}_${i + 1}.jpg`;
       const result = await uploadPhoto(photos[i], key);
       if (result?.url) urls.push(result.url);
@@ -2920,15 +2924,10 @@ export default function App() {
     }
     const validUrls = urls.filter(Boolean);
     if (validUrls.length > 0) {
-      // Save cloud URLs and clear local base64 to free IndexedDB space
-      const update = { photoUrls: urls };
-      if (validUrls.length === photos.length) {
-        // All photos uploaded successfully — replace local base64 with cloud URLs
-        update.photos = validUrls;
-      }
-      await dbUpdateProduct(productId, update);
-      setProducts(prev => prev.map(p => p.id === productId ? { ...p, ...update } : p));
-      console.log(`☁️ ${validUrls.length}/${photos.length} fotos subidas a la nube${validUrls.length === photos.length ? ' (base64 liberado)' : ''}`);
+      // Save cloud URLs — keep local base64 photos intact for offline/export
+      await dbUpdateProduct(productId, { photoUrls: urls });
+      setProducts(prev => prev.map(p => p.id === productId ? { ...p, photoUrls: urls } : p));
+      console.log(`☁️ ${validUrls.length}/${photos.length} fotos subidas a la nube`);
     }
   };
 
