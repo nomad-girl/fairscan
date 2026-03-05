@@ -1967,9 +1967,10 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       const dateStr = new Date().toISOString().slice(0, 10);
       const root = zip.folder(`FairScan_Export_${dateStr}`);
 
-      // Build supplier slug map
+      // Build supplier slug map (linked by ID + matched by company name)
       const supplierMap = new Map();
       const slugCounts = new Map();
+      const companySlugMap = new Map(); // supplierCompany name → slug (for unlinked products)
       uniqueSupIds.forEach(id => {
         const s = suppliers.find(s => s.id === id);
         if (s) {
@@ -1978,8 +1979,20 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
           slugCounts.set(slug, count + 1);
           if (count > 0) slug = `${slug}-${count + 1}`;
           supplierMap.set(id, { supplier: s, slug });
+          companySlugMap.set(s.company, { supplier: s, slug });
         }
       });
+      // Also find suppliers by company name for unlinked products
+      const unlinkedCompanies = [...new Set(scopeProducts.filter(p => !p.supplierId && p.supplierCompany).map(p => p.supplierCompany))];
+      for (const company of unlinkedCompanies) {
+        if (companySlugMap.has(company)) continue; // already mapped
+        const s = suppliers.find(s => s.company === company);
+        let slug = slugify(company);
+        const count = slugCounts.get(slug) || 0;
+        slugCounts.set(slug, count + 1);
+        if (count > 0) slug = `${slug}-${count + 1}`;
+        companySlugMap.set(company, { supplier: s || null, slug });
+      }
 
       // Add product photos
       const fotosFolder = root.folder('fotos');
@@ -1989,8 +2002,8 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       for (const product of scopeProducts) {
         const photoSources = product.photos?.length ? product.photos : (product.photoUrls?.filter(Boolean) || []);
         if (!photoSources.length) { productPhotoMap.set(product.id, []); continue; }
-        const supInfo = product.supplierId ? supplierMap.get(product.supplierId) : null;
-        const folderSlug = supInfo ? supInfo.slug : (product.supplierCompany ? slugify(product.supplierCompany) : 'sin-proveedor');
+        const supInfo = product.supplierId ? supplierMap.get(product.supplierId) : (product.supplierCompany ? companySlugMap.get(product.supplierCompany) : null);
+        const folderSlug = supInfo ? supInfo.slug : 'sin-proveedor';
         const prodSlug = slugify(product.name);
         const paths = [];
         for (let i = 0; i < photoSources.length; i++) {
@@ -2021,7 +2034,15 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
 
       // Add business card photos inside each supplier's folder
       if (includeSuppliers) {
-        for (const [id, { supplier: s, slug }] of supplierMap) {
+        // Collect all supplier entries (linked by ID + matched by company name)
+        const allSupEntries = new Map();
+        for (const [, entry] of supplierMap) {
+          if (entry.supplier) allSupEntries.set(entry.slug, entry);
+        }
+        for (const [, entry] of companySlugMap) {
+          if (entry.supplier && !allSupEntries.has(entry.slug)) allSupEntries.set(entry.slug, entry);
+        }
+        for (const [slug, { supplier: s }] of allSupEntries) {
           const cardSrc = s.cardPhoto || s.cardPhotoUrl;
           if (cardSrc) {
             try {
