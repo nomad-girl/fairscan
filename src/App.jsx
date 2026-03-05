@@ -1990,7 +1990,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
         const photoSources = product.photos?.length ? product.photos : (product.photoUrls?.filter(Boolean) || []);
         if (!photoSources.length) { productPhotoMap.set(product.id, []); continue; }
         const supInfo = product.supplierId ? supplierMap.get(product.supplierId) : null;
-        const folderSlug = supInfo ? supInfo.slug : 'sin-proveedor';
+        const folderSlug = supInfo ? supInfo.slug : (product.supplierCompany ? slugify(product.supplierCompany) : 'sin-proveedor');
         const prodSlug = slugify(product.name);
         const paths = [];
         for (let i = 0; i < photoSources.length; i++) {
@@ -2367,9 +2367,13 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
   const grouped = useMemo(() => {
     const map = {};
     filtered.forEach(p => {
-      const sid = p.supplierId || "unknown";
+      // Group by supplierId, or by supplierCompany name, or "unknown"
+      const sid = p.supplierId || (p.supplierCompany ? `name:${p.supplierCompany}` : "unknown");
       if (!map[sid]) {
-        map[sid] = { supplier: supplierMap.get(sid) || null, districtId:p.districtId, products:[] };
+        const sup = p.supplierId ? supplierMap.get(p.supplierId) : null;
+        // For unlinked products with supplierCompany, create a pseudo-supplier for display
+        const displaySupplier = sup || (p.supplierCompany ? { company: p.supplierCompany, _unlinked: true } : null);
+        map[sid] = { supplier: displaySupplier, districtId:p.districtId, products:[] };
       }
       map[sid].products.push(p);
     });
