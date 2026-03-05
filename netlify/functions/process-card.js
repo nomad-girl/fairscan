@@ -59,7 +59,7 @@ Extrae TODA la información visible en formato JSON:
   "mobile": "número de celular si es diferente al teléfono",
   "email": "dirección de email",
   "website": "sitio web",
-  "wechat": "ID de WeChat si está visible (buscar en QR labels, texto, etc.)",
+  "wechat": "ID de WeChat si está visible en texto, labels cerca del QR, en la tarjeta, etc.",
   "whatsapp": "número de WhatsApp si está visible",
   "address": "dirección completa",
   "city": "ciudad",
@@ -67,8 +67,16 @@ Extrae TODA la información visible en formato JSON:
   "products": "productos o servicios que ofrece si se mencionan",
   "boothNumber": "número de stand/booth si está visible",
   "qrDetected": true o false (si ves un código QR en la imagen),
+  "qrType": "wechat, whatsapp, website, vcard, o unknown - identificar el tipo de QR por contexto visual: logo verde de WeChat = wechat, logo de WhatsApp = whatsapp, etc. MUY IMPORTANTE: buscar el icono/logo de WeChat (verde con burbujas de chat) cerca del QR",
+  "qrUrl": "si podés leer alguna URL escrita debajo/arriba del QR o en texto cercano, incluirla acá",
   "otherInfo": "cualquier otra información relevante visible"
 }
+
+IMPORTANTE sobre QR codes:
+- Si ves un QR code con el logo verde de WeChat (微信) en el centro o cerca, qrType DEBE ser "wechat"
+- Si ves texto como "Scan to add WeChat" / "扫一扫" / "微信" cerca del QR, qrType DEBE ser "wechat"
+- Si ves un QR con el logo de WhatsApp (teléfono verde), qrType DEBE ser "whatsapp"
+- Buscar WeChat IDs escritos cerca del QR (ej: "WeChat: abc123" o "微信号: abc123")
 
 Responde SOLO con el JSON, sin explicaciones adicionales. Si un campo no está visible, usa null.`,
             },

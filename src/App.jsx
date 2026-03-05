@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 
 // ═══════════════════════════════════════════
 // THEME
 // ═══════════════════════════════════════════
 const T = {
-  dark: { bg:"#0A0E17",card:"#131825",accent:"#FF6B35",accentSoft:"#FF6B3520",green:"#22C55E",greenSoft:"#22C55E20",yellow:"#FBBF24",blue:"#3B82F6",blueSoft:"#3B82F620",purple:"#A855F7",purpleSoft:"#A855F720",red:"#EF4444",redSoft:"#EF444420",text:"#F1F5F9",muted:"#64748B",dim:"#475569",border:"#1E293B",surface:"#0F1420" },
+  dark: { bg:"#0A0E17",card:"#131825",accent:"#FF6B35",accentSoft:"#FF6B3520",green:"#22C55E",greenSoft:"#22C55E20",yellow:"#FBBF24",blue:"#3B82F6",blueSoft:"#3B82F620",purple:"#A855F7",purpleSoft:"#A855F720",red:"#EF4444",redSoft:"#EF444420",text:"#F1F5F9",muted:"#64748B",dim:"#94A3B8",border:"#1E293B",surface:"#0F1420" },
   light: { bg:"#F8FAFC",card:"#FFFFFF",accent:"#FF6B35",accentSoft:"#FF6B3515",green:"#16A34A",greenSoft:"#16A34A12",yellow:"#D97706",blue:"#2563EB",blueSoft:"#2563EB12",purple:"#9333EA",purpleSoft:"#9333EA12",red:"#DC2626",redSoft:"#DC262612",text:"#0F172A",muted:"#64748B",dim:"#94A3B8",border:"#E2E8F0",surface:"#F1F5F9" },
 };
 
@@ -79,8 +79,11 @@ function calcImportCost(fobPrice, ncm, freightPct = 12, insurancePct = 1.5) {
     ],
   };
 }
-import { initDB, getSettings, saveSettings as dbSaveSettings, getDistricts, addDistrict, getSuppliers, addSupplier, updateSupplier as dbUpdateSupplier, getProducts, addProduct, updateProduct as dbUpdateProduct, deleteProduct as dbDeleteProduct } from './db';
+import db, { initDB, getSettings, saveSettings as dbSaveSettings, getDistricts, addDistrict, getSuppliers, addSupplier, updateSupplier as dbUpdateSupplier, deleteSupplier as dbDeleteSupplier, getProducts, addProduct, updateProduct as dbUpdateProduct, deleteProduct as dbDeleteProduct, deleteDistrict as dbDeleteDistrict, setSyncEngine, getSyncQueue } from './db';
 import { processImage, processAudio, processCard, urlToBase64, uploadPhoto } from './api/client';
+import useSync from './hooks/useSync';
+import syncEngine from './lib/syncEngine';
+import RoomPanel from './components/RoomPanel';
 import SyncStatus from './components/SyncStatus.jsx';
 
 const DEFAULT_SETTINGS_FALLBACK = { activeDistrictId:1, theme:"dark", preset:"vajilla", minMargin:40, ...PRESETS.vajilla };
@@ -105,8 +108,48 @@ function slugify(text) {
     .slice(0, 50) || 'sin-nombre';
 }
 
+// #10: Fuzzy string similarity for supplier dedup (normalized Levenshtein)
+function stringSimilarity(a, b) {
+  if (!a || !b) return 0;
+  const na = a.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+  const nb = b.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+  if (na === nb) return 1;
+  if (!na || !nb) return 0;
+  const len = Math.max(na.length, nb.length);
+  // Levenshtein distance
+  const dp = Array.from({ length: na.length + 1 }, (_, i) => {
+    const row = new Array(nb.length + 1);
+    row[0] = i;
+    return row;
+  });
+  for (let j = 0; j <= nb.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= na.length; i++) {
+    for (let j = 1; j <= nb.length; j++) {
+      dp[i][j] = na[i - 1] === nb[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return 1 - dp[na.length][nb.length] / len;
+}
+
+// #22: resizeImage with EXIF-aware orientation (uses createImageBitmap where available)
 function resizeImage(file, maxPx, quality) {
-  return new Promise(resolve => {
+  return new Promise(async (resolve) => {
+    try {
+      // Modern path: createImageBitmap respects EXIF orientation
+      if (typeof createImageBitmap === 'function') {
+        const bmp = await createImageBitmap(file);
+        const c = document.createElement("canvas");
+        let w = bmp.width, h = bmp.height;
+        if (w > h && w > maxPx) { h = h * maxPx / w; w = maxPx; }
+        else if (h > maxPx) { w = w * maxPx / h; h = maxPx; }
+        c.width = w; c.height = h;
+        c.getContext("2d").drawImage(bmp, 0, 0, w, h);
+        bmp.close();
+        resolve(c.toDataURL("image/jpeg", quality));
+        return;
+      }
+    } catch {}
+    // Fallback: FileReader + Image
     const reader = new FileReader();
     reader.onload = (ev) => {
       const img = new Image();
@@ -132,11 +175,11 @@ function FilePickerBtn({ onFile, onFiles, accept = "image/*", capture, multiple,
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
     if (multiple && onFiles && files.length > 1) {
-      const results = await Promise.all(files.map(f => resizeImage(f, 400, 0.75)));
+      const results = await Promise.all(files.map(f => resizeImage(f, 800, 0.80)));
       onFiles(results);
     } else {
-      const dataUrl = await resizeImage(files[0], 400, 0.75);
-      onFile(dataUrl);
+      const dataUrl = await resizeImage(files[0], 1200, 0.85);
+      onFile(dataUrl, files[0]); // pass original file for high-res QR decoding
     }
     if (ref.current) ref.current.value = "";
   };
@@ -155,24 +198,93 @@ function FilePickerBtn({ onFile, onFiles, accept = "image/*", capture, multiple,
 }
 
 // ═══════════════════════════════════════════
+// SWIPE ROW - swipe left to reveal actions
+// ═══════════════════════════════════════════
+function SwipeRow({ children, onEdit, onDelete, t }) {
+  const rowRef = useRef(null);
+  const startX = useRef(0);
+  const currentX = useRef(0);
+  const [offset, setOffset] = useState(0);
+  const [swiped, setSwiped] = useState(false);
+  const THRESHOLD = 70;
+  const MAX_SWIPE = onEdit && onDelete ? 130 : 65;
+
+  const onTouchStart = (e) => {
+    startX.current = e.touches[0].clientX;
+    currentX.current = startX.current;
+  };
+  const onTouchMove = (e) => {
+    currentX.current = e.touches[0].clientX;
+    const dx = startX.current - currentX.current;
+    if (dx > 5) { // only swipe left
+      e.preventDefault?.();
+      setOffset(Math.min(dx, MAX_SWIPE));
+    } else if (swiped && dx < -5) {
+      setOffset(Math.max(MAX_SWIPE + dx, 0));
+    }
+  };
+  const onTouchEnd = () => {
+    if (offset > THRESHOLD) {
+      setOffset(MAX_SWIPE);
+      setSwiped(true);
+    } else {
+      setOffset(0);
+      setSwiped(false);
+    }
+  };
+  // Close on tap elsewhere
+  useEffect(() => {
+    if (!swiped) return;
+    const close = (e) => { if (rowRef.current && !rowRef.current.contains(e.target)) { setOffset(0); setSwiped(false); } };
+    document.addEventListener("touchstart", close);
+    return () => document.removeEventListener("touchstart", close);
+  }, [swiped]);
+
+  return (
+    <div ref={rowRef} style={{ position:"relative", overflow:"hidden", borderRadius:14, marginBottom:6 }}>
+      {/* Actions behind */}
+      <div style={{ position:"absolute", right:0, top:0, bottom:0, display:"flex", alignItems:"stretch", zIndex:0 }}>
+        {onEdit && (
+          <button onClick={() => { setOffset(0); setSwiped(false); onEdit(); }} style={{
+            width:65, border:"none", background:t.accent, color:"#fff", fontSize:11, fontWeight:700,
+            cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2,
+          }}>✏️<span>Editar</span></button>
+        )}
+        {onDelete && (
+          <button onClick={() => { setOffset(0); setSwiped(false); onDelete(); }} style={{
+            width:65, border:"none", background:t.red, color:"#fff", fontSize:11, fontWeight:700,
+            cursor:"pointer", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2,
+          }}>🗑<span>Eliminar</span></button>
+        )}
+      </div>
+      {/* Content */}
+      <div
+        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+        style={{ transform:`translateX(-${offset}px)`, transition: offset === 0 || offset === MAX_SWIPE ? "transform 0.25s ease" : "none", position:"relative", zIndex:1, background:t.bg }}
+      >{children}</div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
 // SMALL COMPONENTS
 // ═══════════════════════════════════════════
-const Stars = ({ value, onChange, size = 28, t }) => (
+const Stars = memo(({ value, onChange, size = 28, t }) => (
   <div style={{ display:"flex", gap:4 }}>
     {[1,2,3,4,5].map(s => (
       <button key={s} onClick={() => onChange?.(s)} style={{ fontSize:size, background:"none", border:"none", cursor:onChange?"pointer":"default", color:s<=value?t.yellow:t.dim, padding:0 }}>★</button>
     ))}
   </div>
-);
+));
 
-const MiniStars = ({ rating, t }) => (
+const MiniStars = memo(({ rating, t }) => (
   <div style={{ display:"flex", alignItems:"center", gap:1 }}>
     {[1,2,3,4,5].map(s=><span key={s} style={{ fontSize:10, color:s<=Math.round(rating)?t.yellow:t.dim }}>{s<=Math.round(rating)?"★":"☆"}</span>)}
     {rating > 0 && <span style={{ fontSize:10, fontWeight:700, color:t.yellow, marginLeft:3 }}>{rating.toFixed(1)}</span>}
   </div>
-);
+));
 
-const Header = ({ title, subtitle, onBack, right, t }) => (
+const Header = memo(({ title, subtitle, onBack, right, t }) => (
   <div style={{ padding:"16px 20px", display:"flex", alignItems:"center", gap:12, borderBottom:`1px solid ${t.border}` }}>
     {onBack && <button onClick={onBack} style={{ background:"none", border:"none", color:t.muted, fontSize:22, cursor:"pointer", padding:4 }}>←</button>}
     <div style={{ flex:1, minWidth:0 }}>
@@ -181,11 +293,11 @@ const Header = ({ title, subtitle, onBack, right, t }) => (
     </div>
     {right}
   </div>
-);
+));
 
-const Toast = ({ msg, t }) => msg ? (
+const Toast = memo(({ msg, t }) => msg ? (
   <div style={{ position:"fixed", top:16, left:"50%", transform:"translateX(-50%)", background:t.green, color:"#fff", padding:"10px 24px", borderRadius:12, fontWeight:700, fontSize:13, boxShadow:`0 8px 30px ${t.green}60`, zIndex:1000, whiteSpace:"nowrap" }} className="fade-in">✓ {msg}</div>
-) : null;
+) : null);
 
 const Empty = ({ icon, title, sub, t }) => (
   <div style={{ textAlign:"center", padding:"60px 20px" }}>
@@ -195,7 +307,7 @@ const Empty = ({ icon, title, sub, t }) => (
   </div>
 );
 
-const Btn = ({ children, onClick, variant = "primary", full, disabled, t, style: sx }) => {
+const Btn = memo(({ children, onClick, variant = "primary", full, disabled, t, style: sx }) => {
   const styles = {
     primary: { background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff", border:"none" },
     secondary: { background:t.surface, color:t.text, border:`1px solid ${t.border}` },
@@ -210,7 +322,7 @@ const Btn = ({ children, onClick, variant = "primary", full, disabled, t, style:
       ...sx,
     }}>{children}</button>
   );
-};
+});
 
 // ═══════════════════════════════════════════
 // CAPTURE FLOW
@@ -226,6 +338,8 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
   const [supplierEmail, setSupplierEmail] = useState("");
   const [supplierWechat, setSupplierWechat] = useState("");
   const [supplierWhatsapp, setSupplierWhatsapp] = useState("");
+  const [supplierWhatsappLink, setSupplierWhatsappLink] = useState("");
+  const [supplierWechatLink, setSupplierWechatLink] = useState("");
   const [supplierWebsite, setSupplierWebsite] = useState("");
   const [supplierAddress, setSupplierAddress] = useState("");
   const [supplierProducts, setSupplierProducts] = useState("");
@@ -247,95 +361,233 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
 
   const streamRef = useRef(null);
 
+  // Cleanup audio blob URL on unmount or change to prevent memory leak
+  useEffect(() => {
+    return () => { if (audioURL) URL.revokeObjectURL(audioURL); };
+  }, [audioURL]);
+
+  // #12: Auto-save draft to localStorage every 5 seconds
+  const DRAFT_KEY = 'fairscan_capture_draft';
+  useEffect(() => {
+    // Restore draft on mount
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const draft = JSON.parse(saved);
+        if (draft.supplierName) setSupplierName(draft.supplierName);
+        if (draft.supplierContact) setSupplierContact(draft.supplierContact);
+        if (draft.supplierPhone) setSupplierPhone(draft.supplierPhone);
+        if (draft.supplierEmail) setSupplierEmail(draft.supplierEmail);
+        if (draft.supplierWechat) setSupplierWechat(draft.supplierWechat);
+        if (draft.supplierWhatsapp) setSupplierWhatsapp(draft.supplierWhatsapp);
+        if (draft.supplierWebsite) setSupplierWebsite(draft.supplierWebsite);
+        if (draft.supplierAddress) setSupplierAddress(draft.supplierAddress);
+        if (draft.price) setPrice(draft.price);
+        if (draft.moq) setMoq(draft.moq);
+        if (draft.textNote) setTextNote(draft.textNote);
+        if (draft.rating) setRating(draft.rating);
+        if (draft.step) setStep(draft.step);
+      }
+    } catch {}
+    return () => { localStorage.removeItem(DRAFT_KEY); };
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const hasData = supplierName || price || moq || textNote || photos.length > 0;
+      if (hasData) {
+        try {
+          localStorage.setItem(DRAFT_KEY, JSON.stringify({
+            supplierName, supplierContact, supplierPhone, supplierEmail,
+            supplierWechat, supplierWhatsapp, supplierWebsite, supplierAddress,
+            price, moq, textNote, rating, step,
+          }));
+        } catch {}
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [supplierName, supplierContact, supplierPhone, supplierEmail, supplierWechat, supplierWhatsapp, supplierWebsite, supplierAddress, price, moq, textNote, rating, step, photos]);
+
   // Auto-open camera on mount (Step 0)
   useEffect(() => {
     if (step === 0 && photos.length === 0 && fileInputRef.current) {
       fileInputRef.current.click();
     }
-    // Pre-request mic permission
-    navigator.mediaDevices?.getUserMedia({ audio: true }).then(stream => {
-      streamRef.current = stream;
-      stream.getTracks().forEach(t => t.stop()); // release immediately, just cache permission
-    }).catch(() => setMicAvailable(false));
+    // Check mic permission without triggering prompt
+    navigator.permissions?.query({ name: 'microphone' }).then(result => {
+      if (result.state === 'denied') setMicAvailable(false);
+      // If 'prompt' or 'granted', we'll request when user taps record
+    }).catch(() => { /* permissions API not available, assume mic is available */ });
+    // Cleanup streams on unmount
+    return () => {
+      if (recorderRef.current) { try { recorderRef.current.stop(); } catch {} }
+      if (speechRef.current) { try { speechRef.current.onend = null; speechRef.current.stop(); } catch {} }
+      clearInterval(timerRef.current);
+    };
   }, []);
 
-  // Decode QR code from base64 image
-  const decodeQR = async (dataURL) => {
+  // Decode QR code from a File object (high-res) or from base64 dataURL
+  // Uses multi-pass strategy: full image, then cropped quadrants, then grayscale+threshold
+  const decodeQR = async (source) => {
     try {
       const jsQR = (await import('jsqr')).default;
+      let dataURL = source;
+      if (source instanceof File || source instanceof Blob) {
+        dataURL = await new Promise((res, rej) => {
+          const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(source);
+        });
+      }
       const img = new Image();
       await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = dataURL; });
-      const canvas = document.createElement("canvas");
-      canvas.width = img.width; canvas.height = img.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(imageData.data, imageData.width, imageData.height);
-      return code?.data || null;
+
+      // Try scanning at multiple resolutions - WeChat QRs need high res
+      const tryDecode = (canvas, ctx) => {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        // Pass 1: normal
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        if (code?.data) return code.data;
+        // Pass 2: inverted colors (white-on-dark QRs)
+        const d = new Uint8ClampedArray(imageData.data);
+        for (let i = 0; i < d.length; i += 4) { d[i] = 255 - d[i]; d[i+1] = 255 - d[i+1]; d[i+2] = 255 - d[i+2]; }
+        const code2 = jsQR(d, imageData.width, imageData.height);
+        if (code2?.data) return code2.data;
+        // Pass 3: high-contrast grayscale threshold (helps with WeChat logo in center)
+        const d2 = new Uint8ClampedArray(imageData.data);
+        for (let i = 0; i < d2.length; i += 4) {
+          const gray = d2[i] * 0.299 + d2[i+1] * 0.587 + d2[i+2] * 0.114;
+          const bw = gray < 128 ? 0 : 255;
+          d2[i] = d2[i+1] = d2[i+2] = bw;
+        }
+        const code3 = jsQR(d2, imageData.width, imageData.height);
+        if (code3?.data) return code3.data;
+        return null;
+      };
+
+      // Attempt 1: full image at high resolution
+      for (const maxQR of [1600, 1200, 800]) {
+        let w = img.width, h = img.height;
+        if (w > h && w > maxQR) { h = h * maxQR / w; w = maxQR; }
+        else if (h > maxQR) { w = w * maxQR / h; h = maxQR; }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        const result = tryDecode(canvas, ctx);
+        if (result) return result;
+      }
+
+      // Attempt 2: scan quadrants (QR might be in one corner of a business card)
+      const qw = img.width, qh = img.height;
+      const regions = [
+        [0, 0, qw*0.6, qh*0.6],             // top-left
+        [qw*0.4, 0, qw*0.6, qh*0.6],        // top-right
+        [0, qh*0.4, qw*0.6, qh*0.6],        // bottom-left
+        [qw*0.4, qh*0.4, qw*0.6, qh*0.6],   // bottom-right
+        [qw*0.15, qh*0.15, qw*0.7, qh*0.7], // center crop
+      ];
+      for (const [sx, sy, sw, sh] of regions) {
+        const size = Math.min(Math.max(sw, sh), 1200);
+        const rw = sw > sh ? size : size * sw / sh;
+        const rh = sh > sw ? size : size * sh / sw;
+        const canvas = document.createElement("canvas");
+        canvas.width = rw; canvas.height = rh;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, rw, rh);
+        const result = tryDecode(canvas, ctx);
+        if (result) return result;
+      }
+
+      return null;
     } catch { return null; }
   };
 
   // Parse QR content into contact fields
+  // NOTE: Never sets info.name to generic placeholders - let AI determine the real name
   const parseQRContent = (qrData) => {
     if (!qrData) return null;
     const info = {};
     // WhatsApp: wa.me/NUMBER, wa.me/qr/CODE, wa.me/message/CODE, api.whatsapp.com/send?phone=
     if (/wa\.me|whatsapp\.com|whatsapp/i.test(qrData)) {
-      info.whatsappLink = qrData; // save full link for direct access
       const numMatch = qrData.match(/wa\.me\/(\+?\d{6,})/);
       const phoneMatch = qrData.match(/phone=(\+?\d{6,})/);
-      if (numMatch) info.whatsapp = numMatch[1];
-      else if (phoneMatch) info.whatsapp = phoneMatch[1];
-      info.name = "Proveedor (WhatsApp)";
+      const phone = numMatch?.[1] || phoneMatch?.[1];
+      if (phone) {
+        info.whatsapp = phone;
+        // Deep link directo al chat con este número
+        info.whatsappLink = `https://wa.me/${phone.replace(/\+/g, "")}`;
+      } else {
+        // QR de WhatsApp sin número extraíble (ej: wa.me/qr/CODE) - guardar link original
+        info.whatsappLink = qrData;
+      }
     }
-    // WeChat: weixin://dl/chat?..., or just a WeChat ID string
-    if (/weixin:\/\/|wechat/i.test(qrData)) { info.wechat = qrData; info.name = info.name || "Proveedor (WeChat)"; }
+    // WeChat: ALL known QR formats
+    // - weixin://dl/chat?username=XXX (deep link)
+    // - https://u.wechat.com/XXXX (personal QR - most common!)
+    // - http://weixin.qq.com/r/XXXX (profile QR)
+    // - http://weixin.qq.com/x/XXXX (business QR)
+    // - https://work.weixin.qq.com/XXXX (enterprise WeChat)
+    // - http://qm.qq.com/XXXX (QQ/WeChat hybrid)
+    if (/weixin:\/\/|wechat\.com|weixin\.qq\.com|u\.wechat\.com|work\.weixin/i.test(qrData)) {
+      // Guardar el deep link original (funciona para abrir perfil en WeChat)
+      info.wechatLink = qrData;
+      // Intentar extraer el WeChat ID si está en la URL
+      const idMatch = qrData.match(/weixin:\/\/dl\/(?:chat|business)\?.*?username=([^&]+)/i);
+      if (idMatch) info.wechat = idMatch[1];
+      // Si no pudimos extraer ID, marcar que es WeChat de todas formas
+      if (!info.wechat) info.wechat = "QR escaneado";
+    }
     // Phone: tel:NUMBER
     const telMatch = qrData.match(/tel:(\+?\d[\d\s-]+)/i);
-    if (telMatch) { info.phone = telMatch[1].replace(/\s/g, ""); info.name = info.name || "Proveedor (teléfono)"; }
+    if (telMatch) { info.phone = telMatch[1].replace(/\s/g, ""); }
     // Email: mailto:EMAIL
     const mailMatch = qrData.match(/mailto:([^\s?]+)/i);
-    if (mailMatch) { info.email = mailMatch[1]; info.name = info.name || "Proveedor (email)"; }
-    // vCard
+    if (mailMatch) { info.email = mailMatch[1]; }
+    // vCard - this one CAN set name/company because they come from structured data
     if (qrData.includes("BEGIN:VCARD")) {
-      const fn = qrData.match(/FN:(.+)/); if (fn) info.name = fn[1].trim();
+      const fn = qrData.match(/FN:(.+)/); if (fn) info.contactName = fn[1].trim();
       const org = qrData.match(/ORG:(.+)/); if (org) info.company = org[1].trim();
       const tel = qrData.match(/TEL[^:]*:(.+)/); if (tel) info.phone = tel[1].trim();
       const em = qrData.match(/EMAIL[^:]*:(.+)/); if (em) info.email = em[1].trim();
       const url = qrData.match(/URL:(.+)/); if (url) info.website = url[1].trim();
+      // vCard WhatsApp/WeChat
+      const waMatch = qrData.match(/X-WHATSAPP:(.+)/i) || qrData.match(/X-WA:(.+)/i);
+      if (waMatch) { info.whatsapp = waMatch[1].trim(); info.whatsappLink = `https://wa.me/${waMatch[1].trim().replace(/\+/g, "")}`; }
+      const wcMatch = qrData.match(/X-WECHAT:(.+)/i);
+      if (wcMatch) info.wechat = wcMatch[1].trim();
     }
-    // Generic URL (only if nothing else matched)
-    if (!info.whatsappLink && !info.wechat && /^https?:\/\//i.test(qrData)) {
-      info.website = qrData; info.name = info.name || "Proveedor (web)";
+    // Generic URL (only if nothing else matched) - website, no name
+    if (!info.whatsappLink && !info.wechatLink && /^https?:\/\//i.test(qrData)) {
+      info.website = qrData;
     }
     // Generic: if nothing matched but has digits, treat as phone
     if (Object.keys(info).length === 0 && /^\+?\d{6,}$/.test(qrData.trim())) {
-      info.phone = qrData.trim(); info.name = "Proveedor (escaneado)";
+      info.phone = qrData.trim();
     }
-    return Object.keys(info).length > 0 ? info : null;
+    info.qrSource = true; // flag to indicate data came from QR
+    return Object.keys(info).length > 1 ? info : null; // >1 because qrSource is always set
   };
 
   // Apply contact info to supplier fields
   const applyContactInfo = (info) => {
     if (info.company) setSupplierName(prev => prev || info.company);
-    else if (info.name && !supplierName) setSupplierName(info.name);
     if (info.contactName) setSupplierContact(prev => prev || info.contactName);
     if (info.phone) setSupplierPhone(prev => prev || info.phone);
     if (info.email) setSupplierEmail(prev => prev || info.email);
     if (info.wechat) setSupplierWechat(prev => prev || info.wechat);
     if (info.whatsapp) setSupplierWhatsapp(prev => prev || info.whatsapp);
-    if (info.whatsappLink) setSupplierWhatsapp(prev => prev || info.whatsappLink);
+    if (info.whatsappLink) setSupplierWhatsappLink(prev => prev || info.whatsappLink);
+    if (info.wechatLink) setSupplierWechatLink(prev => prev || info.wechatLink);
     if (info.website) setSupplierWebsite(prev => prev || info.website);
     if (info.address) setSupplierAddress(prev => prev || info.address);
   };
 
   // Process business card / QR photo with AI + QR decoding
-  const handleCardPhoto = async (photo) => {
+  const handleCardPhoto = async (photo, originalFile) => {
     setCardPhoto(photo);
     setCardProcessing(true);
     try {
-      // Try QR decode first
-      const qrData = await decodeQR(photo);
+      // Try QR decode from HIGH-RES original file first, fallback to compressed
+      const qrData = await decodeQR(originalFile || photo);
       let qrInfo = null;
       if (qrData) {
         console.log("📱 QR detectado:", qrData);
@@ -349,17 +601,49 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
       console.log("✓ Imagen procesada:", result);
       setCardData({ ...result, ...(qrInfo || {}), qrRaw: qrData || null });
 
-      // Apply AI results (only if field not already set by QR)
-      if (result.company) setSupplierName(prev => prev === qrInfo?.name ? result.company : prev || result.company);
-      else if (result.contactName && (!supplierName || supplierName.startsWith("Proveedor ("))) setSupplierName(result.contactName);
+      // AI results have priority for name/company (QR never sets name)
+      if (result.company) setSupplierName(result.company);
+      else if (result.contactName) setSupplierName(result.contactName);
       if (result.contactName) setSupplierContact(prev => prev || (result.contactName + (result.contactTitle ? ` (${result.contactTitle})` : "")));
       if (result.phone || result.mobile) setSupplierPhone(prev => prev || result.mobile || result.phone || "");
       if (result.email) setSupplierEmail(prev => prev || result.email);
       if (result.wechat) setSupplierWechat(prev => prev || result.wechat);
-      if (result.whatsapp) setSupplierWhatsapp(prev => prev || result.whatsapp);
+      if (result.whatsapp) {
+        setSupplierWhatsapp(prev => prev || result.whatsapp);
+        // Generate deep link if we got a phone from AI and don't have one from QR
+        if (!qrInfo?.whatsappLink) {
+          const waNum = result.whatsapp.replace(/[^\d+]/g, "").replace(/\+/g, "");
+          if (waNum.length >= 6) setSupplierWhatsappLink(prev => prev || `https://wa.me/${waNum}`);
+        }
+      }
       if (result.website) setSupplierWebsite(prev => prev || result.website);
       if (result.address) setSupplierAddress(prev => prev || result.address);
       if (result.products) setSupplierProducts(result.products);
+
+      // AI FALLBACK: if jsQR failed but AI sees a QR code, identify the QR type
+      // This is critical for WeChat QRs which have a logo in the center that breaks jsQR
+      if (!qrData && result.qrDetected) {
+        console.log("🔄 jsQR falló pero AI detectó QR, identificando tipo...");
+        // If AI detected a QR and identified it as WeChat (green icon, WeChat logo, etc.)
+        const qrType = result.qrType?.toLowerCase() || "";
+        if (qrType.includes("wechat") || qrType.includes("weixin")) {
+          if (!qrInfo?.wechat) {
+            setSupplierWechat(prev => prev || result.wechat || "QR escaneado");
+            // If AI extracted a wechatLink from visible text near QR
+            if (result.qrUrl) setSupplierWechatLink(prev => prev || result.qrUrl);
+          }
+        } else if (qrType.includes("whatsapp")) {
+          if (!qrInfo?.whatsapp && result.whatsapp) {
+            setSupplierWhatsapp(prev => prev || result.whatsapp);
+          }
+        } else {
+          // AI detected QR but couldn't determine type - if we see WeChat visual cues, assume WeChat
+          // (most QRs in Chinese trade fairs are WeChat)
+          if (!qrInfo?.wechat && !qrInfo?.whatsapp && !result.wechat && !result.whatsapp) {
+            setSupplierWechat(prev => prev || "QR escaneado");
+          }
+        }
+      }
     } catch (err) {
       console.warn("⚠️ Error procesando imagen:", err);
     } finally {
@@ -376,6 +660,8 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
     setSupplierEmail(s.email || "");
     setSupplierWechat(s.wechat || "");
     setSupplierWhatsapp(s.whatsapp || "");
+    setSupplierWhatsappLink(s.whatsappLink || "");
+    setSupplierWechatLink(s.wechatLink || "");
     setSupplierWebsite(s.website || "");
     setSupplierAddress(s.address || "");
     if (s.cardPhoto) setCardPhoto(s.cardPhoto);
@@ -385,7 +671,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
   const recentSuppliers = [...districtSuppliers].sort((a,b) => (b.createdAt||0) - (a.createdAt||0)).slice(0, 5);
   const suggestions = supplierName.length > 0 ? districtSuppliers.filter(s => s.company?.toLowerCase().includes(supplierName.toLowerCase())) : [];
 
-  const startRec = async () => {
+  const startRec = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mr = new MediaRecorder(stream);
@@ -408,7 +694,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
         const sr = new SpeechRecognition();
         sr.continuous = true;
         sr.interimResults = true;
-        sr.lang = "es-AR";
+        sr.lang = navigator.language || "es-AR";
         let finalText = "";
         sr.onresult = (e) => {
           let interim = "";
@@ -426,24 +712,29 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
     } catch {
       setMicAvailable(false);
     }
-  };
+  }, []);
 
-  const stopRec = () => {
+  const stopRec = useCallback(() => {
     recorderRef.current?.stop();
     recorderRef.current = null;
     setRecording(false);
     clearInterval(timerRef.current);
     if (speechRef.current) { speechRef.current.onend = null; speechRef.current.stop(); speechRef.current = null; }
-  };
+  }, []);
 
   const handleSave = () => {
+    // #12: Clear draft on save
+    try { localStorage.removeItem(DRAFT_KEY); } catch {}
     onSave({
+      supplierOnly,
       supplierName: supplierName.trim(),
       supplierContact: supplierContact.trim(),
       supplierPhone: supplierPhone.trim(),
       supplierEmail: supplierEmail.trim(),
       supplierWechat: supplierWechat.trim(),
       supplierWhatsapp: supplierWhatsapp.trim(),
+      supplierWhatsappLink: supplierWhatsappLink.trim(),
+      supplierWechatLink: supplierWechatLink.trim(),
       supplierWebsite: supplierWebsite.trim(),
       supplierAddress: supplierAddress.trim(),
       supplierProducts: supplierProducts.trim(),
@@ -497,7 +788,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
               onChange={async e => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  const dataUrl = await resizeImage(file, 400, 0.75);
+                  const dataUrl = await resizeImage(file, 800, 0.80);
                   setPhotos(p => [...p, dataUrl]);
                 }
               }}
@@ -510,7 +801,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
               {photos.map((ph, i) => (
                 <div key={i} style={{ position:"relative", width:"calc(50% - 4px)", aspectRatio:"1", borderRadius:14, overflow:"hidden", border:`1px solid ${t.border}` }}>
                   <img src={ph} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                  <button onClick={() => setPhotos(p => p.filter((_,j) => j !== i))} style={{ position:"absolute", top:6, right:6, width:26, height:26, borderRadius:13, background:"#000a", color:"#fff", border:"none", fontSize:12, cursor:"pointer" }}>✕</button>
+                  <button onClick={() => setPhotos(p => p.filter((_,j) => j !== i))} style={{ position:"absolute", top:4, right:4, width:36, height:36, borderRadius:18, background:"#000a", color:"#fff", border:"none", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
                   {i === 0 && <span style={{ position:"absolute", bottom:6, left:6, background:t.accent, color:"#fff", fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:6 }}>Principal</span>}
                 </div>
               ))}
@@ -535,94 +826,86 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
         {/* ═══ STEP 1: PRECIO + MOQ + AUDIO + RATING ═══ */}
         {step === 1 && (
           <div>
-            {/* Price */}
-            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:6, textTransform:"uppercase" }}>💲 Precio unitario (USD)</p>
-            <div style={{ position:"relative", marginBottom:16 }}>
-              <span style={{ position:"absolute", left:16, top:"50%", transform:"translateY(-50%)", fontSize:18, fontWeight:800, color:t.green }}>$</span>
-              <input value={price} onChange={e => setPrice(e.target.value.replace(/[^0-9.]/g, ""))} placeholder="0.00" inputMode="decimal"
-                style={inp({ paddingLeft:40, fontSize:28, fontWeight:800, color:t.green, textAlign:"center" })} />
+            {/* HERO: Price - biggest, centered, auto-focused */}
+            <div style={{ textAlign:"center", marginBottom:20 }}>
+              <p style={{ fontSize:24, fontWeight:800, color:t.green, margin:"0 0 8px" }}>💲</p>
+              <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:8, textTransform:"uppercase" }}>Precio unitario (USD)</p>
+              <div style={{ position:"relative", maxWidth:240, margin:"0 auto" }}>
+                <span style={{ position:"absolute", left:16, top:"50%", transform:"translateY(-50%)", fontSize:22, fontWeight:800, color:t.green }}>$</span>
+                <input ref={el => { if (el && step === 1) setTimeout(() => el.focus(), 100); }}
+                  value={price} onChange={e => setPrice(e.target.value.replace(/[^0-9.]/g, ""))} placeholder="0.00" inputMode="decimal"
+                  style={{
+                    width:"100%", padding:"16px 16px 16px 44px", borderRadius:16, border:`2px solid ${t.green}40`,
+                    background:t.surface, color:t.green, fontSize:36, fontWeight:800, textAlign:"center",
+                    outline:"none", boxSizing:"border-box", fontFamily:"inherit",
+                  }} />
+              </div>
             </div>
 
-            {/* MOQ */}
-            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:6, textTransform:"uppercase" }}>📦 MOQ (opcional)</p>
-            <input value={moq} onChange={e => setMoq(e.target.value.replace(/[^0-9]/g, ""))} placeholder="Ej: 500" inputMode="numeric" style={inp({ marginBottom:16 })} />
-
-            {/* Audio recorder */}
-            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:10, textTransform:"uppercase" }}>🎙 Nota de voz (se transcribe automáticamente)</p>
-            {!audioURL ? (
-              <div style={{ textAlign:"center", marginBottom:16 }}>
-                {micAvailable ? (
-                  <>
-                    <button onClick={recording ? stopRec : startRec} style={{
-                      width:64, height:64, borderRadius:32, border:"none",
-                      background: recording ? t.red : `linear-gradient(135deg, ${t.accent}, #FF8F35)`,
-                      color:"#fff", fontSize:24, cursor:"pointer",
-                      boxShadow: recording ? `0 0 0 6px ${t.redSoft}` : `0 4px 20px ${t.accent}60`,
-                      animation: recording ? "pulse 1.5s ease infinite" : "none",
-                      display:"flex", alignItems:"center", justifyContent:"center",
-                    }}>
-                      {recording ? "⏹" : "🎙"}
-                    </button>
-                    {recording && <p style={{ fontSize:14, fontWeight:700, color:t.red, marginTop:8 }}>{Math.floor(recordTime/60)}:{String(recordTime%60).padStart(2,"0")}</p>}
-                    {recording && audioTranscript && <p style={{ fontSize:12, color:t.text, marginTop:6, fontStyle:"italic", padding:"8px 12px", background:t.card, borderRadius:10, border:`1px solid ${t.border}`, textAlign:"left" }}>"{audioTranscript}"</p>}
-                    <p style={{ fontSize:11, color:t.dim, marginTop:4 }}>{recording ? "Tocá para detener" : "Tocá para grabar"}</p>
-                  </>
-                ) : (
-                  <p style={{ fontSize:12, color:t.dim }}>Micrófono no disponible</p>
-                )}
+            {/* MOQ + Rating side by side */}
+            <div style={{ display:"flex", gap:10, marginBottom:16 }}>
+              <div style={{ flex:1 }}>
+                <p style={{ fontSize:10, fontWeight:700, color:t.muted, marginBottom:4, textTransform:"uppercase" }}>📦 MOQ</p>
+                <input value={moq} onChange={e => setMoq(e.target.value.replace(/[^0-9]/g, ""))} placeholder="500" inputMode="numeric"
+                  style={inp({ fontSize:14, padding:"10px 12px" })} />
               </div>
-            ) : (
-              <div style={{ background:t.card, borderRadius:14, padding:12, marginBottom:16, border:`1px solid ${t.border}` }}>
-                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                  <span style={{ fontSize:18 }}>🎙</span>
-                  <audio src={audioURL} controls style={{ flex:1, height:32 }} />
-                  <button onClick={() => { setAudioURL(null); setRecordTime(0); setAudioTranscript(""); }} style={{ background:t.redSoft, border:"none", borderRadius:8, width:28, height:28, color:t.red, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+              <div style={{ flex:1 }}>
+                <p style={{ fontSize:10, fontWeight:700, color:t.muted, marginBottom:4, textTransform:"uppercase" }}>⭐ Rating</p>
+                <div style={{ background:t.surface, borderRadius:14, border:`1px solid ${t.border}`, padding:"6px 8px", display:"flex", justifyContent:"center" }}>
+                  <Stars value={rating} onChange={setRating} size={24} t={t} />
                 </div>
-                {audioTranscript && <p style={{ fontSize:12, color:t.text, margin:"8px 0 0", fontStyle:"italic" }}>📝 "{audioTranscript}"</p>}
               </div>
-            )}
-
-            {/* Text note */}
-            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:6, textTransform:"uppercase" }}>📝 Nota escrita (opcional)</p>
-            <textarea value={textNote} onChange={e => setTextNote(e.target.value)} placeholder="Detalles, colores, negociación..."
-              rows={2} style={{
-                width:"100%", padding:"12px 14px", borderRadius:14, border:`1px solid ${t.border}`,
-                background:t.surface, color:t.text, fontSize:14, outline:"none", boxSizing:"border-box",
-                fontFamily:"inherit", resize:"vertical", lineHeight:1.5, marginBottom:16,
-              }} />
-
-            {/* Rating */}
-            <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:8, textTransform:"uppercase" }}>⭐ Rating (opcional)</p>
-            <div style={{ display:"flex", justifyContent:"center" }}>
-              <Stars value={rating} onChange={setRating} size={32} t={t} />
             </div>
+
+            {/* Audio - compact */}
+            <div style={{ background:t.card, borderRadius:14, padding:"10px 14px", marginBottom:10, border:`1px solid ${t.border}` }}>
+              {!audioURL ? (
+                <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                  <button onClick={recording ? stopRec : startRec} style={{
+                    width:44, height:44, borderRadius:22, border:"none", flexShrink:0,
+                    background: recording ? t.red : `linear-gradient(135deg, ${t.accent}, #FF8F35)`,
+                    color:"#fff", fontSize:18, cursor:"pointer",
+                    boxShadow: recording ? `0 0 0 4px ${t.redSoft}` : "none",
+                    animation: recording ? "pulse 1.5s ease infinite" : "none",
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                  }}>
+                    {recording ? "⏹" : "🎙"}
+                  </button>
+                  <div style={{ flex:1 }}>
+                    {recording ? (
+                      <>
+                        <p style={{ fontSize:13, fontWeight:700, color:t.red, margin:0 }}>Grabando... {Math.floor(recordTime/60)}:{String(recordTime%60).padStart(2,"0")}</p>
+                        {audioTranscript && <p style={{ fontSize:11, color:t.text, margin:"4px 0 0", fontStyle:"italic" }}>"{audioTranscript}"</p>}
+                      </>
+                    ) : (
+                      <p style={{ fontSize:12, color:t.muted, margin:0 }}>{micAvailable ? "Nota de voz (se transcribe)" : "Micrófono no disponible"}</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <span style={{ fontSize:16 }}>🎙</span>
+                  <audio src={audioURL} controls style={{ flex:1, height:28 }} />
+                  <button onClick={() => { if (audioURL) URL.revokeObjectURL(audioURL); setAudioURL(null); setRecordTime(0); setAudioTranscript(""); }} style={{ background:t.redSoft, border:"none", borderRadius:10, width:36, height:36, color:t.red, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>✕</button>
+                </div>
+              )}
+              {audioURL && audioTranscript && <p style={{ fontSize:11, color:t.text, margin:"6px 0 0", fontStyle:"italic" }}>📝 "{audioTranscript}"</p>}
+            </div>
+
+            {/* Text note - compact */}
+            <textarea value={textNote} onChange={e => setTextNote(e.target.value)} placeholder="📝 Nota escrita (detalles, colores, negociación...)"
+              rows={2} style={{
+                width:"100%", padding:"10px 14px", borderRadius:14, border:`1px solid ${t.border}`,
+                background:t.surface, color:t.text, fontSize:13, outline:"none", boxSizing:"border-box",
+                fontFamily:"inherit", resize:"vertical", lineHeight:1.5,
+              }} />
           </div>
         )}
 
         {/* ═══ STEP 2: PROVEEDOR ═══ */}
         {step === 2 && (
           <div>
-            {/* Recent suppliers - quick link */}
-            {recentSuppliers.length > 0 && !linkedSupplierId && !cardPhoto && (
-              <div style={{ marginBottom:16 }}>
-                <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:8, textTransform:"uppercase" }}>⚡ Vincular con proveedor reciente</p>
-                {recentSuppliers.map(s => (
-                  <button key={s.id} onClick={() => linkSupplier(s)} style={{
-                    width:"100%", display:"flex", alignItems:"center", gap:10, padding:"10px 14px",
-                    background:t.card, border:`1px solid ${t.border}`, borderRadius:12, marginBottom:6,
-                    cursor:"pointer", textAlign:"left",
-                  }}>
-                    <div style={{ width:36, height:36, borderRadius:8, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16 }}>🏭</div>
-                    <div style={{ flex:1 }}>
-                      <div style={{ fontSize:13, fontWeight:700, color:t.text }}>{s.company || "—"}</div>
-                      <div style={{ fontSize:11, color:t.muted }}>{s.contact || ""}{s.wechat ? ` · WeChat: ${s.wechat}` : ""}</div>
-                    </div>
-                    <span style={{ fontSize:12, color:t.accent, fontWeight:700 }}>Vincular</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
+            {/* === LINKED SUPPLIER BADGE === */}
             {linkedSupplierId && (
               <div style={{ background:t.greenSoft, border:`1px solid ${t.green}40`, borderRadius:12, padding:"10px 14px", marginBottom:16, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                 <p style={{ fontSize:13, fontWeight:700, color:t.green }}>✓ Vinculado: {supplierName}</p>
@@ -630,60 +913,125 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
               </div>
             )}
 
-            {/* Scan card OR manual */}
             {!linkedSupplierId && (
               <>
-                <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:8, textTransform:"uppercase" }}>📸 Escanear tarjeta de visita</p>
-                {cardPhoto ? (
-                  <div style={{ position:"relative", marginBottom:12 }}>
-                    <img src={cardPhoto} alt="Card" style={{ width:"100%", borderRadius:14, border:`1px solid ${t.border}` }} />
-                    <button onClick={() => { setCardPhoto(null); setCardData(null); }} style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:14, background:"#000a", color:"#fff", border:"none", fontSize:14, cursor:"pointer" }}>✕</button>
-                    {cardProcessing && (
-                      <div style={{ position:"absolute", bottom:0, left:0, right:0, background:"rgba(0,0,0,0.7)", borderRadius:"0 0 14px 14px", padding:"10px", textAlign:"center" }}>
-                        <span style={{ color:"#fff", fontSize:13, fontWeight:600 }}>⏳ Procesando con IA...</span>
+                {/* === PRIMARY ACTION: SCAN CARD === */}
+                {!cardPhoto ? (
+                  <div style={{ marginBottom:20 }}>
+                    <FilePickerBtn onFile={handleCardPhoto} capture="environment" t={t} style={{
+                      width:"100%", padding:"28px 20px", borderRadius:16, fontSize:17, fontWeight:800,
+                      background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff", border:"none",
+                      display:"flex", flexDirection:"column", alignItems:"center", gap:6,
+                      boxShadow:"0 4px 16px rgba(255,106,0,0.3)",
+                    }}>
+                      <span style={{ fontSize:36 }}>📸</span>
+                      Escanear Tarjeta
+                    </FilePickerBtn>
+                    <p style={{ textAlign:"center", fontSize:11, color:t.muted, marginTop:8 }}>
+                      Tarjeta de visita, QR, catálogo, banner...
+                    </p>
+
+                    {/* Secondary: gallery */}
+                    <FilePickerBtn onFile={handleCardPhoto} t={t} style={{
+                      width:"100%", padding:"10px 16px", borderRadius:12, fontSize:13, fontWeight:600,
+                      background:t.surface, color:t.text, border:`1px solid ${t.border}`, marginTop:4,
+                    }}>
+                      🖼 Elegir de galería
+                    </FilePickerBtn>
+                  </div>
+                ) : (
+                  /* === SCANNED CARD RESULT === */
+                  <div style={{ marginBottom:16 }}>
+                    <div style={{ position:"relative", marginBottom:8 }}>
+                      <img src={cardPhoto} alt="Card" style={{ width:"100%", borderRadius:14, border:`1px solid ${t.border}` }} />
+                      <button onClick={() => { setCardPhoto(null); setCardData(null); }} style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:14, background:"#000a", color:"#fff", border:"none", fontSize:14, cursor:"pointer" }}>✕</button>
+                      {cardProcessing && (
+                        <div style={{ position:"absolute", bottom:0, left:0, right:0, background:"rgba(0,0,0,0.7)", borderRadius:"0 0 14px 14px", padding:"10px", textAlign:"center" }}>
+                          <span style={{ color:"#fff", fontSize:13, fontWeight:600 }}>⏳ Procesando con IA...</span>
+                        </div>
+                      )}
+                    </div>
+                    {cardData && !cardProcessing && (
+                      <div style={{ background:t.greenSoft, border:`1px solid ${t.green}40`, borderRadius:12, padding:"8px 14px", marginBottom:4 }}>
+                        <p style={{ fontSize:12, fontWeight:700, color:t.green }}>✓ Datos extraídos por IA</p>
                       </div>
                     )}
                   </div>
-                ) : (
-                  <div style={{ display:"flex", gap:10, marginBottom:12 }}>
-                    <FilePickerBtn onFile={handleCardPhoto} capture="environment" t={t}>📷 Cámara</FilePickerBtn>
-                    <FilePickerBtn onFile={handleCardPhoto} t={t}>🖼 Galería</FilePickerBtn>
+                )}
+
+                {/* === RECENT SUPPLIERS (compact) === */}
+                {recentSuppliers.length > 0 && !cardPhoto && (
+                  <div style={{ marginBottom:16 }}>
+                    <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:6, textTransform:"uppercase" }}>⚡ Proveedor reciente</p>
+                    <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:4 }}>
+                      {recentSuppliers.map(s => (
+                        <button key={s.id} onClick={() => linkSupplier(s)} style={{
+                          display:"flex", alignItems:"center", gap:6, padding:"8px 12px",
+                          background:t.card, border:`1px solid ${t.border}`, borderRadius:10,
+                          cursor:"pointer", whiteSpace:"nowrap", flexShrink:0,
+                        }}>
+                          <span style={{ fontSize:14 }}>🏭</span>
+                          <span style={{ fontSize:12, fontWeight:700, color:t.text }}>{s.company || "—"}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
 
-                {cardData && !cardProcessing && (
-                  <div style={{ background:t.greenSoft, border:`1px solid ${t.green}40`, borderRadius:12, padding:"8px 14px", marginBottom:12 }}>
-                    <p style={{ fontSize:12, fontWeight:700, color:t.green }}>✓ Datos extraídos por IA</p>
+                {/* === FORM FIELDS === */}
+                <div style={{ borderTop: cardPhoto || recentSuppliers.length > 0 ? `1px solid ${t.border}` : "none", paddingTop: cardPhoto || recentSuppliers.length > 0 ? 12 : 0 }}>
+                  <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, textTransform:"uppercase" }}>🏭 Empresa</p>
+                  <input value={supplierName} onChange={e => setSupplierName(e.target.value)} placeholder="Nombre..." style={inp({ marginBottom:6 })} />
+                  {suggestions.length > 0 && !suggestions.find(s => s.company === supplierName) && (
+                    <div style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:12, marginBottom:6, overflow:"hidden" }}>
+                      {suggestions.slice(0,3).map(s => (
+                        <button key={s.id} onClick={() => linkSupplier(s)} style={{
+                          width:"100%", textAlign:"left", padding:"8px 14px", border:"none", borderBottom:`1px solid ${t.border}`,
+                          background:"transparent", color:t.text, fontSize:12, cursor:"pointer",
+                        }}>🏭 {s.company}{s.contact ? ` · ${s.contact}` : ""}</button>
+                      ))}
+                    </div>
+                  )}
+
+                  <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:6, textTransform:"uppercase" }}>👤 Contacto</p>
+                  <input value={supplierContact} onChange={e => setSupplierContact(e.target.value)} placeholder="Nombre contacto..." style={inp({ marginBottom:6 })} />
+
+                  {/* Contact fields - compact 2-col grid */}
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, marginTop:6 }}>
+                    <div>
+                      <p style={{ fontSize:10, fontWeight:700, color:t.muted, marginBottom:3, textTransform:"uppercase" }}>💬 WeChat</p>
+                      <div style={{ display:"flex", gap:4 }}>
+                        <input value={supplierWechat} onChange={e => setSupplierWechat(e.target.value)} placeholder="WeChat ID" style={inp({ fontSize:12, padding:"8px 10px", flex:1 })} />
+                        {(supplierWechatLink || supplierWechat) && (
+                          <a href={supplierWechatLink || `weixin://dl/chat?${supplierWechat}`} target="_blank" rel="noopener noreferrer" style={{
+                            display:"flex", alignItems:"center", justifyContent:"center", width:40, height:40,
+                            background:"#07C160", borderRadius:8, color:"#fff", fontSize:15, textDecoration:"none", flexShrink:0,
+                          }}>💬</a>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <p style={{ fontSize:10, fontWeight:700, color:t.muted, marginBottom:3, textTransform:"uppercase" }}>📱 WhatsApp</p>
+                      <div style={{ display:"flex", gap:4 }}>
+                        <input value={supplierWhatsapp} onChange={e => setSupplierWhatsapp(e.target.value)} placeholder="+número" style={inp({ fontSize:12, padding:"8px 10px", flex:1 })} />
+                        {(supplierWhatsappLink || supplierWhatsapp) && (
+                          <a href={supplierWhatsappLink || `https://wa.me/${supplierWhatsapp.replace(/[^\d]/g, "")}`} target="_blank" rel="noopener noreferrer" style={{
+                            display:"flex", alignItems:"center", justifyContent:"center", width:40, height:40,
+                            background:"#25D366", borderRadius:8, color:"#fff", fontSize:15, textDecoration:"none", flexShrink:0,
+                          }}>📱</a>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <p style={{ fontSize:10, fontWeight:700, color:t.muted, marginBottom:3, textTransform:"uppercase" }}>📞 Teléfono</p>
+                      <input value={supplierPhone} onChange={e => setSupplierPhone(e.target.value)} placeholder="+86..." style={inp({ fontSize:12, padding:"8px 10px" })} />
+                    </div>
+                    <div>
+                      <p style={{ fontSize:10, fontWeight:700, color:t.muted, marginBottom:3, textTransform:"uppercase" }}>📧 Email</p>
+                      <input value={supplierEmail} onChange={e => setSupplierEmail(e.target.value)} placeholder="email@..." style={inp({ fontSize:12, padding:"8px 10px" })} />
+                    </div>
                   </div>
-                )}
-
-                <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:8, textTransform:"uppercase" }}>🏭 Empresa</p>
-                <input value={supplierName} onChange={e => setSupplierName(e.target.value)} placeholder="Nombre..." style={inp({ marginBottom:6 })} />
-                {suggestions.length > 0 && !suggestions.find(s => s.company === supplierName) && (
-                  <div style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:12, marginBottom:6, overflow:"hidden" }}>
-                    {suggestions.slice(0,3).map(s => (
-                      <button key={s.id} onClick={() => linkSupplier(s)} style={{
-                        width:"100%", textAlign:"left", padding:"8px 14px", border:"none", borderBottom:`1px solid ${t.border}`,
-                        background:"transparent", color:t.text, fontSize:12, cursor:"pointer",
-                      }}>🏭 {s.company}{s.contact ? ` · ${s.contact}` : ""}</button>
-                    ))}
-                  </div>
-                )}
-
-                <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:6, textTransform:"uppercase" }}>👤 Contacto</p>
-                <input value={supplierContact} onChange={e => setSupplierContact(e.target.value)} placeholder="Nombre contacto..." style={inp({ marginBottom:6 })} />
-
-                <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:6, textTransform:"uppercase" }}>💬 WeChat</p>
-                <input value={supplierWechat} onChange={e => setSupplierWechat(e.target.value)} placeholder="WeChat ID..." style={inp({ marginBottom:6 })} />
-
-                <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:6, textTransform:"uppercase" }}>📱 WhatsApp</p>
-                <input value={supplierWhatsapp} onChange={e => setSupplierWhatsapp(e.target.value)} placeholder="+número con código de país" style={inp({ marginBottom:6 })} />
-
-                <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:6, textTransform:"uppercase" }}>📞 Teléfono</p>
-                <input value={supplierPhone} onChange={e => setSupplierPhone(e.target.value)} placeholder="+86..." style={inp({ marginBottom:6 })} />
-
-                <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:6, textTransform:"uppercase" }}>📧 Email</p>
-                <input value={supplierEmail} onChange={e => setSupplierEmail(e.target.value)} placeholder="email@company.com" style={inp({ marginBottom:6 })} />
+                </div>
               </>
             )}
           </div>
@@ -703,7 +1051,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
           </Btn>
         ) : (
           <Btn onClick={handleSave} full t={t}>
-            ✓ Guardar producto
+            {supplierOnly ? "✓ Guardar proveedor" : "✓ Guardar producto"}
           </Btn>
         )}
       </div>
@@ -715,7 +1063,6 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
 // PRODUCT DETAIL
 // ═══════════════════════════════════════════
 function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, onUpdate, onCalc, onDelete, onNavigateSupplier, t, isDark, settings }) {
-  const [tab, setTab] = useState("info");
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editName, setEditName] = useState(p.name || "");
@@ -736,6 +1083,7 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
   const materials = settings?.materials || [];
 
   const saveEdits = () => {
+    const newSupplier = suppliers.find(s => s.id === editSupplierId);
     onUpdate(p.id, {
       name: editName.trim() || p.name,
       price: editPrice.trim(),
@@ -744,6 +1092,7 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
       category: editCategory || null,
       material: editMaterial,
       supplierId: editSupplierId,
+      supplierCompany: newSupplier?.company || null,
     });
     setEditing(false);
   };
@@ -763,13 +1112,8 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
           </button>
         </div>}
       />
-      <div style={{ display:"flex", background:t.surface, margin:"0 20px", borderRadius:10, padding:3, marginTop:12 }}>
-        {[{k:"info",l:"Detalle"},{k:"supplier",l:"Proveedor"}].map(tb => (
-          <button key={tb.k} onClick={()=>setTab(tb.k)} style={{ flex:1, padding:8, borderRadius:8, border:"none", background:tab===tb.k?t.card:"transparent", color:tab===tb.k?t.text:t.muted, fontSize:12, fontWeight:700, cursor:"pointer", boxShadow:tab===tb.k?`0 2px 8px ${t.border}`:"none" }}>{tb.l}</button>
-        ))}
-      </div>
       <div style={{ flex:1, overflow:"auto", padding:"0 0 80px" }}>
-        {tab === "info" && <>
+        <>
           {/* SWIPEABLE PHOTO CAROUSEL */}
           {p.photos?.length > 0 && (
             <div style={{ position:"relative", width:"100%", background:t.surface }}>
@@ -957,6 +1301,45 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
                 <p style={{ fontSize:10, color:t.muted, margin:0 }}>{new Date(p.createdAt).toLocaleString("es-AR", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })}</p></div>
               </div>
             )}
+            {/* Supplier inline card */}
+            {supplier ? (
+              <div style={{ marginBottom:10 }}>
+                <button onClick={() => onNavigateSupplier && onNavigateSupplier(supplier)} style={{
+                  width:"100%", background:t.card, borderRadius:12, padding:"10px 12px", border:`1px solid ${t.border}`,
+                  cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:10,
+                }}>
+                  {supplier.cardPhoto ? (
+                    <img src={supplier.cardPhoto} alt="" style={{ width:40, height:40, borderRadius:10, objectFit:"cover", border:`1px solid ${t.border}` }} />
+                  ) : (
+                    <div style={{ width:40, height:40, borderRadius:10, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, border:`1px solid ${t.border}` }}>🏭</div>
+                  )}
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:t.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{supplier.company}</div>
+                    {supplier.contact && <div style={{ fontSize:11, color:t.muted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{supplier.contact}</div>}
+                  </div>
+                  <span style={{ fontSize:12, color:t.accent, fontWeight:700, flexShrink:0 }}>Ver →</span>
+                </button>
+                <div style={{ display:"flex", gap:6, marginTop:6 }}>
+                  <button onClick={() => setEditing(true)} style={{
+                    flex:1, padding:"6px", borderRadius:8, border:`1px solid ${t.border}`,
+                    background:"transparent", color:t.muted, fontSize:11, fontWeight:600, cursor:"pointer",
+                  }}>🔄 Cambiar proveedor</button>
+                  <button onClick={() => onUpdate(p.id, { supplierId: null, supplierCompany: null })} style={{
+                    flex:1, padding:"6px", borderRadius:8, border:`1px solid ${t.red}30`,
+                    background:"transparent", color:t.red, fontSize:11, fontWeight:600, cursor:"pointer",
+                  }}>✕ Quitar proveedor</button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setEditing(true)} style={{
+                width:"100%", padding:"10px 12px", borderRadius:12, border:`1.5px dashed ${t.border}`,
+                background:"transparent", color:t.muted, fontSize:12, fontWeight:600, cursor:"pointer", marginBottom:10,
+                display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+              }}>
+                🏭 Asignar proveedor
+              </button>
+            )}
+
             {/* Delete button - always visible in view mode */}
             <button onClick={() => setConfirmDelete(true)} style={{
               width:"100%", padding:"10px", borderRadius:12, border:`1px solid ${t.red}30`,
@@ -973,74 +1356,11 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
             )}
           </>}
           </div>
-        </>}
-
-        {tab === "supplier" && supplier && <div style={{ padding:"12px 20px 0" }}>
-          <button onClick={() => onNavigateSupplier && onNavigateSupplier(supplier)} style={{
-            width:"100%", background:t.card, borderRadius:14, padding:14, marginBottom:10, border:`1px solid ${t.border}`,
-            cursor:"pointer", textAlign:"left",
-          }}>
-            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
-              {supplier.cardPhoto ? (
-                <img src={supplier.cardPhoto} alt="" style={{ width:48, height:48, borderRadius:12, objectFit:"cover", border:`1px solid ${t.border}` }} />
-              ) : (
-                <div style={{ width:48, height:48, borderRadius:12, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, border:`1px solid ${t.border}` }}>🏭</div>
-              )}
-              <div style={{ flex:1 }}>
-                <div style={{ fontSize:16, fontWeight:700, color:t.text }}>{supplier.company}</div>
-                {supplier.contact && <div style={{ fontSize:12, color:t.muted }}>{supplier.contact}</div>}
-              </div>
-              <span style={{ fontSize:14, color:t.accent, fontWeight:700 }}>Ver →</span>
-            </div>
-            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <MiniStars rating={avgRating} t={t} />
-              <span style={{ fontSize:11, color:t.muted }}>promedio de {supplierProducts.length} productos</span>
-            </div>
-          </button>
-          {supplier.cardPhoto && (
-            <div style={{ marginBottom:10 }}>
-              <p style={{ fontSize:10, fontWeight:700, color:t.muted, marginBottom:6, textTransform:"uppercase" }}>📇 Tarjeta</p>
-              <img src={supplier.cardPhoto} alt="" style={{ width:"100%", borderRadius:14, border:`1px solid ${t.border}` }} />
-            </div>
-          )}
-          {/* Contact quick buttons */}
-          {(supplier.wechat || supplier.phone || supplier.whatsapp) && (
-            <div style={{ display:"flex", gap:6, marginBottom:12 }}>
-              {supplier.wechat && (
-                <button onClick={() => { navigator.clipboard.writeText(supplier.wechat).catch(()=>{}); window.location.href = "weixin://"; }}
-                  style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4, background:"#07C160", color:"#fff", borderRadius:10, padding:"8px 10px", fontSize:11, fontWeight:700, border:"none", cursor:"pointer" }}>
-                  💬 {supplier.wechat}
-                </button>
-              )}
-              {supplier.whatsapp && (
-                <a href={supplier.whatsapp.startsWith("http") ? supplier.whatsapp : `https://wa.me/${supplier.whatsapp.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer"
-                  style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4, background:"#25D366", color:"#fff", borderRadius:10, padding:"8px 10px", fontSize:11, fontWeight:700, textDecoration:"none" }}>
-                  📱 WhatsApp
-                </a>
-              )}
-              {supplier.phone && (
-                <a href={`tel:${supplier.phone}`}
-                  style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4, background:t.blueSoft, color:t.blue, borderRadius:10, padding:"8px 10px", fontSize:11, fontWeight:700, textDecoration:"none" }}>
-                  📞 Llamar
-                </a>
-              )}
-            </div>
-          )}
-          <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Otros productos de este proveedor</p>
-          {supplierProducts.filter(sp => sp.id !== p.id).map(sp => (
-            <div key={sp.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:t.card, borderRadius:12, border:`1px solid ${t.border}`, marginBottom:6 }}>
-              {sp.photos?.[0] ? <img src={sp.photos[0]} alt="" style={{ width:40, height:40, borderRadius:8, objectFit:"cover" }} /> : <div style={{ width:40, height:40, borderRadius:8, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14 }}>📷</div>}
-              <p style={{ fontSize:12, fontWeight:600, color:t.text, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", margin:0 }}>{sp.name || "Sin procesar..."}</p>
-              <div style={{ textAlign:"right", flexShrink:0 }}>
-                {sp.price && <span style={{ fontSize:12, fontWeight:700, color:t.green }}>USD {sp.price}</span>}
-              </div>
-            </div>
-          ))}
-        </div>}
+        </>
       </div>
 
       {/* Fixed calculator button at bottom */}
-      {!editing && tab === "info" && (
+      {!editing && (
         <div style={{
           position:"fixed", bottom:0, left:0, right:0,
           padding:"10px 20px", paddingBottom:"calc(16px + env(safe-area-inset-bottom, 0px))",
@@ -1277,7 +1597,7 @@ function Calculator({ product, settings, onBack, onSave, t }) {
 // ═══════════════════════════════════════════
 // DISTRICTS
 // ═══════════════════════════════════════════
-function DistrictsScreen({ districts, activeDistrictId, products, onActivate, onAdd, onBack, t }) {
+function DistrictsScreen({ districts, activeDistrictId, products, onActivate, onAdd, onDelete, onBack, t }) {
   const [creating, setCreating] = useState(false);
   const [nn, setNn] = useState(""); const [nl, setNl] = useState(""); const [nd, setNd] = useState(""); const [ne, setNe] = useState("🏮");
   const emojis = ["🏮","🏪","🌏","🏭","🎪","✈️","🚢","📍","🗺","🎯"];
@@ -1296,7 +1616,15 @@ function DistrictsScreen({ districts, activeDistrictId, products, onActivate, on
                 {d.id===activeDistrictId && <span style={{ fontSize:10, fontWeight:700, color:t.green, background:t.greenSoft, padding:"3px 8px", borderRadius:8 }}>ACTIVO</span>}
               </div>
               <div style={{ fontSize:12, color:t.muted, marginBottom:10 }}>📦 <b style={{ color:t.text }}>{count}</b> productos</div>
-              {d.id!==activeDistrictId && <Btn onClick={() => onActivate(d.id)} full t={t}>Activar esta feria</Btn>}
+              {d.id!==activeDistrictId && (
+                <div style={{ display:"flex", gap:8 }}>
+                  <Btn onClick={() => onActivate(d.id)} full t={t} style={{ flex:1 }}>Activar esta feria</Btn>
+                  <button onClick={() => { if(confirm(`¿Eliminar "${d.name}" y sus ${count} productos?`)) onDelete(d.id); }} style={{
+                    padding:"8px 12px", borderRadius:10, border:`1px solid ${t.red}30`, background:t.redSoft,
+                    color:t.red, fontSize:12, fontWeight:700, cursor:"pointer",
+                  }}>🗑</button>
+                </div>
+              )}
             </div>
           );
         })}
@@ -1320,11 +1648,12 @@ function DistrictsScreen({ districts, activeDistrictId, products, onActivate, on
 // ═══════════════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════════════
-function SettingsScreen({ settings, onSave, onBack, t }) {
+function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers, districts, onReload }) {
   const [loc, setLoc] = useState({ ...settings });
   const [editing, setEditing] = useState(null);
   const [ni, setNi] = useState("");
   const [dirty, setDirty] = useState(false);
+  const [importStatus, setImportStatus] = useState(null);
 
   // Auto-save: whenever loc changes and is dirty, save silently
   useEffect(() => {
@@ -1363,6 +1692,9 @@ function SettingsScreen({ settings, onSave, onBack, t }) {
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
       <Header title="Configuración" onBack={onBack} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
+        {/* Cloud sync / Room management */}
+        {sync && <RoomPanel sync={sync} t={t} />}
+        <div style={{ height:1, background:t.border, marginBottom:20 }} />
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>🚀 Preset por rubro</p>
         <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:24 }}>
           {Object.entries(PRESETS).map(([k,p]) => <button key={k} onClick={() => updateLoc(prev => ({ ...prev, preset:k, ...PRESETS[k] }))} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px", borderRadius:12, cursor:"pointer", background:loc.preset===k?t.accentSoft:t.card, border:`1.5px solid ${loc.preset===k?t.accent:t.border}`, textAlign:"left" }}><span style={{ fontSize:22 }}>{p.icon}</span><span style={{ fontSize:13, fontWeight:600, color:loc.preset===k?t.accent:t.text, flex:1 }}>{p.name}</span>{loc.preset===k && <span style={{ color:t.accent }}>✓</span>}</button>)}
@@ -1382,6 +1714,135 @@ function SettingsScreen({ settings, onSave, onBack, t }) {
           <button onClick={() => updateLoc(p=>({...p, minMargin:Math.min(200, (p.minMargin||40)+5)}))} style={{ width:40, height:40, borderRadius:12, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:18, cursor:"pointer" }}>+</button>
         </div>
         <p style={{ fontSize:11, color:t.dim, textAlign:"center", fontStyle:"italic", marginTop:8 }}>Los cambios se guardan automáticamente</p>
+
+        {/* #16: JSON Backup / Restore */}
+        <div style={{ height:1, background:t.border, margin:"20px 0" }} />
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>💾 Backup y restauración</p>
+        <p style={{ fontSize:11, color:t.dim, marginBottom:12 }}>Exportá o importá toda tu data (proveedores, productos, ferias) como archivo JSON.</p>
+        <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+          <button onClick={() => {
+            const backup = {
+              version: 1,
+              exportedAt: new Date().toISOString(),
+              settings: { ...loc },
+              districts: districts || [],
+              suppliers: (suppliers || []).map(s => { const { cardPhoto, ...rest } = s; return rest; }),
+              products: (products || []).map(p => { const { photos, ...rest } = p; return { ...rest, photoCount: p.photos?.length || 0 }; }),
+            };
+            const blob = new Blob([JSON.stringify(backup, null, 2)], { type:'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `fairscan-backup-${new Date().toISOString().slice(0,10)}.json`;
+            a.click(); URL.revokeObjectURL(url);
+            setImportStatus("✅ Backup descargado");
+            setTimeout(() => setImportStatus(null), 3000);
+          }} style={{
+            flex:1, padding:"12px", borderRadius:12, border:`1px solid ${t.blue}40`, background:t.blueSoft,
+            color:t.blue, fontSize:13, fontWeight:700, cursor:"pointer",
+          }}>📥 Exportar JSON</button>
+          <label style={{
+            flex:1, padding:"12px", borderRadius:12, border:`1px solid ${t.green}40`, background:t.greenSoft,
+            color:t.green, fontSize:13, fontWeight:700, cursor:"pointer", textAlign:"center",
+          }}>
+            📤 Importar JSON
+            <input type="file" accept=".json" onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+                if (!data.version || !data.districts) throw new Error('Formato inválido');
+                // Import districts
+                for (const d of data.districts) {
+                  const existing = await db.districts.where('uuid').equals(d.uuid || '').first();
+                  if (!existing) {
+                    await db.districts.add({ ...d, id: undefined });
+                  }
+                }
+                // Import suppliers
+                for (const s of data.suppliers) {
+                  const existing = await db.suppliers.where('uuid').equals(s.uuid || '').first();
+                  if (!existing) {
+                    await db.suppliers.add({ ...s, id: undefined });
+                  }
+                }
+                // Import products (without photos binary — just metadata)
+                for (const p of data.products) {
+                  const existing = await db.products.where('uuid').equals(p.uuid || '').first();
+                  if (!existing) {
+                    await db.products.add({ ...p, id: undefined, photos: p.photos || [] });
+                  }
+                }
+                // Import settings
+                if (data.settings) {
+                  await onSave(data.settings, true);
+                }
+                if (onReload) await onReload();
+                setImportStatus(`✅ Importado: ${data.districts.length} ferias, ${data.suppliers.length} proveedores, ${data.products.length} productos`);
+                setTimeout(() => setImportStatus(null), 5000);
+              } catch (err) {
+                setImportStatus(`❌ Error: ${err.message}`);
+                setTimeout(() => setImportStatus(null), 4000);
+              }
+              e.target.value = '';
+            }} style={{ display:'none' }} />
+          </label>
+        </div>
+        {importStatus && <p style={{ fontSize:12, fontWeight:600, color:importStatus.startsWith('✅') ? t.green : t.red, textAlign:"center" }}>{importStatus}</p>}
+
+        {/* Cloud backup section (only if in a room) */}
+        {sync?.roomId && (
+          <>
+            <div style={{ height:1, background:t.border, margin:"20px 0" }} />
+            <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>☁️ Backup automático en la nube</p>
+            <p style={{ fontSize:11, color:t.dim, marginBottom:12 }}>Se guarda una copia de seguridad en la nube cada 1 hora automáticamente mientras estés en una sala.</p>
+            <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+              <button onClick={async () => {
+                setImportStatus("⏳ Guardando backup en la nube...");
+                try {
+                  await syncEngine.createBackup();
+                  setImportStatus("✅ Backup guardado en la nube");
+                  setTimeout(() => setImportStatus(null), 3000);
+                } catch (err) {
+                  setImportStatus(`❌ Error: ${err.message}`);
+                  setTimeout(() => setImportStatus(null), 4000);
+                }
+              }} style={{
+                flex:1, padding:"12px", borderRadius:12, border:`1px solid ${t.purple}40`, background:t.purpleSoft,
+                color:t.purple, fontSize:13, fontWeight:700, cursor:"pointer",
+              }}>☁️ Guardar backup ahora</button>
+              <button onClick={async () => {
+                setImportStatus("⏳ Buscando backups...");
+                try {
+                  const backups = await syncEngine.getBackups();
+                  if (!backups || backups.length === 0) {
+                    setImportStatus("ℹ️ No hay backups en la nube todavía");
+                    setTimeout(() => setImportStatus(null), 3000);
+                    return;
+                  }
+                  // Restore the most recent backup
+                  const latest = backups[0];
+                  const counts = latest.counts || latest.data?.counts;
+                  if (confirm(`¿Restaurar backup del ${new Date(latest.created_at).toLocaleString()}?\n(${counts?.districts || '?'} ferias, ${counts?.suppliers || '?'} proveedores, ${counts?.products || '?'} productos)`)) {
+                    setImportStatus("⏳ Restaurando...");
+                    const result = await syncEngine.restoreBackup(latest.id);
+                    if (onReload) await onReload();
+                    setImportStatus(`✅ Restaurado: ${result.districts} ferias, ${result.suppliers} proveedores, ${result.products} productos`);
+                    setTimeout(() => setImportStatus(null), 5000);
+                  } else {
+                    setImportStatus(null);
+                  }
+                } catch (err) {
+                  setImportStatus(`❌ Error: ${err.message}`);
+                  setTimeout(() => setImportStatus(null), 4000);
+                }
+              }} style={{
+                flex:1, padding:"12px", borderRadius:12, border:`1px solid ${t.accent}40`, background:t.accentSoft,
+                color:t.accent, fontSize:13, fontWeight:700, cursor:"pointer",
+              }}>🔄 Restaurar desde nube</button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -1400,9 +1861,9 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
   const [syncProgress, setSyncProgress] = useState("");
 
   const scopeProducts = scope === "all" ? products : products.filter(p => p.districtId === parseInt(scope));
-  const totalPhotos = scopeProducts.reduce((n, p) => n + (p.photos?.length || 0), 0);
+  const totalPhotos = scopeProducts.reduce((n, p) => n + (p.photos?.length || p.photoUrls?.filter(Boolean).length || 0), 0);
   const uniqueSupIds = [...new Set(scopeProducts.map(p => p.supplierId).filter(Boolean))];
-  const totalCards = uniqueSupIds.map(id => suppliers.find(s => s.id === id)).filter(s => s?.cardPhoto).length;
+  const totalCards = uniqueSupIds.map(id => suppliers.find(s => s.id === id)).filter(s => s?.cardPhoto || s?.cardPhotoUrl).length;
 
   const csvEscape = (c) => '"' + String(c).replace(/"/g, '""') + '"';
 
@@ -1451,7 +1912,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       const sup = suppliers.find(s => s.id === p.supplierId);
       const dist = districts.find(d => d.id === p.districtId);
       const row = [
-        p.name || "", sup?.company || "", sup?.contact || "",
+        p.name || "", sup?.company || p.supplierCompany || "", sup?.contact || "",
         p.price || "", p.moq || "", p.category || "",
         (p.material||[]).join("; "), p.rating || "",
         p.costTotal || "", p.viability || "",
@@ -1487,7 +1948,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
     const pRows = scopeProducts.map(p => {
       const sup = suppliers.find(s => s.id === p.supplierId);
       const dist = districts.find(d => d.id === p.districtId);
-      const row = [p.name||"", sup?.company||"", p.price||"", p.moq||"", p.category||"", (p.material||[]).join("; "), p.rating||"", p.costTotal||"", p.viability||"", (p.notes||"").replace(/\n/g," "), dist?.name||""];
+      const row = [p.name||"", sup?.company||p.supplierCompany||"", p.price||"", p.moq||"", p.category||"", (p.material||[]).join("; "), p.rating||"", p.costTotal||"", p.viability||"", (p.notes||"").replace(/\n/g," "), dist?.name||""];
       if (hasCloudPhotos) {
         const url = (p.photoUrls || []).find(Boolean) || "";
         row.push(url ? `=IMAGE("${url}")` : "");
@@ -1526,16 +1987,27 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       let photosDone = 0;
 
       for (const product of scopeProducts) {
-        if (!product.photos?.length) { productPhotoMap.set(product.id, []); continue; }
+        const photoSources = product.photos?.length ? product.photos : (product.photoUrls?.filter(Boolean) || []);
+        if (!photoSources.length) { productPhotoMap.set(product.id, []); continue; }
         const supInfo = product.supplierId ? supplierMap.get(product.supplierId) : null;
         const folderSlug = supInfo ? supInfo.slug : 'sin-proveedor';
         const prodSlug = slugify(product.name);
         const paths = [];
-        for (let i = 0; i < product.photos.length; i++) {
+        for (let i = 0; i < photoSources.length; i++) {
           const filename = `${prodSlug}_foto${i + 1}.jpg`;
           const relativePath = `fotos/${folderSlug}/${filename}`;
           try {
-            const bytes = dataURLtoUint8Array(product.photos[i]);
+            const photo = photoSources[i];
+            let bytes;
+            if (photo.startsWith('http')) {
+              // Photo was replaced with cloud URL — fetch it
+              const resp = await fetch(photo);
+              if (!resp.ok) throw new Error(`Fetch failed: ${resp.status}`);
+              const blob = await resp.blob();
+              bytes = new Uint8Array(await blob.arrayBuffer());
+            } else {
+              bytes = dataURLtoUint8Array(photo);
+            }
             fotosFolder.folder(folderSlug).file(filename, bytes, { binary: true });
             paths.push(relativePath);
           } catch (e) { console.warn("Error procesando foto:", e); }
@@ -1549,9 +2021,18 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       // Add business card photos inside each supplier's folder
       if (includeSuppliers) {
         for (const [id, { supplier: s, slug }] of supplierMap) {
-          if (s.cardPhoto) {
+          const cardSrc = s.cardPhoto || s.cardPhotoUrl;
+          if (cardSrc) {
             try {
-              const bytes = dataURLtoUint8Array(s.cardPhoto);
+              let bytes;
+              if (cardSrc.startsWith('http')) {
+                const resp = await fetch(cardSrc);
+                if (!resp.ok) throw new Error(`Fetch failed: ${resp.status}`);
+                const blob = await resp.blob();
+                bytes = new Uint8Array(await blob.arrayBuffer());
+              } else {
+                bytes = dataURLtoUint8Array(cardSrc);
+              }
               fotosFolder.folder(slug).file(`tarjeta_${slug}.jpg`, bytes, { binary: true });
             } catch (e) { console.warn("Error procesando tarjeta:", e); }
           }
@@ -1567,7 +2048,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
         const dist = districts.find(d => d.id === p.districtId);
         const paths = productPhotoMap.get(p.id) || [];
         const row = [
-          p.name||"", sup?.company||"", sup?.contact||"",
+          p.name||"", sup?.company||p.supplierCompany||"", sup?.contact||"",
           p.price||"", p.moq||"", p.category||"",
           (p.material||[]).join("; "), p.rating||"",
           p.costTotal||"", p.viability||"",
@@ -1811,19 +2292,34 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
 // ═══════════════════════════════════════════
 // PRODUCT LIST (main screen)
 // ═══════════════════════════════════════════
-function ProductList({ products, suppliers, districts, activeDistrictId, activeDistrict, settings, onNavigate, onSwitchDistrict, t, isDark, onToggleTheme, activeTab, onTabChange }) {
+function ProductList({ products, suppliers, districts, activeDistrictId, activeDistrict, settings, onNavigate, onSwitchDistrict, onDeleteProduct, onBatchDelete, onBatchUpdate, onDeleteSupplier, t, isDark, onToggleTheme, activeTab, onTabChange, queueCount }) {
   const [search, setSearch] = useState("");
   const view = activeTab || "products";
   const setView = (v) => { if (onTabChange) onTabChange(v); };
   const [filterCat, setFilterCat] = useState("all");
   const [filterDistrict, setFilterDistrict] = useState("active");
   const [filterMaterial, setFilterMaterial] = useState("all");
+  const [filterViability, setFilterViability] = useState("all");
   const [sortBy, setSortBy] = useState("recent");
+  const [filterPrice, setFilterPrice] = useState("all"); // #14: Price range filter
   const [dd, setDd] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
+  // Multi-select
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState(new Set());
+  const [batchAction, setBatchAction] = useState(null); // 'category' | 'supplier'
+  const toggleSelect = (id) => setSelected(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const exitSelect = () => { setSelectMode(false); setSelected(new Set()); setBatchAction(null); };
 
-  const categories = [...new Set(products.map(p => p.category).filter(Boolean))];
-  const materials = [...new Set(products.flatMap(p => p.material || []))];
+  const categories = [...new Set([...(settings?.categories||[]), ...products.map(p => p.category).filter(Boolean)])];
+  const materials = [...new Set([...(settings?.materials||[]), ...products.flatMap(p => p.material || [])])];
+
+  // #7: O(1) supplier lookup Map instead of O(n) find() in loops
+  const supplierMap = useMemo(() => {
+    const m = new Map();
+    suppliers.forEach(s => m.set(s.id, s));
+    return m;
+  }, [suppliers]);
 
   const districtProducts = useMemo(() => {
     if (filterDistrict === "all") return products;
@@ -1833,7 +2329,8 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
 
   const isAllFairs = filterDistrict === "all";
 
-  const filtered = useMemo(() => {
+  // #6: Separate filter from sort — filter changes don't re-sort, sort changes don't re-filter
+  const filteredOnly = useMemo(() => {
     let r = districtProducts;
     if (search.trim()) {
       const words = search.toLowerCase().split(/\s+/);
@@ -1843,31 +2340,52 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
       });
     }
     if (filterCat !== "all") r = r.filter(p => p.category === filterCat);
+    if (filterViability !== "all") r = r.filter(p => (p.viability || "none") === filterViability);
     if (filterMaterial !== "all") r = r.filter(p => p.material?.includes(filterMaterial));
-    if (sortBy === "price_low") r = [...r].sort((a,b) => (parseFloat(a.price)||0) - (parseFloat(b.price)||0));
-    else if (sortBy === "price_high") r = [...r].sort((a,b) => (parseFloat(b.price)||0) - (parseFloat(a.price)||0));
-    else if (sortBy === "rating") r = [...r].sort((a,b) => (b.rating||0) - (a.rating||0));
+    // #14: Price range filter
+    if (filterPrice !== "all") {
+      const [min, max] = filterPrice.split("-").map(Number);
+      r = r.filter(p => {
+        const price = parseFloat(p.price);
+        if (isNaN(price)) return false;
+        if (max) return price >= min && price <= max;
+        return price >= min; // "50+" means >= 50
+      });
+    }
     return r;
-  }, [search, filterCat, filterMaterial, sortBy, districtProducts]);
+  }, [search, filterCat, filterViability, filterMaterial, filterPrice, districtProducts]);
+
+  const filtered = useMemo(() => {
+    if (sortBy === "price_low") return [...filteredOnly].sort((a,b) => (parseFloat(a.price)||0) - (parseFloat(b.price)||0));
+    if (sortBy === "price_high") return [...filteredOnly].sort((a,b) => (parseFloat(b.price)||0) - (parseFloat(a.price)||0));
+    if (sortBy === "rating") return [...filteredOnly].sort((a,b) => (b.rating||0) - (a.rating||0));
+    return filteredOnly; // "recent" = default order from DB (already sorted by createdAt desc)
+  }, [sortBy, filteredOnly]);
 
   const grouped = useMemo(() => {
     const map = {};
     filtered.forEach(p => {
       const sid = p.supplierId || "unknown";
       if (!map[sid]) {
-        const sup = suppliers.find(s => s.id === sid);
-        map[sid] = { supplier:sup, districtId:p.districtId, products:[] };
+        map[sid] = { supplier: supplierMap.get(sid) || null, districtId:p.districtId, products:[] };
       }
       map[sid].products.push(p);
     });
-    return Object.values(map);
-  }, [filtered, suppliers]);
+    // Sort by most recent supplier first, "Sin proveedor" always last
+    return Object.values(map).sort((a, b) => {
+      if (!a.supplier && b.supplier) return 1;
+      if (a.supplier && !b.supplier) return -1;
+      const aTime = a.supplier?.createdAt || Math.max(...a.products.map(p => p.createdAt || 0));
+      const bTime = b.supplier?.createdAt || Math.max(...b.products.map(p => p.createdAt || 0));
+      return bTime - aTime;
+    });
+  }, [filtered, supplierMap]);
 
   const sel = (active, color) => ({
-    padding:"6px 10px", borderRadius:20, border:`1px solid ${active ? color : t.border}`,
+    padding:"6px 8px", borderRadius:20, border:`1px solid ${active ? color : t.border}`,
     background:active ? color+"15" : t.card, color:active ? color : t.muted,
     fontSize:11, fontWeight:600, cursor:"pointer", outline:"none", fontFamily:"inherit",
-    WebkitAppearance:"none", flexShrink:0,
+    WebkitAppearance:"none", flexShrink:0, maxWidth:120,
   });
 
   return (
@@ -1894,14 +2412,17 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
           <div style={{ display:"flex", gap:6 }}>
             <button onClick={() => onNavigate("export")} style={{ background:t.accent, border:"none", borderRadius:10, padding:"0 12px", height:36, display:"flex", alignItems:"center", justifyContent:"center", gap:4, fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer" }}>📊 Exportar</button>
             <button onClick={onToggleTheme} style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:10, width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, cursor:"pointer" }}>{isDark?"☀️":"🌙"}</button>
-            <button onClick={() => onNavigate("settings")} style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:10, width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, color:t.muted, cursor:"pointer" }}>⚙</button>
+            <button onClick={() => onNavigate("settings")} style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:10, width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, color:t.muted, cursor:"pointer", position:"relative" }}>
+              ⚙
+              {queueCount > 0 && <span style={{ position:"absolute", top:-4, right:-4, minWidth:16, height:16, borderRadius:8, background:t.accent, color:"#fff", fontSize:9, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 4px" }}>{queueCount}</span>}
+            </button>
           </div>
         </div>
         {/* Search */}
         <div style={{ position:"relative", marginBottom:10 }}>
           <span style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", fontSize:15 }}>🔍</span>
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder='Buscar...' style={{ width:"100%", padding:"12px 40px 12px 40px", borderRadius:14, border:`1px solid ${search?t.accent:t.border}`, background:t.card, color:t.text, fontSize:14, outline:"none", fontFamily:"inherit", transition:"border 0.2s" }} />
-          {search && <button onClick={() => setSearch("")} style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:t.surface, border:`1px solid ${t.border}`, borderRadius:8, width:24, height:24, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, color:t.muted }}>✕</button>}
+          {search && <button onClick={() => setSearch("")} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", background:t.surface, border:`1px solid ${t.border}`, borderRadius:10, width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, color:t.muted }}>✕</button>}
         </div>
         {/* Toggle */}
         <div style={{ display:"flex", gap:4, background:t.surface, borderRadius:10, padding:3, marginBottom:10 }}>
@@ -1910,24 +2431,72 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
           ))}
         </div>
         {/* Filters */}
-        <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:8, borderBottom:`1px solid ${t.border}` }}>
+        <div style={{ display:"flex", gap:5, overflowX:"auto", paddingBottom:8, borderBottom:`1px solid ${t.border}`, scrollbarWidth:"none" }}>
           <select value={filterDistrict} onChange={e=>setFilterDistrict(e.target.value)} style={sel(filterDistrict!=="active", t.accent)}>
             <option value="active">{activeDistrict?.emoji||"📍"} {activeDistrict?.name||"Activa"}</option>
-            <option value="all">🗺 Todas las ferias</option>
+            <option value="all">🗺 Todas</option>
             {districts.filter(d=>d.id!==activeDistrictId).map(d=><option key={d.id} value={d.id}>{d.emoji} {d.name}</option>)}
           </select>
           {categories.length > 0 && <select value={filterCat} onChange={e=>setFilterCat(e.target.value)} style={sel(filterCat!=="all", t.blue)}>
-            <option value="all">🏷 Categoría</option>{categories.map(c=><option key={c} value={c}>{c}</option>)}
+            <option value="all">🏷 Cat.</option>{categories.map(c=><option key={c} value={c}>{c}</option>)}
           </select>}
+          <select value={filterViability} onChange={e=>setFilterViability(e.target.value)} style={sel(filterViability!=="all", filterViability==="viable"?t.green:filterViability==="marginal"?t.yellow:filterViability==="no viable"?t.red:t.muted)}>
+            <option value="all">📊 Rentab.</option>
+            <option value="viable">✅ Viable</option>
+            <option value="marginal">⚠️ Marginal</option>
+            <option value="no viable">❌ No viable</option>
+            <option value="none">🔘 Sin evaluar</option>
+          </select>
           {materials.length > 0 && <select value={filterMaterial} onChange={e=>setFilterMaterial(e.target.value)} style={sel(filterMaterial!=="all", t.green)}>
-            <option value="all">🏺 Material</option>{materials.map(m=><option key={m} value={m}>{m}</option>)}
+            <option value="all">🏺 Mat.</option>{materials.map(m=><option key={m} value={m}>{m}</option>)}
           </select>}
+          <select value={filterPrice} onChange={e=>setFilterPrice(e.target.value)} style={sel(filterPrice!=="all", t.yellow)}>
+            <option value="all">💰 Precio</option>
+            <option value="0-1">$0-1</option>
+            <option value="1-5">$1-5</option>
+            <option value="5-10">$5-10</option>
+            <option value="10-25">$10-25</option>
+            <option value="25-50">$25-50</option>
+            <option value="50-0">$50+</option>
+          </select>
           <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={sel(sortBy!=="recent", t.purple)}>
             <option value="recent">🕐 Recientes</option><option value="price_low">💲 Menor $</option><option value="price_high">💲 Mayor $</option><option value="rating">⭐ Rating</option>
           </select>
-          <div style={{ padding:"6px 10px", borderRadius:20, background:t.surface, fontSize:11, fontWeight:600, color:t.muted, flexShrink:0 }}>{filtered.length}/{products.length}</div>
+          <div style={{ padding:"6px 8px", borderRadius:20, background:t.surface, fontSize:10, fontWeight:600, color:t.muted, flexShrink:0 }}>{filtered.length}/{products.length}</div>
         </div>
       </div>
+
+      {/* Multi-select toolbar */}
+      {selectMode && view === "products" && (
+        <div style={{ padding:"8px 16px", background:t.card, borderBottom:`1px solid ${t.border}`, display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+          <button onClick={exitSelect} style={{ padding:"6px 10px", borderRadius:8, border:`1px solid ${t.border}`, background:t.surface, color:t.muted, fontSize:11, fontWeight:600, cursor:"pointer" }}>✕ Salir</button>
+          <span style={{ fontSize:12, fontWeight:700, color:t.accent }}>{selected.size} seleccionados</span>
+          <div style={{ flex:1 }} />
+          <button onClick={() => { if (selected.size > 0) setBatchAction("category"); }} disabled={selected.size===0} style={{ padding:"6px 10px", borderRadius:8, border:"none", background:selected.size>0?t.accent+"20":"transparent", color:selected.size>0?t.accent:t.dim, fontSize:11, fontWeight:700, cursor:"pointer" }}>🏷 Categoría</button>
+          <button onClick={() => { if (selected.size > 0) setBatchAction("supplier"); }} disabled={selected.size===0} style={{ padding:"6px 10px", borderRadius:8, border:"none", background:selected.size>0?t.blue+"20":"transparent", color:selected.size>0?t.blue:t.dim, fontSize:11, fontWeight:700, cursor:"pointer" }}>🏭 Proveedor</button>
+          <button onClick={() => { if (selected.size > 0 && confirm(`¿Eliminar ${selected.size} productos?`)) { onBatchDelete?.([...selected]); exitSelect(); } }} disabled={selected.size===0} style={{ padding:"6px 10px", borderRadius:8, border:"none", background:selected.size>0?t.red+"20":"transparent", color:selected.size>0?t.red:t.dim, fontSize:11, fontWeight:700, cursor:"pointer" }}>🗑 Eliminar</button>
+        </div>
+      )}
+      {/* Batch action picker */}
+      {batchAction && (
+        <div style={{ padding:"8px 16px", background:t.surface, borderBottom:`1px solid ${t.border}` }}>
+          <p style={{ fontSize:11, fontWeight:700, color:t.muted, margin:"0 0 6px" }}>{batchAction === "category" ? "Elegir categoría:" : "Elegir proveedor:"}</p>
+          <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+            {batchAction === "category" && categories.map(c => (
+              <button key={c} onClick={() => { onBatchUpdate?.([...selected], { category: c }); setBatchAction(null); exitSelect(); }} style={{ padding:"5px 12px", borderRadius:14, fontSize:11, fontWeight:600, border:`1px solid ${t.border}`, background:t.card, color:t.text, cursor:"pointer" }}>{c}</button>
+            ))}
+            {batchAction === "supplier" && (
+              <>
+                <button onClick={() => { onBatchUpdate?.([...selected], { supplierId: null, supplierCompany: null }); setBatchAction(null); exitSelect(); }} style={{ padding:"5px 12px", borderRadius:14, fontSize:11, fontWeight:600, border:`1px solid ${t.border}`, background:t.card, color:t.muted, cursor:"pointer" }}>Sin proveedor</button>
+                {suppliers.map(s => (
+                  <button key={s.id} onClick={() => { onBatchUpdate?.([...selected], { supplierId: s.id, supplierCompany: s.company }); setBatchAction(null); exitSelect(); }} style={{ padding:"5px 12px", borderRadius:14, fontSize:11, fontWeight:600, border:`1px solid ${t.border}`, background:t.card, color:t.text, cursor:"pointer" }}>{s.company || `#${s.id}`}</button>
+                ))}
+              </>
+            )}
+            <button onClick={() => setBatchAction(null)} style={{ padding:"5px 10px", borderRadius:14, fontSize:11, border:`1px solid ${t.border}`, background:t.card, color:t.dim, cursor:"pointer" }}>✕</button>
+          </div>
+        </div>
+      )}
 
       {/* Products */}
       {view === "products" && (
@@ -1935,12 +2504,40 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
           {filtered.length === 0 && (
             <Empty icon={products.length===0?"📸":"🔍"} title={products.length===0?"Empezá a escanear":"Sin resultados"} sub={products.length===0?"Tocá + para capturar tu primer producto":null} t={t} />
           )}
+          {!selectMode && filtered.length > 1 && (
+            <button onClick={() => setSelectMode(true)} style={{ width:"100%", padding:"6px", borderRadius:8, border:`1px dashed ${t.border}`, background:"transparent", color:t.dim, fontSize:11, cursor:"pointer", marginBottom:6 }}>☑ Seleccionar varios</button>
+          )}
           {filtered.map((p, i) => {
             const dist = districts.find(d => d.id === p.districtId);
-            return (
-              <button key={p.id} onClick={() => onNavigate("detail", p)} style={{
+            const isSelected = selected.has(p.id);
+            return selectMode ? (
+              <button key={p.id} onClick={() => toggleSelect(p.id)} style={{
+                width:"100%", textAlign:"left", background:isSelected ? t.accentSoft : t.card, border:`1.5px solid ${isSelected ? t.accent : t.border}`,
+                borderRadius:14, padding:"10px 12px", display:"flex", alignItems:"center", gap:10,
+                marginBottom:6, cursor:"pointer",
+              }}>
+                <div style={{ width:24, height:24, borderRadius:6, border:`2px solid ${isSelected?t.accent:t.dim}`, background:isSelected?t.accent:"transparent", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:14, color:"#fff" }}>
+                  {isSelected && "✓"}
+                </div>
+                {p.photos?.[0] ? (
+                  <div style={{ width:40, height:40, borderRadius:8, overflow:"hidden", flexShrink:0, border:`1px solid ${t.border}` }}>
+                    <img src={p.photos[0]} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                  </div>
+                ) : (
+                  <div style={{ width:40, height:40, borderRadius:8, flexShrink:0, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", border:`1px solid ${t.border}`, fontSize:14 }}>📷</div>
+                )}
+                <div style={{ flex:1, minWidth:0 }}>
+                  <p style={{ fontSize:13, fontWeight:700, color:t.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", margin:0 }}>{p.name || "Procesando..."}</p>
+                  <p style={{ fontSize:11, color:t.muted, margin:"2px 0 0" }}>{p.supplierCompany || "—"}</p>
+                </div>
+              </button>
+            ) : (
+              <SwipeRow key={p.id} t={t}
+                onEdit={() => onNavigate("detail", p)}
+                onDelete={() => onDeleteProduct?.(p.id)}>
+              <button onClick={() => onNavigate("detail", p)} style={{
                 width:"100%", textAlign:"left", background:t.card, border:`1px solid ${t.border}`,
-                borderRadius:14, padding:"10px 12px", marginBottom:6, display:"flex", alignItems:"center", gap:10,
+                borderRadius:14, padding:"10px 12px", display:"flex", alignItems:"center", gap:10,
                 animation:`fadeIn 0.3s ease ${Math.min(i*0.03, 0.3)}s both`, cursor:"pointer",
               }}>
                 {p.photos?.[0] ? (
@@ -1959,6 +2556,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
                   {p.costTotal && <span style={{ fontSize:11, fontWeight:700, color:t.accent }}>→ {p.costTotal}</span>}
                 </div>
               </button>
+              </SwipeRow>
             );
           })}
         </div>
@@ -1972,12 +2570,21 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
             const avgR = g.products.length > 0 ? g.products.reduce((a,p)=>a+(p.rating||0),0)/g.products.length : 0;
             const dist = districts.find(d => d.id === g.districtId);
             return (
-              <div key={gi} style={{ background:t.card, borderRadius:16, padding:"12px 14px", marginBottom:10, border:`1px solid ${t.border}`, animation:`fadeIn 0.3s ease ${gi*0.05}s both` }}>
-                <button onClick={() => g.supplier && onNavigate("supplier", g.supplier)} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:8, width:"100%", background:"none", border:"none", cursor:"pointer", padding:0, textAlign:"left" }}>
-                  <div style={{ width:40, height:40, borderRadius:10, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, border:`1px solid ${t.border}` }}>🏭</div>
-                  <div style={{ flex:1 }}><div style={{ fontSize:14, fontWeight:700, color:t.text }}>{g.supplier?.company || "—"}</div><span style={{ fontSize:11, color:t.muted }}>{isAllFairs&&dist?dist.emoji+" "+dist.name+" · ":""}{g.products.length} prod. →</span></div>
-                  <MiniStars rating={avgR} t={t} />
-                </button>
+              <div key={gi} style={{ background:t.card, borderRadius:16, padding:"12px 14px", border:`1px solid ${t.border}`, marginBottom:6, animation:`fadeIn 0.3s ease ${gi*0.05}s both` }}>
+                <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:8 }}>
+                  <button onClick={() => g.supplier && onNavigate("supplier", g.supplier)} style={{ display:"flex", alignItems:"center", gap:10, flex:1, background:"none", border:"none", cursor:"pointer", padding:0, textAlign:"left" }}>
+                    <div style={{ width:40, height:40, borderRadius:10, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, border:`1px solid ${t.border}` }}>🏭</div>
+                    <div style={{ flex:1 }}><div style={{ fontSize:14, fontWeight:700, color:g.supplier ? t.text : t.muted }}>{g.supplier?.company || "Sin proveedor"}</div><span style={{ fontSize:11, color:t.muted }}>{isAllFairs&&dist?dist.emoji+" "+dist.name+" · ":""}{g.products.length} prod. →</span></div>
+                    <MiniStars rating={avgR} t={t} />
+                  </button>
+                  {/* #15: Quick contact buttons */}
+                  {g.supplier && (g.supplier.whatsapp || g.supplier.whatsappLink || g.supplier.phone) && (
+                    <a href={g.supplier.whatsappLink || (g.supplier.whatsapp ? `https://wa.me/${g.supplier.whatsapp.replace(/[^0-9]/g,'')}` : `tel:${g.supplier.phone}`)} target="_blank" rel="noopener" onClick={e => e.stopPropagation()} style={{ width:36, height:36, borderRadius:10, background:"#25D36620", border:"1px solid #25D36640", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, textDecoration:"none", flexShrink:0 }}>💬</a>
+                  )}
+                  {g.supplier && (g.supplier.wechat || g.supplier.wechatLink) && (
+                    <a href={g.supplier.wechatLink || "#"} target="_blank" rel="noopener" onClick={e => { e.stopPropagation(); if (!g.supplier.wechatLink) { e.preventDefault(); navigator.clipboard?.writeText(g.supplier.wechat).then(() => {}); }}} style={{ width:36, height:36, borderRadius:10, background:"#07C16020", border:"1px solid #07C16040", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, textDecoration:"none", flexShrink:0 }} title={g.supplier.wechat ? `WeChat: ${g.supplier.wechat}` : ""}>🟢</a>
+                  )}
+                </div>
                 {g.products.map(p => (
                   <button key={p.id} onClick={() => onNavigate("detail", p)} style={{ width:"100%", textAlign:"left", display:"flex", alignItems:"center", gap:8, padding:"8px 10px", borderRadius:10, background:t.surface, border:`1px solid ${t.border}`, marginBottom:4, cursor:"pointer" }}>
                     {p.photos?.[0] ? <img src={p.photos[0]} alt="" style={{ width:32, height:32, borderRadius:6, objectFit:"cover" }} /> : <div style={{ width:32, height:32, borderRadius:6, background:t.card, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, border:`1px solid ${t.border}` }}>📷</div>}
@@ -2020,9 +2627,10 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
 // ═══════════════════════════════════════════
 // SUPPLIER DETAIL
 // ═══════════════════════════════════════════
-function SupplierDetail({ supplier, products, onBack, onUpdate, onNavigateProduct, t }) {
+function SupplierDetail({ supplier, products, onBack, onUpdate, onDelete, onNavigateProduct, onAddProduct, t }) {
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState({ ...supplier });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const supplierProducts = products.filter(p => p.supplierId === supplier.id);
   const avgRating = supplierProducts.length > 0 ? supplierProducts.reduce((a,p) => a + (p.rating||0), 0) / supplierProducts.length : 0;
@@ -2037,6 +2645,34 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onNavigateProduc
     setEditing(false);
   };
 
+  // Build clickable link for a field value
+  const fieldLink = (key, value) => {
+    if (!value) return null;
+    if (key === "email") return `mailto:${value}`;
+    if (key === "phone") return `tel:${value}`;
+    if (key === "whatsapp") {
+      return supplier.whatsappLink || `https://wa.me/${value.replace(/[^0-9]/g, "")}`;
+    }
+    if (key === "wechat") {
+      if (supplier.wechatLink) return supplier.wechatLink;
+      if (value === "QR escaneado") return null;
+      return `weixin://dl/chat?${value}`;
+    }
+    if (key === "website") {
+      return value.startsWith("http") ? value : `https://${value}`;
+    }
+    return null;
+  };
+
+  const fieldColor = (key) => {
+    if (key === "whatsapp") return "#25D366";
+    if (key === "wechat") return "#07C160";
+    if (key === "email") return t.purple;
+    if (key === "phone") return t.blue;
+    if (key === "website") return t.accent;
+    return t.text;
+  };
+
   const field = (label, icon, key, placeholder) => (
     <div style={{ marginBottom:12 }}>
       <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, textTransform:"uppercase" }}>{icon} {label}</p>
@@ -2044,7 +2680,16 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onNavigateProduc
         <input value={editData[key] || ""} onChange={e => setEditData(d => ({ ...d, [key]: e.target.value }))}
           placeholder={placeholder} style={{ width:"100%", padding:"10px 14px", borderRadius:12, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:14, outline:"none", boxSizing:"border-box", fontFamily:"inherit" }} />
       ) : (
-        supplier[key] ? <p style={{ fontSize:14, color:t.text, padding:"4px 0", margin:0 }}>{supplier[key]}</p> : null
+        supplier[key] ? (
+          fieldLink(key, supplier[key]) ? (
+            <a href={fieldLink(key, supplier[key])} target="_blank" rel="noopener noreferrer"
+              style={{ fontSize:14, color:fieldColor(key), padding:"4px 0", margin:0, display:"block", textDecoration:"underline", textUnderlineOffset:3, wordBreak:"break-all" }}>
+              {supplier[key]}
+            </a>
+          ) : (
+            <p style={{ fontSize:14, color:t.text, padding:"4px 0", margin:0 }}>{supplier[key]}</p>
+          )
+        ) : null
       )}
     </div>
   );
@@ -2061,40 +2706,57 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onNavigateProduc
         }
       />
 
-      {/* CONTACT BUTTONS - always visible at top */}
-      {(supplier.wechat || supplier.whatsapp || supplier.phone || supplier.email) && (
-        <div style={{ padding:"10px 20px", display:"flex", gap:8, flexWrap:"nowrap", overflowX:"auto", borderBottom:`1px solid ${t.border}`, flexShrink:0 }}>
-          {supplier.wechat && (
-            <button onClick={() => { navigator.clipboard.writeText(supplier.wechat).catch(()=>{}); window.location.href = "weixin://"; }}
-              style={{ display:"flex", alignItems:"center", gap:6, background:"#07C160", color:"#fff", borderRadius:12, padding:"12px 18px", fontSize:13, fontWeight:700, border:"none", cursor:"pointer", flex:1, justifyContent:"center", whiteSpace:"nowrap", minWidth:0 }}>
-              💬 {supplier.wechat}
-            </button>
-          )}
-          {supplier.whatsapp && (
-            <a href={supplier.whatsapp.startsWith("http") ? supplier.whatsapp : `https://wa.me/${supplier.whatsapp.replace(/[^0-9]/g, "")}`} target="_blank" rel="noopener noreferrer"
-              style={{ display:"flex", alignItems:"center", gap:6, background:"#25D366", color:"#fff", borderRadius:12, padding:"12px 18px", fontSize:13, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center", whiteSpace:"nowrap", minWidth:0 }}>
-              📱 WhatsApp
-            </a>
-          )}
-          {supplier.phone && (
-            <a href={`tel:${supplier.phone}`}
-              style={{ display:"flex", alignItems:"center", gap:6, background:t.blueSoft, color:t.blue, borderRadius:12, padding:"12px 18px", fontSize:13, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center", whiteSpace:"nowrap", minWidth:0 }}>
-              📞 Llamar
-            </a>
-          )}
-          {supplier.email && (
-            <a href={`mailto:${supplier.email}`}
-              style={{ display:"flex", alignItems:"center", gap:6, background:t.purpleSoft, color:t.purple, borderRadius:12, padding:"12px 18px", fontSize:13, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center", whiteSpace:"nowrap", minWidth:0 }}>
-              ✉️ Email
-            </a>
-          )}
-        </div>
-      )}
+      {/* CONTACT BUTTONS - deep links to specific contacts */}
+      {(() => {
+        const waNumber = supplier.whatsapp || supplier.phone;
+        const waLink = supplier.whatsappLink || (waNumber ? `https://wa.me/${waNumber.replace(/[^0-9]/g, "")}` : null);
+        const hasWechat = supplier.wechat || supplier.wechatLink;
+        const wcLink = supplier.wechatLink || (supplier.wechat && supplier.wechat !== "QR escaneado" ? `weixin://dl/chat?${supplier.wechat}` : null);
+        const hasAny = waNumber || hasWechat || supplier.phone || supplier.email;
+        if (!hasAny) return null;
+        return (
+          <div style={{ padding:"10px 20px", display:"flex", gap:8, flexWrap:"nowrap", overflowX:"auto", borderBottom:`1px solid ${t.border}`, flexShrink:0 }}>
+            {waLink && (
+              <a href={waLink} target="_blank" rel="noopener noreferrer"
+                style={{ display:"flex", alignItems:"center", gap:6, background:"#25D366", color:"#fff", borderRadius:12, padding:"12px 18px", fontSize:13, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center", whiteSpace:"nowrap", minWidth:0 }}>
+                📱 WhatsApp
+              </a>
+            )}
+            {hasWechat && wcLink && (
+              <a href={wcLink}
+                onClick={() => { if (supplier.wechat && supplier.wechat !== "QR escaneado") navigator.clipboard.writeText(supplier.wechat).catch(()=>{}); }}
+                style={{ display:"flex", alignItems:"center", gap:6, background:"#07C160", color:"#fff", borderRadius:12, padding:"12px 18px", fontSize:13, fontWeight:700, border:"none", cursor:"pointer", flex:1, justifyContent:"center", whiteSpace:"nowrap", minWidth:0, textDecoration:"none" }}>
+                💬 WeChat
+              </a>
+            )}
+            {supplier.phone && (
+              <a href={`tel:${supplier.phone}`}
+                style={{ display:"flex", alignItems:"center", gap:6, background:t.blueSoft, color:t.blue, borderRadius:12, padding:"12px 18px", fontSize:13, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center", whiteSpace:"nowrap", minWidth:0 }}>
+                📞 Llamar
+              </a>
+            )}
+            {supplier.email && (
+              <a href={`mailto:${supplier.email}`}
+                style={{ display:"flex", alignItems:"center", gap:6, background:t.purpleSoft, color:t.purple, borderRadius:12, padding:"12px 18px", fontSize:13, fontWeight:700, textDecoration:"none", flex:1, justifyContent:"center", whiteSpace:"nowrap", minWidth:0 }}>
+                ✉️ Email
+              </a>
+            )}
+          </div>
+        );
+      })()}
 
       <div style={{ flex:1, overflowY:"scroll", WebkitOverflowScrolling:"touch", padding:20, paddingBottom:40 }}>
         {/* Linked products FIRST */}
         <div style={{ marginBottom:20 }}>
-          <p style={{ fontSize:13, fontWeight:700, color:t.text, marginBottom:12 }}>📦 Productos ({supplierProducts.length})</p>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+            <p style={{ fontSize:13, fontWeight:700, color:t.text, margin:0 }}>📦 Productos ({supplierProducts.length})</p>
+            {onAddProduct && (
+              <button onClick={onAddProduct} style={{
+                background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff", border:"none", borderRadius:10,
+                padding:"8px 14px", fontSize:12, fontWeight:700, cursor:"pointer",
+              }}>+ Agregar producto</button>
+            )}
+          </div>
           {supplierProducts.length === 0 ? (
             <p style={{ fontSize:13, color:t.dim, textAlign:"center", padding:20 }}>No hay productos vinculados aún</p>
           ) : (
@@ -2130,12 +2792,41 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onNavigateProduc
           {field("Contacto", "👤", "contact", "Nombre del contacto")}
           {field("Teléfono", "📱", "phone", "+86...")}
           {field("WeChat", "💬", "wechat", "WeChat ID")}
+          {field("WeChat Link", "🔗", "wechatLink", "Link del QR de WeChat")}
           {field("WhatsApp", "📱", "whatsapp", "Número WhatsApp")}
+          {field("WhatsApp Link", "🔗", "whatsappLink", "Link directo de WhatsApp")}
           {field("Email", "📧", "email", "email@company.com")}
           {field("Website", "🌐", "website", "www.company.com")}
           {field("Dirección", "📍", "address", "Dirección")}
           {field("Productos", "📦", "products", "Productos que ofrece")}
         </div>
+
+        {/* Delete supplier */}
+        {onDelete && (
+          <div style={{ marginTop:20, paddingTop:16, borderTop:`1px solid ${t.border}` }}>
+            {!showDeleteConfirm ? (
+              <button onClick={() => setShowDeleteConfirm(true)} style={{
+                width:"100%", padding:"12px", borderRadius:12, border:`1px solid ${t.red}40`, background:"transparent",
+                color:t.red, fontSize:13, fontWeight:700, cursor:"pointer",
+              }}>🗑 Eliminar proveedor</button>
+            ) : (
+              <div style={{ background:t.redSoft, borderRadius:12, padding:16, textAlign:"center" }}>
+                <p style={{ fontSize:13, fontWeight:700, color:t.red, marginBottom:12 }}>¿Eliminar "{supplier.company}"?</p>
+                <p style={{ fontSize:11, color:t.muted, marginBottom:12 }}>Los productos vinculados no se borran, solo se desvinculan.</p>
+                <div style={{ display:"flex", gap:8 }}>
+                  <button onClick={() => setShowDeleteConfirm(false)} style={{
+                    flex:1, padding:"10px", borderRadius:10, border:`1px solid ${t.border}`, background:t.surface,
+                    color:t.text, fontSize:13, fontWeight:700, cursor:"pointer",
+                  }}>Cancelar</button>
+                  <button onClick={() => onDelete(supplier.id)} style={{
+                    flex:1, padding:"10px", borderRadius:10, border:"none", background:t.red,
+                    color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer",
+                  }}>Sí, eliminar</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2156,6 +2847,10 @@ export default function App() {
   const [toast, setToast] = useState("");
   const [ready, setReady] = useState(false);
   const [isDark, setIsDark] = useState(true);
+  // #10: Supplier dedup prompt state
+  const [dedupPrompt, setDedupPrompt] = useState(null); // { similar, data, resolve }
+  // #13: Offline queue count
+  const [queueCount, setQueueCount] = useState(0);
 
   const t = isDark ? T.dark : T.light;
   const activeDistrictId = settings.activeDistrictId;
@@ -2168,14 +2863,31 @@ export default function App() {
     return st;
   };
 
-  // Load from Dexie on mount
+  // Sync hook
+  const sync = useSync(reloadAll);
+
+  // Load from Dexie on mount + resume cloud sync if in a room
   useEffect(() => {
     (async () => {
       await initDB();
+      // Wire sync engine into db.js CRUD hooks
+      setSyncEngine(syncEngine);
       const st = await reloadAll();
       setIsDark(st.theme !== "light");
       setReady(true);
+      // Resume cloud sync if previously in a room
+      if (st.roomId && st.roomCode) {
+        syncEngine.resumeRoom(st.roomId, st.roomCode).catch(console.warn);
+      }
     })();
+  }, []);
+
+  // #13: Poll offline queue count every 10s
+  useEffect(() => {
+    const poll = async () => { try { const q = await getSyncQueue(); setQueueCount(q.length); } catch {} };
+    poll();
+    const id = setInterval(poll, 10000);
+    return () => clearInterval(id);
   }, []);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
@@ -2208,40 +2920,145 @@ export default function App() {
     }
     const validUrls = urls.filter(Boolean);
     if (validUrls.length > 0) {
-      await dbUpdateProduct(productId, { photoUrls: urls });
-      setProducts(prev => prev.map(p => p.id === productId ? { ...p, photoUrls: urls } : p));
-      console.log(`☁️ ${validUrls.length}/${photos.length} fotos subidas a la nube`);
+      // Save cloud URLs and clear local base64 to free IndexedDB space
+      const update = { photoUrls: urls };
+      if (validUrls.length === photos.length) {
+        // All photos uploaded successfully — replace local base64 with cloud URLs
+        update.photos = validUrls;
+      }
+      await dbUpdateProduct(productId, update);
+      setProducts(prev => prev.map(p => p.id === productId ? { ...p, ...update } : p));
+      console.log(`☁️ ${validUrls.length}/${photos.length} fotos subidas a la nube${validUrls.length === photos.length ? ' (base64 liberado)' : ''}`);
     }
+  };
+
+  // #10: Find similar supplier (fuzzy matching)
+  const findSimilarSupplier = (name, districtId) => {
+    if (!name) return null;
+    const distSuppliers = suppliers.filter(s => s.districtId === districtId);
+    let best = null, bestScore = 0;
+    for (const s of distSuppliers) {
+      const score = stringSimilarity(name, s.company);
+      if (score > bestScore && score >= 0.7) { best = s; bestScore = score; }
+    }
+    return best && bestScore < 1 ? { supplier: best, score: bestScore } : null;
   };
 
   // Handle capture save
   const handleCaptureSave = async (data) => {
     try {
-      showToast("⏳ Procesando con IA...");
-
+      // === Create or find supplier ===
       let supplierId = data.linkedSupplierId || null;
       if (!supplierId && data.supplierName) {
+        // Exact match first
         const existing = suppliers.find(s => s.company === data.supplierName && s.districtId === activeDistrictId);
         if (existing) {
           supplierId = existing.id;
+          // Update existing supplier with any new data
+          const updates = {};
+          if (data.supplierContact && !existing.contact) updates.contact = data.supplierContact;
+          if (data.supplierPhone && !existing.phone) updates.phone = data.supplierPhone;
+          if (data.supplierEmail && !existing.email) updates.email = data.supplierEmail;
+          if (data.supplierWechat && !existing.wechat) updates.wechat = data.supplierWechat;
+          if (data.supplierWhatsapp && !existing.whatsapp) updates.whatsapp = data.supplierWhatsapp;
+          if (data.supplierWhatsappLink && !existing.whatsappLink) updates.whatsappLink = data.supplierWhatsappLink;
+          if (data.supplierWechatLink && !existing.wechatLink) updates.wechatLink = data.supplierWechatLink;
+          if (data.supplierWebsite && !existing.website) updates.website = data.supplierWebsite;
+          if (data.cardPhoto && !existing.cardPhoto) updates.cardPhoto = data.cardPhoto;
+          if (Object.keys(updates).length > 0) {
+            await dbUpdateSupplier(supplierId, updates);
+            setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, ...updates } : s));
+          }
         } else {
-          supplierId = await addSupplier({
-            company: data.supplierName,
-            contact: data.supplierContact || "",
-            phone: data.supplierPhone || "",
-            email: data.supplierEmail || "",
-            wechat: data.supplierWechat || "",
-            whatsapp: data.supplierWhatsapp || "",
-            website: data.supplierWebsite || "",
-            address: data.supplierAddress || "",
-            products: data.supplierProducts || "",
-            cardPhoto: data.cardPhoto || null,
-            cardData: data.cardData || null,
-            districtId: activeDistrictId,
-            createdAt: Date.now(),
-          });
+          // #10: Fuzzy match — check for similar suppliers
+          const similar = findSimilarSupplier(data.supplierName, activeDistrictId);
+          if (similar) {
+            // Ask user: use existing or create new?
+            const choice = await new Promise(resolve => {
+              setDedupPrompt({ similar: similar.supplier, score: similar.score, newName: data.supplierName, resolve });
+            });
+            if (choice === "use_existing") {
+              supplierId = similar.supplier.id;
+              // Merge any new contact info
+              const updates = {};
+              if (data.supplierContact && !similar.supplier.contact) updates.contact = data.supplierContact;
+              if (data.supplierPhone && !similar.supplier.phone) updates.phone = data.supplierPhone;
+              if (data.supplierEmail && !similar.supplier.email) updates.email = data.supplierEmail;
+              if (data.supplierWechat && !similar.supplier.wechat) updates.wechat = data.supplierWechat;
+              if (data.supplierWhatsapp && !similar.supplier.whatsapp) updates.whatsapp = data.supplierWhatsapp;
+              if (data.cardPhoto && !similar.supplier.cardPhoto) updates.cardPhoto = data.cardPhoto;
+              if (Object.keys(updates).length > 0) {
+                await dbUpdateSupplier(supplierId, updates);
+                setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, ...updates } : s));
+              }
+            } else {
+              // Create new supplier
+              supplierId = await addSupplier({
+                company: data.supplierName,
+                contact: data.supplierContact || "",
+                phone: data.supplierPhone || "",
+                email: data.supplierEmail || "",
+                wechat: data.supplierWechat || "",
+                whatsapp: data.supplierWhatsapp || "",
+                whatsappLink: data.supplierWhatsappLink || "",
+                wechatLink: data.supplierWechatLink || "",
+                website: data.supplierWebsite || "",
+                address: data.supplierAddress || "",
+                products: data.supplierProducts || "",
+                cardPhoto: data.cardPhoto || null,
+                cardData: data.cardData || null,
+                districtId: activeDistrictId,
+                createdAt: Date.now(),
+              });
+            }
+          } else {
+            supplierId = await addSupplier({
+              company: data.supplierName,
+              contact: data.supplierContact || "",
+              phone: data.supplierPhone || "",
+              email: data.supplierEmail || "",
+              wechat: data.supplierWechat || "",
+              whatsapp: data.supplierWhatsapp || "",
+              whatsappLink: data.supplierWhatsappLink || "",
+              wechatLink: data.supplierWechatLink || "",
+              website: data.supplierWebsite || "",
+              address: data.supplierAddress || "",
+              products: data.supplierProducts || "",
+              cardPhoto: data.cardPhoto || null,
+              cardData: data.cardData || null,
+              districtId: activeDistrictId,
+              createdAt: Date.now(),
+            });
+          }
         }
       }
+
+      // === SUPPLIER ONLY: just save supplier and go to detail ===
+      if (data.supplierOnly) {
+        await reloadAll();
+        if (supplierId) {
+          const newSupplier = suppliers.find(s => s.id === supplierId) || { id: supplierId, company: data.supplierName };
+          navigate("supplier", newSupplier);
+          showToast("✓ Proveedor guardado");
+        } else {
+          navigate("list");
+          showToast("✓ Proveedor guardado");
+        }
+        // Background: upload card photo
+        if (data.cardPhoto && supplierId && navigator.onLine) {
+          const cardKey = `cards/${slugify(data.supplierName || 'card')}_${supplierId}.jpg`;
+          uploadPhoto(data.cardPhoto, cardKey).then(result => {
+            if (result?.url) {
+              dbUpdateSupplier(supplierId, { cardPhotoUrl: result.url });
+              setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, cardPhotoUrl: result.url } : s));
+            }
+          }).catch(() => {});
+        }
+        return;
+      }
+
+      // === FULL PRODUCT FLOW ===
+      showToast("⏳ Procesando con IA...");
 
       let aiName = null;
       let aiDescription = null;
@@ -2273,9 +3090,21 @@ export default function App() {
         console.log("✓ Transcripción del navegador:", aiAudioTranscript);
       }
 
+      // #11: Check for duplicate products (same name + same supplier)
+      const finalName = aiName || (data.supplierName ? `Producto de ${data.supplierName}` : `Producto ${products.length + 1}`);
+      if (finalName && supplierId) {
+        const dupProduct = products.find(p =>
+          p.supplierId === supplierId &&
+          stringSimilarity(p.name, finalName) >= 0.85
+        );
+        if (dupProduct) {
+          showToast(`⚠️ Posible duplicado: "${dupProduct.name}"`);
+        }
+      }
+
       // Add product with AI-enriched data
       const productId = await addProduct({
-        name: aiName || (data.supplierName ? `Producto de ${data.supplierName}` : `Producto ${products.length + 1}`),
+        name: finalName,
         description: aiDescription || null,
         supplierCompany: data.supplierName || null,
         supplierId,
@@ -2321,7 +3150,7 @@ export default function App() {
       }
     } catch (err) {
       console.error("Error en handleCaptureSave:", err);
-      showToast("❌ Error guardando producto");
+      showToast(data.supplierOnly ? "❌ Error guardando proveedor" : "❌ Error guardando producto");
     }
   };
 
@@ -2337,10 +3166,30 @@ export default function App() {
     showToast("Producto eliminado");
   };
 
+  const handleBatchDelete = async (ids) => {
+    for (const id of ids) await dbDeleteProduct(id);
+    setProducts(prev => prev.filter(p => !ids.includes(p.id)));
+    showToast(`${ids.length} productos eliminados`);
+  };
+
+  const handleBatchUpdate = async (ids, changes) => {
+    for (const id of ids) await dbUpdateProduct(id, changes);
+    setProducts(prev => prev.map(p => ids.includes(p.id) ? { ...p, ...changes } : p));
+    showToast(`${ids.length} productos actualizados`);
+  };
+
   const handleUpdateSupplier = async (id, changes, silent) => {
     await dbUpdateSupplier(id, changes);
     setSuppliers(prev => prev.map(s => s.id === id ? { ...s, ...changes } : s));
     if (!silent) showToast("Proveedor actualizado");
+  };
+
+  const handleDeleteSupplier = async (id) => {
+    await dbDeleteSupplier(id);
+    setSuppliers(prev => prev.filter(s => s.id !== id));
+    setProducts(prev => prev.map(p => p.supplierId === id ? { ...p, supplierId: null, supplierCompany: null } : p));
+    navigate("list");
+    showToast("Proveedor eliminado");
   };
 
   const handleSaveSettings = async (s, silent) => {
@@ -2358,8 +3207,26 @@ export default function App() {
     showToast(`Feria creada: ${d.name}`);
   };
 
+  const handleDeleteDistrict = async (id) => {
+    // Delete all products and suppliers in this district first
+    const distProducts = products.filter(p => p.districtId === id);
+    for (const p of distProducts) await dbDeleteProduct(p.id);
+    const distSuppliers = suppliers.filter(s => s.districtId === id);
+    for (const s of distSuppliers) await dbDeleteSupplier(s.id);
+    await dbDeleteDistrict(id);
+    // If we deleted the active district, switch to another
+    if (activeDistrictId === id) {
+      const remaining = districts.filter(d => d.id !== id);
+      if (remaining.length > 0) {
+        await dbSaveSettings({ activeDistrictId: remaining[0].id });
+      }
+    }
+    await reloadAll();
+    showToast("Feria eliminada");
+  };
+
   if (!ready) return (
-    <div style={{ height:"100dvh", display:"flex", alignItems:"center", justifyContent:"center", background:t.bg, flexDirection:"column", gap:12 }}>
+    <div style={{ height:"100%", display:"flex", alignItems:"center", justifyContent:"center", background:t.bg, flexDirection:"column", gap:12 }}>
       <span style={{ fontSize:48 }}>📸</span>
       <span style={{ fontSize:18, fontWeight:800, color:t.text }}>FairScan</span>
       <span style={{ fontSize:12, color:t.muted }}>Cargando...</span>
@@ -2367,14 +3234,33 @@ export default function App() {
   );
 
   return (
-    <div style={{ height:"100dvh", background:t.bg, color:t.text, position:"relative", overflow:"hidden", fontFamily:"'DM Sans', -apple-system, sans-serif" }}>
+    <div style={{ height:"100%", background:t.bg, color:t.text, position:"relative", overflow:"hidden", fontFamily:"'DM Sans', -apple-system, sans-serif" }}>
       <Toast msg={toast} t={t} />
-      {/* <SyncStatus theme={isDark ? "dark" : "light"} /> */}
+      {/* #10: Supplier dedup prompt */}
+      {dedupPrompt && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+          <div style={{ background:t.card, borderRadius:20, padding:24, maxWidth:340, width:"100%", border:`1px solid ${t.border}` }}>
+            <p style={{ fontSize:15, fontWeight:800, color:t.text, margin:"0 0 8px" }}>Proveedor similar encontrado</p>
+            <p style={{ fontSize:12, color:t.muted, margin:"0 0 16px", lineHeight:1.5 }}>
+              "<strong style={{ color:t.accent }}>{dedupPrompt.newName}</strong>" es similar a "<strong style={{ color:t.blue }}>{dedupPrompt.similar.company}</strong>" ({Math.round(dedupPrompt.score * 100)}% coincidencia)
+            </p>
+            <button onClick={() => { const r = dedupPrompt.resolve; setDedupPrompt(null); r("use_existing"); }} style={{
+              width:"100%", padding:"12px", borderRadius:12, border:`1.5px solid ${t.blue}`, background:t.blueSoft,
+              color:t.blue, fontSize:13, fontWeight:700, cursor:"pointer", marginBottom:8, textAlign:"left",
+            }}>🏭 Usar "{dedupPrompt.similar.company}"</button>
+            <button onClick={() => { const r = dedupPrompt.resolve; setDedupPrompt(null); r("create_new"); }} style={{
+              width:"100%", padding:"12px", borderRadius:12, border:`1px solid ${t.border}`, background:t.surface,
+              color:t.text, fontSize:13, fontWeight:700, cursor:"pointer", textAlign:"left",
+            }}>➕ Crear nuevo "{dedupPrompt.newName}"</button>
+          </div>
+        </div>
+      )}
 
       {screen === "list" && (
         <ProductList products={products} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} activeDistrict={activeDistrict} settings={settings}
-          onNavigate={navigate} onSwitchDistrict={switchDistrict} t={t} isDark={isDark} onToggleTheme={toggleTheme}
-          activeTab={listTab} onTabChange={setListTab} />
+          onNavigate={navigate} onSwitchDistrict={switchDistrict} onDeleteProduct={handleDeleteProduct} onBatchDelete={handleBatchDelete} onBatchUpdate={handleBatchUpdate} onDeleteSupplier={handleDeleteSupplier}
+          t={t} isDark={isDark} onToggleTheme={toggleTheme}
+          activeTab={listTab} onTabChange={setListTab} queueCount={queueCount} />
       )}
       {(screen === "capture" || screen === "capture-supplier") && (
         <CaptureFlow suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings}
@@ -2388,7 +3274,8 @@ export default function App() {
       )}
       {screen === "supplier" && screenData && (
         <SupplierDetail supplier={suppliers.find(s => s.id === screenData.id) || screenData} products={products}
-          onBack={goBack} onUpdate={handleUpdateSupplier}
+          onBack={goBack} onUpdate={handleUpdateSupplier} onDelete={handleDeleteSupplier}
+          onAddProduct={() => navigate("capture")}
           onNavigateProduct={p => navigate("detail", p)} t={t} />
       )}
       {screen === "calc" && screenData && (
@@ -2398,11 +3285,12 @@ export default function App() {
       )}
       {screen === "districts" && (
         <DistrictsScreen districts={districts} activeDistrictId={activeDistrictId} products={products}
-          onActivate={switchDistrict} onAdd={handleAddDistrict}
+          onActivate={switchDistrict} onAdd={handleAddDistrict} onDelete={handleDeleteDistrict}
           onBack={() => navigate("list")} t={t} />
       )}
       {screen === "settings" && (
-        <SettingsScreen settings={settings} onSave={handleSaveSettings} onBack={() => navigate("list")} t={t} />
+        <SettingsScreen settings={settings} onSave={handleSaveSettings} onBack={() => navigate("list")} sync={sync} t={t}
+          products={products} suppliers={suppliers} districts={districts} onReload={reloadAll} />
       )}
       {screen === "export" && (
         <ExportScreen products={products} suppliers={suppliers} districts={districts}
