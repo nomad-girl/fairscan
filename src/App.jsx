@@ -1942,20 +1942,170 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
     return csv;
   };
 
-  const generateGoogleSheetsURL = () => {
-    const pHeaders = ["Nombre","Proveedor","Precio USD","MOQ","Categoría","Material","Rating","Costo Importado","Viabilidad","Notas","Feria",
-      ...(hasCloudPhotos ? ["Foto"] : [])];
-    const pRows = scopeProducts.map(p => {
-      const sup = suppliers.find(s => s.id === p.supplierId);
-      const dist = districts.find(d => d.id === p.districtId);
-      const row = [p.name||"", sup?.company||p.supplierCompany||"", p.price||"", p.moq||"", p.category||"", (p.material||[]).join("; "), p.rating||"", p.costTotal||"", p.viability||"", (p.notes||"").replace(/\n/g," "), dist?.name||""];
-      if (hasCloudPhotos) {
-        const url = (p.photoUrls || []).find(Boolean) || "";
-        row.push(url ? `=IMAGE("${url}")` : "");
+  const generateExcel = async () => {
+    setExporting(true);
+    try {
+      setExportProgress("Cargando Excel...");
+      const ExcelJS = (await import('exceljs')).default;
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('Productos');
+
+      // Header row
+      const headers = ["Foto","Nombre","Proveedor","Contacto","Precio USD","MOQ","Categoría","Material","Rating","Viabilidad","Notas","Feria","Fecha"];
+      const headerRow = ws.addRow(headers);
+      headerRow.font = { bold: true, size: 11 };
+      headerRow.alignment = { vertical: 'middle' };
+      ws.getColumn(1).width = 12;  // Foto
+      ws.getColumn(2).width = 30;  // Nombre
+      ws.getColumn(3).width = 22;  // Proveedor
+      ws.getColumn(4).width = 18;  // Contacto
+      ws.getColumn(5).width = 12;  // Precio
+      ws.getColumn(6).width = 10;  // MOQ
+      ws.getColumn(7).width = 16;  // Categoría
+      ws.getColumn(8).width = 18;  // Material
+      ws.getColumn(9).width = 8;   // Rating
+      ws.getColumn(10).width = 12; // Viabilidad
+      ws.getColumn(11).width = 30; // Notas
+      ws.getColumn(12).width = 16; // Feria
+      ws.getColumn(13).width = 12; // Fecha
+
+      let done = 0;
+      for (const p of scopeProducts) {
+        const sup = suppliers.find(s => s.id === p.supplierId);
+        const dist = districts.find(d => d.id === p.districtId);
+        const rowIndex = ws.rowCount + 1;
+        const row = ws.addRow([
+          "", // Foto placeholder
+          p.name || "",
+          sup?.company || p.supplierCompany || "",
+          sup?.contact || "",
+          p.price || "",
+          p.moq || "",
+          p.category || "",
+          (p.material || []).join("; "),
+          p.rating || "",
+          p.viability || "",
+          (p.notes || "").replace(/\n/g, " "),
+          dist?.name || "",
+          p.createdAt ? new Date(p.createdAt).toLocaleDateString("es-AR") : "",
+        ]);
+        row.height = 65;
+        row.alignment = { vertical: 'middle', wrapText: true };
+
+        // Embed first photo
+        const photoSrc = (p.photos?.find(x => x) || (p.photoUrls || []).find(Boolean)) || null;
+        if (photoSrc) {
+          try {
+            let base64Data;
+            if (photoSrc.startsWith('http')) {
+              const dataUrl = await proxyImage(photoSrc);
+              if (dataUrl) base64Data = dataUrl.split(',')[1];
+            } else if (photoSrc.startsWith('data:')) {
+              base64Data = photoSrc.split(',')[1];
+            }
+            if (base64Data) {
+              const imgId = wb.addImage({ base64: base64Data, extension: 'jpeg' });
+              ws.addImage(imgId, {
+                tl: { col: 0.1, row: rowIndex - 1 + 0.1 },
+                ext: { width: 75, height: 56 },
+              });
+            }
+          } catch (e) { console.warn("Error embebiendo foto:", e); }
+        }
+        done++;
+        if (done % 3 === 0) {
+          setExportProgress(`Excel... ${done}/${scopeProducts.length}`);
+          await new Promise(r => setTimeout(r, 0));
+        }
       }
-      return row;
-    });
-    return pHeaders.join("\t") + "\n" + pRows.map(r => r.join("\t")).join("\n");
+
+      // Supplier sheet
+      if (includeSuppliers) {
+        const ws2 = wb.addWorksheet('Proveedores');
+        const sHeaders = ["Tarjeta","Empresa","Contacto","Teléfono","WeChat","WhatsApp","Email","Website","Feria","Productos","Rating"];
+        const sHeaderRow = ws2.addRow(sHeaders);
+        sHeaderRow.font = { bold: true, size: 11 };
+        sHeaderRow.alignment = { vertical: 'middle' };
+        ws2.getColumn(1).width = 12;
+        ws2.getColumn(2).width = 25;
+        ws2.getColumn(3).width = 18;
+        ws2.getColumn(4).width = 16;
+        ws2.getColumn(5).width = 16;
+        ws2.getColumn(6).width = 16;
+        ws2.getColumn(7).width = 22;
+        ws2.getColumn(8).width = 22;
+        ws2.getColumn(9).width = 16;
+        ws2.getColumn(10).width = 8;
+        ws2.getColumn(11).width = 8;
+
+        const supIds = [...new Set(scopeProducts.map(p => p.supplierId).filter(Boolean))];
+        // Also find suppliers by company name for unlinked products
+        const companyNames = [...new Set(scopeProducts.filter(p => !p.supplierId && p.supplierCompany).map(p => p.supplierCompany))];
+        const allSups = [
+          ...supIds.map(id => suppliers.find(s => s.id === id)).filter(Boolean),
+          ...companyNames.map(name => suppliers.find(s => s.company === name)).filter(Boolean),
+        ];
+        // Dedupe
+        const seen = new Set();
+        const uniqueSups = allSups.filter(s => { if (seen.has(s.id)) return false; seen.add(s.id); return true; });
+
+        for (const s of uniqueSups) {
+          const prods = scopeProducts.filter(p => p.supplierId === s.id || p.supplierCompany === s.company);
+          const dist = districts.find(d => d.id === s.districtId);
+          const avg = prods.length > 0 ? (prods.reduce((a, p) => a + (p.rating || 0), 0) / prods.length).toFixed(1) : "";
+          const rowIndex = ws2.rowCount + 1;
+          const row = ws2.addRow([
+            "", // Card placeholder
+            s.company || "", s.contact || "", s.phone || "",
+            s.wechat || "", s.whatsapp || "", s.email || "",
+            s.website || "", dist?.name || "", prods.length, avg,
+          ]);
+          row.height = 65;
+          row.alignment = { vertical: 'middle', wrapText: true };
+
+          // Embed card photo
+          const cardSrc = s.cardPhoto || s.cardPhotoUrl;
+          if (cardSrc) {
+            try {
+              let base64Data;
+              if (cardSrc.startsWith('http')) {
+                const dataUrl = await proxyImage(cardSrc);
+                if (dataUrl) base64Data = dataUrl.split(',')[1];
+              } else if (cardSrc.startsWith('data:')) {
+                base64Data = cardSrc.split(',')[1];
+              }
+              if (base64Data) {
+                const imgId = wb.addImage({ base64: base64Data, extension: 'jpeg' });
+                ws2.addImage(imgId, {
+                  tl: { col: 0.1, row: rowIndex - 1 + 0.1 },
+                  ext: { width: 75, height: 56 },
+                });
+              }
+            } catch (e) { console.warn("Error embebiendo tarjeta:", e); }
+          }
+        }
+      }
+
+      setExportProgress("Generando archivo...");
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `FairScan_Export_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      onExported("Excel descargado con fotos embebidas");
+    } catch (err) {
+      console.error("Error generando Excel:", err);
+      setExportProgress("");
+      onExported("Error generando Excel");
+    } finally {
+      setExporting(false);
+      setExportProgress("");
+    }
   };
 
   const generateZIP = async () => {
@@ -2151,15 +2301,8 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       a.click();
       URL.revokeObjectURL(url);
       onExported("CSV descargado");
-    } else if (format === "sheets") {
-      const tsv = generateGoogleSheetsURL();
-      navigator.clipboard.writeText(tsv).then(() => {
-        onExported("Copiado — pegá en Google Sheets");
-      }).catch(() => {
-        const w = window.open("", "_blank");
-        if (w) { w.document.write("<pre>" + tsv + "</pre>"); }
-        onExported("Abierto en nueva pestaña — copiá y pegá");
-      });
+    } else if (format === "excel") {
+      generateExcel();
     }
   };
 
@@ -2208,7 +2351,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
           {[
             { k:"zip", icon:"📁", name:"ZIP completo", desc:"Fotos + CSV organizados" },
             { k:"csv", icon:"📊", name:"CSV", desc:"Solo tabla, sin fotos" },
-            { k:"sheets", icon:"📋", name:"Copiar tabla", desc:"Pegar en Google Sheets" },
+            { k:"excel", icon:"📊", name:"Excel", desc:"Tabla con fotos embebidas" },
           ].map(f => (
             <button key={f.k} onClick={() => setFormat(f.k)} style={{
               flex:1, minWidth:f.k==="zip"?"100%":0, padding:"14px 10px", borderRadius:14, textAlign:"center",
@@ -2271,7 +2414,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
                     ? "Todas las fotos tienen URL pública"
                     : `${photosNotUploaded} productos sin subir (${totalPhotosToSync} fotos)`}
                 </p>
-                {hasCloudPhotos && <p style={{ fontSize:10, color:t.dim, margin:"2px 0 0" }}>Los CSV/Sheets incluirán URLs de fotos</p>}
+                {hasCloudPhotos && <p style={{ fontSize:10, color:t.dim, margin:"2px 0 0" }}>CSV incluirá URLs · Excel incluirá fotos reales</p>}
               </div>
               {photosNotUploaded > 0 && (
                 <button onClick={syncPhotosToCloud} disabled={syncing} style={{
@@ -2305,7 +2448,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
           {exporting ? exportProgress :
             format==="zip" ? `📁 Descargar ZIP (${totalPhotos} fotos)` :
             format==="csv" ? "📊 Descargar CSV" :
-            "📋 Copiar para Google Sheets"}
+            "📊 Descargar Excel con fotos"}
         </Btn>
       </div>
     </div>
