@@ -1942,6 +1942,20 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
     return csv;
   };
 
+  // Helper: get base64 image data from a photo source (data URL or cloud URL)
+  const getImageBase64 = async (src) => {
+    if (!src) return null;
+    try {
+      if (src.startsWith('http')) {
+        const dataUrl = await proxyImage(src);
+        return dataUrl ? dataUrl.split(',')[1] : null;
+      } else if (src.startsWith('data:')) {
+        return src.split(',')[1];
+      }
+    } catch {}
+    return null;
+  };
+
   const generateExcel = async () => {
     setExporting(true);
     try {
@@ -1950,34 +1964,58 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       const wb = new ExcelJS.Workbook();
       const ws = wb.addWorksheet('Productos');
 
+      // Deduplicate products: same name + same supplier + same price = duplicate
+      const deduped = [];
+      const seen = new Set();
+      for (const p of scopeProducts) {
+        const key = `${(p.name||"").toLowerCase()}|${p.supplierId||p.supplierCompany||""}|${p.price||""}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        deduped.push(p);
+      }
+
+      // Pre-fetch supplier card images (one per supplier, reused across rows)
+      setExportProgress("Descargando tarjetas...");
+      const cardCache = new Map(); // supplierKey → base64 or null
+      for (const p of deduped) {
+        const sup = suppliers.find(s => s.id === p.supplierId) || (p.supplierCompany ? suppliers.find(s => s.company === p.supplierCompany) : null);
+        if (!sup) continue;
+        const cacheKey = sup.id || sup.company;
+        if (cardCache.has(cacheKey)) continue;
+        const cardSrc = sup.cardPhoto || sup.cardPhotoUrl;
+        cardCache.set(cacheKey, cardSrc ? await getImageBase64(cardSrc) : null);
+      }
+
       // Header row
-      const headers = ["Foto","Nombre","Proveedor","Contacto","Precio USD","MOQ","Categoría","Material","Rating","Viabilidad","Notas","Feria","Fecha"];
+      const headers = ["Foto","Nombre","Proveedor","Tarjeta","Contacto","Precio USD","MOQ","Categoría","Material","Rating","Viabilidad","Notas","Feria","Fecha"];
       const headerRow = ws.addRow(headers);
       headerRow.font = { bold: true, size: 11 };
       headerRow.alignment = { vertical: 'middle' };
       ws.getColumn(1).width = 12;  // Foto
       ws.getColumn(2).width = 30;  // Nombre
       ws.getColumn(3).width = 22;  // Proveedor
-      ws.getColumn(4).width = 18;  // Contacto
-      ws.getColumn(5).width = 12;  // Precio
-      ws.getColumn(6).width = 10;  // MOQ
-      ws.getColumn(7).width = 16;  // Categoría
-      ws.getColumn(8).width = 18;  // Material
-      ws.getColumn(9).width = 8;   // Rating
-      ws.getColumn(10).width = 12; // Viabilidad
-      ws.getColumn(11).width = 30; // Notas
-      ws.getColumn(12).width = 16; // Feria
-      ws.getColumn(13).width = 12; // Fecha
+      ws.getColumn(4).width = 12;  // Tarjeta
+      ws.getColumn(5).width = 18;  // Contacto
+      ws.getColumn(6).width = 12;  // Precio
+      ws.getColumn(7).width = 10;  // MOQ
+      ws.getColumn(8).width = 16;  // Categoría
+      ws.getColumn(9).width = 18;  // Material
+      ws.getColumn(10).width = 8;  // Rating
+      ws.getColumn(11).width = 12; // Viabilidad
+      ws.getColumn(12).width = 30; // Notas
+      ws.getColumn(13).width = 16; // Feria
+      ws.getColumn(14).width = 12; // Fecha
 
       let done = 0;
-      for (const p of scopeProducts) {
-        const sup = suppliers.find(s => s.id === p.supplierId);
+      for (const p of deduped) {
+        const sup = suppliers.find(s => s.id === p.supplierId) || (p.supplierCompany ? suppliers.find(s => s.company === p.supplierCompany) : null);
         const dist = districts.find(d => d.id === p.districtId);
         const rowIndex = ws.rowCount + 1;
         const row = ws.addRow([
           "", // Foto placeholder
           p.name || "",
           sup?.company || p.supplierCompany || "",
+          "", // Tarjeta placeholder
           sup?.contact || "",
           p.price || "",
           p.moq || "",
@@ -1992,17 +2030,11 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
         row.height = 65;
         row.alignment = { vertical: 'middle', wrapText: true };
 
-        // Embed first photo
+        // Embed first product photo (col A)
         const photoSrc = (p.photos?.find(x => x) || (p.photoUrls || []).find(Boolean)) || null;
         if (photoSrc) {
           try {
-            let base64Data;
-            if (photoSrc.startsWith('http')) {
-              const dataUrl = await proxyImage(photoSrc);
-              if (dataUrl) base64Data = dataUrl.split(',')[1];
-            } else if (photoSrc.startsWith('data:')) {
-              base64Data = photoSrc.split(',')[1];
-            }
+            const base64Data = await getImageBase64(photoSrc);
             if (base64Data) {
               const imgId = wb.addImage({ base64: base64Data, extension: 'jpeg' });
               ws.addImage(imgId, {
@@ -2012,9 +2044,25 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
             }
           } catch (e) { console.warn("Error embebiendo foto:", e); }
         }
+
+        // Embed supplier card photo (col D = index 3)
+        if (sup) {
+          const cacheKey = sup.id || sup.company;
+          const cardBase64 = cardCache.get(cacheKey);
+          if (cardBase64) {
+            try {
+              const imgId = wb.addImage({ base64: cardBase64, extension: 'jpeg' });
+              ws.addImage(imgId, {
+                tl: { col: 3.1, row: rowIndex - 1 + 0.1 },
+                ext: { width: 75, height: 56 },
+              });
+            } catch (e) { console.warn("Error embebiendo tarjeta:", e); }
+          }
+        }
+
         done++;
         if (done % 3 === 0) {
-          setExportProgress(`Excel... ${done}/${scopeProducts.length}`);
+          setExportProgress(`Excel... ${done}/${deduped.length}`);
           await new Promise(r => setTimeout(r, 0));
         }
       }
@@ -2039,48 +2087,37 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
         ws2.getColumn(11).width = 8;
 
         const supIds = [...new Set(scopeProducts.map(p => p.supplierId).filter(Boolean))];
-        // Also find suppliers by company name for unlinked products
         const companyNames = [...new Set(scopeProducts.filter(p => !p.supplierId && p.supplierCompany).map(p => p.supplierCompany))];
         const allSups = [
           ...supIds.map(id => suppliers.find(s => s.id === id)).filter(Boolean),
           ...companyNames.map(name => suppliers.find(s => s.company === name)).filter(Boolean),
         ];
-        // Dedupe
-        const seen = new Set();
-        const uniqueSups = allSups.filter(s => { if (seen.has(s.id)) return false; seen.add(s.id); return true; });
+        const seenSup = new Set();
+        const uniqueSups = allSups.filter(s => { if (seenSup.has(s.id)) return false; seenSup.add(s.id); return true; });
 
         for (const s of uniqueSups) {
-          const prods = scopeProducts.filter(p => p.supplierId === s.id || p.supplierCompany === s.company);
+          const prods = deduped.filter(p => p.supplierId === s.id || p.supplierCompany === s.company);
           const dist = districts.find(d => d.id === s.districtId);
           const avg = prods.length > 0 ? (prods.reduce((a, p) => a + (p.rating || 0), 0) / prods.length).toFixed(1) : "";
           const rowIndex = ws2.rowCount + 1;
           const row = ws2.addRow([
-            "", // Card placeholder
-            s.company || "", s.contact || "", s.phone || "",
+            "", s.company || "", s.contact || "", s.phone || "",
             s.wechat || "", s.whatsapp || "", s.email || "",
             s.website || "", dist?.name || "", prods.length, avg,
           ]);
           row.height = 65;
           row.alignment = { vertical: 'middle', wrapText: true };
 
-          // Embed card photo
-          const cardSrc = s.cardPhoto || s.cardPhotoUrl;
-          if (cardSrc) {
+          // Embed card photo (reuse from cache)
+          const cacheKey = s.id || s.company;
+          const cardBase64 = cardCache.get(cacheKey) || await getImageBase64(s.cardPhoto || s.cardPhotoUrl);
+          if (cardBase64) {
             try {
-              let base64Data;
-              if (cardSrc.startsWith('http')) {
-                const dataUrl = await proxyImage(cardSrc);
-                if (dataUrl) base64Data = dataUrl.split(',')[1];
-              } else if (cardSrc.startsWith('data:')) {
-                base64Data = cardSrc.split(',')[1];
-              }
-              if (base64Data) {
-                const imgId = wb.addImage({ base64: base64Data, extension: 'jpeg' });
-                ws2.addImage(imgId, {
-                  tl: { col: 0.1, row: rowIndex - 1 + 0.1 },
-                  ext: { width: 75, height: 56 },
-                });
-              }
+              const imgId = wb.addImage({ base64: cardBase64, extension: 'jpeg' });
+              ws2.addImage(imgId, {
+                tl: { col: 0.1, row: rowIndex - 1 + 0.1 },
+                ext: { width: 75, height: 56 },
+              });
             } catch (e) { console.warn("Error embebiendo tarjeta:", e); }
           }
         }
