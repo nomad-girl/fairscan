@@ -347,18 +347,15 @@ class SyncEngine {
 
   /** Apply a single cloud record to local Dexie */
   async _applyCloudRecord(table, cloudRecord) {
-    // Skip records from our own device (they're already local)
-    if (cloudRecord.device_id === this.deviceId) {
-      // But still register the mapping
-      const existingLocal = await db.table(table).where('uuid').equals(cloudRecord.id).first();
-      if (existingLocal) {
-        idMapper.register(table, existingLocal.id, cloudRecord.id);
-      }
-      return;
-    }
-
     // Check if we already have this record locally
     const existingLocal = await db.table(table).where('uuid').equals(cloudRecord.id).first();
+
+    // For own-device records that still exist locally, just register mapping and skip
+    if (cloudRecord.device_id === this.deviceId && existingLocal) {
+      idMapper.register(table, existingLocal.id, cloudRecord.id);
+      return;
+    }
+    // If own-device record is MISSING locally (data loss), fall through to recreate it
 
     if (existingLocal) {
       // Compare timestamps - cloud wins if newer
