@@ -86,7 +86,7 @@ import syncEngine from './lib/syncEngine';
 import RoomPanel from './components/RoomPanel';
 import SyncStatus from './components/SyncStatus.jsx';
 
-const DEFAULT_SETTINGS_FALLBACK = { activeDistrictId:1, theme:"dark", preset:"vajilla", minMargin:40, ...PRESETS.vajilla };
+const DEFAULT_SETTINGS_FALLBACK = { activeDistrictId:1, theme:"dark", preset:"vajilla", minMargin:40, quickCaptureMode:true, ...PRESETS.vajilla };
 
 // ═══════════════════════════════════════════
 // IMAGE & EXPORT UTILS
@@ -325,6 +325,107 @@ const Btn = memo(({ children, onClick, variant = "primary", full, disabled, t, s
 });
 
 // ═══════════════════════════════════════════
+// QR DECODE & PARSE (module-level pure functions)
+// ═══════════════════════════════════════════
+const decodeQR = async (source) => {
+  try {
+    const jsQR = (await import('jsqr')).default;
+    let dataURL = source;
+    if (source instanceof File || source instanceof Blob) {
+      dataURL = await new Promise((res, rej) => {
+        const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(source);
+      });
+    }
+    const img = new Image();
+    await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = dataURL; });
+    const tryDecode = (canvas, ctx) => {
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      if (code?.data) return code.data;
+      const d = new Uint8ClampedArray(imageData.data);
+      for (let i = 0; i < d.length; i += 4) { d[i] = 255 - d[i]; d[i+1] = 255 - d[i+1]; d[i+2] = 255 - d[i+2]; }
+      const code2 = jsQR(d, imageData.width, imageData.height);
+      if (code2?.data) return code2.data;
+      const d2 = new Uint8ClampedArray(imageData.data);
+      for (let i = 0; i < d2.length; i += 4) {
+        const gray = d2[i] * 0.299 + d2[i+1] * 0.587 + d2[i+2] * 0.114;
+        const bw = gray < 128 ? 0 : 255;
+        d2[i] = d2[i+1] = d2[i+2] = bw;
+      }
+      const code3 = jsQR(d2, imageData.width, imageData.height);
+      if (code3?.data) return code3.data;
+      return null;
+    };
+    for (const maxQR of [1600, 1200, 800]) {
+      let w = img.width, h = img.height;
+      if (w > h && w > maxQR) { h = h * maxQR / w; w = maxQR; }
+      else if (h > maxQR) { w = w * maxQR / h; h = maxQR; }
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+      const result = tryDecode(canvas, ctx);
+      if (result) return result;
+    }
+    const qw = img.width, qh = img.height;
+    const regions = [
+      [0, 0, qw*0.6, qh*0.6], [qw*0.4, 0, qw*0.6, qh*0.6],
+      [0, qh*0.4, qw*0.6, qh*0.6], [qw*0.4, qh*0.4, qw*0.6, qh*0.6],
+      [qw*0.15, qh*0.15, qw*0.7, qh*0.7],
+    ];
+    for (const [sx, sy, sw, sh] of regions) {
+      const size = Math.min(Math.max(sw, sh), 1200);
+      const rw = sw > sh ? size : size * sw / sh;
+      const rh = sh > sw ? size : size * sh / sw;
+      const canvas = document.createElement("canvas");
+      canvas.width = rw; canvas.height = rh;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, rw, rh);
+      const result = tryDecode(canvas, ctx);
+      if (result) return result;
+    }
+    return null;
+  } catch { return null; }
+};
+
+const parseQRContent = (qrData) => {
+  if (!qrData) return null;
+  const info = {};
+  if (/wa\.me|whatsapp\.com|whatsapp/i.test(qrData)) {
+    const numMatch = qrData.match(/wa\.me\/(\+?\d{6,})/);
+    const phoneMatch = qrData.match(/phone=(\+?\d{6,})/);
+    const phone = numMatch?.[1] || phoneMatch?.[1];
+    if (phone) { info.whatsapp = phone; info.whatsappLink = `https://wa.me/${phone.replace(/\+/g, "")}`; }
+    else { info.whatsappLink = qrData; }
+  }
+  if (/weixin:\/\/|wechat\.com|weixin\.qq\.com|u\.wechat\.com|work\.weixin/i.test(qrData)) {
+    info.wechatLink = qrData;
+    const idMatch = qrData.match(/weixin:\/\/dl\/(?:chat|business)\?.*?username=([^&]+)/i);
+    if (idMatch) info.wechat = idMatch[1];
+    if (!info.wechat) info.wechat = "QR escaneado";
+  }
+  const telMatch = qrData.match(/tel:(\+?\d[\d\s-]+)/i);
+  if (telMatch) { info.phone = telMatch[1].replace(/\s/g, ""); }
+  const mailMatch = qrData.match(/mailto:([^\s?]+)/i);
+  if (mailMatch) { info.email = mailMatch[1]; }
+  if (qrData.includes("BEGIN:VCARD")) {
+    const fn = qrData.match(/FN:(.+)/); if (fn) info.contactName = fn[1].trim();
+    const org = qrData.match(/ORG:(.+)/); if (org) info.company = org[1].trim();
+    const tel = qrData.match(/TEL[^:]*:(.+)/); if (tel) info.phone = tel[1].trim();
+    const em = qrData.match(/EMAIL[^:]*:(.+)/); if (em) info.email = em[1].trim();
+    const url = qrData.match(/URL:(.+)/); if (url) info.website = url[1].trim();
+    const waMatch = qrData.match(/X-WHATSAPP:(.+)/i) || qrData.match(/X-WA:(.+)/i);
+    if (waMatch) { info.whatsapp = waMatch[1].trim(); info.whatsappLink = `https://wa.me/${waMatch[1].trim().replace(/\+/g, "")}`; }
+    const wcMatch = qrData.match(/X-WECHAT:(.+)/i);
+    if (wcMatch) info.wechat = wcMatch[1].trim();
+  }
+  if (!info.whatsappLink && !info.wechatLink && /^https?:\/\//i.test(qrData)) { info.website = qrData; }
+  if (Object.keys(info).length === 0 && /^\+?\d{6,}$/.test(qrData.trim())) { info.phone = qrData.trim(); }
+  info.qrSource = true;
+  return Object.keys(info).length > 1 ? info : null;
+};
+
+// ═══════════════════════════════════════════
 // CAPTURE FLOW
 // ═══════════════════════════════════════════
 function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave, onClose, t, isDark, initialStep = 0, supplierOnly = false }) {
@@ -426,146 +527,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
     };
   }, []);
 
-  // Decode QR code from a File object (high-res) or from base64 dataURL
-  // Uses multi-pass strategy: full image, then cropped quadrants, then grayscale+threshold
-  const decodeQR = async (source) => {
-    try {
-      const jsQR = (await import('jsqr')).default;
-      let dataURL = source;
-      if (source instanceof File || source instanceof Blob) {
-        dataURL = await new Promise((res, rej) => {
-          const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(source);
-        });
-      }
-      const img = new Image();
-      await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = dataURL; });
-
-      // Try scanning at multiple resolutions - WeChat QRs need high res
-      const tryDecode = (canvas, ctx) => {
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        // Pass 1: normal
-        const code = jsQR(imageData.data, imageData.width, imageData.height);
-        if (code?.data) return code.data;
-        // Pass 2: inverted colors (white-on-dark QRs)
-        const d = new Uint8ClampedArray(imageData.data);
-        for (let i = 0; i < d.length; i += 4) { d[i] = 255 - d[i]; d[i+1] = 255 - d[i+1]; d[i+2] = 255 - d[i+2]; }
-        const code2 = jsQR(d, imageData.width, imageData.height);
-        if (code2?.data) return code2.data;
-        // Pass 3: high-contrast grayscale threshold (helps with WeChat logo in center)
-        const d2 = new Uint8ClampedArray(imageData.data);
-        for (let i = 0; i < d2.length; i += 4) {
-          const gray = d2[i] * 0.299 + d2[i+1] * 0.587 + d2[i+2] * 0.114;
-          const bw = gray < 128 ? 0 : 255;
-          d2[i] = d2[i+1] = d2[i+2] = bw;
-        }
-        const code3 = jsQR(d2, imageData.width, imageData.height);
-        if (code3?.data) return code3.data;
-        return null;
-      };
-
-      // Attempt 1: full image at high resolution
-      for (const maxQR of [1600, 1200, 800]) {
-        let w = img.width, h = img.height;
-        if (w > h && w > maxQR) { h = h * maxQR / w; w = maxQR; }
-        else if (h > maxQR) { w = w * maxQR / h; h = maxQR; }
-        const canvas = document.createElement("canvas");
-        canvas.width = w; canvas.height = h;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, w, h);
-        const result = tryDecode(canvas, ctx);
-        if (result) return result;
-      }
-
-      // Attempt 2: scan quadrants (QR might be in one corner of a business card)
-      const qw = img.width, qh = img.height;
-      const regions = [
-        [0, 0, qw*0.6, qh*0.6],             // top-left
-        [qw*0.4, 0, qw*0.6, qh*0.6],        // top-right
-        [0, qh*0.4, qw*0.6, qh*0.6],        // bottom-left
-        [qw*0.4, qh*0.4, qw*0.6, qh*0.6],   // bottom-right
-        [qw*0.15, qh*0.15, qw*0.7, qh*0.7], // center crop
-      ];
-      for (const [sx, sy, sw, sh] of regions) {
-        const size = Math.min(Math.max(sw, sh), 1200);
-        const rw = sw > sh ? size : size * sw / sh;
-        const rh = sh > sw ? size : size * sh / sw;
-        const canvas = document.createElement("canvas");
-        canvas.width = rw; canvas.height = rh;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, rw, rh);
-        const result = tryDecode(canvas, ctx);
-        if (result) return result;
-      }
-
-      return null;
-    } catch { return null; }
-  };
-
-  // Parse QR content into contact fields
-  // NOTE: Never sets info.name to generic placeholders - let AI determine the real name
-  const parseQRContent = (qrData) => {
-    if (!qrData) return null;
-    const info = {};
-    // WhatsApp: wa.me/NUMBER, wa.me/qr/CODE, wa.me/message/CODE, api.whatsapp.com/send?phone=
-    if (/wa\.me|whatsapp\.com|whatsapp/i.test(qrData)) {
-      const numMatch = qrData.match(/wa\.me\/(\+?\d{6,})/);
-      const phoneMatch = qrData.match(/phone=(\+?\d{6,})/);
-      const phone = numMatch?.[1] || phoneMatch?.[1];
-      if (phone) {
-        info.whatsapp = phone;
-        // Deep link directo al chat con este número
-        info.whatsappLink = `https://wa.me/${phone.replace(/\+/g, "")}`;
-      } else {
-        // QR de WhatsApp sin número extraíble (ej: wa.me/qr/CODE) - guardar link original
-        info.whatsappLink = qrData;
-      }
-    }
-    // WeChat: ALL known QR formats
-    // - weixin://dl/chat?username=XXX (deep link)
-    // - https://u.wechat.com/XXXX (personal QR - most common!)
-    // - http://weixin.qq.com/r/XXXX (profile QR)
-    // - http://weixin.qq.com/x/XXXX (business QR)
-    // - https://work.weixin.qq.com/XXXX (enterprise WeChat)
-    // - http://qm.qq.com/XXXX (QQ/WeChat hybrid)
-    if (/weixin:\/\/|wechat\.com|weixin\.qq\.com|u\.wechat\.com|work\.weixin/i.test(qrData)) {
-      // Guardar el deep link original (funciona para abrir perfil en WeChat)
-      info.wechatLink = qrData;
-      // Intentar extraer el WeChat ID si está en la URL
-      const idMatch = qrData.match(/weixin:\/\/dl\/(?:chat|business)\?.*?username=([^&]+)/i);
-      if (idMatch) info.wechat = idMatch[1];
-      // Si no pudimos extraer ID, marcar que es WeChat de todas formas
-      if (!info.wechat) info.wechat = "QR escaneado";
-    }
-    // Phone: tel:NUMBER
-    const telMatch = qrData.match(/tel:(\+?\d[\d\s-]+)/i);
-    if (telMatch) { info.phone = telMatch[1].replace(/\s/g, ""); }
-    // Email: mailto:EMAIL
-    const mailMatch = qrData.match(/mailto:([^\s?]+)/i);
-    if (mailMatch) { info.email = mailMatch[1]; }
-    // vCard - this one CAN set name/company because they come from structured data
-    if (qrData.includes("BEGIN:VCARD")) {
-      const fn = qrData.match(/FN:(.+)/); if (fn) info.contactName = fn[1].trim();
-      const org = qrData.match(/ORG:(.+)/); if (org) info.company = org[1].trim();
-      const tel = qrData.match(/TEL[^:]*:(.+)/); if (tel) info.phone = tel[1].trim();
-      const em = qrData.match(/EMAIL[^:]*:(.+)/); if (em) info.email = em[1].trim();
-      const url = qrData.match(/URL:(.+)/); if (url) info.website = url[1].trim();
-      // vCard WhatsApp/WeChat
-      const waMatch = qrData.match(/X-WHATSAPP:(.+)/i) || qrData.match(/X-WA:(.+)/i);
-      if (waMatch) { info.whatsapp = waMatch[1].trim(); info.whatsappLink = `https://wa.me/${waMatch[1].trim().replace(/\+/g, "")}`; }
-      const wcMatch = qrData.match(/X-WECHAT:(.+)/i);
-      if (wcMatch) info.wechat = wcMatch[1].trim();
-    }
-    // Generic URL (only if nothing else matched) - website, no name
-    if (!info.whatsappLink && !info.wechatLink && /^https?:\/\//i.test(qrData)) {
-      info.website = qrData;
-    }
-    // Generic: if nothing matched but has digits, treat as phone
-    if (Object.keys(info).length === 0 && /^\+?\d{6,}$/.test(qrData.trim())) {
-      info.phone = qrData.trim();
-    }
-    info.qrSource = true; // flag to indicate data came from QR
-    return Object.keys(info).length > 1 ? info : null; // >1 because qrSource is always set
-  };
+  // decodeQR and parseQRContent are defined at module level (above)
 
   // Apply contact info to supplier fields
   const applyContactInfo = (info) => {
@@ -1167,8 +1129,13 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
                 </span>
               )}
               {/* AI badge */}
-              {p.ai_processed && (
+              {p.ai_processed ? (
                 <span style={{ position:"absolute", top:12, left:12, fontSize:10, fontWeight:700, padding:"4px 8px", borderRadius:8, background:"rgba(0,0,0,0.6)", color:"#fff", backdropFilter:"blur(10px)" }}>🤖 IA</span>
+              ) : (
+                <span style={{ position:"absolute", top:12, left:12, fontSize:10, fontWeight:600, padding:"4px 8px", borderRadius:8, background:"rgba(255,152,0,0.85)", color:"#fff", backdropFilter:"blur(10px)", display:"flex", alignItems:"center", gap:4 }}>
+                  <span style={{ width:6, height:6, borderRadius:"50%", background:"#fff", animation:"aiSyncPulse 1.2s ease-in-out infinite" }} />
+                  Pendiente IA
+                </span>
               )}
             </div>
           )}
@@ -1646,6 +1613,376 @@ function DistrictsScreen({ districts, activeDistrictId, products, onActivate, on
 }
 
 // ═══════════════════════════════════════════
+// QUICK CAPTURE — Single-page supplier card + product photos
+// ═══════════════════════════════════════════
+function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave, onClose, t, isDark }) {
+  const [cardPhoto, setCardPhoto] = useState(null);
+  const [cardData, setCardData] = useState(null);
+  const [cardProcessing, setCardProcessing] = useState(false);
+  const [supplierName, setSupplierName] = useState("");
+  const [supplierContact, setSupplierContact] = useState("");
+  const [supplierPhone, setSupplierPhone] = useState("");
+  const [supplierEmail, setSupplierEmail] = useState("");
+  const [supplierWechat, setSupplierWechat] = useState("");
+  const [supplierWhatsapp, setSupplierWhatsapp] = useState("");
+  const [supplierWhatsappLink, setSupplierWhatsappLink] = useState("");
+  const [supplierWechatLink, setSupplierWechatLink] = useState("");
+  const [supplierWebsite, setSupplierWebsite] = useState("");
+  const [supplierAddress, setSupplierAddress] = useState("");
+  const [supplierProducts, setSupplierProducts] = useState("");
+  const [linkedSupplierId, setLinkedSupplierId] = useState(null);
+  const [items, setItems] = useState([]);
+  const [saving, setSaving] = useState(false);
+  // Live camera state
+  const [cameraMode, setCameraMode] = useState(null); // null | "card" | "product"
+  const [flashVisible, setFlashVisible] = useState(false);
+  const [lastCapture, setLastCapture] = useState(null);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const cardGalleryRef = useRef(null);
+  const prodGalleryRef = useRef(null);
+
+  // Cleanup camera stream on unmount
+  useEffect(() => {
+    return () => { if (streamRef.current) streamRef.current.getTracks().forEach(tr => tr.stop()); };
+  }, []);
+
+  const openCamera = async (mode) => {
+    setCameraMode(mode);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 960 } }
+      });
+      streamRef.current = stream;
+      // Wait for video element to mount
+      setTimeout(() => { if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play().catch(() => {}); } }, 50);
+    } catch (err) {
+      console.warn("Camera error:", err);
+      setCameraMode(null);
+    }
+  };
+
+  const closeCamera = () => {
+    if (streamRef.current) { streamRef.current.getTracks().forEach(tr => tr.stop()); streamRef.current = null; }
+    setCameraMode(null);
+  };
+
+  const captureFrame = () => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return null;
+    const MAX = 800;
+    let w = video.videoWidth, h = video.videoHeight;
+    if (w > h && w > MAX) { h = h * MAX / w; w = MAX; }
+    else if (h > MAX) { w = w * MAX / h; h = MAX; }
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    canvas.getContext("2d").drawImage(video, 0, 0, w, h);
+    return canvas.toDataURL("image/jpeg", 0.8);
+  };
+
+  const handleCameraShutter = async () => {
+    const photo = captureFrame();
+    if (!photo) return;
+    // Visual + haptic feedback
+    setFlashVisible(true);
+    setTimeout(() => setFlashVisible(false), 150);
+    if (navigator.vibrate) navigator.vibrate(50);
+    if (cameraMode === "card") {
+      closeCamera();
+      setCardPhoto(photo);
+      processCardPhoto(photo);
+    } else if (cameraMode === "product") {
+      // Add product at top — most recent first, no scrolling needed for price input
+      setItems(prev => [{ id: crypto.randomUUID(), photo, price: "" }, ...prev]);
+      setLastCapture(photo);
+      setTimeout(() => setLastCapture(null), 800);
+    }
+  };
+
+  const resizeImage = (file) => new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 800;
+        let w = img.width, h = img.height;
+        if (w > h && w > MAX) { h = h * MAX / w; w = MAX; }
+        else if (h > MAX) { w = w * MAX / h; h = MAX; }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.8));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  const applyContactInfo = (info) => {
+    if (info.company) setSupplierName(prev => prev || info.company);
+    if (info.contactName) setSupplierContact(prev => prev || info.contactName);
+    if (info.phone) setSupplierPhone(prev => prev || info.phone);
+    if (info.email) setSupplierEmail(prev => prev || info.email);
+    if (info.wechat) setSupplierWechat(prev => prev || info.wechat);
+    if (info.whatsapp) setSupplierWhatsapp(prev => prev || info.whatsapp);
+    if (info.whatsappLink) setSupplierWhatsappLink(prev => prev || info.whatsappLink);
+    if (info.wechatLink) setSupplierWechatLink(prev => prev || info.wechatLink);
+    if (info.website) setSupplierWebsite(prev => prev || info.website);
+  };
+
+  const processCardPhoto = async (photo) => {
+    setCardProcessing(true);
+    try {
+      // QR decode from dataURL
+      const qrResult = await decodeQR(photo);
+      if (qrResult) {
+        const info = parseQRContent(qrResult);
+        if (info) applyContactInfo(info);
+      }
+      // AI card processing
+      try {
+        const result = await processCard(photo);
+        if (result) {
+          setCardData(result);
+          if (result.company) setSupplierName(prev => prev || result.company);
+          if (result.contact) setSupplierContact(prev => prev || result.contact);
+          if (result.phone) setSupplierPhone(prev => prev || result.phone);
+          if (result.email) setSupplierEmail(prev => prev || result.email);
+          if (result.wechat) setSupplierWechat(prev => prev || result.wechat);
+          if (result.whatsapp) setSupplierWhatsapp(prev => prev || result.whatsapp);
+          if (result.website) setSupplierWebsite(prev => prev || result.website);
+          if (result.address) setSupplierAddress(prev => prev || result.address);
+          if (result.products) setSupplierProducts(prev => prev || result.products);
+        }
+      } catch (err) { console.warn("Card AI error:", err); }
+    } catch (err) { console.warn("Card processing error:", err); }
+    setCardProcessing(false);
+  };
+
+  const onCardGallery = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    const photo = await resizeImage(file);
+    setCardPhoto(photo);
+    processCardPhoto(photo);
+  };
+
+  const onProductGallery = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    try {
+      const photo = await resizeImage(file);
+      setItems(prev => [{ id: crypto.randomUUID(), photo, price: "" }, ...prev]);
+    } catch (err) { console.warn("Product photo error:", err); }
+  };
+
+  const linkSupplier = (s) => {
+    setLinkedSupplierId(s.id);
+    setSupplierName(s.company || "");
+    setSupplierContact(s.contact || "");
+    setSupplierPhone(s.phone || "");
+    setSupplierEmail(s.email || "");
+    setSupplierWechat(s.wechat || "");
+    setSupplierWhatsapp(s.whatsapp || "");
+    setSupplierWhatsappLink(s.whatsappLink || "");
+    setSupplierWechatLink(s.wechatLink || "");
+    setSupplierWebsite(s.website || "");
+    setSupplierAddress(s.address || "");
+    if (s.cardPhoto) setCardPhoto(s.cardPhoto);
+  };
+
+  const handleSave = () => {
+    if (saving) return;
+    setSaving(true);
+    onSave({
+      quickCapture: true,
+      linkedSupplierId,
+      supplierName: supplierName.trim(),
+      supplierContact, supplierPhone, supplierEmail,
+      supplierWechat, supplierWhatsapp, supplierWhatsappLink, supplierWechatLink,
+      supplierWebsite, supplierAddress, supplierProducts,
+      cardPhoto, cardData,
+      productItems: items,
+    });
+  };
+
+  const recentSuppliers = suppliers
+    .filter(s => s.districtId === activeDistrictId)
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+    .slice(0, 5);
+
+  const inputStyle = { width:"100%", padding:"10px 14px", borderRadius:12, fontSize:14, border:`1.5px solid ${t.border}`, background:t.card, color:t.text, outline:"none", fontFamily:"inherit" };
+
+  // === CAMERA OVERLAY (fullscreen live viewfinder) ===
+  if (cameraMode) {
+    return (
+      <div style={{ position:"fixed", inset:0, zIndex:100, background:"#000", display:"flex", flexDirection:"column" }}>
+        <video ref={videoRef} autoPlay playsInline muted style={{ flex:1, objectFit:"cover", width:"100%" }} />
+
+        {/* Flash overlay */}
+        {flashVisible && <div style={{ position:"absolute", inset:0, background:"#fff", opacity:0.7, pointerEvents:"none", zIndex:2 }} />}
+
+        {/* Product count badge — large, centered */}
+        {cameraMode === "product" && (
+          <div style={{ position:"absolute", top:16, left:"50%", transform:"translateX(-50%)", zIndex:3,
+            padding:"10px 24px", borderRadius:24, background:"rgba(0,0,0,0.55)", backdropFilter:"blur(8px)",
+            color:"#fff", fontSize:18, fontWeight:800, textAlign:"center", minWidth:140 }}>
+            📦 {items.length} {items.length === 1 ? "producto" : "productos"}
+          </div>
+        )}
+        {cameraMode === "card" && (
+          <div style={{ position:"absolute", top:16, left:"50%", transform:"translateX(-50%)", zIndex:3,
+            padding:"10px 24px", borderRadius:24, background:"rgba(0,0,0,0.55)", backdropFilter:"blur(8px)",
+            color:"#fff", fontSize:16, fontWeight:700 }}>
+            📇 Tarjeta del proveedor
+          </div>
+        )}
+
+        {/* Last captured thumbnail */}
+        {lastCapture && (
+          <div style={{ position:"absolute", bottom:120, left:20, zIndex:3 }}>
+            <img src={lastCapture} style={{ width:64, height:64, borderRadius:12, border:"3px solid #fff",
+              objectFit:"cover", boxShadow:"0 4px 20px rgba(0,0,0,0.5)" }} />
+            <div style={{ position:"absolute", top:-6, right:-6, width:22, height:22, borderRadius:11,
+              background:"#4CAF50", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <span style={{ color:"#fff", fontSize:12, fontWeight:700 }}>✓</span>
+            </div>
+          </div>
+        )}
+
+        {/* Camera controls */}
+        <div style={{ position:"absolute", bottom:0, left:0, right:0,
+          padding:"20px 20px calc(24px + env(safe-area-inset-bottom, 0px))",
+          display:"flex", alignItems:"center", justifyContent:"center", gap:20,
+          background:"linear-gradient(transparent, rgba(0,0,0,0.75))" }}>
+          {/* Spacer for symmetry */}
+          <div style={{ minWidth:100 }} />
+          {/* Shutter button */}
+          <button onClick={handleCameraShutter} style={{
+            width:72, height:72, borderRadius:36, border:"4px solid #fff", background:"rgba(255,255,255,0.2)",
+            cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
+          }}>
+            <div style={{ width:56, height:56, borderRadius:28, background:"#fff" }} />
+          </button>
+          {/* "✓ Listo" button — right side */}
+          <button onClick={closeCamera} style={{
+            padding:"14px 22px", borderRadius:24, border:"2px solid rgba(255,255,255,0.8)",
+            background:"rgba(0,0,0,0.4)", color:"#fff", fontSize:15, fontWeight:700,
+            cursor:"pointer", display:"flex", alignItems:"center", gap:6, minWidth:100, justifyContent:"center",
+          }}>✓ Listo</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
+      <Header title="Captura rápida" subtitle="Tarjeta + fotos de productos" onBack={onClose} t={t} />
+      <div style={{ flex:1, overflow:"auto", padding:"16px 20px 120px" }}>
+
+        {/* === SECTION 1: SUPPLIER CARD === */}
+        <p style={{ fontSize:11, fontWeight:700, color:t.muted, margin:"0 0 12px", textTransform:"uppercase", letterSpacing:"0.08em" }}>1. Tarjeta del proveedor</p>
+
+        {!cardPhoto ? (
+          <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+            <button onClick={() => openCamera("card")} style={{
+              flex:1, padding:"18px 12px", borderRadius:14, border:`2px dashed ${t.accent}40`, background:t.accentSoft,
+              color:t.accent, fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+            }}>📸 Foto</button>
+            <button onClick={() => cardGalleryRef.current?.click()} style={{
+              flex:1, padding:"18px 12px", borderRadius:14, border:`2px dashed ${t.border}`, background:t.surface,
+              color:t.text, fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+            }}>🖼 Galería</button>
+            <input ref={cardGalleryRef} type="file" accept="image/*" onChange={onCardGallery} style={{ display:"none" }} />
+          </div>
+        ) : (
+          <div style={{ position:"relative", marginBottom:12, borderRadius:14, overflow:"hidden", border:`1px solid ${t.border}` }}>
+            <img src={cardPhoto} alt="Card" style={{ width:"100%", display:"block", maxHeight:200, objectFit:"cover" }} />
+            {cardProcessing && (
+              <div style={{ position:"absolute", inset:0, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <span style={{ color:"#fff", fontSize:14, fontWeight:700 }}>⏳ Procesando...</span>
+              </div>
+            )}
+            {supplierName && (
+              <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"8px 14px", background:"linear-gradient(transparent, rgba(0,0,0,0.7))" }}>
+                <span style={{ color:"#fff", fontSize:14, fontWeight:700 }}>{supplierName}</span>
+              </div>
+            )}
+            <button onClick={() => { setCardPhoto(null); setCardData(null); setSupplierName(""); setLinkedSupplierId(null); }} style={{
+              position:"absolute", top:8, right:8, width:28, height:28, borderRadius:14, border:"none",
+              background:"rgba(0,0,0,0.5)", color:"#fff", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
+            }}>✕</button>
+          </div>
+        )}
+
+        {/* Recent suppliers chips */}
+        {!linkedSupplierId && recentSuppliers.length > 0 && (
+          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:16 }}>
+            {recentSuppliers.map(s => (
+              <button key={s.id} onClick={() => linkSupplier(s)} style={{
+                padding:"6px 12px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer",
+                background:t.surface, border:`1px solid ${t.border}`, color:t.text,
+              }}>{s.company}</button>
+            ))}
+          </div>
+        )}
+        {linkedSupplierId && (
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:16, padding:"8px 12px", borderRadius:12, background:t.accentSoft, border:`1px solid ${t.accent}40` }}>
+            <span style={{ fontSize:12, fontWeight:700, color:t.accent, flex:1 }}>🔗 {supplierName}</span>
+            <button onClick={() => { setLinkedSupplierId(null); setSupplierName(""); }} style={{
+              background:"none", border:"none", color:t.accent, fontSize:14, cursor:"pointer",
+            }}>✕</button>
+          </div>
+        )}
+
+        {/* === SECTION 2: PRODUCTS === */}
+        <div style={{ height:1, background:t.border, margin:"8px 0 16px" }} />
+        <p style={{ fontSize:11, fontWeight:700, color:t.muted, margin:"0 0 12px", textTransform:"uppercase", letterSpacing:"0.08em" }}>2. Productos</p>
+
+        {items.map((item, idx) => (
+          <div key={item.id} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+            <img src={item.photo} alt={`P${idx+1}`} style={{ width:56, height:56, borderRadius:10, objectFit:"cover", border:`1px solid ${t.border}` }} />
+            <div style={{ flex:1, position:"relative" }}>
+              <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:t.muted, fontSize:16, fontWeight:700, pointerEvents:"none" }}>$</span>
+              <input type="number" inputMode="decimal" step="0.01" placeholder="Precio" value={item.price}
+                onChange={e => setItems(prev => prev.map(it => it.id === item.id ? { ...it, price: e.target.value } : it))}
+                style={{ ...inputStyle, paddingLeft:28 }} />
+            </div>
+            <button onClick={() => setItems(prev => prev.filter(it => it.id !== item.id))} style={{
+              width:32, height:32, borderRadius:8, border:`1px solid ${t.border}`, background:t.surface,
+              color:t.muted, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
+            }}>✕</button>
+          </div>
+        ))}
+
+        <div style={{ display:"flex", gap:8, marginTop:4 }}>
+          <button onClick={() => openCamera("product")} style={{
+            flex:1, padding:"14px 12px", borderRadius:14, border:`2px dashed ${t.accent}40`, background:t.accentSoft,
+            color:t.accent, fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+          }}>📸 Agregar producto</button>
+          <button onClick={() => prodGalleryRef.current?.click()} style={{
+            width:50, padding:"14px 0", borderRadius:14, border:`2px dashed ${t.border}`, background:t.surface,
+            color:t.text, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
+          }}>🖼</button>
+          <input ref={prodGalleryRef} type="file" accept="image/*" onChange={onProductGallery} style={{ display:"none" }} />
+        </div>
+      </div>
+
+      {/* Fixed save button */}
+      <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 20px", paddingBottom:"calc(12px + env(safe-area-inset-bottom, 0px))", background:t.bg, borderTop:`1px solid ${t.border}` }}>
+        <button onClick={handleSave} disabled={saving}
+          style={{ width:"100%", padding:"16px", borderRadius:16, border:"none", fontSize:15, fontWeight:700, cursor:saving?"default":"pointer",
+            background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff", opacity:saving?0.6:1 }}>
+          {saving ? "⏳ Guardando..." : `✓ Guardar${items.length > 0 ? ` (${items.length} producto${items.length > 1 ? "s" : ""})` : ""}`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════════════
 function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers, districts, onReload }) {
@@ -1713,6 +2050,26 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
           <span style={{ fontSize:28, fontWeight:800, color:t.accent }}>{loc.minMargin || 40}%</span>
           <button onClick={() => updateLoc(p=>({...p, minMargin:Math.min(200, (p.minMargin||40)+5)}))} style={{ width:40, height:40, borderRadius:12, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:18, cursor:"pointer" }}>+</button>
         </div>
+        {/* QuickCapture toggle */}
+        <div style={{ height:1, background:t.border, margin:"4px 0 20px" }} />
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.08em" }}>⚡ Modo de captura</p>
+        <p style={{ fontSize:11, color:t.dim, marginBottom:12, lineHeight:1.5 }}>
+          Cuando está activo, el botón "+" abre una pantalla única para escanear tarjeta del proveedor y agregar productos con foto + precio en un solo paso.
+        </p>
+        <button onClick={() => updateLoc(p => ({ ...p, quickCaptureMode: !(p.quickCaptureMode !== false) }))}
+          style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", padding:"14px 16px", borderRadius:14,
+            background: (loc.quickCaptureMode !== false) ? t.accentSoft : t.surface,
+            border:`1.5px solid ${(loc.quickCaptureMode !== false) ? t.accent : t.border}`, cursor:"pointer", marginBottom:16 }}>
+          <span style={{ fontSize:13, fontWeight:700, color: (loc.quickCaptureMode !== false) ? t.accent : t.text }}>
+            {(loc.quickCaptureMode !== false) ? "⚡ Captura rápida ON" : "📷 Captura clásica (3 pasos)"}
+          </span>
+          <span style={{ width:44, height:24, borderRadius:12, padding:2,
+            background: (loc.quickCaptureMode !== false) ? t.accent : t.border,
+            display:"flex", alignItems:"center", justifyContent: (loc.quickCaptureMode !== false) ? "flex-end" : "flex-start", transition:"all 0.2s" }}>
+            <span style={{ width:20, height:20, borderRadius:10, background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }} />
+          </span>
+        </button>
+
         <p style={{ fontSize:11, color:t.dim, textAlign:"center", fontStyle:"italic", marginTop:8 }}>Los cambios se guardan automáticamente</p>
 
         {/* #16: JSON Backup / Restore */}
@@ -1861,21 +2218,48 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
   const [syncProgress, setSyncProgress] = useState("");
 
   const scopeProducts = scope === "all" ? products : products.filter(p => p.districtId === parseInt(scope));
-  const totalPhotos = scopeProducts.reduce((n, p) => n + (p.photos?.length || p.photoUrls?.filter(Boolean).length || 0), 0);
+
+  // Helper: get ALL valid photo sources for a product (merges photos + photoUrls, deduplicates)
+  const getProductPhotoSources = (p) => {
+    const sources = [];
+    for (const photo of (p.photos || [])) {
+      if (photo && typeof photo === 'string' && photo.startsWith('data:')) sources.push(photo);
+    }
+    for (const photo of (p.photos || [])) {
+      if (photo && typeof photo === 'string' && photo.startsWith('http') && !sources.includes(photo)) sources.push(photo);
+    }
+    for (const url of (p.photoUrls || [])) {
+      if (url && typeof url === 'string' && url.startsWith('http') && !sources.includes(url)) sources.push(url);
+    }
+    return sources;
+  };
+
+  const totalPhotos = scopeProducts.reduce((n, p) => n + getProductPhotoSources(p).length, 0);
   const uniqueSupIds = [...new Set(scopeProducts.map(p => p.supplierId).filter(Boolean))];
   const totalCards = uniqueSupIds.map(id => suppliers.find(s => s.id === id)).filter(s => s?.cardPhoto || s?.cardPhotoUrl).length;
 
   const csvEscape = (c) => '"' + String(c).replace(/"/g, '""') + '"';
 
-  const hasCloudPhotos = scopeProducts.some(p => p.photoUrls?.some(Boolean));
-  const photosNotUploaded = scopeProducts.filter(p => p.photos?.length && !p.photoUrls?.some(Boolean)).length;
-  const totalPhotosToSync = scopeProducts.filter(p => p.photos?.length && !p.photoUrls?.some(Boolean))
-    .reduce((n, p) => n + p.photos.length, 0);
+  const hasCloudPhotos = scopeProducts.some(p => (p.photoUrls || []).some(Boolean) || (p.photos || []).some(x => x && typeof x === 'string' && x.startsWith('http')));
+  const photosNotUploaded = scopeProducts.filter(p => {
+    const hasLocal = (p.photos || []).some(x => x && typeof x === 'string' && x.startsWith('data:'));
+    const hasCloud = (p.photoUrls || []).some(Boolean);
+    return hasLocal && !hasCloud;
+  }).length;
+  const totalPhotosToSync = scopeProducts.filter(p => {
+    const hasLocal = (p.photos || []).some(x => x && typeof x === 'string' && x.startsWith('data:'));
+    const hasCloud = (p.photoUrls || []).some(Boolean);
+    return hasLocal && !hasCloud;
+  }).reduce((n, p) => n + (p.photos || []).filter(x => x && typeof x === 'string' && x.startsWith('data:')).length, 0);
 
   const syncPhotosToCloud = async () => {
     setSyncing(true);
     let done = 0;
-    const toSync = scopeProducts.filter(p => p.photos?.length && !p.photoUrls?.some(Boolean));
+    const toSync = scopeProducts.filter(p => {
+      const hasLocal = (p.photos || []).some(x => x && typeof x === 'string' && x.startsWith('data:'));
+      const hasCloud = (p.photoUrls || []).some(Boolean);
+      return hasLocal && !hasCloud;
+    });
     for (const product of toSync) {
       const sup = suppliers.find(s => s.id === product.supplierId);
       const prefix = `photos/${slugify(sup?.company || 'product')}`;
@@ -1944,17 +2328,19 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
 
   // Helper: get base64 image data from a photo source (data URL or cloud URL)
   const getImageBase64 = async (src) => {
-    if (!src) return null;
+    if (!src || typeof src !== 'string') return null;
     try {
-      if (src.startsWith('http')) {
+      if (src.startsWith('data:')) {
+        return src.split(',')[1];
+      } else if (src.startsWith('http')) {
         const dataUrl = await proxyImage(src);
         return dataUrl ? dataUrl.split(',')[1] : null;
-      } else if (src.startsWith('data:')) {
-        return src.split(',')[1];
       }
     } catch {}
     return null;
   };
+
+  // (getProductPhotoSources moved above)
 
   const generateExcel = async () => {
     setExporting(true);
@@ -2031,7 +2417,8 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
         row.alignment = { vertical: 'middle', wrapText: true };
 
         // Embed first product photo (col A)
-        const photoSrc = (p.photos?.find(x => x) || (p.photoUrls || []).find(Boolean)) || null;
+        const allPhotoSrcs = getProductPhotoSources(p);
+        const photoSrc = allPhotoSrcs[0] || null;
         if (photoSrc) {
           try {
             const base64Data = await getImageBase64(photoSrc);
@@ -2187,7 +2574,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       let photosDone = 0;
 
       for (const product of scopeProducts) {
-        const photoSources = product.photos?.length ? product.photos : (product.photoUrls?.filter(Boolean) || []);
+        const photoSources = getProductPhotoSources(product);
         if (!photoSources.length) { productPhotoMap.set(product.id, []); continue; }
         const supInfo = product.supplierId ? supplierMap.get(product.supplierId) : (product.supplierCompany ? companySlugMap.get(product.supplierCompany) : null);
         const folderSlug = supInfo ? supInfo.slug : 'sin-proveedor';
@@ -2198,14 +2585,15 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
           const relativePath = `fotos/${folderSlug}/${filename}`;
           try {
             const photo = photoSources[i];
+            if (!photo || typeof photo !== 'string') continue;
             let bytes;
-            if (photo.startsWith('http')) {
+            if (photo.startsWith('data:')) {
+              bytes = dataURLtoUint8Array(photo);
+            } else if (photo.startsWith('http')) {
               // Photo is a cloud URL — download via server proxy (bypasses CORS)
               const dataUrl = await proxyImage(photo);
               if (!dataUrl) throw new Error('Proxy download failed');
               bytes = dataURLtoUint8Array(dataUrl);
-            } else if (photo.startsWith('data:')) {
-              bytes = dataURLtoUint8Array(photo);
             } else {
               continue; // Skip invalid entries
             }
@@ -2755,7 +3143,10 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
                   <div style={{ width:50, height:50, borderRadius:10, flexShrink:0, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", border:`1px solid ${t.border}`, fontSize:18 }}>📷</div>
                 )}
                 <div style={{ flex:1, minWidth:0 }}>
-                  <p style={{ fontSize:13, fontWeight:700, color:t.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", margin:0 }}>{p.name || "Procesando..."}</p>
+                  <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                    <p style={{ fontSize:13, fontWeight:700, color:t.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", margin:0, flex:1 }}>{p.name || "Procesando..."}</p>
+                    {!p.ai_processed && <div title="Pendiente IA" style={{ width:7, height:7, borderRadius:"50%", background:"#ff9800", boxShadow:"0 0 4px #ff980080", flexShrink:0, animation:"aiSyncPulse 1.5s ease-in-out infinite" }} />}
+                  </div>
                   <p style={{ fontSize:11, color:t.muted, margin:"2px 0 0" }}>{isAllFairs && dist ? dist.emoji + " " : ""}{p.supplierCompany || "—"}</p>
                 </div>
                 <div style={{ textAlign:"right", flexShrink:0 }}>
@@ -2795,7 +3186,10 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
                 {g.products.map(p => (
                   <button key={p.id} onClick={() => onNavigate("detail", p)} style={{ width:"100%", textAlign:"left", display:"flex", alignItems:"center", gap:8, padding:"8px 10px", borderRadius:10, background:t.surface, border:`1px solid ${t.border}`, marginBottom:4, cursor:"pointer" }}>
                     {p.photos?.[0] ? <img src={p.photos[0]} alt="" style={{ width:32, height:32, borderRadius:6, objectFit:"cover" }} /> : <div style={{ width:32, height:32, borderRadius:6, background:t.card, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, border:`1px solid ${t.border}` }}>📷</div>}
-                    <p style={{ fontSize:12, fontWeight:600, color:t.text, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", margin:0 }}>{p.name || "Procesando..."}</p>
+                    <div style={{ display:"flex", alignItems:"center", gap:4, flex:1, minWidth:0 }}>
+                      <p style={{ fontSize:12, fontWeight:600, color:t.text, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", margin:0 }}>{p.name || "Procesando..."}</p>
+                      {!p.ai_processed && <div title="Pendiente IA" style={{ width:6, height:6, borderRadius:"50%", background:"#ff9800", boxShadow:"0 0 4px #ff980080", flexShrink:0 }} />}
+                    </div>
                     <div style={{ textAlign:"right", flexShrink:0 }}>
                       {p.price && <span style={{ fontSize:12, fontWeight:700, color:t.green }}>USD {p.price}</span>}
                       {p.costTotal && <span style={{ fontSize:10, color:t.accent, display:"block" }}>→ {p.costTotal}</span>}
@@ -2809,7 +3203,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
       )}
 
       {/* FAB */}
-      {view === "suppliers" && fabOpen && (
+      {view === "suppliers" && fabOpen && settings?.quickCaptureMode === false && (
         <div style={{ position:"fixed", bottom:"calc(100px + env(safe-area-inset-bottom, 0px))", right:24, display:"flex", flexDirection:"column", gap:8, zIndex:11 }}>
           <button onClick={() => { setFabOpen(false); onNavigate("capture"); }} style={{
             display:"flex", alignItems:"center", gap:8, padding:"12px 18px", borderRadius:16, border:"none",
@@ -2821,7 +3215,11 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
           }}>🏭 Nuevo proveedor</button>
         </div>
       )}
-      <button onClick={() => view === "suppliers" ? setFabOpen(!fabOpen) : onNavigate("capture")} style={{
+      <button onClick={() => {
+        if (settings?.quickCaptureMode !== false) { onNavigate("quick-capture"); }
+        else if (view === "suppliers") { setFabOpen(!fabOpen); }
+        else { onNavigate("capture"); }
+      }} style={{
         position:"fixed", bottom:"calc(30px + env(safe-area-inset-bottom, 0px))", right:24, width:60, height:60, borderRadius:30, border:"none",
         background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff", fontSize:28, fontWeight:300,
         boxShadow:`0 6px 30px ${t.accent}80`, display:"flex", alignItems:"center", justifyContent:"center", zIndex:10, cursor:"pointer",
@@ -3212,6 +3610,8 @@ export default function App() {
                 cardPhoto: data.cardPhoto || null,
                 cardData: data.cardData || null,
                 districtId: activeDistrictId,
+                ai_processed: !!(data.cardData || !data.cardPhoto),
+                ai_last_synced: data.cardData ? new Date() : null,
                 createdAt: Date.now(),
               });
             }
@@ -3231,6 +3631,8 @@ export default function App() {
               cardPhoto: data.cardPhoto || null,
               cardData: data.cardData || null,
               districtId: activeDistrictId,
+              ai_processed: !!(data.cardData || !data.cardPhoto),
+              ai_last_synced: data.cardData ? new Date() : null,
               createdAt: Date.now(),
             });
           }
@@ -3258,6 +3660,57 @@ export default function App() {
             }
           }).catch(() => {});
         }
+        return;
+      }
+
+      // === QUICK CAPTURE: multiple products with photos ===
+      if (data.quickCapture) {
+        const createdIds = [];
+        for (const item of (data.productItems || [])) {
+          if (!item.photo) continue;
+          const productId = await addProduct({
+            name: `Producto de ${data.supplierName || 'proveedor'}`,
+            description: null, supplierCompany: data.supplierName || null,
+            supplierId, districtId: activeDistrictId,
+            photos: [item.photo], photoUrls: null,
+            price: item.price || null, moq: null,
+            audioURL: null, audioTranscript: null, rating: 0,
+            category: null, material: [], notes: null,
+            viability: null, costTotal: null, costData: null, targetPrice: null,
+            ai_processed: false, ai_last_synced: null, createdAt: Date.now(),
+          });
+          createdIds.push(productId);
+          // Background: AI processes each product photo
+          processImage(item.photo, { categories: settings.categories, materials: settings.materials })
+            .then(async (result) => {
+              const updates = {};
+              if (result.name) updates.name = result.name;
+              if (result.description) updates.description = result.description;
+              if (result.category) updates.category = result.category;
+              if (result.materials?.length) updates.material = result.materials;
+              updates.ai_processed = true;
+              updates.ai_last_synced = new Date();
+              await dbUpdateProduct(productId, updates);
+              setProducts(prev => prev.map(p => p.id === productId ? { ...p, ...updates } : p));
+            }).catch(err => console.warn("AI process failed:", err));
+          // Background: upload photo to R2
+          if (navigator.onLine) {
+            uploadPhotosToCloud(productId, [item.photo], data.supplierName).catch(console.warn);
+          }
+        }
+        // Background: upload card photo
+        if (data.cardPhoto && supplierId && navigator.onLine) {
+          const cardKey = `cards/${slugify(data.supplierName || 'card')}_${supplierId}.jpg`;
+          uploadPhoto(data.cardPhoto, cardKey).then(result => {
+            if (result?.url) {
+              dbUpdateSupplier(supplierId, { cardPhotoUrl: result.url });
+              setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, cardPhotoUrl: result.url } : s));
+            }
+          }).catch(() => {});
+        }
+        await reloadAll();
+        navigate("list");
+        showToast(`✓ ${createdIds.length} producto${createdIds.length !== 1 ? "s" : ""} guardado${createdIds.length !== 1 ? "s" : ""}`);
         return;
       }
 
@@ -3440,6 +3893,8 @@ export default function App() {
   return (
     <div style={{ height:"100%", background:t.bg, color:t.text, position:"relative", overflow:"hidden", fontFamily:"'DM Sans', -apple-system, sans-serif" }}>
       <Toast msg={toast} t={t} />
+      {/* AI sync status indicator */}
+      <SyncStatus theme={isDark ? 'dark' : 'light'} settings={settings} />
       {/* #10: Supplier dedup prompt */}
       {dedupPrompt && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
@@ -3471,6 +3926,10 @@ export default function App() {
           onSave={handleCaptureSave} onClose={() => navigate("list")} t={t} isDark={isDark}
           initialStep={screen === "capture-supplier" ? 2 : 0} supplierOnly={screen === "capture-supplier"} />
       )}
+      {screen === "quick-capture" && (
+        <QuickCapture suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings}
+          onSave={handleCaptureSave} onClose={() => navigate("list")} t={t} isDark={isDark} />
+      )}
       {screen === "detail" && screenData && (
         <ProductDetail product={products.find(p => p.id === screenData.id) || screenData} allProducts={products} suppliers={suppliers} districts={districts}
           onBack={() => navigate("list")} onUpdate={(id, changes) => { handleUpdateProduct(id, changes); }} onCalc={p => navigate("calc", p)} onDelete={handleDeleteProduct}
@@ -3479,7 +3938,7 @@ export default function App() {
       {screen === "supplier" && screenData && (
         <SupplierDetail supplier={suppliers.find(s => s.id === screenData.id) || screenData} products={products}
           onBack={goBack} onUpdate={handleUpdateSupplier} onDelete={handleDeleteSupplier}
-          onAddProduct={() => navigate("capture")}
+          onAddProduct={() => navigate(settings?.quickCaptureMode !== false ? "quick-capture" : "capture")}
           onNavigateProduct={p => navigate("detail", p)} t={t} />
       )}
       {screen === "calc" && screenData && (

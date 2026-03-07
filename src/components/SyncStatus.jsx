@@ -1,130 +1,96 @@
 /**
  * SyncStatus Component
- * Shows AI processing status and sync information
+ * Compact floating indicator showing AI processing queue status
+ * - Green dot: all processed
+ * - Orange dot (pulsing): syncing in progress
+ * - Red dot: offline with pending items
  */
 
 import { useSyncWithAI } from '../hooks/useSyncWithAI.js';
 
-const T = {
-  // Light theme
-  light: {
-    bg: '#fafafa',
-    border: '#e0e0e0',
-    text: '#333',
-    success: '#4caf50',
-    warning: '#ff9800',
-    error: '#f44336',
-  },
-  // Dark theme
-  dark: {
-    bg: '#1a1a1a',
-    border: '#333',
-    text: '#fff',
-    success: '#81c784',
-    warning: '#ffb74d',
-    error: '#ef5350',
-  },
-};
-
-export function SyncStatus({ theme = 'dark' }) {
+export function SyncStatus({ theme = 'dark', settings }) {
   try {
-    const { isOnline, isSyncing, error, syncNow, pendingCount } = useSyncWithAI();
-    const colors = T[theme];
+    const { isOnline, isSyncing, error, syncNow, pendingCount, processedCount, totalCount } = useSyncWithAI(settings);
 
-    // Don't show if nothing pending
-    if (!pendingCount || (pendingCount === 0 && !isSyncing && !error)) {
+    // Don't show if nothing pending and not syncing
+    if (pendingCount === 0 && !isSyncing && !error) {
       return null;
     }
 
-  const syncStatusText = isSyncing
-    ? 'Sincronizando...'
-    : isOnline
-      ? 'En línea'
-      : 'Sin conexión';
+    const isDark = theme === 'dark';
 
-  const statusColor = isSyncing
-    ? colors.warning
-    : isOnline
-      ? colors.success
-      : colors.error;
+    const dotColor = isSyncing
+      ? '#ff9800'  // orange: syncing
+      : !isOnline
+        ? '#f44336'  // red: offline
+        : pendingCount > 0
+          ? '#ff9800'  // orange: pending
+          : '#4caf50'; // green: done
 
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        bottom: 20,
-        right: 20,
-        backgroundColor: colors.bg,
-        border: `1px solid ${colors.border}`,
-        borderRadius: '8px',
-        padding: '12px 16px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI"',
-        fontSize: '12px',
-        color: colors.text,
-        zIndex: 1000,
-        maxWidth: '300px',
-      }}
-    >
-      {/* Status indicator */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-        <div
-          style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: statusColor,
-            animation: isSyncing ? 'pulse 1.5s infinite' : 'none',
-          }}
-        />
-        <span style={{ fontWeight: '600' }}>{syncStatusText}</span>
+    const label = isSyncing
+      ? `Procesando ${processedCount}/${totalCount}...`
+      : !isOnline
+        ? `${pendingCount} en cola`
+        : pendingCount > 0
+          ? `${pendingCount} pendiente${pendingCount !== 1 ? 's' : ''}`
+          : 'Todo procesado';
+
+    return (
+      <div
+        onClick={() => { if (isOnline && !isSyncing && pendingCount > 0) syncNow(); }}
+        style={{
+          position: 'fixed',
+          bottom: 'calc(100px + env(safe-area-inset-bottom, 0px))',
+          left: 16,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '6px 12px 6px 8px',
+          borderRadius: 20,
+          background: isDark ? 'rgba(30,30,30,0.9)' : 'rgba(250,250,250,0.9)',
+          border: `1px solid ${isDark ? '#333' : '#ddd'}`,
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
+          cursor: isOnline && !isSyncing && pendingCount > 0 ? 'pointer' : 'default',
+          zIndex: 50,
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          transition: 'all 0.3s ease',
+        }}
+      >
+        {/* Status dot */}
+        <div style={{
+          width: 8,
+          height: 8,
+          borderRadius: '50%',
+          backgroundColor: dotColor,
+          boxShadow: `0 0 6px ${dotColor}80`,
+          animation: isSyncing ? 'aiSyncPulse 1.2s ease-in-out infinite' : 'none',
+          flexShrink: 0,
+        }} />
+
+        {/* Label */}
+        <span style={{
+          fontSize: 11,
+          fontWeight: 600,
+          color: isDark ? '#ccc' : '#555',
+          whiteSpace: 'nowrap',
+        }}>
+          {label}
+        </span>
+
+        {/* Error indicator */}
+        {error && (
+          <span style={{ fontSize: 10, color: '#f44336', marginLeft: 2 }} title={error}>!</span>
+        )}
+
+        <style>{`
+          @keyframes aiSyncPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.8); }
+          }
+        `}</style>
       </div>
-
-      {/* Pending count */}
-      {pendingCount > 0 && (
-        <div style={{ fontSize: '11px', opacity: 0.8, marginBottom: '8px' }}>
-          {pendingCount} {pendingCount === 1 ? 'elemento' : 'elementos'} pendiente de procesar
-        </div>
-      )}
-
-      {/* Error message */}
-      {error && (
-        <div style={{ fontSize: '11px', color: colors.error, marginBottom: '8px' }}>
-          ⚠️ {error}
-        </div>
-      )}
-
-      {/* Sync button */}
-      {isOnline && !isSyncing && pendingCount > 0 && (
-        <button
-          onClick={syncNow}
-          style={{
-            width: '100%',
-            padding: '6px 12px',
-            backgroundColor: colors.success,
-            color: '#fff',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '12px',
-            fontWeight: '600',
-            transition: 'opacity 0.2s',
-          }}
-          onMouseEnter={(e) => (e.target.style.opacity = '0.8')}
-          onMouseLeave={(e) => (e.target.style.opacity = '1')}
-        >
-          Sincronizar ahora
-        </button>
-      )}
-
-      {/* CSS for pulse animation */}
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-      `}</style>
-    </div>
     );
   } catch (err) {
     console.error('SyncStatus error:', err);
