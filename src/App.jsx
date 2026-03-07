@@ -3569,6 +3569,10 @@ export default function App() {
     try {
       // === Create or find supplier ===
       let supplierId = data.linkedSupplierId || null;
+      // If card photo captured offline but no name extracted, use placeholder so supplier is created
+      if (!supplierId && !data.supplierName && data.cardPhoto) {
+        data.supplierName = "Proveedor (tarjeta pendiente)";
+      }
       if (!supplierId && data.supplierName) {
         // Exact match first
         const existing = suppliers.find(s => s.company === data.supplierName && s.districtId === activeDistrictId);
