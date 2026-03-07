@@ -61,6 +61,12 @@ export function useSyncWithAI(settings) {
    * Process a single product with AI
    */
   const processProduct = async (product) => {
+    // Already has AI data (came from cloud sync, processed on source device) → mark done
+    if (product.category || (product.material && product.material.length > 0)) {
+      await db.products.update(product.id, { ai_processed: true, ai_last_synced: new Date() });
+      return { success: true, skipped: true };
+    }
+
     // No photos at all → mark done
     if (!product.photos || product.photos.length === 0) {
       await db.products.update(product.id, { ai_processed: true, ai_last_synced: new Date() });
@@ -76,10 +82,12 @@ export function useSyncWithAI(settings) {
     }
 
     try {
+      console.log(`[AI Sync] Processing product ${product.id}, photo type: ${photo.substring(0, 30)}...`);
       const result = await api.processImage(photo, {
         categories: settings?.categories,
         materials: settings?.materials,
       });
+      console.log(`[AI Sync] Product ${product.id} processed:`, result.name);
 
       const updates = {};
       if (result.name) updates.name = result.name;
@@ -122,6 +130,12 @@ export function useSyncWithAI(settings) {
    * Process a single supplier card with AI
    */
   const processSupplier = async (supplier) => {
+    // Already has data (company, contact, etc. from cloud sync) → mark done
+    if (supplier.company && (supplier.phone || supplier.email || supplier.wechat || supplier.contact)) {
+      await db.suppliers.update(supplier.id, { ai_processed: true, ai_last_synced: new Date() });
+      return { success: true, skipped: true };
+    }
+
     // No card photo → mark done
     if (!supplier.cardPhoto) {
       await db.suppliers.update(supplier.id, { ai_processed: true, ai_last_synced: new Date() });
@@ -202,6 +216,28 @@ export function useSyncWithAI(settings) {
 
       if (failed > 0) {
         setError(`${failed} fallaron`);
+      }
+
+      // Fix orphaned products: link by supplierCompany name when supplierId is missing
+      try {
+        const allSuppliersList = await db.suppliers.toArray();
+        const orphaned = await db.products.filter(p => !p.supplierId && p.supplierCompany).toArray();
+        for (const p of orphaned) {
+          const match = allSuppliersList.find(s =>
+            s.company && p.supplierCompany &&
+            s.company.toLowerCase().trim() === p.supplierCompany.toLowerCase().trim()
+          );
+          if (match) {
+            await db.products.update(p.id, { supplierId: match.id });
+          }
+        }
+      } catch (e) {
+        console.warn('[AI Sync] Supplier linking failed:', e);
+      }
+
+      // Notify App to refresh React state from Dexie
+      if (processed > 0) {
+        window.dispatchEvent(new CustomEvent('ai-sync-done'));
       }
 
       setIsSyncing(false);

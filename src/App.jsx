@@ -3498,6 +3498,13 @@ export default function App() {
     })();
   }, []);
 
+  // Refresh React state when AI sync updates Dexie
+  useEffect(() => {
+    const handler = () => reloadAll();
+    window.addEventListener('ai-sync-done', handler);
+    return () => window.removeEventListener('ai-sync-done', handler);
+  }, []);
+
   // #13: Poll offline queue count every 10s
   useEffect(() => {
     const poll = async () => { try { const q = await getSyncQueue(); setQueueCount(q.length); } catch {} };
