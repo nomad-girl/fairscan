@@ -122,7 +122,8 @@ export function useSyncWithAI(settings) {
    */
   const processSupplier = async (supplier) => {
     // Already has full data (cloud sync) → mark done
-    if (supplier.company && !supplier.company.includes('pendiente') &&
+    // Must have a real company name AND contact info
+    if (supplier.company && supplier.company.trim() !== '' &&
         (supplier.phone || supplier.email || supplier.wechat || supplier.contact)) {
       await updateSupplier(supplier.id, { ai_processed: true, ai_last_synced: new Date() });
       return { success: true, skipped: true };
@@ -140,8 +141,9 @@ export function useSyncWithAI(settings) {
       return { success: true, skipped: true };
     }
 
-    // Has cardData already → just mark done
-    if (supplier.cardData && Object.keys(supplier.cardData).length > 0 && !supplier.company?.includes('pendiente')) {
+    // Has cardData and a real company name already → just mark done
+    if (supplier.cardData && Object.keys(supplier.cardData).length > 0 &&
+        supplier.company && supplier.company.trim() !== '') {
       await updateSupplier(supplier.id, { ai_processed: true, ai_last_synced: new Date() });
       return { success: true, skipped: true };
     }
@@ -174,7 +176,7 @@ export function useSyncWithAI(settings) {
       if (result.company) {
         const linked = await db.products.where('supplierId').equals(supplier.id).toArray();
         for (const p of linked) {
-          if (!p.supplierCompany || p.supplierCompany.includes('pendiente')) {
+          if (!p.supplierCompany || p.supplierCompany.trim() === '') {
             await updateProduct(p.id, { supplierCompany: result.company });
           }
         }

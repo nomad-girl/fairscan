@@ -3569,9 +3569,21 @@ export default function App() {
     try {
       // === Create or find supplier ===
       let supplierId = data.linkedSupplierId || null;
-      // If card photo captured offline but no name extracted, use placeholder so supplier is created
-      if (!supplierId && !data.supplierName && data.cardPhoto) {
-        data.supplierName = "Proveedor (tarjeta pendiente)";
+      // If card photo captured offline but no name extracted, force-create a new supplier
+      // to preserve the card photo. Each capture gets its own supplier (no dedup on placeholders).
+      const isOfflineCardCapture = !supplierId && !data.supplierName && data.cardPhoto;
+      if (isOfflineCardCapture) {
+        supplierId = await addSupplier({
+          company: "", contact: "", phone: "", email: "",
+          wechat: "", whatsapp: "", whatsappLink: "", wechatLink: "",
+          website: "", address: "", products: "",
+          cardPhoto: data.cardPhoto,
+          cardData: data.cardData || null,
+          districtId: activeDistrictId,
+          ai_processed: false, ai_last_synced: null,
+          createdAt: Date.now(),
+        });
+        setSuppliers(prev => [...prev, { id: supplierId, company: "", cardPhoto: data.cardPhoto, districtId: activeDistrictId }]);
       }
       if (!supplierId && data.supplierName) {
         // Exact match first
