@@ -84,7 +84,7 @@ import { processImage, processAudio, processCard, urlToBase64, uploadPhoto, prox
 import useSync from './hooks/useSync';
 import syncEngine from './lib/syncEngine';
 import RoomPanel from './components/RoomPanel';
-import SyncStatus from './components/SyncStatus.jsx';
+import { useSyncWithAI } from './hooks/useSyncWithAI.js';
 
 const DEFAULT_SETTINGS_FALLBACK = { activeDistrictId:1, theme:"dark", preset:"vajilla", minMargin:40, quickCaptureMode:true, ...PRESETS.vajilla };
 
@@ -2884,6 +2884,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
 // PRODUCT LIST (main screen)
 // ═══════════════════════════════════════════
 function ProductList({ products, suppliers, districts, activeDistrictId, activeDistrict, settings, onNavigate, onSwitchDistrict, onDeleteProduct, onBatchDelete, onBatchUpdate, onDeleteSupplier, t, isDark, onToggleTheme, activeTab, onTabChange, queueCount }) {
+  const { isSyncing: aiSyncing, pendingCount: aiPending, processedCount: aiProcessed, totalCount: aiTotal, syncNow: aiSyncNow, error: aiError } = useSyncWithAI(settings);
   const [search, setSearch] = useState("");
   const view = activeTab || "products";
   const setView = (v) => { if (onTabChange) onTabChange(v); };
@@ -3059,6 +3060,16 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
           </select>
           <div style={{ padding:"6px 8px", borderRadius:20, background:t.surface, fontSize:10, fontWeight:600, color:t.muted, flexShrink:0 }}>{filtered.length}/{products.length}</div>
         </div>
+        {/* AI processing status bar */}
+        {(aiPending > 0 || aiSyncing) && (
+          <button onClick={() => aiSyncNow()} disabled={aiSyncing} style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 0", marginTop:6, background:"none", border:"none", cursor:aiSyncing?"default":"pointer", width:"100%" }}>
+            <div style={{ width:7, height:7, borderRadius:"50%", background:aiSyncing?"#ff9800":"#ff9800", boxShadow:"0 0 4px #ff980060", animation:aiSyncing?"aiSyncPulse 1.2s ease-in-out infinite":"none", flexShrink:0 }} />
+            <span style={{ fontSize:11, fontWeight:600, color:t.muted }}>
+              {aiSyncing ? `Procesando IA ${aiProcessed}/${aiTotal}...` : `${aiPending} pendiente${aiPending!==1?"s":""} de IA`}
+            </span>
+            {aiError && <span style={{ fontSize:10, color:"#f44336" }}>{aiError}</span>}
+          </button>
+        )}
       </div>
 
       {/* Multi-select toolbar */}
@@ -3893,8 +3904,6 @@ export default function App() {
   return (
     <div style={{ height:"100%", background:t.bg, color:t.text, position:"relative", overflow:"hidden", fontFamily:"'DM Sans', -apple-system, sans-serif" }}>
       <Toast msg={toast} t={t} />
-      {/* AI sync status indicator */}
-      <SyncStatus theme={isDark ? 'dark' : 'light'} settings={settings} />
       {/* #10: Supplier dedup prompt */}
       {dedupPrompt && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
