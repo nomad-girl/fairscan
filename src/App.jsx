@@ -100,27 +100,52 @@ function dataURLtoUint8Array(dataURL) {
 }
 
 /**
- * Save a base64 photo to the device's Downloads folder as a backup.
- * Runs silently in background — never blocks capture flow.
+ * Collect photos during a capture session, then save them all as one ZIP at the end.
+ * This avoids the per-photo download dialog on iOS which is terrible UX.
  */
-function savePhotoToDevice(base64Data, filename) {
+const _capturePhotos = [];
+function collectPhotoForBackup(base64Data, filename) {
+  if (!base64Data || typeof base64Data !== 'string' || !base64Data.startsWith('data:')) return;
+  _capturePhotos.push({ data: base64Data, filename });
+}
+async function flushPhotosToDevice() {
+  if (_capturePhotos.length === 0) return;
   try {
-    if (!base64Data || typeof base64Data !== 'string' || !base64Data.startsWith('data:')) return;
-    const byteStr = atob(base64Data.split(',')[1]);
-    const arr = new Uint8Array(byteStr.length);
-    for (let i = 0; i < byteStr.length; i++) arr[i] = byteStr.charCodeAt(i);
-    const blob = new Blob([arr], { type: 'image/jpeg' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    const photos = [..._capturePhotos];
+    _capturePhotos.length = 0; // clear
+
+    if (photos.length === 1) {
+      // Single photo: just download directly (one dialog)
+      const p = photos[0];
+      const byteStr = atob(p.data.split(',')[1]);
+      const arr = new Uint8Array(byteStr.length);
+      for (let i = 0; i < byteStr.length; i++) arr[i] = byteStr.charCodeAt(i);
+      const blob = new Blob([arr], { type: 'image/jpeg' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = p.filename; a.style.display = 'none';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } else {
+      // Multiple photos: package as ZIP (one dialog instead of N)
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+      for (const p of photos) {
+        const byteStr = atob(p.data.split(',')[1]);
+        const arr = new Uint8Array(byteStr.length);
+        for (let i = 0; i < byteStr.length; i++) arr[i] = byteStr.charCodeAt(i);
+        zip.file(p.filename, arr, { binary: true });
+      }
+      const ts = new Date().toISOString().slice(0,10);
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `FairScan_fotos_${ts}.zip`; a.style.display = 'none';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    }
   } catch (e) {
-    console.warn('[Gallery] Save failed:', e);
+    console.warn('[Gallery] Batch save failed:', e);
   }
 }
 
@@ -2121,18 +2146,18 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
         <div style={{ height:1, background:t.border, margin:"4px 0 20px" }} />
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.08em" }}>📸 Guardar fotos en el celular</p>
         <p style={{ fontSize:11, color:t.dim, marginBottom:12, lineHeight:1.5 }}>
-          Cada foto que sacás con la app se guarda también en la carpeta Descargas de tu celular. Así tenés una copia de seguridad extra por si algo falla.
+          Al terminar cada captura, se descarga un archivo con todas las fotos de esa sesión. Así tenés una copia extra en tu celular por si algo falla.
         </p>
         <button onClick={() => updateLoc(p => ({ ...p, saveToGallery: !(p.saveToGallery !== false) }))}
           style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", padding:"14px 16px", borderRadius:14,
-            background: (loc.saveToGallery !== false) ? t.greenSoft : t.surface,
-            border:`1.5px solid ${(loc.saveToGallery !== false) ? t.green : t.border}`, cursor:"pointer", marginBottom:16 }}>
-          <span style={{ fontSize:13, fontWeight:700, color: (loc.saveToGallery !== false) ? t.green : t.text }}>
-            {(loc.saveToGallery !== false) ? "📸 Guardado en Descargas ON" : "📸 Guardado en Descargas OFF"}
+            background: (loc.saveToGallery === true) ? t.greenSoft : t.surface,
+            border:`1.5px solid ${(loc.saveToGallery === true) ? t.green : t.border}`, cursor:"pointer", marginBottom:16 }}>
+          <span style={{ fontSize:13, fontWeight:700, color: (loc.saveToGallery === true) ? t.green : t.text }}>
+            {(loc.saveToGallery === true) ? "📸 Guardado en Descargas ON" : "📸 Guardado en Descargas OFF"}
           </span>
           <span style={{ width:44, height:24, borderRadius:12, padding:2,
-            background: (loc.saveToGallery !== false) ? t.green : t.border,
-            display:"flex", alignItems:"center", justifyContent: (loc.saveToGallery !== false) ? "flex-end" : "flex-start", transition:"all 0.2s" }}>
+            background: (loc.saveToGallery === true) ? t.green : t.border,
+            display:"flex", alignItems:"center", justifyContent: (loc.saveToGallery === true) ? "flex-end" : "flex-start", transition:"all 0.2s" }}>
             <span style={{ width:20, height:20, borderRadius:10, background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }} />
           </span>
         </button>
@@ -3858,20 +3883,20 @@ export default function App() {
       // === QUICK CAPTURE: multiple products with photos ===
       if (data.quickCapture) {
         const createdIds = [];
-        // Save card photo to device as backup
-        if (settings?.saveToGallery !== false && data.cardPhoto) {
+        // Collect photos for batch backup
+        if (settings?.saveToGallery === true) {
           const ts = new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
-          savePhotoToDevice(data.cardPhoto, `FairScan_tarjeta_${slugify(data.supplierName || 'proveedor')}_${ts}.jpg`);
+          const supSlug = slugify(data.supplierName || 'proveedor');
+          if (data.cardPhoto) {
+            collectPhotoForBackup(data.cardPhoto, `tarjeta_${supSlug}_${ts}.jpg`);
+          }
+          let pi = 0;
+          for (const item of (data.productItems || [])) {
+            if (item?.photo) { pi++; collectPhotoForBackup(item.photo, `producto_${supSlug}_${pi}_${ts}.jpg`); }
+          }
         }
-        let photoIndex = 0;
         for (const item of (data.productItems || [])) {
           if (!item.photo) continue;
-          // Save product photo to device as backup
-          if (settings?.saveToGallery !== false) {
-            photoIndex++;
-            const ts = new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
-            savePhotoToDevice(item.photo, `FairScan_producto_${slugify(data.supplierName || 'proveedor')}_${photoIndex}_${ts}.jpg`);
-          }
           const productId = await addProduct({
             name: `Producto de ${data.supplierName || 'proveedor'}`,
             description: null, supplierCompany: data.supplierName || null,
@@ -3915,19 +3940,24 @@ export default function App() {
         await reloadAll();
         navigate("list");
         showToast(`✓ ${createdIds.length} producto${createdIds.length !== 1 ? "s" : ""} guardado${createdIds.length !== 1 ? "s" : ""}`);
+        // Flush collected photos as single download (after navigation so it doesn't block)
+        if (settings?.saveToGallery === true) {
+          setTimeout(() => flushPhotosToDevice(), 500);
+        }
         return;
       }
 
       // === FULL PRODUCT FLOW ===
-      // Save photos to device as backup (classic flow)
-      if (settings?.saveToGallery !== false) {
+      // Collect photos for batch backup (classic flow)
+      if (settings?.saveToGallery === true) {
         const ts = new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
+        const supSlug = slugify(data.supplierName || 'proveedor');
         if (data.cardPhoto) {
-          savePhotoToDevice(data.cardPhoto, `FairScan_tarjeta_${slugify(data.supplierName || 'proveedor')}_${ts}.jpg`);
+          collectPhotoForBackup(data.cardPhoto, `tarjeta_${supSlug}_${ts}.jpg`);
         }
         (data.photos || []).forEach((photo, i) => {
           if (photo && typeof photo === 'string' && photo.startsWith('data:')) {
-            savePhotoToDevice(photo, `FairScan_producto_${slugify(data.supplierName || 'proveedor')}_${i+1}_${ts}.jpg`);
+            collectPhotoForBackup(photo, `producto_${supSlug}_${i+1}_${ts}.jpg`);
           }
         });
       }
@@ -4005,6 +4035,11 @@ export default function App() {
       await reloadAll();
       navigate("list");
       showToast("✓ Producto guardado con IA");
+
+      // Flush collected photos as single download
+      if (settings?.saveToGallery === true) {
+        setTimeout(() => flushPhotosToDevice(), 500);
+      }
 
       // Background: upload photos to R2 cloud storage
       if (data.photos?.length && navigator.onLine) {
