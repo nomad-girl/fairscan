@@ -149,6 +149,54 @@ async function flushPhotosToDevice() {
   }
 }
 
+/**
+ * Convert base64 photos to File objects and use navigator.share() to trigger
+ * the iOS Share Sheet. User can then tap "Save Images" to save to Camera Roll.
+ */
+async function sharePhotosToDevice(photos) {
+  if (!photos || photos.length === 0) return false;
+  try {
+    const files = photos.map((p, i) => {
+      const byteStr = atob(p.data.split(',')[1]);
+      const arr = new Uint8Array(byteStr.length);
+      for (let j = 0; j < byteStr.length; j++) arr[j] = byteStr.charCodeAt(j);
+      return new File([arr], p.filename || `foto_${i+1}.jpg`, { type: 'image/jpeg' });
+    });
+    if (navigator.canShare && navigator.canShare({ files })) {
+      await navigator.share({ files, title: 'FairScan - Fotos' });
+      return true;
+    } else {
+      // Fallback: download as ZIP if share not supported
+      await flushPhotosToDeviceFromArray(photos);
+      return true;
+    }
+  } catch (e) {
+    if (e.name === 'AbortError') return false; // user cancelled share sheet
+    console.warn('[Share] Failed:', e);
+    return false;
+  }
+}
+
+/** Fallback: download photos as ZIP (for browsers that don't support share) */
+async function flushPhotosToDeviceFromArray(photos) {
+  if (!photos || photos.length === 0) return;
+  const JSZip = (await import('jszip')).default;
+  const zip = new JSZip();
+  for (const p of photos) {
+    const byteStr = atob(p.data.split(',')[1]);
+    const arr = new Uint8Array(byteStr.length);
+    for (let i = 0; i < byteStr.length; i++) arr[i] = byteStr.charCodeAt(i);
+    zip.file(p.filename, arr, { binary: true });
+  }
+  const ts = new Date().toISOString().slice(0,10);
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `FairScan_fotos_${ts}.zip`; a.style.display = 'none';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
 function slugify(text) {
   return (text || 'sin-nombre')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -1691,9 +1739,6 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   const streamRef = useRef(null);
   const cardGalleryRef = useRef(null);
   const prodGalleryRef = useRef(null);
-  const safeCardRef = useRef(null);
-  const safeProdRef = useRef(null);
-  const isSafeCamera = settings?.safeCameraMode === true;
 
   // Cleanup camera stream on unmount
   useEffect(() => {
@@ -1940,16 +1985,15 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
 
         {!cardPhoto ? (
           <div style={{ display:"flex", gap:8, marginBottom:12 }}>
-            <button onClick={() => isSafeCamera ? safeCardRef.current?.click() : openCamera("card")} style={{
+            <button onClick={() => openCamera("card")} style={{
               flex:1, padding:"18px 12px", borderRadius:14, border:`2px dashed ${t.accent}40`, background:t.accentSoft,
               color:t.accent, fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-            }}>{isSafeCamera ? "📸 Foto (seguro)" : "📸 Foto"}</button>
+            }}>📸 Foto</button>
             <button onClick={() => cardGalleryRef.current?.click()} style={{
               flex:1, padding:"18px 12px", borderRadius:14, border:`2px dashed ${t.border}`, background:t.surface,
               color:t.text, fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8,
             }}>🖼 Galería</button>
             <input ref={cardGalleryRef} type="file" accept="image/*" onChange={onCardGallery} style={{ display:"none" }} />
-            <input ref={safeCardRef} type="file" accept="image/*" capture="environment" onChange={onCardGallery} style={{ display:"none" }} />
           </div>
         ) : (
           <div style={{ position:"relative", marginBottom:12, borderRadius:14, overflow:"hidden", border:`1px solid ${t.border}` }}>
@@ -2012,16 +2056,15 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
         ))}
 
         <div style={{ display:"flex", gap:8, marginTop:4 }}>
-          <button onClick={() => isSafeCamera ? safeProdRef.current?.click() : openCamera("product")} style={{
+          <button onClick={() => openCamera("product")} style={{
             flex:1, padding:"14px 12px", borderRadius:14, border:`2px dashed ${t.accent}40`, background:t.accentSoft,
             color:t.accent, fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
-          }}>{isSafeCamera ? "📸 Producto (seguro)" : "📸 Agregar producto"}</button>
+          }}>📸 Agregar producto</button>
           <button onClick={() => prodGalleryRef.current?.click()} style={{
             width:50, padding:"14px 0", borderRadius:14, border:`2px dashed ${t.border}`, background:t.surface,
             color:t.text, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
           }}>🖼</button>
           <input ref={prodGalleryRef} type="file" accept="image/*" onChange={onProductGallery} style={{ display:"none" }} />
-          <input ref={safeProdRef} type="file" accept="image/*" capture="environment" onChange={onProductGallery} style={{ display:"none" }} />
         </div>
       </div>
 
@@ -2147,44 +2190,16 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
           </span>
         </button>
 
-        {/* Safe camera mode toggle */}
+        {/* Photo backup section */}
         <div style={{ height:1, background:t.border, margin:"4px 0 20px" }} />
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.08em" }}>📱 Modo cámara seguro</p>
-        <p style={{ fontSize:11, color:t.dim, marginBottom:12, lineHeight:1.5 }}>
-          Usa la cámara del sistema en vez de la cámara integrada. Cada foto se guarda automáticamente en tu Galería/Camera Roll. Más lento pero 100% seguro: si la app falla, las fotos ya están en tu celular.
-        </p>
-        <button onClick={() => updateLoc(p => ({ ...p, safeCameraMode: !p.safeCameraMode }))}
-          style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", padding:"14px 16px", borderRadius:14,
-            background: (loc.safeCameraMode === true) ? t.greenSoft : t.surface,
-            border:`1.5px solid ${(loc.safeCameraMode === true) ? t.green : t.border}`, cursor:"pointer", marginBottom:16 }}>
-          <span style={{ fontSize:13, fontWeight:700, color: (loc.safeCameraMode === true) ? t.green : t.text }}>
-            {(loc.safeCameraMode === true) ? "📱 Cámara segura ON" : "📸 Cámara rápida (default)"}
-          </span>
-          <span style={{ width:44, height:24, borderRadius:12, padding:2,
-            background: (loc.safeCameraMode === true) ? t.green : t.border,
-            display:"flex", alignItems:"center", justifyContent: (loc.safeCameraMode === true) ? "flex-end" : "flex-start", transition:"all 0.2s" }}>
-            <span style={{ width:20, height:20, borderRadius:10, background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }} />
-          </span>
-        </button>
-
-        {/* Save to gallery toggle (ZIP download, secondary backup) */}
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.08em" }}>📦 Backup extra en Descargas</p>
-        <p style={{ fontSize:11, color:t.dim, marginBottom:12, lineHeight:1.5 }}>
-          {loc.safeCameraMode ? "Ya tenés cámara segura activada. Este backup extra descarga un ZIP adicional al terminar cada captura." : "Al terminar cada captura, se descarga un ZIP con todas las fotos de esa sesión. Así tenés una copia extra en tu celular."}
-        </p>
-        <button onClick={() => updateLoc(p => ({ ...p, saveToGallery: !(p.saveToGallery !== false) }))}
-          style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", padding:"14px 16px", borderRadius:14,
-            background: (loc.saveToGallery === true) ? t.greenSoft : t.surface,
-            border:`1.5px solid ${(loc.saveToGallery === true) ? t.green : t.border}`, cursor:"pointer", marginBottom:16 }}>
-          <span style={{ fontSize:13, fontWeight:700, color: (loc.saveToGallery === true) ? t.green : t.text }}>
-            {(loc.saveToGallery === true) ? "📦 ZIP extra ON" : "📦 ZIP extra OFF"}
-          </span>
-          <span style={{ width:44, height:24, borderRadius:12, padding:2,
-            background: (loc.saveToGallery === true) ? t.green : t.border,
-            display:"flex", alignItems:"center", justifyContent: (loc.saveToGallery === true) ? "flex-end" : "flex-start", transition:"all 0.2s" }}>
-            <span style={{ width:20, height:20, borderRadius:10, background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }} />
-          </span>
-        </button>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.08em" }}>📱 Backup de fotos</p>
+        <div style={{ padding:"12px 14px", borderRadius:14, background:t.greenSoft, border:`1.5px solid ${t.green}40`, marginBottom:16 }}>
+          <p style={{ fontSize:12, color:t.green, fontWeight:700, margin:"0 0 4px" }}>✓ Siempre activo</p>
+          <p style={{ fontSize:11, color:t.dim, margin:0, lineHeight:1.5 }}>
+            Después de cada captura aparece un botón para guardar las fotos en tu galería/Camera Roll.
+            Para máxima seguridad: sacá las fotos con la cámara normal del iPhone y después importalas tocando "🖼 Galería" en la app.
+          </p>
+        </div>
 
         <p style={{ fontSize:11, color:t.dim, textAlign:"center", fontStyle:"italic", marginTop:8 }}>Los cambios se guardan automáticamente</p>
 
@@ -3674,6 +3689,8 @@ export default function App() {
   const [dedupPrompt, setDedupPrompt] = useState(null); // { similar, data, resolve }
   // #13: Offline queue count
   const [queueCount, setQueueCount] = useState(0);
+  // Photos to share after capture (for iOS Camera Roll save)
+  const [photosToShare, setPhotosToShare] = useState(null); // [{data, filename}] or null
 
   const t = isDark ? T.dark : T.light;
   const activeDistrictId = settings.activeDistrictId;
@@ -3907,16 +3924,22 @@ export default function App() {
       // === QUICK CAPTURE: multiple products with photos ===
       if (data.quickCapture) {
         const createdIds = [];
-        // Collect photos for batch backup
-        if (settings?.saveToGallery === true) {
-          const ts = new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
-          const supSlug = slugify(data.supplierName || 'proveedor');
-          if (data.cardPhoto) {
-            collectPhotoForBackup(data.cardPhoto, `tarjeta_${supSlug}_${ts}.jpg`);
-          }
-          let pi = 0;
-          for (const item of (data.productItems || [])) {
-            if (item?.photo) { pi++; collectPhotoForBackup(item.photo, `producto_${supSlug}_${pi}_${ts}.jpg`); }
+        // Collect photos for share/backup
+        const sessionPhotos = [];
+        const ts = new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
+        const supSlug = slugify(data.supplierName || 'proveedor');
+        if (data.cardPhoto) {
+          const fn = `tarjeta_${supSlug}_${ts}.jpg`;
+          sessionPhotos.push({ data: data.cardPhoto, filename: fn });
+          if (settings?.saveToGallery === true) collectPhotoForBackup(data.cardPhoto, fn);
+        }
+        let pi = 0;
+        for (const item of (data.productItems || [])) {
+          if (item?.photo) {
+            pi++;
+            const fn = `producto_${supSlug}_${pi}_${ts}.jpg`;
+            sessionPhotos.push({ data: item.photo, filename: fn });
+            if (settings?.saveToGallery === true) collectPhotoForBackup(item.photo, fn);
           }
         }
         for (const item of (data.productItems || [])) {
@@ -3968,20 +3991,29 @@ export default function App() {
         if (settings?.saveToGallery === true) {
           setTimeout(() => flushPhotosToDevice(), 500);
         }
+        // Show share dialog so user can save photos to Camera Roll
+        if (sessionPhotos.length > 0) {
+          setTimeout(() => setPhotosToShare(sessionPhotos), 600);
+        }
         return;
       }
 
       // === FULL PRODUCT FLOW ===
-      // Collect photos for batch backup (classic flow)
-      if (settings?.saveToGallery === true) {
+      // Collect photos for share/backup (classic flow)
+      const classicPhotos = [];
+      {
         const ts = new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
         const supSlug = slugify(data.supplierName || 'proveedor');
         if (data.cardPhoto) {
-          collectPhotoForBackup(data.cardPhoto, `tarjeta_${supSlug}_${ts}.jpg`);
+          const fn = `tarjeta_${supSlug}_${ts}.jpg`;
+          classicPhotos.push({ data: data.cardPhoto, filename: fn });
+          if (settings?.saveToGallery === true) collectPhotoForBackup(data.cardPhoto, fn);
         }
         (data.photos || []).forEach((photo, i) => {
           if (photo && typeof photo === 'string' && photo.startsWith('data:')) {
-            collectPhotoForBackup(photo, `producto_${supSlug}_${i+1}_${ts}.jpg`);
+            const fn = `producto_${supSlug}_${i+1}_${ts}.jpg`;
+            classicPhotos.push({ data: photo, filename: fn });
+            if (settings?.saveToGallery === true) collectPhotoForBackup(photo, fn);
           }
         });
       }
@@ -4063,6 +4095,10 @@ export default function App() {
       // Flush collected photos as single download
       if (settings?.saveToGallery === true) {
         setTimeout(() => flushPhotosToDevice(), 500);
+      }
+      // Show share dialog so user can save photos to Camera Roll
+      if (classicPhotos.length > 0) {
+        setTimeout(() => setPhotosToShare(classicPhotos), 600);
       }
 
       // Background: upload photos to R2 cloud storage
@@ -4185,6 +4221,31 @@ export default function App() {
               width:"100%", padding:"12px", borderRadius:12, border:`1px solid ${t.border}`, background:t.surface,
               color:t.text, fontSize:13, fontWeight:700, cursor:"pointer", textAlign:"left",
             }}>➕ Crear nuevo "{dedupPrompt.newName}"</button>
+          </div>
+        </div>
+      )}
+      {/* Share photos to device dialog */}
+      {photosToShare && photosToShare.length > 0 && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center", padding:0 }}>
+          <div style={{ background:t.card, borderRadius:"20px 20px 0 0", padding:"24px 20px", paddingBottom:"calc(24px + env(safe-area-inset-bottom, 0px))", width:"100%", maxWidth:420, border:`1px solid ${t.border}`, borderBottom:"none" }}>
+            <p style={{ fontSize:16, fontWeight:800, color:t.text, margin:"0 0 4px", textAlign:"center" }}>📱 Guardar fotos en tu celular</p>
+            <p style={{ fontSize:12, color:t.muted, margin:"0 0 20px", textAlign:"center", lineHeight:1.5 }}>
+              {photosToShare.length} foto{photosToShare.length !== 1 ? "s" : ""} capturada{photosToShare.length !== 1 ? "s" : ""}. Tocá el botón para guardarlas en tu galería.
+            </p>
+            <button onClick={async () => {
+              const photos = [...photosToShare];
+              setPhotosToShare(null);
+              const ok = await sharePhotosToDevice(photos);
+              if (ok) showToast("✓ Fotos compartidas");
+            }} style={{
+              width:"100%", padding:"16px", borderRadius:16, border:"none", fontSize:15, fontWeight:700, cursor:"pointer",
+              background:`linear-gradient(135deg, ${t.green}, #34D399)`, color:"#fff", marginBottom:10,
+              display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+            }}>📤 Guardar en mi galería</button>
+            <button onClick={() => setPhotosToShare(null)} style={{
+              width:"100%", padding:"14px", borderRadius:14, border:`1px solid ${t.border}`, background:t.surface,
+              color:t.muted, fontSize:13, fontWeight:600, cursor:"pointer",
+            }}>Ahora no</button>
           </div>
         </div>
       )}
