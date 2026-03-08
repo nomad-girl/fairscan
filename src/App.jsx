@@ -100,56 +100,6 @@ function dataURLtoUint8Array(dataURL) {
 }
 
 /**
- * Collect photos during a capture session, then save them all as one ZIP at the end.
- * This avoids the per-photo download dialog on iOS which is terrible UX.
- */
-const _capturePhotos = [];
-function collectPhotoForBackup(base64Data, filename) {
-  if (!base64Data || typeof base64Data !== 'string' || !base64Data.startsWith('data:')) return;
-  _capturePhotos.push({ data: base64Data, filename });
-}
-async function flushPhotosToDevice() {
-  if (_capturePhotos.length === 0) return;
-  try {
-    const photos = [..._capturePhotos];
-    _capturePhotos.length = 0; // clear
-
-    if (photos.length === 1) {
-      // Single photo: just download directly (one dialog)
-      const p = photos[0];
-      const byteStr = atob(p.data.split(',')[1]);
-      const arr = new Uint8Array(byteStr.length);
-      for (let i = 0; i < byteStr.length; i++) arr[i] = byteStr.charCodeAt(i);
-      const blob = new Blob([arr], { type: 'image/jpeg' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = p.filename; a.style.display = 'none';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
-    } else {
-      // Multiple photos: package as ZIP (one dialog instead of N)
-      const JSZip = (await import('jszip')).default;
-      const zip = new JSZip();
-      for (const p of photos) {
-        const byteStr = atob(p.data.split(',')[1]);
-        const arr = new Uint8Array(byteStr.length);
-        for (let i = 0; i < byteStr.length; i++) arr[i] = byteStr.charCodeAt(i);
-        zip.file(p.filename, arr, { binary: true });
-      }
-      const ts = new Date().toISOString().slice(0,10);
-      const blob = await zip.generateAsync({ type: 'blob' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `FairScan_fotos_${ts}.zip`; a.style.display = 'none';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
-    }
-  } catch (e) {
-    console.warn('[Gallery] Batch save failed:', e);
-  }
-}
-
-/**
  * Convert base64 photos to File objects and use navigator.share() to trigger
  * the iOS Share Sheet. User can then tap "Save Images" to save to Camera Roll.
  */
@@ -3931,7 +3881,6 @@ export default function App() {
         if (data.cardPhoto) {
           const fn = `tarjeta_${supSlug}_${ts}.jpg`;
           sessionPhotos.push({ data: data.cardPhoto, filename: fn });
-          if (settings?.saveToGallery === true) collectPhotoForBackup(data.cardPhoto, fn);
         }
         let pi = 0;
         for (const item of (data.productItems || [])) {
@@ -3939,7 +3888,6 @@ export default function App() {
             pi++;
             const fn = `producto_${supSlug}_${pi}_${ts}.jpg`;
             sessionPhotos.push({ data: item.photo, filename: fn });
-            if (settings?.saveToGallery === true) collectPhotoForBackup(item.photo, fn);
           }
         }
         for (const item of (data.productItems || [])) {
@@ -3987,10 +3935,6 @@ export default function App() {
         await reloadAll();
         navigate("list");
         showToast(`✓ ${createdIds.length} producto${createdIds.length !== 1 ? "s" : ""} guardado${createdIds.length !== 1 ? "s" : ""}`);
-        // Flush collected photos as single download (after navigation so it doesn't block)
-        if (settings?.saveToGallery === true) {
-          setTimeout(() => flushPhotosToDevice(), 500);
-        }
         // Show share dialog so user can save photos to Camera Roll
         if (sessionPhotos.length > 0) {
           setTimeout(() => setPhotosToShare(sessionPhotos), 600);
@@ -3999,21 +3943,17 @@ export default function App() {
       }
 
       // === FULL PRODUCT FLOW ===
-      // Collect photos for share/backup (classic flow)
+      // Collect photos for share dialog (classic flow)
       const classicPhotos = [];
       {
         const ts = new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
         const supSlug = slugify(data.supplierName || 'proveedor');
         if (data.cardPhoto) {
-          const fn = `tarjeta_${supSlug}_${ts}.jpg`;
-          classicPhotos.push({ data: data.cardPhoto, filename: fn });
-          if (settings?.saveToGallery === true) collectPhotoForBackup(data.cardPhoto, fn);
+          classicPhotos.push({ data: data.cardPhoto, filename: `tarjeta_${supSlug}_${ts}.jpg` });
         }
         (data.photos || []).forEach((photo, i) => {
           if (photo && typeof photo === 'string' && photo.startsWith('data:')) {
-            const fn = `producto_${supSlug}_${i+1}_${ts}.jpg`;
-            classicPhotos.push({ data: photo, filename: fn });
-            if (settings?.saveToGallery === true) collectPhotoForBackup(photo, fn);
+            classicPhotos.push({ data: photo, filename: `producto_${supSlug}_${i+1}_${ts}.jpg` });
           }
         });
       }
@@ -4092,10 +4032,6 @@ export default function App() {
       navigate("list");
       showToast("✓ Producto guardado con IA");
 
-      // Flush collected photos as single download
-      if (settings?.saveToGallery === true) {
-        setTimeout(() => flushPhotosToDevice(), 500);
-      }
       // Show share dialog so user can save photos to Camera Roll
       if (classicPhotos.length > 0) {
         setTimeout(() => setPhotosToShare(classicPhotos), 600);
