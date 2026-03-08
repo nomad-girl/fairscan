@@ -1691,6 +1691,9 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   const streamRef = useRef(null);
   const cardGalleryRef = useRef(null);
   const prodGalleryRef = useRef(null);
+  const safeCardRef = useRef(null);
+  const safeProdRef = useRef(null);
+  const isSafeCamera = settings?.safeCameraMode === true;
 
   // Cleanup camera stream on unmount
   useEffect(() => {
@@ -1937,15 +1940,16 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
 
         {!cardPhoto ? (
           <div style={{ display:"flex", gap:8, marginBottom:12 }}>
-            <button onClick={() => openCamera("card")} style={{
+            <button onClick={() => isSafeCamera ? safeCardRef.current?.click() : openCamera("card")} style={{
               flex:1, padding:"18px 12px", borderRadius:14, border:`2px dashed ${t.accent}40`, background:t.accentSoft,
               color:t.accent, fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-            }}>📸 Foto</button>
+            }}>{isSafeCamera ? "📸 Foto (seguro)" : "📸 Foto"}</button>
             <button onClick={() => cardGalleryRef.current?.click()} style={{
               flex:1, padding:"18px 12px", borderRadius:14, border:`2px dashed ${t.border}`, background:t.surface,
               color:t.text, fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8,
             }}>🖼 Galería</button>
             <input ref={cardGalleryRef} type="file" accept="image/*" onChange={onCardGallery} style={{ display:"none" }} />
+            <input ref={safeCardRef} type="file" accept="image/*" capture="environment" onChange={onCardGallery} style={{ display:"none" }} />
           </div>
         ) : (
           <div style={{ position:"relative", marginBottom:12, borderRadius:14, overflow:"hidden", border:`1px solid ${t.border}` }}>
@@ -2008,15 +2012,16 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
         ))}
 
         <div style={{ display:"flex", gap:8, marginTop:4 }}>
-          <button onClick={() => openCamera("product")} style={{
+          <button onClick={() => isSafeCamera ? safeProdRef.current?.click() : openCamera("product")} style={{
             flex:1, padding:"14px 12px", borderRadius:14, border:`2px dashed ${t.accent}40`, background:t.accentSoft,
             color:t.accent, fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
-          }}>📸 Agregar producto</button>
+          }}>{isSafeCamera ? "📸 Producto (seguro)" : "📸 Agregar producto"}</button>
           <button onClick={() => prodGalleryRef.current?.click()} style={{
             width:50, padding:"14px 0", borderRadius:14, border:`2px dashed ${t.border}`, background:t.surface,
             color:t.text, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
           }}>🖼</button>
           <input ref={prodGalleryRef} type="file" accept="image/*" onChange={onProductGallery} style={{ display:"none" }} />
+          <input ref={safeProdRef} type="file" accept="image/*" capture="environment" onChange={onProductGallery} style={{ display:"none" }} />
         </div>
       </div>
 
@@ -2142,18 +2147,37 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
           </span>
         </button>
 
-        {/* Save to gallery toggle */}
+        {/* Safe camera mode toggle */}
         <div style={{ height:1, background:t.border, margin:"4px 0 20px" }} />
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.08em" }}>📸 Guardar fotos en el celular</p>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.08em" }}>📱 Modo cámara seguro</p>
         <p style={{ fontSize:11, color:t.dim, marginBottom:12, lineHeight:1.5 }}>
-          Al terminar cada captura, se descarga un archivo con todas las fotos de esa sesión. Así tenés una copia extra en tu celular por si algo falla.
+          Usa la cámara del sistema en vez de la cámara integrada. Cada foto se guarda automáticamente en tu Galería/Camera Roll. Más lento pero 100% seguro: si la app falla, las fotos ya están en tu celular.
+        </p>
+        <button onClick={() => updateLoc(p => ({ ...p, safeCameraMode: !p.safeCameraMode }))}
+          style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", padding:"14px 16px", borderRadius:14,
+            background: (loc.safeCameraMode === true) ? t.greenSoft : t.surface,
+            border:`1.5px solid ${(loc.safeCameraMode === true) ? t.green : t.border}`, cursor:"pointer", marginBottom:16 }}>
+          <span style={{ fontSize:13, fontWeight:700, color: (loc.safeCameraMode === true) ? t.green : t.text }}>
+            {(loc.safeCameraMode === true) ? "📱 Cámara segura ON" : "📸 Cámara rápida (default)"}
+          </span>
+          <span style={{ width:44, height:24, borderRadius:12, padding:2,
+            background: (loc.safeCameraMode === true) ? t.green : t.border,
+            display:"flex", alignItems:"center", justifyContent: (loc.safeCameraMode === true) ? "flex-end" : "flex-start", transition:"all 0.2s" }}>
+            <span style={{ width:20, height:20, borderRadius:10, background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }} />
+          </span>
+        </button>
+
+        {/* Save to gallery toggle (ZIP download, secondary backup) */}
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.08em" }}>📦 Backup extra en Descargas</p>
+        <p style={{ fontSize:11, color:t.dim, marginBottom:12, lineHeight:1.5 }}>
+          {loc.safeCameraMode ? "Ya tenés cámara segura activada. Este backup extra descarga un ZIP adicional al terminar cada captura." : "Al terminar cada captura, se descarga un ZIP con todas las fotos de esa sesión. Así tenés una copia extra en tu celular."}
         </p>
         <button onClick={() => updateLoc(p => ({ ...p, saveToGallery: !(p.saveToGallery !== false) }))}
           style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", padding:"14px 16px", borderRadius:14,
             background: (loc.saveToGallery === true) ? t.greenSoft : t.surface,
             border:`1.5px solid ${(loc.saveToGallery === true) ? t.green : t.border}`, cursor:"pointer", marginBottom:16 }}>
           <span style={{ fontSize:13, fontWeight:700, color: (loc.saveToGallery === true) ? t.green : t.text }}>
-            {(loc.saveToGallery === true) ? "📸 Guardado en Descargas ON" : "📸 Guardado en Descargas OFF"}
+            {(loc.saveToGallery === true) ? "📦 ZIP extra ON" : "📦 ZIP extra OFF"}
           </span>
           <span style={{ width:44, height:24, borderRadius:12, padding:2,
             background: (loc.saveToGallery === true) ? t.green : t.border,
