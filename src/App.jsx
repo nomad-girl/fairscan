@@ -2039,9 +2039,10 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
   const [ni, setNi] = useState("");
   const [dirty, setDirty] = useState(false);
   const [importStatus, setImportStatus] = useState(null);
-  const [health, setHealth] = useState(null); // null = not checked, {status, services}
+  const [health, setHealth] = useState(null);
   const [healthLoading, setHealthLoading] = useState(false);
   const [healthError, setHealthError] = useState(null);
+  const [subScreen, setSubScreen] = useState(null);
 
   const checkHealth = async () => {
     setHealthLoading(true);
@@ -2059,22 +2060,11 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
     }
   };
 
-  // Check health on mount
-  useEffect(() => { checkHealth(); }, []);
-
-  // Auto-save: whenever loc changes and is dirty, save silently
   useEffect(() => {
-    if (dirty) {
-      onSave(loc, true);
-      setDirty(false);
-    }
+    if (dirty) { onSave(loc, true); setDirty(false); }
   }, [loc, dirty]);
 
-  const updateLoc = (updater) => {
-    setLoc(updater);
-    setDirty(true);
-  };
-
+  const updateLoc = (updater) => { setLoc(updater); setDirty(true); };
   const add = (f) => { if(ni.trim()) { updateLoc(p => ({ ...p, [f]:[...p[f], ni.trim()] })); setNi(""); setEditing(null); }};
   const sec = (title, icon, field, color) => (
     <div style={{ marginBottom:20 }}>
@@ -2095,13 +2085,39 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
       </div>
     </div>
   );
-  return (
+
+  // Menu item component
+  const MenuItem = ({ icon, title, subtitle, onClick, accent }) => (
+    <button onClick={onClick} style={{
+      display:"flex", alignItems:"center", gap:14, width:"100%", padding:"16px", borderRadius:16,
+      background:t.card, border:`1px solid ${t.border}`, cursor:"pointer", textAlign:"left", marginBottom:8,
+    }}>
+      <span style={{ fontSize:24, width:36, textAlign:"center", flexShrink:0 }}>{icon}</span>
+      <div style={{ flex:1, minWidth:0 }}>
+        <p style={{ fontSize:14, fontWeight:700, color:t.text, margin:0 }}>{title}</p>
+        {subtitle && <p style={{ fontSize:11, color:accent || t.muted, margin:"2px 0 0", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{subtitle}</p>}
+      </div>
+      <span style={{ fontSize:16, color:t.muted, flexShrink:0 }}>›</span>
+    </button>
+  );
+
+  // ─── SUB-SCREEN: Sala y sincronización ───
+  if (subScreen === "room") return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
-      <Header title="Configuración" onBack={onBack} t={t} />
+      <Header title="Sala y sincronización" onBack={() => setSubScreen(null)} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
-        {/* Cloud sync / Room management */}
-        {sync && <RoomPanel sync={sync} t={t} />}
-        <div style={{ height:1, background:t.border, marginBottom:20 }} />
+        {sync ? <RoomPanel sync={sync} t={t} /> : (
+          <p style={{ fontSize:13, color:t.muted, textAlign:"center", marginTop:40 }}>La sincronización no está disponible.</p>
+        )}
+      </div>
+    </div>
+  );
+
+  // ─── SUB-SCREEN: Rubros y etiquetas ───
+  if (subScreen === "tags") return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
+      <Header title="Rubros y etiquetas" onBack={() => setSubScreen(null)} t={t} />
+      <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>🚀 Preset por rubro</p>
         <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:24 }}>
           {Object.entries(PRESETS).map(([k,p]) => <button key={k} onClick={() => updateLoc(prev => ({ ...prev, preset:k, ...PRESETS[k] }))} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px", borderRadius:12, cursor:"pointer", background:loc.preset===k?t.accentSoft:t.card, border:`1.5px solid ${loc.preset===k?t.accent:t.border}`, textAlign:"left" }}><span style={{ fontSize:22 }}>{p.icon}</span><span style={{ fontSize:13, fontWeight:600, color:loc.preset===k?t.accent:t.text, flex:1 }}>{p.name}</span>{loc.preset===k && <span style={{ color:t.accent }}>✓</span>}</button>)}
@@ -2111,17 +2127,16 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
         {sec("Materiales","🏺","materials",t.blue)}
         {sec("Packaging","📦","packagingTypes",t.green)}
         {sec("Variantes","🔄","variantTypes",t.purple)}
+        <p style={{ fontSize:11, color:t.dim, textAlign:"center", fontStyle:"italic" }}>Los cambios se guardan automáticamente</p>
+      </div>
+    </div>
+  );
 
-        {/* Margin config */}
-        <div style={{ height:1, background:t.border, margin:"4px 0 20px" }} />
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>🎯 Margen mínimo para importación</p>
-        <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:24 }}>
-          <button onClick={() => updateLoc(p=>({...p, minMargin:Math.max(10, (p.minMargin||40)-5)}))} style={{ width:40, height:40, borderRadius:12, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:18, cursor:"pointer" }}>−</button>
-          <span style={{ fontSize:28, fontWeight:800, color:t.accent }}>{loc.minMargin || 40}%</span>
-          <button onClick={() => updateLoc(p=>({...p, minMargin:Math.min(200, (p.minMargin||40)+5)}))} style={{ width:40, height:40, borderRadius:12, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:18, cursor:"pointer" }}>+</button>
-        </div>
-        {/* QuickCapture toggle */}
-        <div style={{ height:1, background:t.border, margin:"4px 0 20px" }} />
+  // ─── SUB-SCREEN: Captura y fotos ───
+  if (subScreen === "capture") return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
+      <Header title="Captura y fotos" onBack={() => setSubScreen(null)} t={t} />
+      <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.08em" }}>⚡ Modo de captura</p>
         <p style={{ fontSize:11, color:t.dim, marginBottom:12, lineHeight:1.5 }}>
           Cuando está activo, el botón "+" abre una pantalla única para escanear tarjeta del proveedor y agregar productos con foto + precio en un solo paso.
@@ -2129,7 +2144,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
         <button onClick={() => updateLoc(p => ({ ...p, quickCaptureMode: !(p.quickCaptureMode !== false) }))}
           style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", padding:"14px 16px", borderRadius:14,
             background: (loc.quickCaptureMode !== false) ? t.accentSoft : t.surface,
-            border:`1.5px solid ${(loc.quickCaptureMode !== false) ? t.accent : t.border}`, cursor:"pointer", marginBottom:16 }}>
+            border:`1.5px solid ${(loc.quickCaptureMode !== false) ? t.accent : t.border}`, cursor:"pointer", marginBottom:24 }}>
           <span style={{ fontSize:13, fontWeight:700, color: (loc.quickCaptureMode !== false) ? t.accent : t.text }}>
             {(loc.quickCaptureMode !== false) ? "⚡ Captura rápida ON" : "📷 Captura clásica (3 pasos)"}
           </span>
@@ -2139,9 +2154,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
             <span style={{ width:20, height:20, borderRadius:10, background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }} />
           </span>
         </button>
-
-        {/* Photo backup section */}
-        <div style={{ height:1, background:t.border, margin:"4px 0 20px" }} />
+        <div style={{ height:1, background:t.border, margin:"0 0 20px" }} />
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.08em" }}>📱 Backup de fotos</p>
         <div style={{ padding:"12px 14px", borderRadius:14, background:t.greenSoft, border:`1.5px solid ${t.green}40`, marginBottom:16 }}>
           <p style={{ fontSize:12, color:t.green, fontWeight:700, margin:"0 0 4px" }}>✓ Siempre activo</p>
@@ -2150,11 +2163,35 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
             Para máxima seguridad: sacá las fotos con la cámara normal del iPhone y después importalas tocando "🖼 Galería" en la app.
           </p>
         </div>
+        <p style={{ fontSize:11, color:t.dim, textAlign:"center", fontStyle:"italic" }}>Los cambios se guardan automáticamente</p>
+      </div>
+    </div>
+  );
 
-        <p style={{ fontSize:11, color:t.dim, textAlign:"center", fontStyle:"italic", marginTop:8 }}>Los cambios se guardan automáticamente</p>
+  // ─── SUB-SCREEN: Costos de importación ───
+  if (subScreen === "costs") return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
+      <Header title="Costos de importación" onBack={() => setSubScreen(null)} t={t} />
+      <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>🎯 Margen mínimo para importación</p>
+        <p style={{ fontSize:11, color:t.dim, marginBottom:20, lineHeight:1.5 }}>
+          Los productos con margen menor a este porcentaje se marcan como no viables en el calculador de costos.
+        </p>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:16, marginBottom:24 }}>
+          <button onClick={() => updateLoc(p=>({...p, minMargin:Math.max(10, (p.minMargin||40)-5)}))} style={{ width:52, height:52, borderRadius:16, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:22, cursor:"pointer" }}>−</button>
+          <span style={{ fontSize:48, fontWeight:800, color:t.accent, minWidth:100, textAlign:"center" }}>{loc.minMargin || 40}%</span>
+          <button onClick={() => updateLoc(p=>({...p, minMargin:Math.min(200, (p.minMargin||40)+5)}))} style={{ width:52, height:52, borderRadius:16, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:22, cursor:"pointer" }}>+</button>
+        </div>
+        <p style={{ fontSize:11, color:t.dim, textAlign:"center", fontStyle:"italic" }}>Los cambios se guardan automáticamente</p>
+      </div>
+    </div>
+  );
 
-        {/* #16: JSON Backup / Restore */}
-        <div style={{ height:1, background:t.border, margin:"20px 0" }} />
+  // ─── SUB-SCREEN: Backup y datos ───
+  if (subScreen === "backup") return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
+      <Header title="Backup y datos" onBack={() => setSubScreen(null)} t={t} />
+      <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>💾 Backup y restauración</p>
         <p style={{ fontSize:11, color:t.dim, marginBottom:12 }}>Exportá o importá toda tu data (proveedores, productos, ferias) como archivo JSON.</p>
         <div style={{ display:"flex", gap:8, marginBottom:12 }}>
@@ -2190,31 +2227,19 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
                 const text = await file.text();
                 const data = JSON.parse(text);
                 if (!data.version || !data.districts) throw new Error('Formato inválido');
-                // Import districts
                 for (const d of data.districts) {
                   const existing = await db.districts.where('uuid').equals(d.uuid || '').first();
-                  if (!existing) {
-                    await db.districts.add({ ...d, id: undefined });
-                  }
+                  if (!existing) { await db.districts.add({ ...d, id: undefined }); }
                 }
-                // Import suppliers
                 for (const s of data.suppliers) {
                   const existing = await db.suppliers.where('uuid').equals(s.uuid || '').first();
-                  if (!existing) {
-                    await db.suppliers.add({ ...s, id: undefined });
-                  }
+                  if (!existing) { await db.suppliers.add({ ...s, id: undefined }); }
                 }
-                // Import products (without photos binary — just metadata)
                 for (const p of data.products) {
                   const existing = await db.products.where('uuid').equals(p.uuid || '').first();
-                  if (!existing) {
-                    await db.products.add({ ...p, id: undefined, photos: p.photos || [] });
-                  }
+                  if (!existing) { await db.products.add({ ...p, id: undefined, photos: p.photos || [] }); }
                 }
-                // Import settings
-                if (data.settings) {
-                  await onSave(data.settings, true);
-                }
+                if (data.settings) { await onSave(data.settings, true); }
                 if (onReload) await onReload();
                 setImportStatus(`✅ Importado: ${data.districts.length} ferias, ${data.suppliers.length} proveedores, ${data.products.length} productos`);
                 setTimeout(() => setImportStatus(null), 5000);
@@ -2228,7 +2253,6 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
         </div>
         {importStatus && <p style={{ fontSize:12, fontWeight:600, color:importStatus.startsWith('✅') ? t.green : t.red, textAlign:"center" }}>{importStatus}</p>}
 
-        {/* Cloud backup section (only if in a room) */}
         {sync?.roomId && (
           <>
             <div style={{ height:1, background:t.border, margin:"20px 0" }} />
@@ -2258,7 +2282,6 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
                     setTimeout(() => setImportStatus(null), 3000);
                     return;
                   }
-                  // Restore the most recent backup
                   const latest = backups[0];
                   const counts = latest.counts || latest.data?.counts;
                   if (confirm(`¿Restaurar backup del ${new Date(latest.created_at).toLocaleString()}?\n(${counts?.districts || '?'} ferias, ${counts?.suppliers || '?'} proveedores, ${counts?.products || '?'} productos)`)) {
@@ -2267,9 +2290,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
                     if (onReload) await onReload();
                     setImportStatus(`✅ Restaurado: ${result.districts} ferias, ${result.suppliers} proveedores, ${result.products} productos`);
                     setTimeout(() => setImportStatus(null), 5000);
-                  } else {
-                    setImportStatus(null);
-                  }
+                  } else { setImportStatus(null); }
                 } catch (err) {
                   setImportStatus(`❌ Error: ${err.message}`);
                   setTimeout(() => setImportStatus(null), 4000);
@@ -2281,17 +2302,25 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
             </div>
           </>
         )}
+      </div>
+    </div>
+  );
 
-        {/* Health indicator */}
-        <div style={{ height:1, background:t.border, margin:"20px 0" }} />
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>🏥 Salud del sistema</p>
-        <p style={{ fontSize:11, color:t.dim, marginBottom:12 }}>Verifica que todos los servicios de la app funcionan correctamente.</p>
+  // ─── SUB-SCREEN: Salud del sistema ───
+  if (subScreen === "health") return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
+      <Header title="Salud del sistema" onBack={() => setSubScreen(null)} t={t} />
+      <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
+        <p style={{ fontSize:11, color:t.dim, marginBottom:16 }}>Verifica que todos los servicios de la app funcionan correctamente.</p>
         <div style={{ background:t.card, borderRadius:14, padding:14, border:`1px solid ${t.border}`, marginBottom:12 }}>
           {healthLoading && !health && (
             <p style={{ fontSize:12, color:t.muted, textAlign:"center", margin:0 }}>⏳ Verificando...</p>
           )}
           {healthError && (
             <p style={{ fontSize:12, color:t.red, textAlign:"center", margin:0 }}>⚠️ {healthError}</p>
+          )}
+          {!health && !healthLoading && !healthError && (
+            <p style={{ fontSize:12, color:t.muted, textAlign:"center", margin:0 }}>Tocá "Verificar" para comprobar los servicios</p>
           )}
           {health && (() => {
             const serviceLabels = {
@@ -2314,12 +2343,8 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
                   const ok = svc.status === "ok";
                   return (
                     <div key={key} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"6px 0" }}>
-                      <span style={{ fontSize:12, color:t.text }}>
-                        {label.icon} {label.name}
-                      </span>
-                      <span style={{ fontSize:12, fontWeight:700, color:ok ? "#22c55e" : "#ef4444" }}>
-                        {ok ? "✓ OK" : "✗ Error"}
-                      </span>
+                      <span style={{ fontSize:12, color:t.text }}>{label.icon} {label.name}</span>
+                      <span style={{ fontSize:12, fontWeight:700, color:ok ? "#22c55e" : "#ef4444" }}>{ok ? "✓ OK" : "✗ Error"}</span>
                     </div>
                   );
                 })}
@@ -2334,8 +2359,8 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
           })()}
         </div>
         <button onClick={checkHealth} disabled={healthLoading} style={{
-          width:"100%", padding:"10px", borderRadius:12, border:`1px solid ${t.blue}40`, background:t.blueSoft,
-          color:t.blue, fontSize:13, fontWeight:700, cursor:"pointer", opacity:healthLoading?0.6:1,
+          width:"100%", padding:"12px", borderRadius:12, border:`1px solid ${t.blue}40`, background:t.blueSoft,
+          color:t.blue, fontSize:14, fontWeight:700, cursor:"pointer", opacity:healthLoading?0.6:1,
         }}>
           {healthLoading ? "⏳ Verificando..." : "🔄 Verificar ahora"}
         </button>
@@ -2344,7 +2369,25 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
             Última verificación: {new Date(health.timestamp).toLocaleTimeString("es-AR")}
           </p>
         )}
+      </div>
+    </div>
+  );
 
+  // ─── MAIN MENU ───
+  const presetName = PRESETS[loc.preset]?.name || "General";
+  const captureMode = (loc.quickCaptureMode !== false) ? "Rápida" : "Clásica";
+  const healthStatus = health ? (health.status === "ok" ? "✓ Todo OK" : "⚠️ Problemas") : null;
+
+  return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
+      <Header title="Configuración" onBack={onBack} t={t} />
+      <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
+        <MenuItem icon="☁️" title="Sala y sincronización" subtitle={sync?.roomId ? `Sala: ${sync.roomCode}` : "Sin sala activa"} onClick={() => setSubScreen("room")} />
+        <MenuItem icon="🏷" title="Rubros y etiquetas" subtitle={presetName} onClick={() => setSubScreen("tags")} accent={t.accent} />
+        <MenuItem icon="📸" title="Captura y fotos" subtitle={`Modo: ${captureMode}`} onClick={() => setSubScreen("capture")} />
+        <MenuItem icon="🎯" title="Costos de importación" subtitle={`Margen mín: ${loc.minMargin || 40}%`} onClick={() => setSubScreen("costs")} />
+        <MenuItem icon="💾" title="Backup y datos" subtitle="JSON, nube" onClick={() => setSubScreen("backup")} />
+        <MenuItem icon="🏥" title="Salud del sistema" subtitle={healthStatus} onClick={() => { if (!health) checkHealth(); setSubScreen("health"); }} accent={health?.status === "ok" ? "#22c55e" : health ? "#ef4444" : undefined} />
       </div>
     </div>
   );
