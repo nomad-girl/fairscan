@@ -99,6 +99,31 @@ function dataURLtoUint8Array(dataURL) {
   return bytes;
 }
 
+/**
+ * Save a base64 photo to the device's Downloads folder as a backup.
+ * Runs silently in background — never blocks capture flow.
+ */
+function savePhotoToDevice(base64Data, filename) {
+  try {
+    if (!base64Data || typeof base64Data !== 'string' || !base64Data.startsWith('data:')) return;
+    const byteStr = atob(base64Data.split(',')[1]);
+    const arr = new Uint8Array(byteStr.length);
+    for (let i = 0; i < byteStr.length; i++) arr[i] = byteStr.charCodeAt(i);
+    const blob = new Blob([arr], { type: 'image/jpeg' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } catch (e) {
+    console.warn('[Gallery] Save failed:', e);
+  }
+}
+
 function slugify(text) {
   return (text || 'sin-nombre')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -2092,6 +2117,26 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
           </span>
         </button>
 
+        {/* Save to gallery toggle */}
+        <div style={{ height:1, background:t.border, margin:"4px 0 20px" }} />
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.08em" }}>📸 Guardar fotos en el celular</p>
+        <p style={{ fontSize:11, color:t.dim, marginBottom:12, lineHeight:1.5 }}>
+          Cada foto que sacás con la app se guarda también en la carpeta Descargas de tu celular. Así tenés una copia de seguridad extra por si algo falla.
+        </p>
+        <button onClick={() => updateLoc(p => ({ ...p, saveToGallery: !(p.saveToGallery !== false) }))}
+          style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", padding:"14px 16px", borderRadius:14,
+            background: (loc.saveToGallery !== false) ? t.greenSoft : t.surface,
+            border:`1.5px solid ${(loc.saveToGallery !== false) ? t.green : t.border}`, cursor:"pointer", marginBottom:16 }}>
+          <span style={{ fontSize:13, fontWeight:700, color: (loc.saveToGallery !== false) ? t.green : t.text }}>
+            {(loc.saveToGallery !== false) ? "📸 Guardado en Descargas ON" : "📸 Guardado en Descargas OFF"}
+          </span>
+          <span style={{ width:44, height:24, borderRadius:12, padding:2,
+            background: (loc.saveToGallery !== false) ? t.green : t.border,
+            display:"flex", alignItems:"center", justifyContent: (loc.saveToGallery !== false) ? "flex-end" : "flex-start", transition:"all 0.2s" }}>
+            <span style={{ width:20, height:20, borderRadius:10, background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }} />
+          </span>
+        </button>
+
         <p style={{ fontSize:11, color:t.dim, textAlign:"center", fontStyle:"italic", marginTop:8 }}>Los cambios se guardan automáticamente</p>
 
         {/* #16: JSON Backup / Restore */}
@@ -3813,8 +3858,20 @@ export default function App() {
       // === QUICK CAPTURE: multiple products with photos ===
       if (data.quickCapture) {
         const createdIds = [];
+        // Save card photo to device as backup
+        if (settings?.saveToGallery !== false && data.cardPhoto) {
+          const ts = new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
+          savePhotoToDevice(data.cardPhoto, `FairScan_tarjeta_${slugify(data.supplierName || 'proveedor')}_${ts}.jpg`);
+        }
+        let photoIndex = 0;
         for (const item of (data.productItems || [])) {
           if (!item.photo) continue;
+          // Save product photo to device as backup
+          if (settings?.saveToGallery !== false) {
+            photoIndex++;
+            const ts = new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
+            savePhotoToDevice(item.photo, `FairScan_producto_${slugify(data.supplierName || 'proveedor')}_${photoIndex}_${ts}.jpg`);
+          }
           const productId = await addProduct({
             name: `Producto de ${data.supplierName || 'proveedor'}`,
             description: null, supplierCompany: data.supplierName || null,
@@ -3862,6 +3919,19 @@ export default function App() {
       }
 
       // === FULL PRODUCT FLOW ===
+      // Save photos to device as backup (classic flow)
+      if (settings?.saveToGallery !== false) {
+        const ts = new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
+        if (data.cardPhoto) {
+          savePhotoToDevice(data.cardPhoto, `FairScan_tarjeta_${slugify(data.supplierName || 'proveedor')}_${ts}.jpg`);
+        }
+        (data.photos || []).forEach((photo, i) => {
+          if (photo && typeof photo === 'string' && photo.startsWith('data:')) {
+            savePhotoToDevice(photo, `FairScan_producto_${slugify(data.supplierName || 'proveedor')}_${i+1}_${ts}.jpg`);
+          }
+        });
+      }
+
       showToast("⏳ Procesando con IA...");
 
       let aiName = null;

@@ -19,12 +19,16 @@ const isBase64Photo = (photo) => {
   return photo.startsWith('data:') || photo.length > 200;
 };
 
+// Max retries before giving up on an item (marks as processed to stop retrying)
+const MAX_RETRIES = 3;
+
 export function useSyncWithAI(settings) {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState(null);
   const [progress, setProgress] = useState({ processed: 0, total: 0 });
   const syncingRef = useRef(false);
+  const retryTimerRef = useRef(null);
 
   const pendingProducts = useLiveQuery(
     () => db.products.filter(p => !p.ai_processed).limit(50).toArray(),
@@ -44,6 +48,7 @@ export function useSyncWithAI(settings) {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     };
   }, []);
 
@@ -72,7 +77,7 @@ export function useSyncWithAI(settings) {
     }
 
     try {
-      console.log(`[AI Sync] Processing product ${product.id}...`);
+      console.log(`[AI Sync] Processing product ${product.id} (attempt ${(product.ai_retry_count || 0) + 1})...`);
       const result = await api.processImage(photo, {
         categories: settings?.categories,
         materials: settings?.materials,
@@ -86,6 +91,7 @@ export function useSyncWithAI(settings) {
       if (result.materials?.length) updates.material = result.materials;
       updates.ai_processed = true;
       updates.ai_last_synced = new Date();
+      updates.ai_retry_count = 0;
 
       // Use updateProduct (triggers cloud sync push)
       await updateProduct(product.id, updates);
@@ -113,7 +119,21 @@ export function useSyncWithAI(settings) {
       return { success: true, updates };
     } catch (err) {
       console.warn(`[AI Sync] Product ${product.id} failed:`, err.message);
-      return { success: false, error: err.message };
+      const retries = (product.ai_retry_count || 0) + 1;
+      if (retries >= MAX_RETRIES) {
+        // Give up after MAX_RETRIES — mark as processed so it doesn't block the queue
+        console.warn(`[AI Sync] Product ${product.id} failed ${MAX_RETRIES} times, giving up`);
+        await updateProduct(product.id, {
+          ai_processed: true,
+          ai_last_synced: new Date(),
+          ai_error: err.message,
+          ai_retry_count: retries,
+        });
+        return { success: true, skipped: true, gaveUp: true };
+      }
+      // Increment retry count so we can track attempts
+      await db.products.update(product.id, { ai_retry_count: retries });
+      return { success: false, error: err.message, retries };
     }
   };
 
@@ -162,7 +182,7 @@ export function useSyncWithAI(settings) {
     }
 
     try {
-      console.log(`[AI Sync] Processing supplier ${supplier.id} card...`);
+      console.log(`[AI Sync] Processing supplier ${supplier.id} card (attempt ${(supplier.ai_retry_count || 0) + 1})...`);
       const result = await api.processCard(supplier.cardPhoto);
       console.log(`[AI Sync] Supplier ${supplier.id} → "${result.company}"`);
 
@@ -181,6 +201,7 @@ export function useSyncWithAI(settings) {
       updates.cardData = result;
       updates.ai_processed = true;
       updates.ai_last_synced = new Date();
+      updates.ai_retry_count = 0;
 
       // Use updateSupplier (triggers cloud sync push)
       await updateSupplier(supplier.id, updates);
@@ -201,7 +222,19 @@ export function useSyncWithAI(settings) {
       return { success: true, updates };
     } catch (err) {
       console.warn(`[AI Sync] Supplier ${supplier.id} failed:`, err.message);
-      return { success: false, error: err.message };
+      const retries = (supplier.ai_retry_count || 0) + 1;
+      if (retries >= MAX_RETRIES) {
+        console.warn(`[AI Sync] Supplier ${supplier.id} failed ${MAX_RETRIES} times, giving up`);
+        await updateSupplier(supplier.id, {
+          ai_processed: true,
+          ai_last_synced: new Date(),
+          ai_error: err.message,
+          ai_retry_count: retries,
+        });
+        return { success: true, skipped: true, gaveUp: true };
+      }
+      await db.suppliers.update(supplier.id, { ai_retry_count: retries });
+      return { success: false, error: err.message, retries };
     }
   };
 
@@ -247,7 +280,7 @@ export function useSyncWithAI(settings) {
       }
 
       if (failed > 0) {
-        setError(`${failed} fallaron`);
+        setError(`${failed} fallaron, reintentando...`);
       }
 
       // Fix orphaned products: link by supplierCompany name when supplierId is missing
@@ -275,23 +308,42 @@ export function useSyncWithAI(settings) {
 
       setIsSyncing(false);
       syncingRef.current = false;
+
+      // Schedule retry for failed items with exponential backoff
+      if (failed > 0) {
+        const delay = Math.min(10000, 3000 * failed); // 3s per failure, max 10s
+        console.log(`[AI Sync] ${failed} items failed, retrying in ${delay / 1000}s...`);
+        if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = setTimeout(() => {
+          if (navigator.onLine) syncNow();
+        }, delay);
+      }
+
       return failed === 0;
     } catch (err) {
       console.error('Sync error:', err);
       setError(err.message);
       setIsSyncing(false);
       syncingRef.current = false;
+
+      // Retry on unexpected errors too
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = setTimeout(() => {
+        if (navigator.onLine) syncNow();
+      }, 5000);
+
       return false;
     }
   }, [pendingProducts, pendingSuppliers, settings]);
 
   // Auto-sync when online and there are pending items
+  // FIXED: include isSyncing and syncNow in deps so retry works correctly
   useEffect(() => {
     if (isOnline && !isSyncing && (pendingProducts.length > 0 || pendingSuppliers.length > 0)) {
       const timeoutId = setTimeout(() => syncNow(), 2000);
       return () => clearTimeout(timeoutId);
     }
-  }, [isOnline, pendingProducts.length, pendingSuppliers.length]);
+  }, [isOnline, isSyncing, pendingProducts.length, pendingSuppliers.length, syncNow]);
 
   return {
     isOnline,
