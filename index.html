@@ -48,6 +48,25 @@
     </div>
     <style>@keyframes loadSlide{0%{left:-60%}100%{left:100%}}</style>
   </div>
+  <!-- Sentry error monitoring (loads only if DSN is configured) -->
+  <script>
+    window.__SENTRY_DSN__ = '%VITE_SENTRY_DSN%';
+  </script>
+  <script>
+    (function() {
+      var dsn = window.__SENTRY_DSN__;
+      if (!dsn || dsn.indexOf('VITE_SENTRY') !== -1) return; // Not configured
+      var s = document.createElement('script');
+      s.src = 'https://browser.sentry-cdn.com/8.48.0/bundle.min.js';
+      s.crossOrigin = 'anonymous';
+      s.onload = function() {
+        if (window.Sentry) {
+          window.Sentry.init({ dsn: dsn, tracesSampleRate: 0.1 });
+        }
+      };
+      document.head.appendChild(s);
+    })();
+  </script>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

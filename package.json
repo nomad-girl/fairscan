@@ -6,23 +6,29 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": "18.x"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.78.0",
-    "@aws-sdk/client-s3": "^3.994.0",
-    "@supabase/supabase-js": "^2.97.0",
-    "dexie": "^4.0.4",
-    "dexie-react-hooks": "^1.1.7",
-    "exceljs": "^4.4.0",
-    "jsqr": "^1.4.0",
-    "jszip": "^3.10.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "@anthropic-ai/sdk": "0.78.0",
+    "@aws-sdk/client-s3": "3.994.0",
+    "@supabase/supabase-js": "2.97.0",
+    "dexie": "4.3.0",
+    "dexie-react-hooks": "1.1.7",
+    "exceljs": "4.4.0",
+    "jsqr": "1.4.0",
+    "jszip": "3.10.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.2.1",
-    "vite": "^5.4.2",
-    "vite-plugin-pwa": "^0.20.1"
+    "@vitejs/plugin-react": "4.7.0",
+    "fake-indexeddb": "6.2.5",
+    "vite": "5.4.21",
+    "vite-plugin-pwa": "0.20.5",
+    "vitest": "4.0.18"
   }
 }

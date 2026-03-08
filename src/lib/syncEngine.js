@@ -26,7 +26,13 @@ class SyncEngine {
     window.addEventListener('online', () => {
       this.isOnline = true;
       this._notify();
-      if (this.roomId) this.flushQueue().catch(console.warn);
+      if (this.roomId) {
+        this.flushQueue().catch(console.warn);
+        // Re-subscribe realtime channel (may have disconnected while offline)
+        this._subscribeRealtime();
+        // Pull any changes we missed while offline
+        this.pullAll().catch(console.warn);
+      }
     });
     window.addEventListener('offline', () => {
       this.isOnline = false;
@@ -520,15 +526,15 @@ class SyncEngine {
         return;
       }
 
-      // Cleanup: keep only last 5 backups for this room
+      // Cleanup: keep only last 24 backups for this room (~24 hours of history)
       const { data: old } = await supabase
         .from('backups')
         .select('id, created_at')
         .eq('room_id', this.roomId)
         .order('created_at', { ascending: false });
 
-      if (old && old.length > 5) {
-        const toDelete = old.slice(5).map(b => b.id);
+      if (old && old.length > 24) {
+        const toDelete = old.slice(24).map(b => b.id);
         await supabase.from('backups').delete().in('id', toDelete);
       }
 

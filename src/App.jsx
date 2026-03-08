@@ -1991,6 +1991,28 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
   const [ni, setNi] = useState("");
   const [dirty, setDirty] = useState(false);
   const [importStatus, setImportStatus] = useState(null);
+  const [health, setHealth] = useState(null); // null = not checked, {status, services}
+  const [healthLoading, setHealthLoading] = useState(false);
+  const [healthError, setHealthError] = useState(null);
+
+  const checkHealth = async () => {
+    setHealthLoading(true);
+    setHealthError(null);
+    try {
+      const res = await fetch('/api/health');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setHealth(data);
+    } catch (err) {
+      setHealthError('No se pudo verificar. ¿Tenés internet?');
+      setHealth(null);
+    } finally {
+      setHealthLoading(false);
+    }
+  };
+
+  // Check health on mount
+  useEffect(() => { checkHealth(); }, []);
 
   // Auto-save: whenever loc changes and is dirty, save silently
   useEffect(() => {
@@ -2200,6 +2222,70 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
             </div>
           </>
         )}
+
+        {/* Health indicator */}
+        <div style={{ height:1, background:t.border, margin:"20px 0" }} />
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>🏥 Salud del sistema</p>
+        <p style={{ fontSize:11, color:t.dim, marginBottom:12 }}>Verifica que todos los servicios de la app funcionan correctamente.</p>
+        <div style={{ background:t.card, borderRadius:14, padding:14, border:`1px solid ${t.border}`, marginBottom:12 }}>
+          {healthLoading && !health && (
+            <p style={{ fontSize:12, color:t.muted, textAlign:"center", margin:0 }}>⏳ Verificando...</p>
+          )}
+          {healthError && (
+            <p style={{ fontSize:12, color:t.red, textAlign:"center", margin:0 }}>⚠️ {healthError}</p>
+          )}
+          {health && (() => {
+            const serviceLabels = {
+              anthropic: { name: "Procesamiento de fotos", icon: "🤖" },
+              supabase: { name: "Sincronización en la nube", icon: "☁️" },
+              r2_storage: { name: "Almacenamiento de fotos", icon: "📸" },
+              model_config: { name: "Modelo de IA", icon: "🧠" },
+            };
+            const allOk = health.status === "ok";
+            return (
+              <>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12, paddingBottom:10, borderBottom:`1px solid ${t.border}` }}>
+                  <span style={{ width:12, height:12, borderRadius:6, background:allOk ? "#22c55e" : "#ef4444", display:"inline-block", flexShrink:0 }} />
+                  <span style={{ fontSize:14, fontWeight:700, color:allOk ? "#22c55e" : "#ef4444" }}>
+                    {allOk ? "Todo funciona correctamente" : "Hay problemas detectados"}
+                  </span>
+                </div>
+                {Object.entries(health.services || {}).map(([key, svc]) => {
+                  const label = serviceLabels[key] || { name: key, icon: "⚙️" };
+                  const ok = svc.status === "ok";
+                  return (
+                    <div key={key} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"6px 0" }}>
+                      <span style={{ fontSize:12, color:t.text }}>
+                        {label.icon} {label.name}
+                      </span>
+                      <span style={{ fontSize:12, fontWeight:700, color:ok ? "#22c55e" : "#ef4444" }}>
+                        {ok ? "✓ OK" : "✗ Error"}
+                      </span>
+                    </div>
+                  );
+                })}
+                {!allOk && (
+                  <p style={{ fontSize:11, color:t.red, margin:"10px 0 0", padding:"8px 10px", background:t.red+"10", borderRadius:8, lineHeight:1.5 }}>
+                    ⚠️ Algo no funciona. La app sigue funcionando offline pero algunas funciones pueden fallar.
+                    Sacá fotos directo con la cámara del celular como respaldo.
+                  </p>
+                )}
+              </>
+            );
+          })()}
+        </div>
+        <button onClick={checkHealth} disabled={healthLoading} style={{
+          width:"100%", padding:"10px", borderRadius:12, border:`1px solid ${t.blue}40`, background:t.blueSoft,
+          color:t.blue, fontSize:13, fontWeight:700, cursor:"pointer", opacity:healthLoading?0.6:1,
+        }}>
+          {healthLoading ? "⏳ Verificando..." : "🔄 Verificar ahora"}
+        </button>
+        {health && (
+          <p style={{ fontSize:10, color:t.dim, textAlign:"center", marginTop:6 }}>
+            Última verificación: {new Date(health.timestamp).toLocaleTimeString("es-AR")}
+          </p>
+        )}
+
       </div>
     </div>
   );
@@ -2210,6 +2296,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
 // ═══════════════════════════════════════════
 function ExportScreen({ products, suppliers, districts, onBack, onExported, onUpdateProduct, onUpdateSupplier, t }) {
   const [scope, setScope] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all"); // "all" | "today"
   const [format, setFormat] = useState("zip");
   const [includeSuppliers, setIncludeSuppliers] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -2217,7 +2304,13 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState("");
 
-  const scopeProducts = scope === "all" ? products : products.filter(p => p.districtId === parseInt(scope));
+  // Filter by scope (district) then by date
+  let scopeProducts = scope === "all" ? products : products.filter(p => p.districtId === parseInt(scope));
+  if (dateFilter === "today") {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    scopeProducts = scopeProducts.filter(p => p.createdAt && p.createdAt >= todayStart.getTime());
+  }
 
   // Helper: get ALL valid photo sources for a product (merges photos + photoUrls, deduplicates)
   const getProductPhotoSources = (p) => {
@@ -2516,7 +2609,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `FairScan_Export_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.download = `FairScan_Export_${new Date().toISOString().slice(0, 10)}${dateFilter === "today" ? "_SOLO_HOY" : ""}.xlsx`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -2539,7 +2632,8 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       const JSZip = (await import('jszip')).default;
       const zip = new JSZip();
       const dateStr = new Date().toISOString().slice(0, 10);
-      const root = zip.folder(`FairScan_Export_${dateStr}`);
+      const suffix = dateFilter === "today" ? `_SOLO_HOY` : "";
+      const root = zip.folder(`FairScan_Export_${dateStr}${suffix}`);
 
       // Build supplier slug map (linked by ID + matched by company name)
       const supplierMap = new Map();
@@ -2698,7 +2792,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `FairScan_Export_${dateStr}.zip`;
+      a.download = `FairScan_Export_${dateStr}${suffix}.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -2722,7 +2816,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `fairscan-export-${new Date().toISOString().slice(0,10)}.csv`;
+      a.download = `fairscan-export-${new Date().toISOString().slice(0,10)}${dateFilter === "today" ? "_SOLO_HOY" : ""}.csv`;
       a.click();
       URL.revokeObjectURL(url);
       onExported("CSV descargado");
@@ -2768,6 +2862,25 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
               </button>
             );
           })}
+        </div>
+
+        {/* Date filter */}
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>📅 ¿De cuándo?</p>
+        <div style={{ display:"flex", gap:8, marginBottom:20 }}>
+          {[
+            { k:"all", icon:"📦", name:"Todo", desc:"Todos los datos acumulados" },
+            { k:"today", icon:"📅", name:"Solo hoy", desc:"Agregados hoy" },
+          ].map(d => (
+            <button key={d.k} onClick={() => setDateFilter(d.k)} style={{
+              flex:1, padding:"12px 10px", borderRadius:12, textAlign:"center",
+              border:`1.5px solid ${dateFilter===d.k?t.accent:t.border}`,
+              background:dateFilter===d.k?t.accentSoft:"transparent", cursor:"pointer",
+            }}>
+              <span style={{ fontSize:20, display:"block", marginBottom:4 }}>{d.icon}</span>
+              <span style={{ fontSize:13, fontWeight:700, color:dateFilter===d.k?t.accent:t.text, display:"block" }}>{d.name}</span>
+              <span style={{ fontSize:10, color:t.muted }}>{d.desc}</span>
+            </button>
+          ))}
         </div>
 
         {/* Format */}
@@ -2871,9 +2984,9 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       <div style={{ padding:"12px 20px", paddingBottom:"calc(16px + env(safe-area-inset-bottom, 0px))", borderTop:`1px solid ${t.border}` }}>
         <Btn onClick={handleExport} disabled={scopeProducts.length===0 || exporting || syncing} full t={t}>
           {exporting ? exportProgress :
-            format==="zip" ? `📁 Descargar ZIP (${totalPhotos} fotos)` :
-            format==="csv" ? "📊 Descargar CSV" :
-            "📊 Descargar Excel con fotos"}
+            format==="zip" ? `📁 Descargar ZIP${dateFilter==="today"?" de hoy":""} (${totalPhotos} fotos)` :
+            format==="csv" ? `📊 Descargar CSV${dateFilter==="today"?" de hoy":""}` :
+            `📊 Descargar Excel${dateFilter==="today"?" de hoy":""} con fotos`}
         </Btn>
       </div>
     </div>

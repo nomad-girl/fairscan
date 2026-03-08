@@ -121,10 +121,22 @@ export function useSyncWithAI(settings) {
    * Process a single supplier card with AI
    */
   const processSupplier = async (supplier) => {
+    // Helper: upload card photo to R2 if not yet uploaded
+    const ensureCardUploaded = (s) => {
+      if (isBase64Photo(s.cardPhoto) && !s.cardPhotoUrl && navigator.onLine) {
+        const slugify = (t) => (t || 'card').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        const key = `cards/${slugify(s.company)}_${s.uuid || s.id}.jpg`;
+        api.uploadPhoto(s.cardPhoto, key).then(res => {
+          if (res?.url) updateSupplier(s.id, { cardPhotoUrl: res.url });
+        }).catch(() => {});
+      }
+    };
+
     // Already has full data (cloud sync) → mark done
     // Must have a real company name AND contact info
     if (supplier.company && supplier.company.trim() !== '' &&
         (supplier.phone || supplier.email || supplier.wechat || supplier.contact)) {
+      ensureCardUploaded(supplier);
       await updateSupplier(supplier.id, { ai_processed: true, ai_last_synced: new Date() });
       return { success: true, skipped: true };
     }
@@ -144,6 +156,7 @@ export function useSyncWithAI(settings) {
     // Has cardData and a real company name already → just mark done
     if (supplier.cardData && Object.keys(supplier.cardData).length > 0 &&
         supplier.company && supplier.company.trim() !== '') {
+      ensureCardUploaded(supplier);
       await updateSupplier(supplier.id, { ai_processed: true, ai_last_synced: new Date() });
       return { success: true, skipped: true };
     }
@@ -171,6 +184,9 @@ export function useSyncWithAI(settings) {
 
       // Use updateSupplier (triggers cloud sync push)
       await updateSupplier(supplier.id, updates);
+
+      // Upload card photo to R2 (uses company from AI result)
+      ensureCardUploaded({ ...supplier, company: result.company || supplier.company });
 
       // Also update any linked products' supplierCompany name
       if (result.company) {
