@@ -370,6 +370,32 @@ class SyncEngine {
 
       if (cloudTime > localTime) {
         const localData = idMapper.toLocal(table, cloudRecord);
+
+        // CRITICAL: Never overwrite local base64 photos with empty cloud data.
+        // Cloud records don't carry base64 — only URLs. If the cloud has no URLs
+        // but local has base64 photos, preserve the local photos.
+        if (table === 'products') {
+          const localHasPhotos = existingLocal.photos?.length > 0 &&
+            existingLocal.photos.some(p => typeof p === 'string' && p.startsWith('data:'));
+          const cloudHasUrls = (cloudRecord.photo_urls || []).length > 0;
+          if (localHasPhotos && !cloudHasUrls) {
+            delete localData.photos; // Keep existing local base64 photos
+          }
+          // Never null out photoUrls if local already has them
+          if (existingLocal.photoUrls?.length > 0 && !localData.photoUrls?.length) {
+            delete localData.photoUrls;
+          }
+        }
+        if (table === 'suppliers') {
+          // Preserve local base64 card photo
+          if (existingLocal.cardPhoto && !localData.cardPhoto) {
+            delete localData.cardPhoto;
+          }
+          if (existingLocal.cardPhotoUrl && !localData.cardPhotoUrl) {
+            delete localData.cardPhotoUrl;
+          }
+        }
+
         await db.table(table).update(existingLocal.id, localData);
       }
       idMapper.register(table, existingLocal.id, cloudRecord.id);
