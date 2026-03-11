@@ -62,6 +62,18 @@ export default function useSync(reloadAll) {
     }
   }, []);
 
+  const forceSync = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await syncEngine.pullAll();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   return {
     // State
     roomId: syncState.roomId,
@@ -69,6 +81,8 @@ export default function useSync(reloadAll) {
     isOnline: syncState.isOnline,
     isSyncing: syncState.isSyncing,
     lastSyncAt: syncState.lastSyncAt,
+    lastError: syncState.lastError,
+    lastPullCounts: syncState.lastPullCounts,
     isConfigured: isSupabaseConfigured(),
     isLoading,
     error,
@@ -76,6 +90,7 @@ export default function useSync(reloadAll) {
     createRoom,
     joinRoom,
     leaveRoom,
+    forceSync,
     clearError: () => setError(null),
   };
 }

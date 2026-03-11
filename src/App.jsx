@@ -79,7 +79,7 @@ function calcImportCost(fobPrice, ncm, freightPct = 12, insurancePct = 1.5) {
     ],
   };
 }
-import db, { initDB, getSettings, saveSettings as dbSaveSettings, getDistricts, addDistrict, getSuppliers, addSupplier, updateSupplier as dbUpdateSupplier, deleteSupplier as dbDeleteSupplier, getProducts, addProduct, updateProduct as dbUpdateProduct, deleteProduct as dbDeleteProduct, deleteDistrict as dbDeleteDistrict, setSyncEngine, getSyncQueue } from './db';
+import db, { initDB, getSettings, saveSettings as dbSaveSettings, getDistricts, addDistrict, updateDistrict as dbUpdateDistrict, getSuppliers, addSupplier, updateSupplier as dbUpdateSupplier, deleteSupplier as dbDeleteSupplier, getProducts, addProduct, updateProduct as dbUpdateProduct, deleteProduct as dbDeleteProduct, deleteDistrict as dbDeleteDistrict, setSyncEngine, getSyncQueue } from './db';
 import { processImage, processAudio, processCard, urlToBase64, uploadPhoto, proxyImage } from './api/client';
 import useSync from './hooks/useSync';
 import syncEngine from './lib/syncEngine';
@@ -843,7 +843,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
               <div style={{ position:"relative", maxWidth:240, margin:"0 auto" }}>
                 <span style={{ position:"absolute", left:16, top:"50%", transform:"translateY(-50%)", fontSize:22, fontWeight:800, color:t.green }}>$</span>
                 <input ref={el => { if (el && step === 1) setTimeout(() => el.focus(), 100); }}
-                  value={price} onChange={e => setPrice(e.target.value.replace(/[^0-9.]/g, ""))} placeholder="0.00" inputMode="decimal"
+                  value={price} onChange={e => setPrice(e.target.value.replace(/[^0-9.,]/g, "").replace(",", "."))} placeholder="0.00" inputMode="decimal"
                   style={{
                     width:"100%", padding:"16px 16px 16px 44px", borderRadius:16, border:`2px solid ${t.green}40`,
                     background:t.surface, color:t.green, fontSize:36, fontWeight:800, textAlign:"center",
@@ -857,7 +857,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
               <div style={{ flex:1 }}>
                 <p style={{ fontSize:10, fontWeight:700, color:t.muted, marginBottom:4, textTransform:"uppercase" }}>📦 MOQ</p>
                 <input value={moq} onChange={e => setMoq(e.target.value.replace(/[^0-9]/g, ""))} placeholder="500" inputMode="numeric"
-                  style={inp({ fontSize:14, padding:"10px 12px" })} />
+                  style={inp({ fontSize:16, padding:"10px 12px" })} />
               </div>
               <div style={{ flex:1 }}>
                 <p style={{ fontSize:10, fontWeight:700, color:t.muted, marginBottom:4, textTransform:"uppercase" }}>⭐ Rating</p>
@@ -906,7 +906,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
             <textarea value={textNote} onChange={e => setTextNote(e.target.value)} placeholder="📝 Nota escrita (detalles, colores, negociación...)"
               rows={2} style={{
                 width:"100%", padding:"10px 14px", borderRadius:14, border:`1px solid ${t.border}`,
-                background:t.surface, color:t.text, fontSize:13, outline:"none", boxSizing:"border-box",
+                background:t.surface, color:t.text, fontSize:16, outline:"none", boxSizing:"border-box",
                 fontFamily:"inherit", resize:"vertical", lineHeight:1.5,
               }} />
           </div>
@@ -1011,7 +1011,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
                     <div>
                       <p style={{ fontSize:10, fontWeight:700, color:t.muted, marginBottom:3, textTransform:"uppercase" }}>💬 WeChat</p>
                       <div style={{ display:"flex", gap:4 }}>
-                        <input value={supplierWechat} onChange={e => setSupplierWechat(e.target.value)} placeholder="WeChat ID" style={inp({ fontSize:12, padding:"8px 10px", flex:1 })} />
+                        <input value={supplierWechat} onChange={e => setSupplierWechat(e.target.value)} placeholder="WeChat ID" style={inp({ fontSize:16, padding:"8px 10px", flex:1 })} />
                         {(supplierWechatLink || supplierWechat) && (
                           <a href={supplierWechatLink || `weixin://dl/chat?${supplierWechat}`} target="_blank" rel="noopener noreferrer" style={{
                             display:"flex", alignItems:"center", justifyContent:"center", width:40, height:40,
@@ -1023,7 +1023,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
                     <div>
                       <p style={{ fontSize:10, fontWeight:700, color:t.muted, marginBottom:3, textTransform:"uppercase" }}>📱 WhatsApp</p>
                       <div style={{ display:"flex", gap:4 }}>
-                        <input value={supplierWhatsapp} onChange={e => setSupplierWhatsapp(e.target.value)} placeholder="+número" style={inp({ fontSize:12, padding:"8px 10px", flex:1 })} />
+                        <input value={supplierWhatsapp} onChange={e => setSupplierWhatsapp(e.target.value)} placeholder="+número" style={inp({ fontSize:16, padding:"8px 10px", flex:1 })} />
                         {(supplierWhatsappLink || supplierWhatsapp) && (
                           <a href={supplierWhatsappLink || `https://wa.me/${supplierWhatsapp.replace(/[^\d]/g, "")}`} target="_blank" rel="noopener noreferrer" style={{
                             display:"flex", alignItems:"center", justifyContent:"center", width:40, height:40,
@@ -1034,11 +1034,11 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
                     </div>
                     <div>
                       <p style={{ fontSize:10, fontWeight:700, color:t.muted, marginBottom:3, textTransform:"uppercase" }}>📞 Teléfono</p>
-                      <input value={supplierPhone} onChange={e => setSupplierPhone(e.target.value)} placeholder="+86..." style={inp({ fontSize:12, padding:"8px 10px" })} />
+                      <input value={supplierPhone} onChange={e => setSupplierPhone(e.target.value)} placeholder="+86..." style={inp({ fontSize:16, padding:"8px 10px" })} />
                     </div>
                     <div>
                       <p style={{ fontSize:10, fontWeight:700, color:t.muted, marginBottom:3, textTransform:"uppercase" }}>📧 Email</p>
-                      <input value={supplierEmail} onChange={e => setSupplierEmail(e.target.value)} placeholder="email@..." style={inp({ fontSize:12, padding:"8px 10px" })} />
+                      <input value={supplierEmail} onChange={e => setSupplierEmail(e.target.value)} placeholder="email@..." style={inp({ fontSize:16, padding:"8px 10px" })} />
                     </div>
                   </div>
                 </div>
@@ -1109,7 +1109,7 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
 
   const inp = (extra = {}) => ({
     width:"100%", padding:"10px 12px", borderRadius:10, border:`1px solid ${t.border}`,
-    background:t.surface, color:t.text, fontSize:14, outline:"none", boxSizing:"border-box",
+    background:t.surface, color:t.text, fontSize:16, outline:"none", boxSizing:"border-box",
     fontFamily:"inherit", ...extra,
   });
 
@@ -1199,7 +1199,7 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
             <div style={{ display:"flex", gap:10, marginBottom:10 }}>
               <div style={{ flex:1 }}>
                 <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px" }}>Precio USD</p>
-                <input value={editPrice} onChange={e => setEditPrice(e.target.value.replace(/[^0-9.]/g,""))} inputMode="decimal" style={inp({ color:t.green, fontWeight:700 })} />
+                <input value={editPrice} onChange={e => setEditPrice(e.target.value.replace(/[^0-9.,]/g,"").replace(",","."))} inputMode="decimal" style={inp({ color:t.green, fontWeight:700 })} />
               </div>
               <div style={{ flex:1 }}>
                 <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px" }}>MOQ</p>
@@ -1424,7 +1424,7 @@ function Calculator({ product, settings, onBack, onSave, t }) {
 
   const inp = (extra = {}) => ({
     width:"100%", padding:"12px 14px", borderRadius:12, border:`1px solid ${t.border}`,
-    background:t.surface, color:t.text, fontSize:15, outline:"none", boxSizing:"border-box",
+    background:t.surface, color:t.text, fontSize:16, outline:"none", boxSizing:"border-box",
     fontFamily:"inherit", ...extra,
   });
 
@@ -1458,11 +1458,11 @@ function Calculator({ product, settings, onBack, onSave, t }) {
           <div style={{ display:"flex", gap:10, marginBottom:16 }}>
             <div style={{ flex:1 }}>
               <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px" }}>Flete %</p>
-              <input value={freightPct} onChange={e => setFreightPct(e.target.value)} inputMode="decimal" style={inp({ textAlign:"center", fontSize:14 })} />
+              <input value={freightPct} onChange={e => setFreightPct(e.target.value)} inputMode="decimal" style={inp({ textAlign:"center", fontSize:16 })} />
             </div>
             <div style={{ flex:1 }}>
               <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px" }}>Seguro %</p>
-              <input value={insurancePct} onChange={e => setInsurancePct(e.target.value)} inputMode="decimal" style={inp({ textAlign:"center", fontSize:14 })} />
+              <input value={insurancePct} onChange={e => setInsurancePct(e.target.value)} inputMode="decimal" style={inp({ textAlign:"center", fontSize:16 })} />
             </div>
           </div>
         )}
@@ -1562,7 +1562,7 @@ function Calculator({ product, settings, onBack, onSave, t }) {
           <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>🎯 Tu precio de venta (ARS/USD)</p>
           <div style={{ position:"relative", marginBottom:12 }}>
             <span style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", fontSize:16, fontWeight:800, color:t.green }}>$</span>
-            <input value={targetPrice} onChange={e => setTargetPrice(e.target.value.replace(/[^0-9.]/g,""))} placeholder={suggestedPrice?.toFixed(2) || "0.00"} inputMode="decimal"
+            <input value={targetPrice} onChange={e => setTargetPrice(e.target.value.replace(/[^0-9.,]/g,"").replace(",","."))} placeholder={suggestedPrice?.toFixed(2) || "0.00"} inputMode="decimal"
               style={inp({ paddingLeft:36, fontSize:22, fontWeight:800, color:t.green, textAlign:"center" })} />
           </div>
 
@@ -1612,17 +1612,37 @@ function Calculator({ product, settings, onBack, onSave, t }) {
 // ═══════════════════════════════════════════
 // DISTRICTS
 // ═══════════════════════════════════════════
-function DistrictsScreen({ districts, activeDistrictId, products, onActivate, onAdd, onDelete, onBack, t }) {
+function DistrictsScreen({ districts, activeDistrictId, products, onActivate, onAdd, onUpdate, onDelete, onBack, t }) {
   const [creating, setCreating] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [nn, setNn] = useState(""); const [nl, setNl] = useState(""); const [nd, setNd] = useState(""); const [ne, setNe] = useState("🏮");
-  const emojis = ["🏮","🏪","🌏","🏭","🎪","✈️","🚢","📍","🗺","🎯"];
-  const inp = { width:"100%", padding:"10px 12px", borderRadius:10, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:14, outline:"none", marginBottom:14, boxSizing:"border-box", fontFamily:"inherit" };
+  const emojis = ["🏮","🏪","🌏","🏭","🎪","✈️","🚢","📍","🗺","🎯","🇦🇷","🇨🇳","🇹🇷","🇭🇰"];
+  const inp = { width:"100%", padding:"10px 12px", borderRadius:10, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:16, outline:"none", marginBottom:14, boxSizing:"border-box", fontFamily:"inherit" };
+  const startEdit = (d) => { setEditingId(d.id); setNn(d.name||""); setNl(d.location||""); setNd(d.dates||""); setNe(d.emoji||"🏮"); setCreating(false); };
+  const cancelEdit = () => { setEditingId(null); setNn(""); setNl(""); setNd(""); setNe("🏮"); };
+  const emojiRow = <div style={{ display:"flex", gap:6, marginBottom:14, flexWrap:"wrap" }}>{emojis.map(e => <button key={e} onClick={() => setNe(e)} style={{ width:40, height:40, borderRadius:10, fontSize:20, border:`1.5px solid ${ne===e?t.accent:t.border}`, background:ne===e?t.accentSoft:t.surface, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>{e}</button>)}</div>;
+  const formFields = <>
+    {emojiRow}
+    <input value={nn} onChange={e=>setNn(e.target.value)} placeholder="Nombre (ej: Canton Fair)" style={inp} />
+    <input value={nl} onChange={e=>setNl(e.target.value)} placeholder="Ubicación (ej: Guangzhou)" style={inp} />
+    <input value={nd} onChange={e=>setNd(e.target.value)} placeholder="Fechas (ej: 15-19 Abr)" style={inp} />
+  </>;
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
       <Header title="Ferias / Distritos" onBack={onBack} t={t} />
       <div style={{ flex:1, padding:"16px 20px", overflow:"auto" }}>
         {districts.map(d => {
           const count = products.filter(p => p.districtId === d.id).length;
+          if (editingId === d.id) return (
+            <div key={d.id} style={{ background:t.card, borderRadius:16, padding:16, marginBottom:10, border:`1.5px solid ${t.accent}` }}>
+              <p style={{ fontSize:14, fontWeight:700, color:t.text, margin:"0 0 14px" }}>Editar feria</p>
+              {formFields}
+              <div style={{ display:"flex", gap:10 }}>
+                <Btn onClick={cancelEdit} variant="ghost" t={t}>Cancelar</Btn>
+                <Btn onClick={() => { if(nn.trim()) { onUpdate(d.id, { name:nn, location:nl, dates:nd, emoji:ne }); cancelEdit(); }}} full disabled={!nn.trim()} t={t} style={{ flex:1 }}>✓ Guardar</Btn>
+              </div>
+            </div>
+          );
           return (
             <div key={d.id} style={{ background:t.card, borderRadius:16, padding:"14px 16px", marginBottom:10, border:`1.5px solid ${d.id===activeDistrictId?t.accent:t.border}` }}>
               <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
@@ -1631,28 +1651,27 @@ function DistrictsScreen({ districts, activeDistrictId, products, onActivate, on
                 {d.id===activeDistrictId && <span style={{ fontSize:10, fontWeight:700, color:t.green, background:t.greenSoft, padding:"3px 8px", borderRadius:8 }}>ACTIVO</span>}
               </div>
               <div style={{ fontSize:12, color:t.muted, marginBottom:10 }}>📦 <b style={{ color:t.text }}>{count}</b> productos</div>
-              {d.id!==activeDistrictId && (
-                <div style={{ display:"flex", gap:8 }}>
-                  <Btn onClick={() => onActivate(d.id)} full t={t} style={{ flex:1 }}>Activar esta feria</Btn>
-                  <button onClick={() => { if(confirm(`¿Eliminar "${d.name}" y sus ${count} productos?`)) onDelete(d.id); }} style={{
-                    padding:"8px 12px", borderRadius:10, border:`1px solid ${t.red}30`, background:t.redSoft,
-                    color:t.red, fontSize:12, fontWeight:700, cursor:"pointer",
-                  }}>🗑</button>
-                </div>
-              )}
+              <div style={{ display:"flex", gap:8 }}>
+                {d.id!==activeDistrictId && <Btn onClick={() => onActivate(d.id)} full t={t} style={{ flex:1 }}>Activar esta feria</Btn>}
+                <button onClick={() => startEdit(d)} style={{
+                  padding:"8px 12px", borderRadius:10, border:`1px solid ${t.border}`, background:t.surface,
+                  color:t.text, fontSize:12, fontWeight:700, cursor:"pointer",
+                }}>✏️</button>
+                {d.id!==activeDistrictId && <button onClick={() => { if(confirm(`¿Eliminar "${d.name}" y sus ${count} productos?`)) onDelete(d.id); }} style={{
+                  padding:"8px 12px", borderRadius:10, border:`1px solid ${t.red}30`, background:t.redSoft,
+                  color:t.red, fontSize:12, fontWeight:700, cursor:"pointer",
+                }}>🗑</button>}
+              </div>
             </div>
           );
         })}
-        {!creating ? <Btn onClick={() => setCreating(true)} variant="outline" full t={t}>+ Nueva feria</Btn>
+        {!creating ? <Btn onClick={() => { setCreating(true); cancelEdit(); }} variant="outline" full t={t}>+ Nueva feria</Btn>
         : <div style={{ background:t.card, borderRadius:16, padding:16, border:`1.5px solid ${t.accent}` }}>
             <p style={{ fontSize:14, fontWeight:700, color:t.text, margin:"0 0 14px" }}>Nueva feria</p>
-            <div style={{ display:"flex", gap:6, marginBottom:14, flexWrap:"wrap" }}>{emojis.map(e => <button key={e} onClick={() => setNe(e)} style={{ width:40, height:40, borderRadius:10, fontSize:20, border:`1.5px solid ${ne===e?t.accent:t.border}`, background:ne===e?t.accentSoft:t.surface, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>{e}</button>)}</div>
-            <input value={nn} onChange={e=>setNn(e.target.value)} placeholder="Nombre (ej: Canton Fair)" style={inp} />
-            <input value={nl} onChange={e=>setNl(e.target.value)} placeholder="Ubicación (ej: Guangzhou)" style={inp} />
-            <input value={nd} onChange={e=>setNd(e.target.value)} placeholder="Fechas (ej: 15-19 Abr)" style={inp} />
+            {formFields}
             <div style={{ display:"flex", gap:10 }}>
-              <Btn onClick={() => { setCreating(false); setNn(""); }} variant="ghost" t={t}>Cancelar</Btn>
-              <Btn onClick={() => { if(nn.trim()) { onAdd({ name:nn, location:nl, dates:nd, emoji:ne }); setCreating(false); setNn(""); setNl(""); setNd(""); }}} full disabled={!nn.trim()} t={t} style={{ flex:1 }}>✓ Crear</Btn>
+              <Btn onClick={() => { setCreating(false); setNn(""); setNl(""); setNd(""); setNe("🏮"); }} variant="ghost" t={t}>Cancelar</Btn>
+              <Btn onClick={() => { if(nn.trim()) { onAdd({ name:nn, location:nl, dates:nd, emoji:ne }); setCreating(false); setNn(""); setNl(""); setNd(""); setNe("🏮"); }}} full disabled={!nn.trim()} t={t} style={{ flex:1 }}>✓ Crear</Btn>
             </div>
           </div>}
       </div>
@@ -1861,7 +1880,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
     .slice(0, 5);
 
-  const inputStyle = { width:"100%", padding:"10px 14px", borderRadius:12, fontSize:14, border:`1.5px solid ${t.border}`, background:t.card, color:t.text, outline:"none", fontFamily:"inherit" };
+  const inputStyle = { width:"100%", padding:"10px 14px", borderRadius:12, fontSize:16, border:`1.5px solid ${t.border}`, background:t.card, color:t.text, outline:"none", fontFamily:"inherit" };
 
   // === CAMERA OVERLAY (fullscreen live viewfinder) ===
   if (cameraMode) {
@@ -1994,8 +2013,8 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
             <img src={item.photo} alt={`P${idx+1}`} style={{ width:56, height:56, borderRadius:10, objectFit:"cover", border:`1px solid ${t.border}` }} />
             <div style={{ flex:1, position:"relative" }}>
               <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:t.muted, fontSize:16, fontWeight:700, pointerEvents:"none" }}>$</span>
-              <input type="number" inputMode="decimal" step="0.01" placeholder="Precio" value={item.price}
-                onChange={e => setItems(prev => prev.map(it => it.id === item.id ? { ...it, price: e.target.value } : it))}
+              <input inputMode="decimal" placeholder="Precio" value={item.price}
+                onChange={e => { const v = e.target.value.replace(/[^0-9.,]/g,"").replace(",","."); setItems(prev => prev.map(it => it.id === item.id ? { ...it, price: v } : it)); }}
                 style={{ ...inputStyle, paddingLeft:28 }} />
             </div>
             <button onClick={() => setItems(prev => prev.filter(it => it.id !== item.id))} style={{
@@ -2077,7 +2096,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
         ))}
         {editing===field ? (
           <div style={{ display:"flex", gap:4 }}>
-            <input value={ni} onChange={e=>setNi(e.target.value)} onKeyDown={e => e.key==="Enter" && add(field)} autoFocus placeholder="Nombre..." style={{ width:110, padding:"5px 10px", borderRadius:16, fontSize:12, border:`1.5px solid ${color}`, background:t.card, color:t.text, outline:"none", fontFamily:"inherit" }} />
+            <input value={ni} onChange={e=>setNi(e.target.value)} onKeyDown={e => e.key==="Enter" && add(field)} autoFocus placeholder="Nombre..." style={{ width:110, padding:"5px 10px", borderRadius:16, fontSize:16, border:`1.5px solid ${color}`, background:t.card, color:t.text, outline:"none", fontFamily:"inherit" }} />
             <button onClick={() => add(field)} style={{ padding:"5px 10px", borderRadius:16, fontSize:11, fontWeight:700, border:"none", background:color, color:"#fff", cursor:"pointer" }}>+</button>
             <button onClick={() => { setEditing(null); setNi(""); }} style={{ padding:"5px 8px", borderRadius:16, fontSize:11, border:`1px solid ${t.border}`, background:t.card, color:t.muted, cursor:"pointer" }}>✕</button>
           </div>
@@ -3232,7 +3251,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
         {/* Search */}
         <div style={{ position:"relative", marginBottom:10 }}>
           <span style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", fontSize:15 }}>🔍</span>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder='Buscar...' style={{ width:"100%", padding:"12px 40px 12px 40px", borderRadius:14, border:`1px solid ${search?t.accent:t.border}`, background:t.card, color:t.text, fontSize:14, outline:"none", fontFamily:"inherit", transition:"border 0.2s" }} />
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder='Buscar...' style={{ width:"100%", padding:"12px 40px 12px 40px", borderRadius:14, border:`1px solid ${search?t.accent:t.border}`, background:t.card, color:t.text, fontSize:16, outline:"none", fontFamily:"inherit", transition:"border 0.2s" }} />
           {search && <button onClick={() => setSearch("")} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", background:t.surface, border:`1px solid ${t.border}`, borderRadius:10, width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, color:t.muted }}>✕</button>}
         </div>
         {/* Toggle */}
@@ -3323,7 +3342,14 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
       {view === "products" && (
         <div style={{ flex:1, overflow:"auto", padding:"8px 16px 100px" }}>
           {filtered.length === 0 && (
-            <Empty icon={products.length===0?"📸":"🔍"} title={products.length===0?"Empezá a escanear":"Sin resultados"} sub={products.length===0?"Tocá + para capturar tu primer producto":null} t={t} />
+            <>
+              <Empty icon={products.length===0?"📸":"🔍"} title={products.length===0?"Empezá a escanear":"Sin resultados"} sub={products.length===0?"Tocá + para capturar tu primer producto":null} t={t} />
+              {products.length > 0 && filterDistrict !== "all" && (
+                <button onClick={() => setFilterDistrict("all")} style={{ display:"block", margin:"0 auto", padding:"10px 20px", borderRadius:12, border:`1px solid ${t.accent}40`, background:t.accent+"10", color:t.accent, fontSize:13, fontWeight:600, cursor:"pointer" }}>
+                  Ver todas las ferias ({products.length} productos)
+                </button>
+              )}
+            </>
           )}
           {!selectMode && filtered.length > 1 && (
             <button onClick={() => setSelectMode(true)} style={{ width:"100%", padding:"6px", borderRadius:8, border:`1px dashed ${t.border}`, background:"transparent", color:t.dim, fontSize:11, cursor:"pointer", marginBottom:6 }}>☑ Seleccionar varios</button>
@@ -4155,6 +4181,12 @@ export default function App() {
     showToast(`Feria creada: ${d.name}`);
   };
 
+  const handleUpdateDistrict = async (id, changes) => {
+    await dbUpdateDistrict(id, changes);
+    await reloadAll();
+    showToast("Feria actualizada");
+  };
+
   const handleDeleteDistrict = async (id) => {
     // Delete all products and suppliers in this district first
     const distProducts = products.filter(p => p.districtId === id);
@@ -4262,7 +4294,7 @@ export default function App() {
       )}
       {screen === "districts" && (
         <DistrictsScreen districts={districts} activeDistrictId={activeDistrictId} products={products}
-          onActivate={switchDistrict} onAdd={handleAddDistrict} onDelete={handleDeleteDistrict}
+          onActivate={switchDistrict} onAdd={handleAddDistrict} onUpdate={handleUpdateDistrict} onDelete={handleDeleteDistrict}
           onBack={() => navigate("list")} t={t} />
       )}
       {screen === "settings" && (

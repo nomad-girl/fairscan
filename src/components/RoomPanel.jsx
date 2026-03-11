@@ -3,11 +3,6 @@ import { useState } from 'react';
 /**
  * RoomPanel: UI for cloud sync room management.
  * Shown inside SettingsScreen.
- *
- * States:
- * - Not configured: Supabase not set up
- * - No room: Create or join a room
- * - In room: Show code, sync status, leave option
  */
 export default function RoomPanel({ sync, t }) {
   const [joinCode, setJoinCode] = useState('');
@@ -64,9 +59,9 @@ export default function RoomPanel({ sync, t }) {
       </p>
 
       {/* ERROR */}
-      {sync.error && (
+      {(sync.error || sync.lastError) && (
         <div style={{ padding: '8px 12px', borderRadius: 10, background: t.red + '20', border: `1px solid ${t.red}30`, marginBottom: 8 }}>
-          <p style={{ fontSize: 12, color: t.red, margin: 0 }}>{sync.error}</p>
+          <p style={{ fontSize: 12, color: t.red, margin: 0 }}>{sync.error || sync.lastError}</p>
           <button onClick={sync.clearError} style={{ fontSize: 11, color: t.red, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0', textDecoration: 'underline' }}>Cerrar</button>
         </div>
       )}
@@ -92,7 +87,7 @@ export default function RoomPanel({ sync, t }) {
           </div>
 
           {/* Sync status */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <div style={{
               width: 8, height: 8, borderRadius: '50%',
               background: sync.isSyncing ? t.yellow : (sync.isOnline ? t.green : t.red),
@@ -103,6 +98,23 @@ export default function RoomPanel({ sync, t }) {
               {sync.lastSyncAt && !sync.isSyncing ? ` · Último sync ${timeSince(sync.lastSyncAt)}` : ''}
             </span>
           </div>
+
+          {/* Last pull counts */}
+          {sync.lastPullCounts && !sync.isSyncing && (
+            <p style={{ fontSize: 11, color: t.dim, margin: '0 0 12px' }}>
+              Último pull: {sync.lastPullCounts.districts}F, {sync.lastPullCounts.suppliers}P, {sync.lastPullCounts.products} prod.
+            </p>
+          )}
+
+          {/* Force re-sync */}
+          <button onClick={sync.forceSync} disabled={sync.isLoading || sync.isSyncing} style={{
+            width: '100%', padding: '10px', borderRadius: 10, marginBottom: 8,
+            border: `1px solid ${t.accent}40`, background: t.accent + '10',
+            color: t.accent, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            opacity: (sync.isLoading || sync.isSyncing) ? 0.5 : 1,
+          }}>
+            {sync.isSyncing ? '⏳ Sincronizando...' : '🔄 Forzar re-sincronización'}
+          </button>
 
           {/* Leave room */}
           <button onClick={sync.leaveRoom} disabled={sync.isLoading} style={{

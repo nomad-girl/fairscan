@@ -56,6 +56,8 @@ class SyncEngine {
       isOnline: this.isOnline,
       isSyncing: this.isSyncing,
       lastSyncAt: this.lastSyncAt,
+      lastError: this.lastError || null,
+      lastPullCounts: this.lastPullCounts || null,
     };
   }
 
@@ -257,16 +259,34 @@ class SyncEngine {
     try {
       // Push in order: districts → suppliers → products (FK dependencies)
       for (const table of ['districts', 'suppliers', 'products']) {
+        // First, get existing cloud UUIDs for this room to avoid re-pushing
+        // records we just pulled (which would overwrite their device_id)
+        let cloudIds = new Set();
+        try {
+          const { data: existing } = await supabase
+            .from(table)
+            .select('id')
+            .eq('room_id', this.roomId);
+          cloudIds = new Set((existing || []).map(r => r.id));
+        } catch (err) {
+          console.warn(`⚠️ Could not fetch existing ${table} IDs:`, err);
+        }
+
         const records = await db.table(table).toArray();
+        let pushed = 0;
         for (const record of records) {
           if (!record.uuid) continue;
+          // Skip records already in the cloud (pulled from other devices)
+          if (cloudIds.has(record.uuid)) continue;
           const cloudRecord = idMapper.toCloud(table, record, this.roomId);
           try {
             await supabase.from(table).upsert(cloudRecord, { onConflict: 'id' });
+            pushed++;
           } catch (err) {
             console.warn(`⚠️ Push failed for ${table}/${record.uuid}:`, err);
           }
         }
+        if (pushed > 0) console.log(`☁️ Pushed ${pushed} ${table} to cloud`);
       }
       this.lastSyncAt = Date.now();
     } finally {
@@ -282,7 +302,11 @@ class SyncEngine {
     if (!this.roomId || !isSupabaseConfigured()) return;
 
     this.isSyncing = true;
+    this.lastError = null;
     this._notify();
+
+    const counts = { districts: 0, suppliers: 0, products: 0 };
+    const errors = [];
 
     try {
       for (const table of ['districts', 'suppliers', 'products']) {
@@ -294,19 +318,30 @@ class SyncEngine {
 
         if (error) {
           console.warn(`⚠️ Pull failed for ${table}:`, error);
+          errors.push(`${table}: ${error.message}`);
           continue;
         }
 
         for (const cloudRecord of (data || [])) {
           await this._applyCloudRecord(table, cloudRecord);
+          counts[table]++;
         }
       }
 
+      console.log(`☁️ Pulled: ${counts.districts}D, ${counts.suppliers}S, ${counts.products}P`);
+
+      if (errors.length > 0) {
+        this.lastError = `Sync parcial: ${errors.join(', ')}`;
+      }
+
       this.lastSyncAt = Date.now();
+      this.lastPullCounts = counts;
       if (this._reloadCallback) await this._reloadCallback();
+    } catch (err) {
+      this.lastError = `Error de sync: ${err.message}`;
+      console.warn('⚠️ pullAll error:', err);
     } finally {
       this.isSyncing = false;
-      // #9: Single notification at end, not per-record
       this._notify();
     }
   }
