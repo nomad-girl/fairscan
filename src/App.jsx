@@ -3723,21 +3723,27 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onDelete, onNavi
           {supplierProducts.length === 0 ? (
             <p style={{ fontSize:13, color:t.dim, textAlign:"center", padding:20 }}>No hay productos vinculados aún</p>
           ) : (
-            supplierProducts.map(p => (
-              <button key={p.id} onClick={() => onNavigateProduct(p)}
-                style={{ display:"flex", alignItems:"center", gap:12, width:"100%", background:t.card, border:`1px solid ${t.border}`, borderRadius:14, padding:12, marginBottom:8, cursor:"pointer", textAlign:"left" }}>
-                {p.photos?.[0] ? (
-                  <img src={p.photos[0]} alt="" style={{ width:50, height:50, borderRadius:10, objectFit:"cover" }} />
-                ) : (
-                  <div style={{ width:50, height:50, borderRadius:10, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>📦</div>
-                )}
-                <div style={{ flex:1 }}>
-                  <p style={{ fontSize:14, fontWeight:600, color:t.text, margin:0, marginBottom:2 }}>{p.name || "Sin nombre"}</p>
-                  <p style={{ fontSize:12, color:t.green, fontWeight:700, margin:0 }}>{p.price ? `USD ${p.price}` : "Sin precio"}</p>
-                </div>
-                <span style={{ fontSize:16, color:t.dim }}>→</span>
-              </button>
-            ))
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:3, borderRadius:12, overflow:"hidden" }}>
+              {supplierProducts.map((p, i) => (
+                <button key={p.id} onClick={() => onNavigateProduct(p)} style={{
+                  background:t.card, border:"none", borderRadius:0, overflow:"hidden", cursor:"pointer", textAlign:"left", padding:0,
+                  animation:`fadeIn 0.2s ease ${Math.min(i*0.015, 0.3)}s both`, position:"relative", aspectRatio:"1",
+                }}>
+                  {p.photos?.[0] ? (
+                    <img src={p.photos[0]} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                  ) : (
+                    <div style={{ width:"100%", height:"100%", background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>📷</div>
+                  )}
+                  <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"16px 6px 4px", background:"linear-gradient(transparent, rgba(0,0,0,0.7))" }}>
+                    <p style={{ fontSize:10, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", margin:0, textShadow:"0 1px 3px rgba(0,0,0,0.5)" }}>
+                      {p.name || "..."}
+                    </p>
+                    {p.price && <span style={{ fontSize:11, fontWeight:800, color:"#4ade80" }}>${p.price}</span>}
+                  </div>
+                  {p.photos?.length > 1 && <div style={{ position:"absolute", top:4, left:4, padding:"2px 5px", borderRadius:6, background:"rgba(0,0,0,0.5)", fontSize:9, color:"#fff", fontWeight:700 }}>{p.photos.length}</div>}
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
