@@ -3541,19 +3541,23 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
                     <a href={g.supplier.wechatLink || "#"} target="_blank" rel="noopener" onClick={e => { e.stopPropagation(); if (!g.supplier.wechatLink) { e.preventDefault(); navigator.clipboard?.writeText(g.supplier.wechat).then(() => {}); }}} style={{ width:36, height:36, borderRadius:10, background:"#07C16020", border:"1px solid #07C16040", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, textDecoration:"none", flexShrink:0 }} title={g.supplier.wechat ? `WeChat: ${g.supplier.wechat}` : ""}>🟢</a>
                   )}
                 </div>
-                {g.products.map(p => (
-                  <button key={p.id} onClick={() => onNavigate("detail", p)} style={{ width:"100%", textAlign:"left", display:"flex", alignItems:"center", gap:8, padding:"8px 10px", borderRadius:10, background:t.surface, border:`1px solid ${t.border}`, marginBottom:4, cursor:"pointer" }}>
-                    {p.photos?.[0] ? <img src={p.photos[0]} alt="" style={{ width:32, height:32, borderRadius:6, objectFit:"cover" }} /> : <div style={{ width:32, height:32, borderRadius:6, background:t.card, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, border:`1px solid ${t.border}` }}>📷</div>}
-                    <div style={{ display:"flex", alignItems:"center", gap:4, flex:1, minWidth:0 }}>
-                      <p style={{ fontSize:12, fontWeight:600, color:t.text, flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", margin:0 }}>{p.name || "Procesando..."}</p>
-                      {!p.ai_processed && <div title="Pendiente IA" style={{ width:6, height:6, borderRadius:"50%", background:"#ff9800", boxShadow:"0 0 4px #ff980080", flexShrink:0 }} />}
-                    </div>
-                    <div style={{ textAlign:"right", flexShrink:0 }}>
-                      {p.price && <span style={{ fontSize:12, fontWeight:700, color:t.green }}>USD {p.price}</span>}
-                      {p.costTotal && <span style={{ fontSize:10, color:t.accent, display:"block" }}>→ {p.costTotal}</span>}
-                    </div>
-                  </button>
-                ))}
+                {g.products.length > 0 && (
+                  <div style={{ display:"flex", gap:3, overflowX:"auto", scrollbarWidth:"none", paddingBottom:2 }}>
+                    {g.products.map(p => (
+                      <button key={p.id} onClick={() => onNavigate("detail", p)} style={{
+                        width:56, height:56, flexShrink:0, borderRadius:8, overflow:"hidden", border:"none",
+                        cursor:"pointer", padding:0, position:"relative", background:t.surface,
+                      }}>
+                        {p.photos?.[0] ? (
+                          <img src={p.photos[0]} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                        ) : (
+                          <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, background:t.surface }}>📷</div>
+                        )}
+                        {p.price && <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"1px 2px", background:"rgba(0,0,0,0.6)", fontSize:8, fontWeight:700, color:"#4ade80", textAlign:"center" }}>${p.price}</div>}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -3594,9 +3598,28 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onDelete, onNavi
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState({ ...supplier });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [swiperIdx, setSwiperIdx] = useState(null);
+  const swiperRef = useRef(null);
 
   const supplierProducts = products.filter(p => p.supplierId === supplier.id);
   const avgRating = supplierProducts.length > 0 ? supplierProducts.reduce((a,p) => a + (p.rating||0), 0) / supplierProducts.length : 0;
+
+  // Build flat array of all photos with product reference for the swiper
+  const allPhotos = useMemo(() => {
+    const arr = [];
+    supplierProducts.forEach(p => {
+      (p.photos || []).forEach(photo => arr.push({ photo, product: p }));
+    });
+    return arr;
+  }, [supplierProducts]);
+
+  // Scroll swiper to initial photo when opened
+  useEffect(() => {
+    if (swiperIdx !== null && swiperRef.current) {
+      const el = swiperRef.current;
+      requestAnimationFrame(() => { el.scrollLeft = swiperIdx * el.offsetWidth; });
+    }
+  }, [swiperIdx !== null]); // only on open/close
 
   const handleBack = () => {
     if (editing) { setEditing(false); setEditData({ ...supplier }); }
@@ -3724,25 +3747,28 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onDelete, onNavi
             <p style={{ fontSize:13, color:t.dim, textAlign:"center", padding:20 }}>No hay productos vinculados aún</p>
           ) : (
             <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:3, borderRadius:12, overflow:"hidden" }}>
-              {supplierProducts.map((p, i) => (
-                <button key={p.id} onClick={() => onNavigateProduct(p)} style={{
-                  background:t.card, border:"none", borderRadius:0, overflow:"hidden", cursor:"pointer", textAlign:"left", padding:0,
-                  animation:`fadeIn 0.2s ease ${Math.min(i*0.015, 0.3)}s both`, position:"relative", aspectRatio:"1",
-                }}>
-                  {p.photos?.[0] ? (
-                    <img src={p.photos[0]} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
-                  ) : (
-                    <div style={{ width:"100%", height:"100%", background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>📷</div>
-                  )}
-                  <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"16px 6px 4px", background:"linear-gradient(transparent, rgba(0,0,0,0.7))" }}>
-                    <p style={{ fontSize:10, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", margin:0, textShadow:"0 1px 3px rgba(0,0,0,0.5)" }}>
-                      {p.name || "..."}
-                    </p>
-                    {p.price && <span style={{ fontSize:11, fontWeight:800, color:"#4ade80" }}>${p.price}</span>}
-                  </div>
-                  {p.photos?.length > 1 && <div style={{ position:"absolute", top:4, left:4, padding:"2px 5px", borderRadius:6, background:"rgba(0,0,0,0.5)", fontSize:9, color:"#fff", fontWeight:700 }}>{p.photos.length}</div>}
-                </button>
-              ))}
+              {supplierProducts.map((p, i) => {
+                const photoIdx = allPhotos.findIndex(x => x.product.id === p.id);
+                return (
+                  <button key={p.id} onClick={() => { if (photoIdx >= 0) { setSwiperIdx(photoIdx); } else { onNavigateProduct(p); } }} style={{
+                    background:t.card, border:"none", borderRadius:0, overflow:"hidden", cursor:"pointer", textAlign:"left", padding:0,
+                    animation:`fadeIn 0.2s ease ${Math.min(i*0.015, 0.3)}s both`, position:"relative", aspectRatio:"1",
+                  }}>
+                    {p.photos?.[0] ? (
+                      <img src={p.photos[0]} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                    ) : (
+                      <div style={{ width:"100%", height:"100%", background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>📷</div>
+                    )}
+                    <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"16px 6px 4px", background:"linear-gradient(transparent, rgba(0,0,0,0.7))" }}>
+                      <p style={{ fontSize:10, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", margin:0, textShadow:"0 1px 3px rgba(0,0,0,0.5)" }}>
+                        {p.name || "..."}
+                      </p>
+                      {p.price && <span style={{ fontSize:11, fontWeight:800, color:"#4ade80" }}>${p.price}</span>}
+                    </div>
+                    {p.photos?.length > 1 && <div style={{ position:"absolute", top:4, left:4, padding:"2px 5px", borderRadius:6, background:"rgba(0,0,0,0.5)", fontSize:9, color:"#fff", fontWeight:700 }}>{p.photos.length}</div>}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -3798,6 +3824,45 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onDelete, onNavi
           </div>
         )}
       </div>
+
+      {/* FULL-SCREEN PHOTO SWIPER */}
+      {swiperIdx !== null && allPhotos.length > 0 && (() => {
+        const cur = allPhotos[swiperIdx];
+        return (
+          <div style={{ position:"fixed", inset:0, zIndex:200, background:"rgba(0,0,0,0.95)", display:"flex", flexDirection:"column" }}>
+            {/* Top bar */}
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 16px", paddingTop:"calc(12px + env(safe-area-inset-top, 0px))", flexShrink:0 }}>
+              <button onClick={() => setSwiperIdx(null)} style={{ background:"rgba(255,255,255,0.15)", border:"none", borderRadius:10, padding:"8px 14px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>✕ Cerrar</button>
+              <span style={{ fontSize:12, color:"rgba(255,255,255,0.6)", fontWeight:600 }}>{swiperIdx + 1} / {allPhotos.length}</span>
+              <button onClick={() => onNavigateProduct(cur.product)} style={{ background:"rgba(255,255,255,0.15)", border:"none", borderRadius:10, padding:"8px 14px", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>Ver detalle →</button>
+            </div>
+            {/* Swipeable photos */}
+            <div ref={swiperRef} onScroll={e => {
+              const el = e.target;
+              const idx = Math.round(el.scrollLeft / el.offsetWidth);
+              if (idx !== swiperIdx && idx >= 0 && idx < allPhotos.length) setSwiperIdx(idx);
+            }} style={{
+              flex:1, display:"flex", overflowX:"auto", scrollSnapType:"x mandatory",
+              WebkitOverflowScrolling:"touch", scrollbarWidth:"none",
+            }}>
+              {allPhotos.map((item, i) => (
+                <div key={i} style={{ width:"100%", flexShrink:0, scrollSnapAlign:"start", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  <img src={item.photo} alt="" style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain" }} />
+                </div>
+              ))}
+            </div>
+            {/* Product info bar */}
+            <div style={{ padding:"12px 16px", paddingBottom:"calc(12px + env(safe-area-inset-bottom, 0px))", background:"rgba(0,0,0,0.8)", flexShrink:0 }}>
+              <p style={{ fontSize:15, fontWeight:700, color:"#fff", margin:"0 0 2px" }}>{cur.product.name || "Sin nombre"}</p>
+              <div style={{ display:"flex", gap:12, alignItems:"center" }}>
+                {cur.product.price && <span style={{ fontSize:14, fontWeight:800, color:"#4ade80" }}>USD {cur.product.price}</span>}
+                {cur.product.moq && <span style={{ fontSize:12, color:"rgba(255,255,255,0.6)" }}>MOQ: {cur.product.moq}</span>}
+                {cur.product.notes && <span style={{ fontSize:11, color:"rgba(255,255,255,0.5)", flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>📝 {cur.product.notes}</span>}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
