@@ -1073,38 +1073,26 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
 // PRODUCT DETAIL
 // ═══════════════════════════════════════════
 function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, onUpdate, onCalc, onDelete, onNavigateSupplier, t, isDark, settings }) {
-  const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [editName, setEditName] = useState(p.name || "");
-  const [editPrice, setEditPrice] = useState(p.price || "");
-  const [editMoq, setEditMoq] = useState(p.moq || "");
-  const [editNotes, setEditNotes] = useState(p.notes || "");
-  const [editCategory, setEditCategory] = useState(p.category || "");
-  const [editMaterial, setEditMaterial] = useState(p.material || []);
-  const [editSupplierId, setEditSupplierId] = useState(p.supplierId || null);
+  const [showDetails, setShowDetails] = useState(false);
+  const [showSupplierPicker, setShowSupplierPicker] = useState(false);
   const [activePhoto, setActivePhoto] = useState(0);
   const photoScrollRef = useRef(null);
-  const supplier = suppliers.find(s => s.id === (editing ? editSupplierId : p.supplierId));
+  const notesRef = useRef(null);
+  const supplier = suppliers.find(s => s.id === p.supplierId);
   const district = districts.find(d => d.id === p.districtId);
-  const supplierProducts = allProducts.filter(pr => pr.supplierId === p.supplierId);
-  const avgRating = supplierProducts.length > 0 ? supplierProducts.reduce((a,pr) => a + (pr.rating||0), 0) / supplierProducts.length : 0;
 
   const categories = settings?.categories || [];
   const materials = settings?.materials || [];
 
-  const saveEdits = () => {
-    const newSupplier = suppliers.find(s => s.id === editSupplierId);
-    onUpdate(p.id, {
-      name: editName.trim() || p.name,
-      price: editPrice.trim(),
-      moq: editMoq.trim(),
-      notes: editNotes.trim(),
-      category: editCategory || null,
-      material: editMaterial,
-      supplierId: editSupplierId,
-      supplierCompany: newSupplier?.company || null,
-    });
-    setEditing(false);
+  // Inline save helper - saves a single field immediately
+  const save = (field, value) => {
+    const updates = { [field]: value };
+    if (field === "supplierId") {
+      const newSup = suppliers.find(s => s.id === value);
+      updates.supplierCompany = newSup?.company || null;
+    }
+    onUpdate(p.id, updates);
   };
 
   const inp = (extra = {}) => ({
@@ -1115,13 +1103,7 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
 
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
-      <Header title={p.name || "Producto"} subtitle={supplier?.company} onBack={onBack} t={t}
-        right={<div style={{ display:"flex", gap:6 }}>
-          <button onClick={() => { if(editing) saveEdits(); else setEditing(true); }} style={{ background:editing?t.accent+"20":"transparent", border:`1px solid ${editing?t.accent:t.border}`, borderRadius:8, padding:"5px 10px", color:editing?t.accent:t.muted, fontSize:12, fontWeight:700, cursor:"pointer" }}>
-            {editing ? "✓ Listo" : "✏️ Editar"}
-          </button>
-        </div>}
-      />
+      <Header title={p.name || "Producto"} subtitle={supplier?.company} onBack={onBack} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"0 0 80px" }}>
         <>
           {/* SWIPEABLE PHOTO CAROUSEL */}
@@ -1188,109 +1170,59 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
             </div>
           )}
 
-          <div style={{ padding:"12px 20px 0" }}>
-          {editing ? <>
-            {/* EDIT MODE */}
-            <p style={{ fontSize:10, fontWeight:700, color:t.accent, margin:"0 0 8px", textTransform:"uppercase" }}>✏️ Editando producto</p>
+          {/* ═══ INLINE EDITABLE FIELDS (the important stuff) ═══ */}
+          <div style={{ padding:"16px 20px 0" }}>
 
-            <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px" }}>Nombre</p>
-            <input value={editName} onChange={e => setEditName(e.target.value)} placeholder="Nombre del producto" style={inp({ marginBottom:10 })} />
+            {/* Product name - editable inline */}
+            <input
+              defaultValue={p.name || ""}
+              onBlur={e => { const v = e.target.value.trim(); if (v !== (p.name || "")) save("name", v || p.name); }}
+              placeholder="Nombre del producto"
+              style={{ ...inp({ fontSize:18, fontWeight:700, border:"none", background:"transparent", padding:"0 0 8px", borderBottom:`1px solid ${t.border}` }) }}
+            />
 
-            <div style={{ display:"flex", gap:10, marginBottom:10 }}>
+            {/* Price + MOQ row */}
+            <div style={{ display:"flex", gap:10, marginTop:12 }}>
               <div style={{ flex:1 }}>
-                <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px" }}>Precio USD</p>
-                <input value={editPrice} onChange={e => setEditPrice(e.target.value.replace(/[^0-9.,]/g,"").replace(",","."))} inputMode="decimal" style={inp({ color:t.green, fontWeight:700 })} />
+                <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px", fontWeight:600 }}>💰 Precio USD</p>
+                <input
+                  defaultValue={p.price || ""}
+                  onBlur={e => { const v = e.target.value.trim(); if (v !== (p.price || "")) save("price", v); }}
+                  onChange={e => { e.target.value = e.target.value.replace(/[^0-9.,]/g,"").replace(",","."); }}
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  style={inp({ color:t.green, fontWeight:700, fontSize:18 })}
+                />
               </div>
               <div style={{ flex:1 }}>
-                <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px" }}>MOQ</p>
-                <input value={editMoq} onChange={e => setEditMoq(e.target.value.replace(/[^0-9]/g,""))} inputMode="numeric" style={inp()} />
+                <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px", fontWeight:600 }}>📦 MOQ</p>
+                <input
+                  defaultValue={p.moq || ""}
+                  onBlur={e => { const v = e.target.value.trim(); if (v !== (p.moq || "")) save("moq", v); }}
+                  onChange={e => { e.target.value = e.target.value.replace(/[^0-9]/g,""); }}
+                  inputMode="numeric"
+                  placeholder="Min."
+                  style={inp({ fontSize:18, fontWeight:700 })}
+                />
               </div>
             </div>
 
-            <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px" }}>Proveedor</p>
-            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 }}>
-              <button onClick={() => setEditSupplierId(null)} style={{
-                padding:"6px 12px", borderRadius:16, fontSize:11, fontWeight:600, cursor:"pointer",
-                border:`1.5px solid ${!editSupplierId?t.accent:t.border}`,
-                background:!editSupplierId?t.accentSoft:"transparent",
-                color:!editSupplierId?t.accent:t.muted,
-              }}>Sin proveedor</button>
-              {suppliers.map(s => (
-                <button key={s.id} onClick={() => setEditSupplierId(s.id)} style={{
-                  padding:"6px 12px", borderRadius:16, fontSize:11, fontWeight:600, cursor:"pointer",
-                  border:`1.5px solid ${editSupplierId===s.id?t.accent:t.border}`,
-                  background:editSupplierId===s.id?t.accentSoft:"transparent",
-                  color:editSupplierId===s.id?t.accent:t.muted,
-                }}>{s.company || `#${s.id}`}</button>
-              ))}
+            {/* Notes - editable inline */}
+            <div style={{ marginTop:12 }}>
+              <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px", fontWeight:600 }}>📝 Notas</p>
+              <textarea
+                ref={notesRef}
+                defaultValue={p.notes || ""}
+                onBlur={e => { const v = e.target.value.trim(); if (v !== (p.notes || "")) save("notes", v); }}
+                rows={2}
+                placeholder="Notas: compra mín., pagos, descuentos, detalles..."
+                style={{ ...inp(), resize:"vertical", lineHeight:1.5, fontSize:14 }}
+              />
             </div>
 
-            <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px" }}>Categoría</p>
-            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 }}>
-              {categories.map(c => (
-                <button key={c} onClick={() => setEditCategory(editCategory===c?"":c)} style={{
-                  padding:"6px 12px", borderRadius:16, fontSize:11, fontWeight:600, cursor:"pointer",
-                  border:`1.5px solid ${editCategory===c?t.blue:t.border}`,
-                  background:editCategory===c?t.blueSoft:"transparent",
-                  color:editCategory===c?t.blue:t.muted,
-                }}>{c}</button>
-              ))}
-            </div>
-
-            <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px" }}>Material</p>
-            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 }}>
-              {materials.map(m => (
-                <button key={m} onClick={() => setEditMaterial(prev => prev.includes(m) ? prev.filter(x=>x!==m) : [...prev, m])} style={{
-                  padding:"6px 12px", borderRadius:16, fontSize:11, fontWeight:600, cursor:"pointer",
-                  border:`1.5px solid ${editMaterial.includes(m)?t.green:t.border}`,
-                  background:editMaterial.includes(m)?t.greenSoft:"transparent",
-                  color:editMaterial.includes(m)?t.green:t.muted,
-                }}>{m}</button>
-              ))}
-            </div>
-
-            <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px" }}>Notas</p>
-            <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={3} placeholder="Notas sobre el producto..."
-              style={{ ...inp(), resize:"vertical", lineHeight:1.5, marginBottom:10 }} />
-
-            <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>⭐ Rating</p>
-            <Stars value={p.rating || 0} onChange={r => onUpdate(p.id, { rating: r })} size={28} t={t} />
-
-            {/* Delete */}
-            <div style={{ marginTop:24, borderTop:`1px solid ${t.border}`, paddingTop:16 }}>
-              {!confirmDelete ? (
-                <button onClick={() => setConfirmDelete(true)} style={{
-                  width:"100%", padding:"12px", borderRadius:12, border:`1.5px solid ${t.red}40`,
-                  background:"transparent", color:t.red, fontSize:13, fontWeight:700, cursor:"pointer",
-                }}>🗑 Eliminar producto</button>
-              ) : (
-                <div style={{ background:t.redSoft, borderRadius:14, padding:14, border:`1.5px solid ${t.red}40` }}>
-                  <p style={{ fontSize:13, fontWeight:700, color:t.red, margin:"0 0 10px", textAlign:"center" }}>¿Seguro? Esta acción no se puede deshacer.</p>
-                  <div style={{ display:"flex", gap:10 }}>
-                    <button onClick={() => setConfirmDelete(false)} style={{ flex:1, padding:"10px", borderRadius:10, border:`1px solid ${t.border}`, background:t.card, color:t.text, fontSize:13, fontWeight:600, cursor:"pointer" }}>Cancelar</button>
-                    <button onClick={() => onDelete(p.id)} style={{ flex:1, padding:"10px", borderRadius:10, border:"none", background:t.red, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>Sí, eliminar</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </> : <>
-            {/* VIEW MODE */}
-            {/* Category + Material tags */}
-            {(p.category || p.material?.length > 0) && (
-              <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:10 }}>
-                {p.category && <span style={{ fontSize:11, fontWeight:600, padding:"4px 10px", borderRadius:10, background:t.blueSoft, color:t.blue }}>🏷 {p.category}</span>}
-                {p.material?.map(m => <span key={m} style={{ fontSize:11, fontWeight:600, padding:"4px 10px", borderRadius:10, background:t.greenSoft, color:t.green }}>🏺 {m}</span>)}
-              </div>
-            )}
-
-            {/* Rating */}
-            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
-              <Stars value={p.rating || 0} onChange={r => onUpdate(p.id, { rating: r })} size={28} t={t} />
-            </div>
-
-            {/* Audio + Transcription - TUS notas de voz */}
+            {/* Audio + Transcription */}
             {(p.audioURL || p.audioTranscript) && (
-              <div style={{ background:t.card, borderRadius:14, padding:12, marginBottom:10, border:`1px solid ${t.accent}20` }}>
+              <div style={{ background:t.card, borderRadius:14, padding:12, marginTop:12, border:`1px solid ${t.accent}20` }}>
                 <p style={{ fontSize:10, fontWeight:700, color:t.accent, margin:"0 0 8px" }}>🎙 Tu nota de voz</p>
                 {p.audioURL && <audio src={p.audioURL} controls style={{ width:"100%", height:36 }} />}
                 {p.audioTranscript && (
@@ -1301,91 +1233,172 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
                 )}
               </div>
             )}
-            {/* Written notes */}
-            {p.notes && (
-              <div style={{ background:t.card, borderRadius:14, padding:12, marginBottom:10, border:`1px solid ${t.border}` }}>
-                <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 4px" }}>📝 Notas</p>
-                <p style={{ fontSize:13, color:t.text, margin:0, lineHeight:1.6 }}>{p.notes}</p>
-              </div>
-            )}
-            {/* Context */}
+
+            {/* Supplier section */}
+            <div style={{ marginTop:14 }}>
+              <p style={{ fontSize:10, color:t.muted, margin:"0 0 6px", fontWeight:600 }}>🏭 Proveedor</p>
+              {supplier ? (
+                <div>
+                  <button onClick={() => onNavigateSupplier && onNavigateSupplier(supplier)} style={{
+                    width:"100%", background:t.card, borderRadius:12, padding:"10px 12px", border:`1px solid ${t.border}`,
+                    cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:10,
+                  }}>
+                    {supplier.cardPhoto ? (
+                      <img src={supplier.cardPhoto} alt="" style={{ width:40, height:40, borderRadius:10, objectFit:"cover", border:`1px solid ${t.border}` }} />
+                    ) : (
+                      <div style={{ width:40, height:40, borderRadius:10, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, border:`1px solid ${t.border}` }}>🏭</div>
+                    )}
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:13, fontWeight:700, color:t.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{supplier.company}</div>
+                      {supplier.contact && <div style={{ fontSize:11, color:t.muted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{supplier.contact}</div>}
+                    </div>
+                    <span style={{ fontSize:12, color:t.accent, fontWeight:700, flexShrink:0 }}>Ver →</span>
+                  </button>
+                  <div style={{ display:"flex", gap:6, marginTop:6 }}>
+                    <button onClick={() => setShowSupplierPicker(v => !v)} style={{
+                      flex:1, padding:"6px", borderRadius:8, border:`1px solid ${t.border}`,
+                      background:"transparent", color:t.muted, fontSize:11, fontWeight:600, cursor:"pointer",
+                    }}>🔄 Cambiar</button>
+                    <button onClick={() => save("supplierId", null)} style={{
+                      flex:1, padding:"6px", borderRadius:8, border:`1px solid ${t.red}30`,
+                      background:"transparent", color:t.red, fontSize:11, fontWeight:600, cursor:"pointer",
+                    }}>✕ Quitar</button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => setShowSupplierPicker(v => !v)} style={{
+                  width:"100%", padding:"10px 12px", borderRadius:12, border:`1.5px dashed ${t.border}`,
+                  background:"transparent", color:t.muted, fontSize:12, fontWeight:600, cursor:"pointer",
+                  display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+                }}>
+                  🏭 Asignar proveedor
+                </button>
+              )}
+              {/* Inline supplier picker */}
+              {showSupplierPicker && (
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8, padding:8, background:t.surface, borderRadius:10, border:`1px solid ${t.border}` }}>
+                  <button onClick={() => { save("supplierId", null); setShowSupplierPicker(false); }} style={{
+                    padding:"6px 12px", borderRadius:16, fontSize:11, fontWeight:600, cursor:"pointer",
+                    border:`1.5px solid ${!p.supplierId?t.accent:t.border}`,
+                    background:!p.supplierId?t.accentSoft:"transparent",
+                    color:!p.supplierId?t.accent:t.muted,
+                  }}>Sin proveedor</button>
+                  {suppliers.map(s => (
+                    <button key={s.id} onClick={() => { save("supplierId", s.id); setShowSupplierPicker(false); }} style={{
+                      padding:"6px 12px", borderRadius:16, fontSize:11, fontWeight:600, cursor:"pointer",
+                      border:`1.5px solid ${p.supplierId===s.id?t.accent:t.border}`,
+                      background:p.supplierId===s.id?t.accentSoft:"transparent",
+                      color:p.supplierId===s.id?t.accent:t.muted,
+                    }}>{s.company || `#${s.id}`}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Context: district + date */}
             {district && (
-              <div style={{ background:t.card, borderRadius:12, padding:"10px 12px", border:`1px solid ${t.border}`, marginBottom:10, display:"flex", alignItems:"center", gap:8 }}>
+              <div style={{ background:t.card, borderRadius:12, padding:"10px 12px", border:`1px solid ${t.border}`, marginTop:12, display:"flex", alignItems:"center", gap:8 }}>
                 <span style={{ fontSize:16 }}>{district.emoji}</span>
                 <div><p style={{ fontSize:11, fontWeight:600, color:t.text, margin:0 }}>{district.name}</p>
                 <p style={{ fontSize:10, color:t.muted, margin:0 }}>{new Date(p.createdAt).toLocaleString("es-AR", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" })}</p></div>
               </div>
             )}
-            {/* Supplier inline card */}
-            {supplier ? (
-              <div style={{ marginBottom:10 }}>
-                <button onClick={() => onNavigateSupplier && onNavigateSupplier(supplier)} style={{
-                  width:"100%", background:t.card, borderRadius:12, padding:"10px 12px", border:`1px solid ${t.border}`,
-                  cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:10,
-                }}>
-                  {supplier.cardPhoto ? (
-                    <img src={supplier.cardPhoto} alt="" style={{ width:40, height:40, borderRadius:10, objectFit:"cover", border:`1px solid ${t.border}` }} />
-                  ) : (
-                    <div style={{ width:40, height:40, borderRadius:10, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, border:`1px solid ${t.border}` }}>🏭</div>
-                  )}
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:13, fontWeight:700, color:t.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{supplier.company}</div>
-                    {supplier.contact && <div style={{ fontSize:11, color:t.muted, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{supplier.contact}</div>}
-                  </div>
-                  <span style={{ fontSize:12, color:t.accent, fontWeight:700, flexShrink:0 }}>Ver →</span>
-                </button>
-                <div style={{ display:"flex", gap:6, marginTop:6 }}>
-                  <button onClick={() => setEditing(true)} style={{
-                    flex:1, padding:"6px", borderRadius:8, border:`1px solid ${t.border}`,
-                    background:"transparent", color:t.muted, fontSize:11, fontWeight:600, cursor:"pointer",
-                  }}>🔄 Cambiar proveedor</button>
-                  <button onClick={() => onUpdate(p.id, { supplierId: null, supplierCompany: null })} style={{
-                    flex:1, padding:"6px", borderRadius:8, border:`1px solid ${t.red}30`,
-                    background:"transparent", color:t.red, fontSize:11, fontWeight:600, cursor:"pointer",
-                  }}>✕ Quitar proveedor</button>
+
+            {/* ═══ COLLAPSIBLE: Tags, Classification, Rating ═══ */}
+            <button onClick={() => setShowDetails(v => !v)} style={{
+              width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between",
+              padding:"12px 0", marginTop:12, border:"none", borderTop:`1px solid ${t.border}`,
+              background:"transparent", cursor:"pointer",
+            }}>
+              <span style={{ fontSize:12, fontWeight:700, color:t.muted }}>
+                🏷 Categoría, materiales y rating
+                {(p.category || p.material?.length > 0) && (
+                  <span style={{ fontSize:10, color:t.dim, fontWeight:400, marginLeft:6 }}>
+                    {[p.category, ...(p.material || [])].filter(Boolean).join(", ")}
+                  </span>
+                )}
+              </span>
+              <span style={{ fontSize:12, color:t.dim, transform:showDetails?"rotate(180deg)":"", transition:"transform 0.2s" }}>▼</span>
+            </button>
+
+            {showDetails && (
+              <div style={{ paddingBottom:12 }}>
+                {/* Rating */}
+                <div style={{ marginBottom:12 }}>
+                  <p style={{ fontSize:10, fontWeight:600, color:t.muted, margin:"0 0 6px" }}>⭐ Rating</p>
+                  <Stars value={p.rating || 0} onChange={r => save("rating", r)} size={28} t={t} />
                 </div>
+
+                {/* Category chips */}
+                {categories.length > 0 && (
+                  <div style={{ marginBottom:10 }}>
+                    <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px", fontWeight:600 }}>Categoría</p>
+                    <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                      {categories.map(c => (
+                        <button key={c} onClick={() => save("category", p.category===c ? null : c)} style={{
+                          padding:"6px 12px", borderRadius:16, fontSize:11, fontWeight:600, cursor:"pointer",
+                          border:`1.5px solid ${p.category===c?t.blue:t.border}`,
+                          background:p.category===c?t.blueSoft:"transparent",
+                          color:p.category===c?t.blue:t.muted,
+                        }}>{c}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Material chips */}
+                {materials.length > 0 && (
+                  <div style={{ marginBottom:10 }}>
+                    <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px", fontWeight:600 }}>Material</p>
+                    <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                      {materials.map(m => {
+                        const active = (p.material || []).includes(m);
+                        return (
+                          <button key={m} onClick={() => save("material", active ? (p.material||[]).filter(x=>x!==m) : [...(p.material||[]), m])} style={{
+                            padding:"6px 12px", borderRadius:16, fontSize:11, fontWeight:600, cursor:"pointer",
+                            border:`1.5px solid ${active?t.green:t.border}`,
+                            background:active?t.greenSoft:"transparent",
+                            color:active?t.green:t.muted,
+                          }}>{m}</button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
-            ) : (
-              <button onClick={() => setEditing(true)} style={{
-                width:"100%", padding:"10px 12px", borderRadius:12, border:`1.5px dashed ${t.border}`,
-                background:"transparent", color:t.muted, fontSize:12, fontWeight:600, cursor:"pointer", marginBottom:10,
-                display:"flex", alignItems:"center", justifyContent:"center", gap:6,
-              }}>
-                🏭 Asignar proveedor
-              </button>
             )}
 
-            {/* Delete button - always visible in view mode */}
-            <button onClick={() => setConfirmDelete(true)} style={{
-              width:"100%", padding:"10px", borderRadius:12, border:`1px solid ${t.red}30`,
-              background:"transparent", color:t.red, fontSize:12, fontWeight:600, cursor:"pointer", marginTop:8,
-            }}>🗑 Eliminar producto</button>
-            {confirmDelete && (
-              <div style={{ background:t.redSoft, borderRadius:14, padding:14, border:`1.5px solid ${t.red}40`, marginTop:8 }}>
-                <p style={{ fontSize:13, fontWeight:700, color:t.red, margin:"0 0 10px", textAlign:"center" }}>¿Seguro? No se puede deshacer.</p>
-                <div style={{ display:"flex", gap:10 }}>
-                  <button onClick={() => setConfirmDelete(false)} style={{ flex:1, padding:"10px", borderRadius:10, border:`1px solid ${t.border}`, background:t.card, color:t.text, fontSize:13, fontWeight:600, cursor:"pointer" }}>Cancelar</button>
-                  <button onClick={() => onDelete(p.id)} style={{ flex:1, padding:"10px", borderRadius:10, border:"none", background:t.red, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>Sí, eliminar</button>
+            {/* Delete */}
+            <div style={{ marginTop:8, borderTop:`1px solid ${t.border}`, paddingTop:12 }}>
+              {!confirmDelete ? (
+                <button onClick={() => setConfirmDelete(true)} style={{
+                  width:"100%", padding:"10px", borderRadius:12, border:`1px solid ${t.red}30`,
+                  background:"transparent", color:t.red, fontSize:12, fontWeight:600, cursor:"pointer",
+                }}>🗑 Eliminar producto</button>
+              ) : (
+                <div style={{ background:t.redSoft, borderRadius:14, padding:14, border:`1.5px solid ${t.red}40` }}>
+                  <p style={{ fontSize:13, fontWeight:700, color:t.red, margin:"0 0 10px", textAlign:"center" }}>¿Seguro? No se puede deshacer.</p>
+                  <div style={{ display:"flex", gap:10 }}>
+                    <button onClick={() => setConfirmDelete(false)} style={{ flex:1, padding:"10px", borderRadius:10, border:`1px solid ${t.border}`, background:t.card, color:t.text, fontSize:13, fontWeight:600, cursor:"pointer" }}>Cancelar</button>
+                    <button onClick={() => onDelete(p.id)} style={{ flex:1, padding:"10px", borderRadius:10, border:"none", background:t.red, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>Sí, eliminar</button>
+                  </div>
                 </div>
-              </div>
-            )}
-          </>}
+              )}
+            </div>
           </div>
         </>
       </div>
 
       {/* Fixed calculator button at bottom */}
-      {!editing && (
-        <div style={{
-          position:"fixed", bottom:0, left:0, right:0,
-          padding:"10px 20px", paddingBottom:"calc(16px + env(safe-area-inset-bottom, 0px))",
-          background:t.bg, borderTop:`1px solid ${t.border}`, zIndex:50,
-        }}>
-          <Btn onClick={() => onCalc(p)} variant={p.costTotal ? "secondary" : "primary"} full t={t}>
-            🧮 {p.costTotal ? `Costo: USD ${p.costTotal} · Editar` : "Calcular costo importación"}
-          </Btn>
-        </div>
-      )}
+      <div style={{
+        position:"fixed", bottom:0, left:0, right:0,
+        padding:"10px 20px", paddingBottom:"calc(16px + env(safe-area-inset-bottom, 0px))",
+        background:t.bg, borderTop:`1px solid ${t.border}`, zIndex:50,
+      }}>
+        <Btn onClick={() => onCalc(p)} variant={p.costTotal ? "secondary" : "primary"} full t={t}>
+          🧮 {p.costTotal ? `Costo: USD ${p.costTotal} · Editar` : "Calcular costo importación"}
+        </Btn>
+      </div>
     </div>
   );
 }
@@ -3171,7 +3184,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
   const [filterPrice, setFilterPrice] = useState("all"); // #14: Price range filter
   const [dd, setDd] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
-  const [viewMode, setViewMode] = useState("list"); // "list" | "gallery"
+  const [viewMode, setViewMode] = useState("gallery"); // "list" | "gallery"
   // Multi-select
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState(new Set());
@@ -3309,10 +3322,16 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
           {search && <button onClick={() => setSearch("")} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", background:t.surface, border:`1px solid ${t.border}`, borderRadius:10, width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, color:t.muted }}>✕</button>}
         </div>
         {/* Toggle */}
-        <div style={{ display:"flex", gap:4, background:t.surface, borderRadius:10, padding:3, marginBottom:10 }}>
+        <div style={{ display:"flex", gap:4, background:t.surface, borderRadius:10, padding:3, marginBottom:10, alignItems:"center" }}>
           {[{k:"products",l:"📦 Productos"},{k:"suppliers",l:"🏭 Proveedores"}].map(v => (
             <button key={v.k} onClick={()=>setView(v.k)} style={{ flex:1, padding:8, borderRadius:8, border:"none", background:view===v.k?t.card:"transparent", color:view===v.k?t.text:t.muted, fontSize:12, fontWeight:700, cursor:"pointer", boxShadow:view===v.k?`0 2px 8px ${t.border}`:"none" }}>{v.l}</button>
           ))}
+          {view === "products" && (
+            <button onClick={() => setViewMode(vm => vm === "list" ? "gallery" : "list")}
+              style={{ padding:"6px 10px", borderRadius:8, background:viewMode==="gallery"?t.accentSoft:t.card, border:viewMode==="gallery"?`1px solid ${t.accent}40`:"none", fontSize:14, cursor:"pointer", flexShrink:0, color:viewMode==="gallery"?t.accent:t.muted, fontWeight:600, boxShadow:viewMode==="gallery"?`0 2px 8px ${t.border}`:"none" }}>
+              {viewMode === "gallery" ? "☰" : "🖼"}
+            </button>
+          )}
         </div>
         {/* Filters */}
         <div style={{ display:"flex", gap:5, overflowX:"auto", paddingBottom:8, borderBottom:`1px solid ${t.border}`, scrollbarWidth:"none" }}>
@@ -3347,12 +3366,6 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
             <option value="recent">🕐 Recientes</option><option value="price_low">💲 Menor $</option><option value="price_high">💲 Mayor $</option><option value="rating">⭐ Rating</option>
           </select>
           <div style={{ padding:"6px 8px", borderRadius:20, background:t.surface, fontSize:10, fontWeight:600, color:t.muted, flexShrink:0 }}>{filtered.length}/{products.length}</div>
-          {view === "products" && (
-            <button onClick={() => setViewMode(vm => vm === "list" ? "gallery" : "list")}
-              style={{ padding:"6px 8px", borderRadius:20, background:viewMode==="gallery"?t.accentSoft:t.surface, border:viewMode==="gallery"?`1px solid ${t.accent}40`:`1px solid ${t.border}`, fontSize:13, cursor:"pointer", flexShrink:0, color:viewMode==="gallery"?t.accent:t.muted, fontWeight:600 }}>
-              {viewMode === "list" ? "🖼" : "☰"}
-            </button>
-          )}
         </div>
         {/* AI processing status bar */}
         {(aiPending > 0 || aiSyncing) && (
@@ -4402,7 +4415,7 @@ export default function App() {
       )}
       {screen === "detail" && screenData && (
         <ProductDetail product={products.find(p => p.id === screenData.id) || screenData} allProducts={products} suppliers={suppliers} districts={districts}
-          onBack={() => navigate("list")} onUpdate={(id, changes) => { handleUpdateProduct(id, changes); }} onCalc={p => navigate("calc", p)} onDelete={handleDeleteProduct}
+          onBack={goBack} onUpdate={(id, changes) => { handleUpdateProduct(id, changes); }} onCalc={p => navigate("calc", p)} onDelete={handleDeleteProduct}
           onNavigateSupplier={s => navigate("supplier", s)} t={t} isDark={isDark} settings={settings} />
       )}
       {screen === "supplier" && screenData && (
