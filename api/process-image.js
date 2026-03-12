@@ -48,8 +48,12 @@ export default async function handler(req, res) {
   "materials": ["material 1", "material 2"],
   "colors": ["color 1", "color 2"],
   "category": "categoría estimada",
+  "price": null,
+  "priceUnit": null,
   "confidence": 0.95
 }
+
+Si hay un cartel, etiqueta, sticker o display con precio visible en la imagen, extrae el número en "price" (ej: "3.50") y la unidad en "priceUnit" (ej: "per piece", "per dozen", "per set"). Si no hay precio visible, deja ambos en null.
 
 Responde SOLO con el JSON, sin explicaciones adicionales.`,
             },

@@ -1697,9 +1697,12 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   const [supplierWebsite, setSupplierWebsite] = useState("");
   const [supplierAddress, setSupplierAddress] = useState("");
   const [supplierProducts, setSupplierProducts] = useState("");
+  const [supplierNotes, setSupplierNotes] = useState("");
   const [linkedSupplierId, setLinkedSupplierId] = useState(null);
   const [items, setItems] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [addPhotoToItemId, setAddPhotoToItemId] = useState(null);
+  const addPhotoGalleryRef = useRef(null);
   // Live camera state
   const [cameraMode, setCameraMode] = useState(null); // null | "card" | "product"
   const [flashVisible, setFlashVisible] = useState(false);
@@ -1759,8 +1762,15 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
       setCardPhoto(photo);
       processCardPhoto(photo);
     } else if (cameraMode === "product") {
-      // Add product at top — most recent first, no scrolling needed for price input
-      setItems(prev => [{ id: crypto.randomUUID(), photo, price: "" }, ...prev]);
+      if (addPhotoToItemId) {
+        // Add photo to existing item
+        setItems(prev => prev.map(it => it.id === addPhotoToItemId ? { ...it, photos: [...it.photos, photo] } : it));
+        setAddPhotoToItemId(null);
+        closeCamera();
+      } else {
+        // Create new item with photos array
+        setItems(prev => [{ id: crypto.randomUUID(), photos: [photo], price: "", notes: "" }, ...prev]);
+      }
       setLastCapture(photo);
       setTimeout(() => setLastCapture(null), 800);
     }
@@ -1841,8 +1851,19 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     e.target.value = "";
     try {
       const photo = await resizeImage(file);
-      setItems(prev => [{ id: crypto.randomUUID(), photo, price: "" }, ...prev]);
+      setItems(prev => [{ id: crypto.randomUUID(), photos: [photo], price: "", notes: "" }, ...prev]);
     } catch (err) { console.warn("Product photo error:", err); }
+  };
+
+  const onAddPhotoGallery = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !addPhotoToItemId) return;
+    e.target.value = "";
+    try {
+      const photo = await resizeImage(file);
+      setItems(prev => prev.map(it => it.id === addPhotoToItemId ? { ...it, photos: [...it.photos, photo] } : it));
+      setAddPhotoToItemId(null);
+    } catch (err) { console.warn("Add photo error:", err); }
   };
 
   const linkSupplier = (s) => {
@@ -1857,6 +1878,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     setSupplierWechatLink(s.wechatLink || "");
     setSupplierWebsite(s.website || "");
     setSupplierAddress(s.address || "");
+    setSupplierNotes(s.notes || "");
     if (s.cardPhoto) setCardPhoto(s.cardPhoto);
   };
 
@@ -1869,7 +1891,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
       supplierName: supplierName.trim(),
       supplierContact, supplierPhone, supplierEmail,
       supplierWechat, supplierWhatsapp, supplierWhatsappLink, supplierWechatLink,
-      supplierWebsite, supplierAddress, supplierProducts,
+      supplierWebsite, supplierAddress, supplierProducts, supplierNotes,
       cardPhoto, cardData,
       productItems: items,
     });
@@ -1895,8 +1917,8 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
         {cameraMode === "product" && (
           <div style={{ position:"absolute", top:16, left:"50%", transform:"translateX(-50%)", zIndex:3,
             padding:"10px 24px", borderRadius:24, background:"rgba(0,0,0,0.55)", backdropFilter:"blur(8px)",
-            color:"#fff", fontSize:18, fontWeight:800, textAlign:"center", minWidth:140 }}>
-            📦 {items.length} {items.length === 1 ? "producto" : "productos"}
+            color:"#fff", fontSize:addPhotoToItemId ? 14 : 18, fontWeight:800, textAlign:"center", minWidth:140 }}>
+            {addPhotoToItemId ? "📷 Foto adicional" : `📦 ${items.length} ${items.length === 1 ? "producto" : "productos"}`}
           </div>
         )}
         {cameraMode === "card" && (
@@ -2004,23 +2026,41 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
           </div>
         )}
 
+        {/* Supplier quick notes */}
+        <input placeholder="Notas: compra mín., pagos, descuentos..." value={supplierNotes}
+          onChange={e => setSupplierNotes(e.target.value)}
+          style={{ ...inputStyle, fontSize:13, marginBottom:12 }} />
+
         {/* === SECTION 2: PRODUCTS === */}
         <div style={{ height:1, background:t.border, margin:"8px 0 16px" }} />
         <p style={{ fontSize:11, fontWeight:700, color:t.muted, margin:"0 0 12px", textTransform:"uppercase", letterSpacing:"0.08em" }}>2. Productos</p>
 
         {items.map((item, idx) => (
-          <div key={item.id} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
-            <img src={item.photo} alt={`P${idx+1}`} style={{ width:56, height:56, borderRadius:10, objectFit:"cover", border:`1px solid ${t.border}` }} />
-            <div style={{ flex:1, position:"relative" }}>
-              <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:t.muted, fontSize:16, fontWeight:700, pointerEvents:"none" }}>$</span>
-              <input inputMode="decimal" placeholder="Precio" value={item.price}
-                onChange={e => { const v = e.target.value.replace(/[^0-9.,]/g,"").replace(",","."); setItems(prev => prev.map(it => it.id === item.id ? { ...it, price: v } : it)); }}
-                style={{ ...inputStyle, paddingLeft:28 }} />
+          <div key={item.id} style={{ marginBottom:10, background:t.card, borderRadius:14, padding:"10px 12px", border:`1px solid ${t.border}` }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <div style={{ display:"flex", gap:4, flexShrink:0, overflowX:"auto" }}>
+                {(item.photos || [item.photo]).map((ph, pi) => (
+                  <img key={pi} src={ph} alt="" style={{ width:56, height:56, borderRadius:10, objectFit:"cover", border:`1px solid ${t.border}`, flexShrink:0 }} />
+                ))}
+                <button onClick={() => { setAddPhotoToItemId(item.id); openCamera("product"); }}
+                  style={{ width:56, height:56, borderRadius:10, border:`2px dashed ${t.border}`, background:t.surface,
+                    display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, color:t.muted, cursor:"pointer", flexShrink:0 }}>+</button>
+              </div>
+              <div style={{ flex:1, position:"relative" }}>
+                <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:t.muted, fontSize:16, fontWeight:700, pointerEvents:"none" }}>$</span>
+                <input inputMode="decimal" placeholder="Precio" value={item.price}
+                  onChange={e => { const v = e.target.value.replace(/[^0-9.,]/g,"").replace(",","."); setItems(prev => prev.map(it => it.id === item.id ? { ...it, price: v } : it)); }}
+                  style={{ ...inputStyle, paddingLeft:28 }} />
+              </div>
+              <button onClick={() => setItems(prev => prev.filter(it => it.id !== item.id))} style={{
+                width:32, height:32, borderRadius:8, border:`1px solid ${t.border}`, background:t.surface,
+                color:t.muted, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
+              }}>✕</button>
             </div>
-            <button onClick={() => setItems(prev => prev.filter(it => it.id !== item.id))} style={{
-              width:32, height:32, borderRadius:8, border:`1px solid ${t.border}`, background:t.surface,
-              color:t.muted, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
-            }}>✕</button>
+            <input placeholder="Nota: ej. precio x6, caja de 4..."
+              value={item.notes || ""}
+              onChange={e => setItems(prev => prev.map(it => it.id === item.id ? { ...it, notes: e.target.value } : it))}
+              style={{ ...inputStyle, fontSize:12, marginTop:6, padding:"8px 12px", color:t.dim }} />
           </div>
         ))}
 
@@ -2034,6 +2074,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
             color:t.text, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
           }}>🖼</button>
           <input ref={prodGalleryRef} type="file" accept="image/*" onChange={onProductGallery} style={{ display:"none" }} />
+          <input ref={addPhotoGalleryRef} type="file" accept="image/*" onChange={onAddPhotoGallery} style={{ display:"none" }} />
         </div>
       </div>
 
@@ -3117,7 +3158,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
 // ═══════════════════════════════════════════
 // PRODUCT LIST (main screen)
 // ═══════════════════════════════════════════
-function ProductList({ products, suppliers, districts, activeDistrictId, activeDistrict, settings, onNavigate, onSwitchDistrict, onDeleteProduct, onBatchDelete, onBatchUpdate, onDeleteSupplier, t, isDark, onToggleTheme, activeTab, onTabChange, queueCount }) {
+function ProductList({ products, suppliers, districts, activeDistrictId, activeDistrict, settings, onNavigate, onSwitchDistrict, onDeleteProduct, onBatchDelete, onBatchUpdate, onDeleteSupplier, t, isDark, onToggleTheme, activeTab, onTabChange, queueCount, scrollPositionRef }) {
   const { isSyncing: aiSyncing, pendingCount: aiPending, processedCount: aiProcessed, totalCount: aiTotal, syncNow: aiSyncNow, error: aiError } = useSyncWithAI(settings);
   const [search, setSearch] = useState("");
   const view = activeTab || "products";
@@ -3130,12 +3171,25 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
   const [filterPrice, setFilterPrice] = useState("all"); // #14: Price range filter
   const [dd, setDd] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
+  const [viewMode, setViewMode] = useState("list"); // "list" | "gallery"
   // Multi-select
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState(new Set());
   const [batchAction, setBatchAction] = useState(null); // 'category' | 'supplier'
   const toggleSelect = (id) => setSelected(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const exitSelect = () => { setSelectMode(false); setSelected(new Set()); setBatchAction(null); };
+  // Scroll position preservation
+  const productsScrollRef = useRef(null);
+  const suppliersScrollRef = useRef(null);
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      if (view === "products" && productsScrollRef.current && scrollPositionRef?.current) {
+        productsScrollRef.current.scrollTop = scrollPositionRef.current.products;
+      } else if (view === "suppliers" && suppliersScrollRef.current && scrollPositionRef?.current) {
+        suppliersScrollRef.current.scrollTop = scrollPositionRef.current.suppliers;
+      }
+    });
+  }, [view]);
 
   const categories = [...new Set([...(settings?.categories||[]), ...products.map(p => p.category).filter(Boolean)])];
   const materials = [...new Set([...(settings?.materials||[]), ...products.flatMap(p => p.material || [])])];
@@ -3293,6 +3347,12 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
             <option value="recent">🕐 Recientes</option><option value="price_low">💲 Menor $</option><option value="price_high">💲 Mayor $</option><option value="rating">⭐ Rating</option>
           </select>
           <div style={{ padding:"6px 8px", borderRadius:20, background:t.surface, fontSize:10, fontWeight:600, color:t.muted, flexShrink:0 }}>{filtered.length}/{products.length}</div>
+          {view === "products" && (
+            <button onClick={() => setViewMode(vm => vm === "list" ? "gallery" : "list")}
+              style={{ padding:"6px 8px", borderRadius:20, background:viewMode==="gallery"?t.accentSoft:t.surface, border:viewMode==="gallery"?`1px solid ${t.accent}40`:`1px solid ${t.border}`, fontSize:13, cursor:"pointer", flexShrink:0, color:viewMode==="gallery"?t.accent:t.muted, fontWeight:600 }}>
+              {viewMode === "list" ? "🖼" : "☰"}
+            </button>
+          )}
         </div>
         {/* AI processing status bar */}
         {(aiPending > 0 || aiSyncing) && (
@@ -3338,9 +3398,9 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
         </div>
       )}
 
-      {/* Products */}
-      {view === "products" && (
-        <div style={{ flex:1, overflow:"auto", padding:"8px 16px 100px" }}>
+      {/* Products - List View */}
+      {view === "products" && viewMode === "list" && (
+        <div ref={productsScrollRef} onScroll={e => { if (scrollPositionRef?.current) scrollPositionRef.current.products = e.target.scrollTop; }} style={{ flex:1, overflow:"auto", padding:"8px 16px 100px" }}>
           {filtered.length === 0 && (
             <>
               <Empty icon={products.length===0?"📸":"🔍"} title={products.length===0?"Empezá a escanear":"Sin resultados"} sub={products.length===0?"Tocá + para capturar tu primer producto":null} t={t} />
@@ -3412,9 +3472,42 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
         </div>
       )}
 
+      {/* Products - Gallery View */}
+      {view === "products" && viewMode === "gallery" && (
+        <div ref={productsScrollRef} onScroll={e => { if (scrollPositionRef?.current) scrollPositionRef.current.products = e.target.scrollTop; }} style={{ flex:1, overflow:"auto", padding:"4px 4px 100px" }}>
+          {filtered.length === 0 && (
+            <div style={{ padding:"0 12px" }}>
+              <Empty icon={products.length===0?"📸":"🔍"} title={products.length===0?"Empezá a escanear":"Sin resultados"} sub={products.length===0?"Tocá + para capturar tu primer producto":null} t={t} />
+            </div>
+          )}
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:3 }}>
+            {filtered.map((p, i) => (
+              <button key={p.id} onClick={() => onNavigate("detail", p)} style={{
+                background:t.card, border:"none", borderRadius:0, overflow:"hidden", cursor:"pointer", textAlign:"left", padding:0,
+                animation:`fadeIn 0.2s ease ${Math.min(i*0.015, 0.3)}s both`, position:"relative", aspectRatio:"1",
+              }}>
+                {p.photos?.[0] ? (
+                  <img src={p.photos[0]} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                ) : (
+                  <div style={{ width:"100%", height:"100%", background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>📷</div>
+                )}
+                <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"16px 6px 4px", background:"linear-gradient(transparent, rgba(0,0,0,0.7))" }}>
+                  <p style={{ fontSize:10, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", margin:0, textShadow:"0 1px 3px rgba(0,0,0,0.5)" }}>
+                    {p.name || "..."}
+                  </p>
+                  {p.price && <span style={{ fontSize:11, fontWeight:800, color:"#4ade80" }}>${p.price}</span>}
+                </div>
+                {!p.ai_processed && <div style={{ position:"absolute", top:4, right:4, width:8, height:8, borderRadius:4, background:"#ff9800", boxShadow:"0 0 4px #ff980080" }} />}
+                {p.photos?.length > 1 && <div style={{ position:"absolute", top:4, left:4, padding:"2px 5px", borderRadius:6, background:"rgba(0,0,0,0.5)", fontSize:9, color:"#fff", fontWeight:700 }}>{p.photos.length}</div>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Suppliers */}
       {view === "suppliers" && (
-        <div style={{ flex:1, overflow:"auto", padding:"8px 16px 100px" }}>
+        <div ref={suppliersScrollRef} onScroll={e => { if (scrollPositionRef?.current) scrollPositionRef.current.suppliers = e.target.scrollTop; }} style={{ flex:1, overflow:"auto", padding:"8px 16px 100px" }}>
           {grouped.length === 0 && <Empty icon="🏭" title="Sin proveedores" t={t} />}
           {grouped.map((g, gi) => {
             const avgR = g.products.length > 0 ? g.products.reduce((a,p)=>a+(p.rating||0),0)/g.products.length : 0;
@@ -3656,6 +3749,7 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onDelete, onNavi
           {field("Website", "🌐", "website", "www.company.com")}
           {field("Dirección", "📍", "address", "Dirección")}
           {field("Productos", "📦", "products", "Productos que ofrece")}
+          {field("Notas", "📝", "notes", "Compra mín., pagos, descuentos...")}
         </div>
 
         {/* Delete supplier */}
@@ -3710,6 +3804,8 @@ export default function App() {
   const [queueCount, setQueueCount] = useState(0);
   // Photos to share after capture (for iOS Camera Roll save)
   const [photosToShare, setPhotosToShare] = useState(null); // [{data, filename}] or null
+  // Scroll position preservation for list views
+  const scrollPositionRef = useRef({ products: 0, suppliers: 0 });
 
   const t = isDark ? T.dark : T.light;
   const activeDistrictId = settings.activeDistrictId;
@@ -3770,6 +3866,7 @@ export default function App() {
   const switchDistrict = async (id) => {
     await dbSaveSettings({ activeDistrictId: id });
     setSettings(prev => ({ ...prev, activeDistrictId: id }));
+    scrollPositionRef.current = { products: 0, suppliers: 0 };
     const d = districts.find(d => d.id === id);
     showToast(`→ ${d?.name}`);
   };
@@ -3795,16 +3892,26 @@ export default function App() {
     }
   };
 
-  // #10: Find similar supplier (fuzzy matching)
+  // #10: Find similar supplier (fuzzy matching, including cross-district)
   const findSimilarSupplier = (name, districtId) => {
     if (!name) return null;
+    // Check within same district first
     const distSuppliers = suppliers.filter(s => s.districtId === districtId);
     let best = null, bestScore = 0;
     for (const s of distSuppliers) {
       const score = stringSimilarity(name, s.company);
       if (score > bestScore && score >= 0.7) { best = s; bestScore = score; }
     }
-    return best && bestScore < 1 ? { supplier: best, score: bestScore } : null;
+    if (best && bestScore < 1) return { supplier: best, score: bestScore };
+    // Cross-district: check other districts for strong matches
+    const otherSuppliers = suppliers.filter(s => s.districtId !== districtId && s.company);
+    let crossBest = null, crossBestScore = 0;
+    for (const s of otherSuppliers) {
+      const score = stringSimilarity(name, s.company);
+      if (score > crossBestScore && score >= 0.85) { crossBest = s; crossBestScore = score; }
+    }
+    if (crossBest) return { supplier: crossBest, score: crossBestScore, crossDistrict: true };
+    return null;
   };
 
   // Handle capture save
@@ -3819,7 +3926,7 @@ export default function App() {
         supplierId = await addSupplier({
           company: "", contact: "", phone: "", email: "",
           wechat: "", whatsapp: "", whatsappLink: "", wechatLink: "",
-          website: "", address: "", products: "",
+          website: "", address: "", products: "", notes: data.supplierNotes || "",
           cardPhoto: data.cardPhoto,
           cardData: data.cardData || null,
           districtId: activeDistrictId,
@@ -3843,6 +3950,7 @@ export default function App() {
           if (data.supplierWhatsappLink && !existing.whatsappLink) updates.whatsappLink = data.supplierWhatsappLink;
           if (data.supplierWechatLink && !existing.wechatLink) updates.wechatLink = data.supplierWechatLink;
           if (data.supplierWebsite && !existing.website) updates.website = data.supplierWebsite;
+          if (data.supplierNotes && !existing.notes) updates.notes = data.supplierNotes;
           if (data.cardPhoto && !existing.cardPhoto) updates.cardPhoto = data.cardPhoto;
           if (Object.keys(updates).length > 0) {
             await dbUpdateSupplier(supplierId, updates);
@@ -3854,7 +3962,7 @@ export default function App() {
           if (similar) {
             // Ask user: use existing or create new?
             const choice = await new Promise(resolve => {
-              setDedupPrompt({ similar: similar.supplier, score: similar.score, newName: data.supplierName, resolve });
+              setDedupPrompt({ similar: similar.supplier, score: similar.score, newName: data.supplierName, crossDistrict: similar.crossDistrict, resolve });
             });
             if (choice === "use_existing") {
               supplierId = similar.supplier.id;
@@ -3865,6 +3973,7 @@ export default function App() {
               if (data.supplierEmail && !similar.supplier.email) updates.email = data.supplierEmail;
               if (data.supplierWechat && !similar.supplier.wechat) updates.wechat = data.supplierWechat;
               if (data.supplierWhatsapp && !similar.supplier.whatsapp) updates.whatsapp = data.supplierWhatsapp;
+              if (data.supplierNotes && !similar.supplier.notes) updates.notes = data.supplierNotes;
               if (data.cardPhoto && !similar.supplier.cardPhoto) updates.cardPhoto = data.cardPhoto;
               if (Object.keys(updates).length > 0) {
                 await dbUpdateSupplier(supplierId, updates);
@@ -3884,6 +3993,7 @@ export default function App() {
                 website: data.supplierWebsite || "",
                 address: data.supplierAddress || "",
                 products: data.supplierProducts || "",
+                notes: data.supplierNotes || "",
                 cardPhoto: data.cardPhoto || null,
                 cardData: data.cardData || null,
                 districtId: activeDistrictId,
@@ -3905,6 +4015,7 @@ export default function App() {
               website: data.supplierWebsite || "",
               address: data.supplierAddress || "",
               products: data.supplierProducts || "",
+              notes: data.supplierNotes || "",
               cardPhoto: data.cardPhoto || null,
               cardData: data.cardData || null,
               districtId: activeDistrictId,
@@ -3953,42 +4064,54 @@ export default function App() {
         }
         let pi = 0;
         for (const item of (data.productItems || [])) {
-          if (item?.photo) {
+          const itemPhotos = item.photos || (item.photo ? [item.photo] : []);
+          for (const ph of itemPhotos) {
             pi++;
             const fn = `producto_${supSlug}_${pi}_${ts}.jpg`;
-            sessionPhotos.push({ data: item.photo, filename: fn });
+            sessionPhotos.push({ data: ph, filename: fn });
           }
         }
         for (const item of (data.productItems || [])) {
-          if (!item.photo) continue;
+          const itemPhotos = item.photos || (item.photo ? [item.photo] : []);
+          if (itemPhotos.length === 0) continue;
           const productId = await addProduct({
             name: `Producto de ${data.supplierName || 'proveedor'}`,
             description: null, supplierCompany: data.supplierName || null,
             supplierId, districtId: activeDistrictId,
-            photos: [item.photo], photoUrls: null,
+            photos: itemPhotos, photoUrls: null,
             price: item.price || null, moq: null,
             audioURL: null, audioTranscript: null, rating: 0,
-            category: null, material: [], notes: null,
+            category: null, material: [], notes: item.notes || null,
             viability: null, costTotal: null, costData: null, targetPrice: null,
             ai_processed: false, ai_last_synced: null, createdAt: Date.now(),
           });
           createdIds.push(productId);
-          // Background: AI processes each product photo
-          processImage(item.photo, { categories: settings.categories, materials: settings.materials })
+          // Background: AI processes first product photo
+          processImage(itemPhotos[0], { categories: settings.categories, materials: settings.materials })
             .then(async (result) => {
               const updates = {};
               if (result.name) updates.name = result.name;
               if (result.description) updates.description = result.description;
               if (result.category) updates.category = result.category;
               if (result.materials?.length) updates.material = result.materials;
+              // Auto-fill price if detected by AI and not set manually
+              if (result.price) {
+                const current = await db.products.get(productId);
+                if (current && !current.price) {
+                  updates.price = String(result.price).replace(/[^0-9.]/g, '');
+                  if (result.priceUnit) {
+                    updates.notes = (current.notes ? current.notes + '. ' : '') + `Precio detectado: ${result.price} ${result.priceUnit}`;
+                  }
+                }
+              }
               updates.ai_processed = true;
               updates.ai_last_synced = new Date();
               await dbUpdateProduct(productId, updates);
               setProducts(prev => prev.map(p => p.id === productId ? { ...p, ...updates } : p));
             }).catch(err => console.warn("AI process failed:", err));
-          // Background: upload photo to R2
+          // Background: upload photos to R2
           if (navigator.onLine) {
-            uploadPhotosToCloud(productId, [item.photo], data.supplierName).catch(console.warn);
+            uploadPhotosToCloud(productId, itemPhotos, data.supplierName).catch(console.warn);
           }
         }
         // Background: upload card photo
@@ -4223,6 +4346,7 @@ export default function App() {
             <p style={{ fontSize:15, fontWeight:800, color:t.text, margin:"0 0 8px" }}>Proveedor similar encontrado</p>
             <p style={{ fontSize:12, color:t.muted, margin:"0 0 16px", lineHeight:1.5 }}>
               "<strong style={{ color:t.accent }}>{dedupPrompt.newName}</strong>" es similar a "<strong style={{ color:t.blue }}>{dedupPrompt.similar.company}</strong>" ({Math.round(dedupPrompt.score * 100)}% coincidencia)
+              {dedupPrompt.crossDistrict && <><br/><span style={{ fontSize:11, color:"#f59e0b" }}>(de otra feria: {districts.find(d => d.id === dedupPrompt.similar.districtId)?.name || "otra feria"})</span></>}
             </p>
             <button onClick={() => { const r = dedupPrompt.resolve; setDedupPrompt(null); r("use_existing"); }} style={{
               width:"100%", padding:"12px", borderRadius:12, border:`1.5px solid ${t.blue}`, background:t.blueSoft,
@@ -4265,7 +4389,7 @@ export default function App() {
         <ProductList products={products} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} activeDistrict={activeDistrict} settings={settings}
           onNavigate={navigate} onSwitchDistrict={switchDistrict} onDeleteProduct={handleDeleteProduct} onBatchDelete={handleBatchDelete} onBatchUpdate={handleBatchUpdate} onDeleteSupplier={handleDeleteSupplier}
           t={t} isDark={isDark} onToggleTheme={toggleTheme}
-          activeTab={listTab} onTabChange={setListTab} queueCount={queueCount} />
+          activeTab={listTab} onTabChange={setListTab} queueCount={queueCount} scrollPositionRef={scrollPositionRef} />
       )}
       {(screen === "capture" || screen === "capture-supplier") && (
         <CaptureFlow suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings}

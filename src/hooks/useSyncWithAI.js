@@ -89,6 +89,13 @@ export function useSyncWithAI(settings) {
       if (result.description) updates.description = result.description;
       if (result.category) updates.category = result.category;
       if (result.materials?.length) updates.material = result.materials;
+      // Auto-fill price if detected by AI and not set manually
+      if (result.price && !product.price) {
+        updates.price = String(result.price).replace(/[^0-9.]/g, '');
+        if (result.priceUnit) {
+          updates.notes = (product.notes ? product.notes + '. ' : '') + `Precio detectado: ${result.price} ${result.priceUnit}`;
+        }
+      }
       updates.ai_processed = true;
       updates.ai_last_synced = new Date();
       updates.ai_retry_count = 0;
