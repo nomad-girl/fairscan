@@ -1101,21 +1101,14 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
     onUpdate(p.id, updates);
   };
 
-  // Swipe gesture for prev/next product (only triggers at carousel edges)
-  const touchRef = useRef({ startX: 0, startY: 0, atEdge: false });
-  const handleTouchStart = (e) => {
-    const el = photoScrollRef.current;
-    const atStart = !el || el.scrollLeft <= 2;
-    const atEnd = !el || (el.scrollLeft + el.offsetWidth >= el.scrollWidth - 2);
-    touchRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, atStart, atEnd };
-  };
-  const handleTouchEnd = (e) => {
-    const dx = e.changedTouches[0].clientX - touchRef.current.startX;
-    const dy = e.changedTouches[0].clientY - touchRef.current.startY;
-    if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-      if (dx < 0 && touchRef.current.atEnd && nextProduct && onNavigateProduct) onNavigateProduct(nextProduct);
-      else if (dx > 0 && touchRef.current.atStart && prevProduct && onNavigateProduct) onNavigateProduct(prevProduct);
-    }
+  // Tap zones on photo edges for prev/next product (like Instagram Stories)
+  const handlePhotoTap = (e) => {
+    if (!onNavigateProduct) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const zone = rect.width * 0.25; // 25% on each side
+    if (x < zone && prevProduct) onNavigateProduct(prevProduct);
+    else if (x > rect.width - zone && nextProduct) onNavigateProduct(nextProduct);
   };
 
   const inp = (extra = {}) => ({
@@ -1133,9 +1126,9 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
       />
       <div style={{ flex:1, overflow:"auto", padding:`0 0 ${settings?.showImportCalculator ? "80px" : "20px"}` }}>
         <>
-          {/* SWIPEABLE PHOTO CAROUSEL — swipe left/right to change product */}
+          {/* PHOTO CAROUSEL — tap edges to change product */}
           {p.photos?.length > 0 && (
-            <div onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} style={{ position:"relative", width:"100%", background:t.surface }}>
+            <div onClick={handlePhotoTap} style={{ position:"relative", width:"100%", background:t.surface }}>
               <div ref={photoScrollRef} onScroll={e => {
                 const el = e.target;
                 const idx = Math.round(el.scrollLeft / el.offsetWidth);
@@ -1185,6 +1178,13 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
                   {p.viability==="viable"?"✅ Viable":p.viability==="marginal"?"⚠️ Marginal":"❌ No viable"}
                 </span>
               )}
+              {/* Prev/next tap zone indicators */}
+              {onNavigateProduct && allProducts.length > 1 && (
+                <>
+                  {prevProduct && <div style={{ position:"absolute", left:6, top:"50%", transform:"translateY(-50%)", width:28, height:28, borderRadius:14, background:"rgba(0,0,0,0.35)", display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}><span style={{ color:"rgba(255,255,255,0.8)", fontSize:14, fontWeight:700 }}>‹</span></div>}
+                  {nextProduct && <div style={{ position:"absolute", right:6, top:"50%", transform:"translateY(-50%)", width:28, height:28, borderRadius:14, background:"rgba(0,0,0,0.35)", display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}><span style={{ color:"rgba(255,255,255,0.8)", fontSize:14, fontWeight:700 }}>›</span></div>}
+                </>
+              )}
               {/* AI badge */}
               {p.ai_processed ? (
                 <span style={{ position:"absolute", top:12, left:12, fontSize:10, fontWeight:700, padding:"4px 8px", borderRadius:8, background:"rgba(0,0,0,0.6)", color:"#fff", backdropFilter:"blur(10px)" }}>🤖 IA</span>
@@ -1197,9 +1197,12 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
             </div>
           )}
 
-          {/* Swipe zone for products without photos */}
-          {(!p.photos || p.photos.length === 0) && (
-            <div onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} style={{ height:8 }} />
+          {/* Tap nav for products without photos */}
+          {(!p.photos || p.photos.length === 0) && allProducts.length > 1 && (
+            <div style={{ display:"flex", justifyContent:"space-between", padding:"8px 20px 0" }}>
+              <button disabled={!prevProduct} onClick={() => prevProduct && onNavigateProduct(prevProduct)} style={{ background:"none", border:`1px solid ${prevProduct?t.border:"transparent"}`, borderRadius:8, padding:"4px 12px", color:prevProduct?t.muted:"transparent", fontSize:12, cursor:prevProduct?"pointer":"default" }}>‹ Anterior</button>
+              <button disabled={!nextProduct} onClick={() => nextProduct && onNavigateProduct(nextProduct)} style={{ background:"none", border:`1px solid ${nextProduct?t.border:"transparent"}`, borderRadius:8, padding:"4px 12px", color:nextProduct?t.muted:"transparent", fontSize:12, cursor:nextProduct?"pointer":"default" }}>Siguiente ›</button>
+            </div>
           )}
 
           {/* ═══ INLINE EDITABLE FIELDS (the important stuff) ═══ */}
