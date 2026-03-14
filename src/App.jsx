@@ -86,7 +86,8 @@ import syncEngine from './lib/syncEngine';
 import RoomPanel from './components/RoomPanel';
 import { useSyncWithAI } from './hooks/useSyncWithAI.js';
 
-const DEFAULT_SETTINGS_FALLBACK = { activeDistrictId:1, theme:"dark", preset:"vajilla", minMargin:40, quickCaptureMode:true, ...PRESETS.vajilla };
+const CURRENCIES = { USD: { symbol:"USD", label:"Dólar (USD)" }, ARS: { symbol:"ARS", label:"Peso Argentino (ARS)" }, CNY: { symbol:"¥", label:"Yuan Chino (CNY)" } };
+const DEFAULT_SETTINGS_FALLBACK = { activeDistrictId:1, theme:"dark", preset:"vajilla", minMargin:40, quickCaptureMode:true, currency:"USD", showImportCalculator:false, ...PRESETS.vajilla };
 
 // ═══════════════════════════════════════════
 // IMAGE & EXPORT UTILS
@@ -1072,7 +1073,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
 // ═══════════════════════════════════════════
 // PRODUCT DETAIL
 // ═══════════════════════════════════════════
-function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, onUpdate, onCalc, onDelete, onNavigateSupplier, t, isDark, settings }) {
+function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, onUpdate, onCalc, onDelete, onNavigateSupplier, onNavigateProduct, t, isDark, settings }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [showSupplierPicker, setShowSupplierPicker] = useState(false);
@@ -1084,6 +1085,11 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
 
   const categories = settings?.categories || [];
   const materials = settings?.materials || [];
+
+  // Prev/next product navigation
+  const productIdx = allProducts.findIndex(x => x.id === p.id);
+  const prevProduct = productIdx > 0 ? allProducts[productIdx - 1] : null;
+  const nextProduct = productIdx < allProducts.length - 1 ? allProducts[productIdx + 1] : null;
 
   // Inline save helper - saves a single field immediately
   const save = (field, value) => {
@@ -1103,8 +1109,16 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
 
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
-      <Header title={p.name || "Producto"} subtitle={supplier?.company} onBack={onBack} t={t} />
-      <div style={{ flex:1, overflow:"auto", padding:"0 0 80px" }}>
+      <Header title={p.name || "Producto"} subtitle={supplier?.company} onBack={onBack} t={t}
+        right={onNavigateProduct && (prevProduct || nextProduct) ? (
+          <div style={{ display:"flex", gap:4 }}>
+            <button disabled={!prevProduct} onClick={() => prevProduct && onNavigateProduct(prevProduct)} style={{ background:"none", border:`1px solid ${prevProduct?t.border:"transparent"}`, borderRadius:8, padding:"4px 10px", color:prevProduct?t.text:t.border, fontSize:14, cursor:prevProduct?"pointer":"default", opacity:prevProduct?1:0.3 }}>‹</button>
+            <span style={{ fontSize:10, color:t.muted, alignSelf:"center", minWidth:36, textAlign:"center" }}>{productIdx+1}/{allProducts.length}</span>
+            <button disabled={!nextProduct} onClick={() => nextProduct && onNavigateProduct(nextProduct)} style={{ background:"none", border:`1px solid ${nextProduct?t.border:"transparent"}`, borderRadius:8, padding:"4px 10px", color:nextProduct?t.text:t.border, fontSize:14, cursor:nextProduct?"pointer":"default", opacity:nextProduct?1:0.3 }}>›</button>
+          </div>
+        ) : null}
+      />
+      <div style={{ flex:1, overflow:"auto", padding:`0 0 ${settings?.showImportCalculator ? "80px" : "20px"}` }}>
         <>
           {/* SWIPEABLE PHOTO CAROUSEL */}
           {p.photos?.length > 0 && (
@@ -1127,7 +1141,7 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
               <div style={{ position:"absolute", bottom:0, left:0, right:0, background:"linear-gradient(transparent, rgba(0,0,0,0.75))", padding:"30px 16px 12px", pointerEvents:"none" }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
                   <div>
-                    <span style={{ fontSize:28, fontWeight:900, color:"#fff" }}>USD {p.price || "—"}</span>
+                    <span style={{ fontSize:28, fontWeight:900, color:"#fff" }}>{CURRENCIES[settings?.currency]?.symbol || "USD"} {p.price || "—"}</span>
                     {p.moq && <span style={{ fontSize:12, color:"rgba(255,255,255,0.7)", display:"block", marginTop:2 }}>MOQ: {p.moq}</span>}
                   </div>
                   {p.costTotal && (
@@ -1184,7 +1198,7 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
             {/* Price + MOQ row */}
             <div style={{ display:"flex", gap:10, marginTop:12 }}>
               <div style={{ flex:1 }}>
-                <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px", fontWeight:600 }}>💰 Precio USD</p>
+                <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px", fontWeight:600 }}>💰 Precio {CURRENCIES[settings?.currency]?.symbol || "USD"}</p>
                 <input
                   defaultValue={p.price || ""}
                   onBlur={e => { const v = e.target.value.trim(); if (v !== (p.price || "")) save("price", v); }}
@@ -1389,16 +1403,18 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
         </>
       </div>
 
-      {/* Fixed calculator button at bottom */}
-      <div style={{
-        position:"fixed", bottom:0, left:0, right:0,
-        padding:"10px 20px", paddingBottom:"calc(16px + env(safe-area-inset-bottom, 0px))",
-        background:t.bg, borderTop:`1px solid ${t.border}`, zIndex:50,
-      }}>
-        <Btn onClick={() => onCalc(p)} variant={p.costTotal ? "secondary" : "primary"} full t={t}>
-          🧮 {p.costTotal ? `Costo: USD ${p.costTotal} · Editar` : "Calcular costo importación"}
-        </Btn>
-      </div>
+      {/* Fixed calculator button at bottom — only if enabled in settings */}
+      {settings?.showImportCalculator && (
+        <div style={{
+          position:"fixed", bottom:0, left:0, right:0,
+          padding:"10px 20px", paddingBottom:"calc(16px + env(safe-area-inset-bottom, 0px))",
+          background:t.bg, borderTop:`1px solid ${t.border}`, zIndex:50,
+        }}>
+          <Btn onClick={() => onCalc(p)} variant={p.costTotal ? "secondary" : "primary"} full t={t}>
+            🧮 {p.costTotal ? `Costo: ${CURRENCIES[settings?.currency]?.symbol || "USD"} ${p.costTotal} · Editar` : "Calcular costo importación"}
+          </Btn>
+        </div>
+      )}
     </div>
   );
 }
@@ -1910,10 +1926,15 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     });
   };
 
+  const [supplierSearch, setSupplierSearch] = useState(false);
+  const [supplierQuery, setSupplierQuery] = useState("");
   const recentSuppliers = suppliers
     .filter(s => s.districtId === activeDistrictId)
-    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
-    .slice(0, 5);
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const lastSupplier = recentSuppliers[0] || null;
+  const filteredSuppliers = supplierQuery.trim()
+    ? suppliers.filter(s => (s.company||"").toLowerCase().includes(supplierQuery.toLowerCase()))
+    : recentSuppliers;
 
   const inputStyle = { width:"100%", padding:"10px 14px", borderRadius:12, fontSize:16, border:`1.5px solid ${t.border}`, background:t.card, color:t.text, outline:"none", fontFamily:"inherit" };
 
@@ -2019,15 +2040,40 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
           </div>
         )}
 
-        {/* Recent suppliers chips */}
-        {!linkedSupplierId && recentSuppliers.length > 0 && (
-          <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:16 }}>
-            {recentSuppliers.map(s => (
-              <button key={s.id} onClick={() => linkSupplier(s)} style={{
-                padding:"6px 12px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer",
-                background:t.surface, border:`1px solid ${t.border}`, color:t.text,
-              }}>{s.company}</button>
-            ))}
+        {/* Last supplier + search */}
+        {!linkedSupplierId && (
+          <div style={{ marginBottom:16 }}>
+            <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+              {lastSupplier && (
+                <button onClick={() => linkSupplier(lastSupplier)} style={{
+                  flex:1, padding:"8px 12px", borderRadius:12, fontSize:12, fontWeight:600, cursor:"pointer",
+                  background:t.surface, border:`1px solid ${t.border}`, color:t.text, textAlign:"left",
+                  display:"flex", alignItems:"center", gap:8,
+                }}>
+                  <span style={{ fontSize:10, color:t.muted }}>Último:</span> {lastSupplier.company || `#${lastSupplier.id}`}
+                </button>
+              )}
+              <button onClick={() => setSupplierSearch(v => !v)} style={{
+                width:40, height:40, borderRadius:12, border:`1px solid ${supplierSearch?t.accent:t.border}`,
+                background:supplierSearch?t.accentSoft:t.surface, color:supplierSearch?t.accent:t.muted,
+                fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
+              }}>🔍</button>
+            </div>
+            {supplierSearch && (
+              <div style={{ marginTop:8 }}>
+                <input placeholder="Buscar proveedor..." value={supplierQuery} onChange={e => setSupplierQuery(e.target.value)} autoFocus
+                  style={{ ...inputStyle, fontSize:13, marginBottom:8 }} />
+                <div style={{ display:"flex", flexWrap:"wrap", gap:6, maxHeight:120, overflowY:"auto" }}>
+                  {filteredSuppliers.map(s => (
+                    <button key={s.id} onClick={() => { linkSupplier(s); setSupplierSearch(false); setSupplierQuery(""); }} style={{
+                      padding:"6px 12px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer",
+                      background:t.surface, border:`1px solid ${t.border}`, color:t.text,
+                    }}>{s.company || `#${s.id}`}</button>
+                  ))}
+                  {filteredSuppliers.length === 0 && <p style={{ fontSize:11, color:t.dim, margin:0 }}>Sin resultados</p>}
+                </div>
+              </div>
+            )}
           </div>
         )}
         {linkedSupplierId && (
@@ -2046,7 +2092,21 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
 
         {/* === SECTION 2: PRODUCTS === */}
         <div style={{ height:1, background:t.border, margin:"8px 0 16px" }} />
-        <p style={{ fontSize:11, fontWeight:700, color:t.muted, margin:"0 0 12px", textTransform:"uppercase", letterSpacing:"0.08em" }}>2. Productos</p>
+        <p style={{ fontSize:11, fontWeight:700, color:t.muted, margin:"0 0 12px", textTransform:"uppercase", letterSpacing:"0.08em" }}>2. Productos{items.length > 0 ? ` (${items.length})` : ""}</p>
+
+        {/* Add product buttons — always at top */}
+        <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+          <button onClick={() => openCamera("product")} style={{
+            flex:1, padding:"14px 12px", borderRadius:14, border:`2px dashed ${t.accent}40`, background:t.accentSoft,
+            color:t.accent, fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+          }}>📸 Agregar producto</button>
+          <button onClick={() => prodGalleryRef.current?.click()} style={{
+            width:50, padding:"14px 0", borderRadius:14, border:`2px dashed ${t.border}`, background:t.surface,
+            color:t.text, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
+          }}>🖼</button>
+          <input ref={prodGalleryRef} type="file" accept="image/*" onChange={onProductGallery} style={{ display:"none" }} />
+          <input ref={addPhotoGalleryRef} type="file" accept="image/*" onChange={onAddPhotoGallery} style={{ display:"none" }} />
+        </div>
 
         {items.map((item, idx) => (
           <div key={item.id} style={{ marginBottom:10, background:t.card, borderRadius:14, padding:"10px 12px", border:`1px solid ${t.border}` }}>
@@ -2077,18 +2137,6 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
           </div>
         ))}
 
-        <div style={{ display:"flex", gap:8, marginTop:4 }}>
-          <button onClick={() => openCamera("product")} style={{
-            flex:1, padding:"14px 12px", borderRadius:14, border:`2px dashed ${t.accent}40`, background:t.accentSoft,
-            color:t.accent, fontSize:13, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
-          }}>📸 Agregar producto</button>
-          <button onClick={() => prodGalleryRef.current?.click()} style={{
-            width:50, padding:"14px 0", borderRadius:14, border:`2px dashed ${t.border}`, background:t.surface,
-            color:t.text, fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
-          }}>🖼</button>
-          <input ref={prodGalleryRef} type="file" accept="image/*" onChange={onProductGallery} style={{ display:"none" }} />
-          <input ref={addPhotoGalleryRef} type="file" accept="image/*" onChange={onAddPhotoGallery} style={{ display:"none" }} />
-        </div>
       </div>
 
       {/* Fixed save button */}
@@ -2246,6 +2294,35 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
       <Header title="Costos de importación" onBack={() => setSubScreen(null)} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
+
+        {/* Calculator toggle */}
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>🧮 Calculadora de importación</p>
+        <button onClick={() => updateLoc(p => ({ ...p, showImportCalculator: !p.showImportCalculator }))}
+          style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", padding:"14px 16px", borderRadius:14,
+            background: loc.showImportCalculator ? t.accentSoft : t.surface,
+            border:`1.5px solid ${loc.showImportCalculator ? t.accent : t.border}`, cursor:"pointer", marginBottom:20 }}>
+          <span style={{ fontSize:13, fontWeight:700, color: loc.showImportCalculator ? t.accent : t.text }}>
+            {loc.showImportCalculator ? "🧮 Calculadora ON" : "🧮 Calculadora OFF"}
+          </span>
+          <span style={{ width:44, height:24, borderRadius:12, padding:2,
+            background: loc.showImportCalculator ? t.accent : t.border,
+            display:"flex", alignItems:"center", justifyContent: loc.showImportCalculator ? "flex-end" : "flex-start", transition:"all 0.2s" }}>
+            <span style={{ width:20, height:20, borderRadius:10, background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }} />
+          </span>
+        </button>
+
+        {/* Currency selector */}
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>💱 Moneda de precios</p>
+        <div style={{ display:"flex", gap:6, marginBottom:20 }}>
+          {Object.entries(CURRENCIES).map(([k, v]) => (
+            <button key={k} onClick={() => updateLoc(p => ({ ...p, currency: k }))} style={{
+              flex:1, padding:"10px 8px", borderRadius:10, border:`1.5px solid ${loc.currency===k?t.accent:t.border}`,
+              background:loc.currency===k?t.accentSoft:"transparent", color:loc.currency===k?t.accent:t.muted,
+              fontSize:12, fontWeight:700, cursor:"pointer", textAlign:"center",
+            }}>{v.label}</button>
+          ))}
+        </div>
+
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>🎯 Margen mínimo para importación</p>
         <p style={{ fontSize:11, color:t.dim, marginBottom:20, lineHeight:1.5 }}>
           Los productos con margen menor a este porcentaje se marcan como no viables en el calculador de costos.
@@ -2458,7 +2535,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
         <MenuItem icon="☁️" title="Sala y sincronización" subtitle={sync?.roomId ? `Sala: ${sync.roomCode}` : "Sin sala activa"} onClick={() => setSubScreen("room")} />
         <MenuItem icon="🏷" title="Rubros y etiquetas" subtitle={presetName} onClick={() => setSubScreen("tags")} accent={t.accent} />
         <MenuItem icon="📸" title="Captura y fotos" subtitle={`Modo: ${captureMode}`} onClick={() => setSubScreen("capture")} />
-        <MenuItem icon="🎯" title="Costos de importación" subtitle={`Margen mín: ${loc.minMargin || 40}%`} onClick={() => setSubScreen("costs")} />
+        <MenuItem icon="🎯" title="Costos de importación" subtitle={`${CURRENCIES[loc.currency]?.label || "USD"} · Margen: ${loc.minMargin || 40}%`} onClick={() => setSubScreen("costs")} />
         <MenuItem icon="💾" title="Backup y datos" subtitle="JSON, nube" onClick={() => setSubScreen("backup")} />
         <MenuItem icon="🏥" title="Salud del sistema" subtitle={healthStatus} onClick={() => { if (!health) checkHealth(); setSubScreen("health"); }} accent={health?.status === "ok" ? "#22c55e" : health ? "#ef4444" : undefined} />
       </div>
@@ -3341,15 +3418,8 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
             {districts.filter(d=>d.id!==activeDistrictId).map(d=><option key={d.id} value={d.id}>{d.emoji} {d.name}</option>)}
           </select>
           {categories.length > 0 && <select value={filterCat} onChange={e=>setFilterCat(e.target.value)} style={sel(filterCat!=="all", t.blue)}>
-            <option value="all">🏷 Cat.</option>{categories.map(c=><option key={c} value={c}>{c}</option>)}
+            <option value="all">🏷 Categoría</option>{categories.map(c=><option key={c} value={c}>{c}</option>)}
           </select>}
-          <select value={filterViability} onChange={e=>setFilterViability(e.target.value)} style={sel(filterViability!=="all", filterViability==="viable"?t.green:filterViability==="marginal"?t.yellow:filterViability==="no viable"?t.red:t.muted)}>
-            <option value="all">📊 Rentab.</option>
-            <option value="viable">✅ Viable</option>
-            <option value="marginal">⚠️ Marginal</option>
-            <option value="no viable">❌ No viable</option>
-            <option value="none">🔘 Sin evaluar</option>
-          </select>
           {materials.length > 0 && <select value={filterMaterial} onChange={e=>setFilterMaterial(e.target.value)} style={sel(filterMaterial!=="all", t.green)}>
             <option value="all">🏺 Mat.</option>{materials.map(m=><option key={m} value={m}>{m}</option>)}
           </select>}
@@ -4487,7 +4557,7 @@ export default function App() {
       {screen === "detail" && screenData && (
         <ProductDetail product={products.find(p => p.id === screenData.id) || screenData} allProducts={products} suppliers={suppliers} districts={districts}
           onBack={goBack} onUpdate={(id, changes) => { handleUpdateProduct(id, changes); }} onCalc={p => navigate("calc", p)} onDelete={handleDeleteProduct}
-          onNavigateSupplier={s => navigate("supplier", s)} t={t} isDark={isDark} settings={settings} />
+          onNavigateSupplier={s => navigate("supplier", s)} onNavigateProduct={p => { setScreenData(p); }} t={t} isDark={isDark} settings={settings} />
       )}
       {screen === "supplier" && screenData && (
         <SupplierDetail supplier={suppliers.find(s => s.id === screenData.id) || screenData} products={products}
