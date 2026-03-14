@@ -1101,6 +1101,23 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
     onUpdate(p.id, updates);
   };
 
+  // Swipe gesture for prev/next product (only triggers at carousel edges)
+  const touchRef = useRef({ startX: 0, startY: 0, atEdge: false });
+  const handleTouchStart = (e) => {
+    const el = photoScrollRef.current;
+    const atStart = !el || el.scrollLeft <= 2;
+    const atEnd = !el || (el.scrollLeft + el.offsetWidth >= el.scrollWidth - 2);
+    touchRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, atStart, atEnd };
+  };
+  const handleTouchEnd = (e) => {
+    const dx = e.changedTouches[0].clientX - touchRef.current.startX;
+    const dy = e.changedTouches[0].clientY - touchRef.current.startY;
+    if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      if (dx < 0 && touchRef.current.atEnd && nextProduct && onNavigateProduct) onNavigateProduct(nextProduct);
+      else if (dx > 0 && touchRef.current.atStart && prevProduct && onNavigateProduct) onNavigateProduct(prevProduct);
+    }
+  };
+
   const inp = (extra = {}) => ({
     width:"100%", padding:"10px 12px", borderRadius:10, border:`1px solid ${t.border}`,
     background:t.surface, color:t.text, fontSize:16, outline:"none", boxSizing:"border-box",
@@ -1110,19 +1127,15 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
       <Header title={p.name || "Producto"} subtitle={supplier?.company} onBack={onBack} t={t}
-        right={onNavigateProduct && (prevProduct || nextProduct) ? (
-          <div style={{ display:"flex", gap:4 }}>
-            <button disabled={!prevProduct} onClick={() => prevProduct && onNavigateProduct(prevProduct)} style={{ background:"none", border:`1px solid ${prevProduct?t.border:"transparent"}`, borderRadius:8, padding:"4px 10px", color:prevProduct?t.text:t.border, fontSize:14, cursor:prevProduct?"pointer":"default", opacity:prevProduct?1:0.3 }}>‹</button>
-            <span style={{ fontSize:10, color:t.muted, alignSelf:"center", minWidth:36, textAlign:"center" }}>{productIdx+1}/{allProducts.length}</span>
-            <button disabled={!nextProduct} onClick={() => nextProduct && onNavigateProduct(nextProduct)} style={{ background:"none", border:`1px solid ${nextProduct?t.border:"transparent"}`, borderRadius:8, padding:"4px 10px", color:nextProduct?t.text:t.border, fontSize:14, cursor:nextProduct?"pointer":"default", opacity:nextProduct?1:0.3 }}>›</button>
-          </div>
+        right={allProducts.length > 1 ? (
+          <span style={{ fontSize:10, color:t.muted }}>{productIdx+1}/{allProducts.length}</span>
         ) : null}
       />
       <div style={{ flex:1, overflow:"auto", padding:`0 0 ${settings?.showImportCalculator ? "80px" : "20px"}` }}>
         <>
-          {/* SWIPEABLE PHOTO CAROUSEL */}
+          {/* SWIPEABLE PHOTO CAROUSEL — swipe left/right to change product */}
           {p.photos?.length > 0 && (
-            <div style={{ position:"relative", width:"100%", background:t.surface }}>
+            <div onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} style={{ position:"relative", width:"100%", background:t.surface }}>
               <div ref={photoScrollRef} onScroll={e => {
                 const el = e.target;
                 const idx = Math.round(el.scrollLeft / el.offsetWidth);
@@ -1182,6 +1195,11 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
                 </span>
               )}
             </div>
+          )}
+
+          {/* Swipe zone for products without photos */}
+          {(!p.photos || p.photos.length === 0) && (
+            <div onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} style={{ height:8 }} />
           )}
 
           {/* ═══ INLINE EDITABLE FIELDS (the important stuff) ═══ */}
@@ -2061,8 +2079,8 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
             </div>
             {supplierSearch && (
               <div style={{ marginTop:8 }}>
-                <input placeholder="Buscar proveedor..." value={supplierQuery} onChange={e => setSupplierQuery(e.target.value)} autoFocus
-                  style={{ ...inputStyle, fontSize:13, marginBottom:8 }} />
+                <input placeholder="Buscar proveedor..." value={supplierQuery} onChange={e => setSupplierQuery(e.target.value)}
+                  style={{ ...inputStyle, fontSize:16, marginBottom:8 }} />
                 <div style={{ display:"flex", flexWrap:"wrap", gap:6, maxHeight:120, overflowY:"auto" }}>
                   {filteredSuppliers.map(s => (
                     <button key={s.id} onClick={() => { linkSupplier(s); setSupplierSearch(false); setSupplierQuery(""); }} style={{
@@ -3421,17 +3439,8 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
             <option value="all">🏷 Categoría</option>{categories.map(c=><option key={c} value={c}>{c}</option>)}
           </select>}
           {materials.length > 0 && <select value={filterMaterial} onChange={e=>setFilterMaterial(e.target.value)} style={sel(filterMaterial!=="all", t.green)}>
-            <option value="all">🏺 Mat.</option>{materials.map(m=><option key={m} value={m}>{m}</option>)}
+            <option value="all">🏺 Material</option>{materials.map(m=><option key={m} value={m}>{m}</option>)}
           </select>}
-          <select value={filterPrice} onChange={e=>setFilterPrice(e.target.value)} style={sel(filterPrice!=="all", t.yellow)}>
-            <option value="all">💰 Precio</option>
-            <option value="0-1">$0-1</option>
-            <option value="1-5">$1-5</option>
-            <option value="5-10">$5-10</option>
-            <option value="10-25">$10-25</option>
-            <option value="25-50">$25-50</option>
-            <option value="50-0">$50+</option>
-          </select>
           <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={sel(sortBy!=="recent", t.purple)}>
             <option value="recent">🕐 Recientes</option><option value="price_low">💲 Menor $</option><option value="price_high">💲 Mayor $</option><option value="rating">⭐ Rating</option>
           </select>
