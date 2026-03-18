@@ -345,7 +345,7 @@ const Header = memo(({ title, subtitle, onBack, right, t }) => (
 ));
 
 const Toast = memo(({ msg, t }) => msg ? (
-  <div style={{ position:"fixed", top:16, left:"50%", transform:"translateX(-50%)", background:t.green, color:"#fff", padding:"10px 24px", borderRadius:12, fontWeight:700, fontSize:13, boxShadow:`0 8px 30px ${t.green}60`, zIndex:1000, whiteSpace:"nowrap" }} className="fade-in">✓ {msg}</div>
+  <div style={{ position:"fixed", top:"calc(env(safe-area-inset-top, 0px) + 16px)", left:"50%", transform:"translateX(-50%)", background:t.green, color:"#fff", padding:"10px 24px", borderRadius:12, fontWeight:700, fontSize:13, boxShadow:`0 8px 30px ${t.green}60`, zIndex:1000, whiteSpace:"nowrap" }} className="fade-in">✓ {msg}</div>
 ) : null);
 
 const Empty = ({ icon, title, sub, t }) => (
@@ -4579,7 +4579,7 @@ export default function App() {
       )}
       {screen === "calc" && screenData && (
         <Calculator product={products.find(p => p.id === screenData.id) || screenData} settings={settings}
-          onBack={() => navigate("detail", screenData)}
+          onBack={goBack}
           onSave={(id, changes) => { handleUpdateProduct(id, changes); showToast("Cálculo guardado"); }} t={t} />
       )}
       {screen === "districts" && (
