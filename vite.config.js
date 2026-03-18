@@ -23,7 +23,7 @@ export default defineConfig({
         description: 'Captura y organiza productos en ferias comerciales',
         theme_color: '#0A0E17',
         background_color: '#0A0E17',
-        display: 'minimal-ui',
+        display: 'standalone',
         orientation: 'portrait',
         lang: 'es',
         start_url: '/',
