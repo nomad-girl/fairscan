@@ -12,8 +12,7 @@ import db, { addToSyncQueue, getSyncQueue, deleteSyncQueueItem, saveSettings as 
  */
 class SyncEngine {
   constructor() {
-    this.roomId = null;      // Supabase room UUID
-    this.roomCode = null;    // 6-char room code
+    this.roomId = null;      // Supabase team UUID (historically called roomId)
     this.deviceId = this._getOrCreateDeviceId();
     this.channel = null;     // Supabase Realtime channel
     this.listeners = new Set();
@@ -52,7 +51,7 @@ class SyncEngine {
   getState() {
     return {
       roomId: this.roomId,
-      roomCode: this.roomCode,
+      teamId: this.roomId, // alias
       isOnline: this.isOnline,
       isSyncing: this.isSyncing,
       lastSyncAt: this.lastSyncAt,
@@ -61,65 +60,19 @@ class SyncEngine {
     };
   }
 
-  // ─── Room Management ───
+  // ─── Team Management ───
 
-  /** Create a new room and push all local data */
-  async createRoom() {
+  /** Connect to a team and sync data */
+  async connectTeam(teamId) {
     if (!isSupabaseConfigured()) throw new Error('Supabase no está configurado');
+    if (!teamId) throw new Error('Team ID requerido');
 
-    const code = this._generateCode();
+    this.roomId = teamId;
 
-    const { data, error } = await supabase
-      .from('rooms')
-      .insert({
-        code,
-        name: null,
-        created_by_device: this.deviceId,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    this.roomId = data.id;
-    this.roomCode = code;
-
-    // Save to local settings
-    await dbSaveSettings({ roomId: this.roomId, roomCode: this.roomCode });
+    // Save to local settings (reuses roomId field)
+    await dbSaveSettings({ roomId: this.roomId, roomCode: null });
 
     // Build ID mapper from local data
-    await idMapper.buildFromLocal();
-
-    // Push all existing local data to cloud
-    await this._pushAllLocal();
-
-    // Subscribe to realtime
-    this._subscribeRealtime();
-    this.startAutoBackup();
-
-    this._notify();
-    return code;
-  }
-
-  /** Join an existing room by code */
-  async joinRoom(code) {
-    if (!isSupabaseConfigured()) throw new Error('Supabase no está configurado');
-
-    const { data, error } = await supabase
-      .from('rooms')
-      .select()
-      .eq('code', code.toUpperCase().trim())
-      .single();
-
-    if (error || !data) throw new Error('Sala no encontrada');
-
-    this.roomId = data.id;
-    this.roomCode = data.code;
-
-    // Save to local settings
-    await dbSaveSettings({ roomId: this.roomId, roomCode: this.roomCode });
-
-    // Build ID mapper from local data first
     await idMapper.buildFromLocal();
 
     // Pull all data from cloud
@@ -135,14 +88,13 @@ class SyncEngine {
     this._notify();
   }
 
-  /** Leave the current room */
-  async leaveRoom() {
+  /** Disconnect from current team */
+  async disconnectTeam() {
     if (this.channel) {
       supabase?.removeChannel(this.channel);
       this.channel = null;
     }
     this.roomId = null;
-    this.roomCode = null;
 
     await dbSaveSettings({ roomId: null, roomCode: null });
     this.stopAutoBackup();
@@ -150,16 +102,15 @@ class SyncEngine {
     this._notify();
   }
 
-  /** Resume room connection (called on app startup if already in a room) */
-  async resumeRoom(roomId, roomCode) {
-    if (!isSupabaseConfigured() || !roomId) return;
+  /** Resume team connection (called on app startup if previously connected) */
+  async resumeTeam(teamId) {
+    if (!isSupabaseConfigured() || !teamId) return;
 
-    this.roomId = roomId;
-    this.roomCode = roomCode;
+    this.roomId = teamId;
 
     await idMapper.buildFromLocal();
 
-    // #8: Delta sync — only pull changes since last sync, not everything
+    // Delta sync — only pull changes since last sync, not everything
     if (this.isOnline) {
       try {
         if (this.lastSyncAt) {
@@ -623,7 +574,7 @@ class SyncEngine {
 
   /** Restore from a cloud backup */
   async restoreBackup(backupId) {
-    if (!this.roomId || !isSupabaseConfigured()) throw new Error('No hay sala activa');
+    if (!this.roomId || !isSupabaseConfigured()) throw new Error('No hay equipo activo');
 
     const { data, error } = await supabase
       .from('backups')
@@ -682,15 +633,11 @@ class SyncEngine {
     return id;
   }
 
-  _generateCode() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I,O,0,1
-    let code = '';
-    const array = crypto.getRandomValues(new Uint8Array(6));
-    for (let i = 0; i < 6; i++) {
-      code += chars[array[i] % chars.length];
-    }
-    return code;
-  }
+  // Legacy aliases for backward compatibility
+  async createRoom() { throw new Error('Use connectTeam() instead'); }
+  async joinRoom() { throw new Error('Use connectTeam() instead'); }
+  async leaveRoom() { return this.disconnectTeam(); }
+  async resumeRoom(roomId) { return this.resumeTeam(roomId); }
 }
 
 // Singleton

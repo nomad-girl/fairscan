@@ -82,8 +82,11 @@ function calcImportCost(fobPrice, ncm, freightPct = 12, insurancePct = 1.5) {
 import db, { initDB, getSettings, saveSettings as dbSaveSettings, getDistricts, addDistrict, updateDistrict as dbUpdateDistrict, getSuppliers, addSupplier, updateSupplier as dbUpdateSupplier, deleteSupplier as dbDeleteSupplier, getProducts, addProduct, updateProduct as dbUpdateProduct, deleteProduct as dbDeleteProduct, deleteDistrict as dbDeleteDistrict, setSyncEngine, getSyncQueue } from './db';
 import { processImage, processAudio, processCard, urlToBase64, uploadPhoto, proxyImage } from './api/client';
 import useSync from './hooks/useSync';
+import useAuth from './hooks/useAuth';
+import useTeams from './hooks/useTeams';
 import syncEngine from './lib/syncEngine';
-import RoomPanel from './components/RoomPanel';
+import LoginScreen from './components/LoginScreen';
+import TeamPanel from './components/TeamPanel';
 import { useSyncWithAI } from './hooks/useSyncWithAI.js';
 
 const CURRENCIES = { USD: { symbol:"USD", label:"Dólar (USD)" }, ARS: { symbol:"ARS", label:"Peso Argentino (ARS)" }, CNY: { symbol:"¥", label:"Yuan Chino (CNY)" } };
@@ -2175,7 +2178,10 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
 // ═══════════════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════════════
-function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers, districts, onReload }) {
+function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers, districts, onReload, teams, activeTeam, teamMembers, isAdmin, fetchMembers, inviteMember, onSwitchTeam, userEmail, onSignOut }) {
+  const handleSwitchTeam = async (teamId) => {
+    if (onSwitchTeam) await onSwitchTeam(teamId);
+  };
   const [loc, setLoc] = useState({ ...settings });
   const [editing, setEditing] = useState(null);
   const [ni, setNi] = useState("");
@@ -2243,12 +2249,22 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
     </button>
   );
 
-  // ─── SUB-SCREEN: Sala y sincronización ───
+  // ─── SUB-SCREEN: Equipo y sincronización ───
   if (subScreen === "room") return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
-      <Header title="Sala y sincronización" onBack={() => setSubScreen(null)} t={t} />
+      <Header title="Equipo y sincronización" onBack={() => setSubScreen(null)} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
-        {sync ? <RoomPanel sync={sync} t={t} /> : (
+        {sync ? <TeamPanel
+          sync={sync}
+          teams={teams}
+          activeTeam={activeTeam}
+          teamMembers={teamMembers}
+          isAdmin={isAdmin}
+          onFetchMembers={fetchMembers}
+          onInvite={inviteMember}
+          onSwitchTeam={handleSwitchTeam}
+          t={t}
+        /> : (
           <p style={{ fontSize:13, color:t.muted, textAlign:"center", marginTop:40 }}>La sincronización no está disponible.</p>
         )}
       </div>
@@ -2424,11 +2440,11 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
         </div>
         {importStatus && <p style={{ fontSize:12, fontWeight:600, color:importStatus.startsWith('✅') ? t.green : t.red, textAlign:"center" }}>{importStatus}</p>}
 
-        {sync?.roomId && (
+        {sync?.teamId && (
           <>
             <div style={{ height:1, background:t.border, margin:"20px 0" }} />
             <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>☁️ Backup automático en la nube</p>
-            <p style={{ fontSize:11, color:t.dim, marginBottom:12 }}>Se guarda una copia de seguridad en la nube cada 1 hora automáticamente mientras estés en una sala.</p>
+            <p style={{ fontSize:11, color:t.dim, marginBottom:12 }}>Se guarda una copia de seguridad en la nube cada 1 hora automáticamente mientras estés conectado a un equipo.</p>
             <div style={{ display:"flex", gap:8, marginBottom:12 }}>
               <button onClick={async () => {
                 setImportStatus("⏳ Guardando backup en la nube...");
@@ -2553,12 +2569,28 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
       <Header title="Configuración" onBack={onBack} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
-        <MenuItem icon="☁️" title="Sala y sincronización" subtitle={sync?.roomId ? `Sala: ${sync.roomCode}` : "Sin sala activa"} onClick={() => setSubScreen("room")} />
+        <MenuItem icon="👥" title="Equipo y sincronización" subtitle={activeTeam ? activeTeam.name : "Sin equipo"} onClick={() => setSubScreen("room")} />
         <MenuItem icon="🏷" title="Rubros y etiquetas" subtitle={presetName} onClick={() => setSubScreen("tags")} accent={t.accent} />
         <MenuItem icon="📸" title="Captura y fotos" subtitle={`Modo: ${captureMode}`} onClick={() => setSubScreen("capture")} />
         <MenuItem icon="🎯" title="Costos de importación" subtitle={`${CURRENCIES[loc.currency]?.label || "USD"} · Margen: ${loc.minMargin || 40}%`} onClick={() => setSubScreen("costs")} />
         <MenuItem icon="💾" title="Backup y datos" subtitle="JSON, nube" onClick={() => setSubScreen("backup")} />
         <MenuItem icon="🏥" title="Salud del sistema" subtitle={healthStatus} onClick={() => { if (!health) checkHealth(); setSubScreen("health"); }} accent={health?.status === "ok" ? "#22c55e" : health ? "#ef4444" : undefined} />
+
+        {/* User & logout */}
+        <div style={{ marginTop: 24, borderTop: `1px solid ${t.border}`, paddingTop: 20 }}>
+          {userEmail && (
+            <p style={{ fontSize: 12, color: t.muted, margin: '0 0 12px', textAlign: 'center' }}>
+              Sesión: {userEmail}
+            </p>
+          )}
+          <button onClick={onSignOut} style={{
+            width: '100%', padding: '12px', borderRadius: 12,
+            border: `1px solid ${t.red}40`, background: t.redSoft,
+            color: t.red, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+          }}>
+            Cerrar sesión
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -3973,7 +4005,13 @@ export default function App() {
   // Scroll position preservation for list views
   const scrollPositionRef = useRef({ products: 0, suppliers: 0 });
 
+  // ─── Auth ───
+  const auth = useAuth();
   const t = isDark ? T.dark : T.light;
+
+  // ─── Teams ───
+  const teamsHook = useTeams(auth.user);
+
   const activeDistrictId = settings.activeDistrictId;
   const activeDistrict = districts.find(d => d.id === activeDistrictId);
 
@@ -3987,8 +4025,9 @@ export default function App() {
   // Sync hook
   const sync = useSync(reloadAll);
 
-  // Load from Dexie on mount + resume cloud sync if in a room
+  // Load from Dexie on mount + resume cloud sync + auto-connect team
   useEffect(() => {
+    if (!auth.user) return; // Wait for auth
     (async () => {
       await initDB();
       // Wire sync engine into db.js CRUD hooks
@@ -3996,12 +4035,21 @@ export default function App() {
       const st = await reloadAll();
       setIsDark(st.theme !== "light");
       setReady(true);
-      // Resume cloud sync if previously in a room
-      if (st.roomId && st.roomCode) {
-        syncEngine.resumeRoom(st.roomId, st.roomCode).catch(console.warn);
+      // Resume team sync if previously connected
+      if (st.roomId) {
+        syncEngine.resumeTeam(st.roomId).catch(console.warn);
       }
     })();
-  }, []);
+  }, [auth.user]);
+
+  // Auto-connect to team when user has teams but no active team
+  useEffect(() => {
+    if (!ready || !auth.user || teamsHook.loading || sync.teamId) return;
+    if (teamsHook.teams.length === 1) {
+      // Auto-connect to the only team
+      sync.connectTeam(teamsHook.teams[0].id).catch(console.warn);
+    }
+  }, [ready, auth.user, teamsHook.loading, teamsHook.teams.length, sync.teamId]);
 
   // Refresh React state when AI sync updates Dexie
   useEffect(() => {
@@ -4464,6 +4512,18 @@ export default function App() {
     }
   };
 
+  // Switch to a different team
+  const handleSwitchTeam = async (teamId) => {
+    try {
+      if (sync.teamId) await sync.disconnectTeam();
+      await sync.connectTeam(teamId);
+      await reloadAll();
+      showToast("Equipo cambiado");
+    } catch (err) {
+      console.warn('Error switching team:', err);
+    }
+  };
+
   const handleAddDistrict = async (d) => {
     await addDistrict(d);
     await reloadAll();
@@ -4493,6 +4553,17 @@ export default function App() {
     await reloadAll();
     showToast("Feria eliminada");
   };
+
+  // Auth gate: show login screen if not authenticated
+  if (auth.loading) return (
+    <div style={{ height:"100%", display:"flex", alignItems:"center", justifyContent:"center", background:t.bg, flexDirection:"column", gap:12 }}>
+      <span style={{ fontSize:48 }}>📸</span>
+      <span style={{ fontSize:18, fontWeight:800, color:t.text }}>FairScan</span>
+      <span style={{ fontSize:12, color:t.muted }}>Cargando...</span>
+    </div>
+  );
+
+  if (!auth.user) return <LoginScreen t={t} onAuth={auth} />;
 
   if (!ready) return (
     <div style={{ height:"100%", display:"flex", alignItems:"center", justifyContent:"center", background:t.bg, flexDirection:"column", gap:12 }}>
@@ -4589,7 +4660,10 @@ export default function App() {
       )}
       {screen === "settings" && (
         <SettingsScreen settings={settings} onSave={handleSaveSettings} onBack={() => navigate("list")} sync={sync} t={t}
-          products={products} suppliers={suppliers} districts={districts} onReload={reloadAll} />
+          products={products} suppliers={suppliers} districts={districts} onReload={reloadAll}
+          teams={teamsHook.teams} activeTeam={teamsHook.teams.find(tm => tm.id === sync.teamId)} teamMembers={teamsHook.teamMembers}
+          isAdmin={teamsHook.isAdmin} fetchMembers={teamsHook.fetchMembers} inviteMember={teamsHook.inviteMember}
+          onSwitchTeam={handleSwitchTeam} userEmail={auth.user?.email} onSignOut={auth.signOut} />
       )}
       {screen === "export" && (
         <ExportScreen products={products} suppliers={suppliers} districts={districts}

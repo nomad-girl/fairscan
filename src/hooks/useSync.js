@@ -4,7 +4,7 @@ import { isSupabaseConfigured } from '../lib/supabase.js';
 
 /**
  * React hook for sync state management.
- * Provides room state, sync status, and actions (create/join/leave room).
+ * Provides team state, sync status, and actions.
  */
 export default function useSync(reloadAll) {
   const [syncState, setSyncState] = useState(syncEngine.getState());
@@ -23,12 +23,11 @@ export default function useSync(reloadAll) {
     return unsub;
   }, []);
 
-  const createRoom = useCallback(async () => {
+  const connectTeam = useCallback(async (teamId) => {
     setIsLoading(true);
     setError(null);
     try {
-      const code = await syncEngine.createRoom();
-      return code;
+      await syncEngine.connectTeam(teamId);
     } catch (err) {
       setError(err.message);
       throw err;
@@ -37,24 +36,11 @@ export default function useSync(reloadAll) {
     }
   }, []);
 
-  const joinRoom = useCallback(async (code) => {
+  const disconnectTeam = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      await syncEngine.joinRoom(code);
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const leaveRoom = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      await syncEngine.leaveRoom();
+      await syncEngine.disconnectTeam();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -76,8 +62,8 @@ export default function useSync(reloadAll) {
 
   return {
     // State
-    roomId: syncState.roomId,
-    roomCode: syncState.roomCode,
+    teamId: syncState.teamId,
+    roomId: syncState.roomId, // backward compat
     isOnline: syncState.isOnline,
     isSyncing: syncState.isSyncing,
     lastSyncAt: syncState.lastSyncAt,
@@ -87,9 +73,8 @@ export default function useSync(reloadAll) {
     isLoading,
     error,
     // Actions
-    createRoom,
-    joinRoom,
-    leaveRoom,
+    connectTeam,
+    disconnectTeam,
     forceSync,
     clearError: () => setError(null),
   };
