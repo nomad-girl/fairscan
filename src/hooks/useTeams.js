@@ -12,19 +12,32 @@ export default function useTeams(user) {
     if (!user || !supabase) { setTeams([]); setLoading(false); return; }
 
     try {
-      const { data, error } = await supabase
+      // Fetch memberships first, then teams separately (avoids PostgREST FK ambiguity)
+      const { data: memberships, error: memErr } = await supabase
         .from('team_members')
-        .select('team_id, role, teams(id, name, created_at)')
+        .select('team_id, role')
         .eq('user_id', user.id);
+
+      if (memErr) throw memErr;
+      if (!memberships || memberships.length === 0) { setTeams([]); return; }
+
+      const teamIds = memberships.map(m => m.team_id);
+      const { data, error } = await supabase
+        .from('teams')
+        .select('id, name, created_at')
+        .in('id', teamIds);
 
       if (error) throw error;
 
-      const teamList = (data || []).map(tm => ({
-        id: tm.teams.id,
-        name: tm.teams.name,
-        createdAt: tm.teams.created_at,
-        myRole: tm.role,
-      }));
+      const teamList = (data || []).map(team => {
+        const membership = memberships.find(m => m.team_id === team.id);
+        return {
+          id: team.id,
+          name: team.name,
+          createdAt: team.created_at,
+          myRole: membership?.role || 'member',
+        };
+      });
 
       setTeams(teamList);
     } catch (err) {
@@ -41,19 +54,28 @@ export default function useTeams(user) {
     if (!teamId || !supabase) { setTeamMembers([]); return; }
 
     try {
-      const { data, error } = await supabase
+      // Fetch members, then profiles separately (avoids PostgREST FK ambiguity)
+      const { data: memData, error: memErr } = await supabase
         .from('team_members')
-        .select('user_id, role, profiles(email, display_name)')
+        .select('user_id, role')
         .eq('team_id', teamId);
 
-      if (error) throw error;
+      if (memErr) throw memErr;
 
-      const members = (data || []).map(m => ({
-        userId: m.user_id,
-        role: m.role,
-        email: m.profiles?.email,
-        displayName: m.profiles?.display_name,
-      }));
+      const userIds = (memData || []).map(m => m.user_id);
+      const { data: profileData } = userIds.length > 0
+        ? await supabase.from('profiles').select('id, email, display_name').in('id', userIds)
+        : { data: [] };
+
+      const members = (memData || []).map(m => {
+        const profile = (profileData || []).find(p => p.id === m.user_id);
+        return {
+          userId: m.user_id,
+          role: m.role,
+          email: profile?.email,
+          displayName: profile?.display_name,
+        };
+      });
 
       setTeamMembers(members);
 
