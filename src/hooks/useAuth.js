@@ -24,8 +24,8 @@ export default function useAuth() {
     return signIn(email, password);
   }, []);
 
-  const handleSignUp = useCallback(async (email, password, displayName) => {
-    return signUp(email, password, displayName);
+  const handleSignUp = useCallback(async (email, password, displayName, teamName) => {
+    return signUp(email, password, displayName, teamName);
   }, []);
 
   const handleSignOut = useCallback(async () => {

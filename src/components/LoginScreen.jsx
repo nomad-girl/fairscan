@@ -5,6 +5,7 @@ export default function LoginScreen({ t, onAuth }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [teamName, setTeamName] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(null);
@@ -19,7 +20,7 @@ export default function LoginScreen({ t, onAuth }) {
       if (mode === 'login') {
         await onAuth.signIn(email, password);
       } else {
-        const result = await onAuth.signUp(email, password, displayName || email.split('@')[0]);
+        const result = await onAuth.signUp(email, password, displayName || email.split('@')[0], teamName);
         // If email confirmation is required, show message
         if (result?.user && !result.session) {
           setSuccess('Revisá tu email para confirmar la cuenta');
@@ -75,14 +76,23 @@ export default function LoginScreen({ t, onAuth }) {
         {/* Form */}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {mode === 'register' && (
-            <input
-              type="text"
-              placeholder="Tu nombre"
-              value={displayName}
-              onChange={e => setDisplayName(e.target.value)}
-              style={inputStyle}
-              autoComplete="name"
-            />
+            <>
+              <input
+                type="text"
+                placeholder="Tu nombre"
+                value={displayName}
+                onChange={e => setDisplayName(e.target.value)}
+                style={inputStyle}
+                autoComplete="name"
+              />
+              <input
+                type="text"
+                placeholder="Nombre de tu equipo"
+                value={teamName}
+                onChange={e => setTeamName(e.target.value)}
+                style={inputStyle}
+              />
+            </>
           )}
           <input
             type="email"

@@ -27,12 +27,12 @@ export async function signIn(email, password) {
   return data;
 }
 
-export async function signUp(email, password, displayName) {
+export async function signUp(email, password, displayName, teamName) {
   if (!supabase) throw new Error('Supabase no configurado');
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { display_name: displayName } },
+    options: { data: { display_name: displayName, team_name: teamName } },
   });
   if (error) throw error;
   return data;
