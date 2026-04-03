@@ -9,6 +9,7 @@ export default function LoginScreen({ t, onAuth }) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -103,16 +104,39 @@ export default function LoginScreen({ t, onAuth }) {
             style={inputStyle}
             autoComplete="email"
           />
-          <input
-            type="password"
-            placeholder="Contraseña"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            required
-            minLength={6}
-            style={inputStyle}
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-          />
+          <div style={{ position: 'relative' }}>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Contraseña"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              minLength={6}
+              style={{ ...inputStyle, paddingRight: 48 }}
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: 'absolute',
+                right: 12,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                padding: 4,
+                cursor: 'pointer',
+                fontSize: 18,
+                color: t.muted,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+              tabIndex={-1}
+            >
+              {showPassword ? '🙈' : '👁️'}
+            </button>
+          </div>
 
           {/* Error */}
           {error && (
