@@ -63,7 +63,18 @@
       s.crossOrigin = 'anonymous';
       s.onload = function() {
         if (window.Sentry) {
-          window.Sentry.init({ dsn: dsn, tracesSampleRate: 0.1 });
+          window.Sentry.init({
+            dsn: dsn,
+            tracesSampleRate: 0.1,
+            beforeSend: function(event) {
+              // Filter out transient network errors from Supabase auth refresh
+              var msg = (event.exception && event.exception.values && event.exception.values[0] && event.exception.values[0].value) || '';
+              if (msg.indexOf('Load failed') !== -1 && msg.indexOf('AuthRetryableFetchError') !== -1) {
+                return null; // Drop this event
+              }
+              return event;
+            }
+          });
         }
       };
       document.head.appendChild(s);

@@ -10,6 +10,9 @@ export default function useAuth() {
     getSession().then(({ data }) => {
       setUser(data.session?.user ?? null);
       setLoading(false);
+    }).catch(() => {
+      // Network error (e.g. AuthRetryableFetchError) — keep user null, let retry on reconnect
+      setLoading(false);
     });
 
     // Listen for auth changes (login, logout, token refresh)
