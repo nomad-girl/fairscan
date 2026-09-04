@@ -10,3 +10,9 @@ dist
 
 # Local Netlify folder
 .netlify
+
+# macOS
+.DS_Store
+
+# Config local de Claude Code (puede contener credenciales)
+.claude/settings.local.json

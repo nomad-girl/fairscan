@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>FairScan — Análisis de Costos</title>
+<style>
+  @page { margin: 1.5cm 2cm; size: A4; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; color: #1a1a2e; line-height: 1.6; padding: 40px; max-width: 800px; margin: 0 auto; }
+  h1 { font-size: 28px; color: #FF6B35; margin-bottom: 4px; }
+  h2 { font-size: 20px; color: #1a1a2e; margin: 36px 0 16px; padding-bottom: 8px; border-bottom: 2px solid #FF6B35; }
+  h3 { font-size: 15px; color: #444; margin: 20px 0 10px; }
+  p { margin-bottom: 10px; font-size: 13.5px; }
+  .subtitle { font-size: 14px; color: #666; margin-bottom: 6px; }
+  .date { font-size: 12px; color: #999; margin-bottom: 40px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; font-size: 13px; }
+  th { background: #f0f0f5; text-align: left; padding: 10px 12px; font-weight: 700; border-bottom: 2px solid #ddd; }
+  td { padding: 9px 12px; border-bottom: 1px solid #eee; }
+  tr:last-child td { border-bottom: none; }
+  .total td { font-weight: 700; border-top: 2px solid #FF6B35; background: #FFF8F5; }
+  .green { color: #16a34a; font-weight: 600; }
+  .orange { color: #FF6B35; font-weight: 600; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+  .badge-free { background: #dcfce7; color: #16a34a; }
+  .badge-paid { background: #fef3c7; color: #d97706; }
+  .note { background: #f8f9fa; border-left: 3px solid #FF6B35; padding: 10px 14px; margin: 12px 0; font-size: 12.5px; color: #555; border-radius: 0 8px 8px 0; }
+  .warning { background: #fef2f2; border-left: 3px solid #dc2626; padding: 10px 14px; margin: 12px 0; font-size: 12.5px; color: #7f1d1d; border-radius: 0 8px 8px 0; }
+  .page-break { page-break-before: always; }
+  .flex-row { display: flex; gap: 16px; margin: 16px 0; }
+  .stat-card { flex: 1; background: #f8f9fa; border-radius: 12px; padding: 16px; text-align: center; border: 1px solid #e5e7eb; }
+  .stat-card .value { font-size: 28px; font-weight: 800; color: #FF6B35; }
+  .stat-card .label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; }
+  @media print { body { padding: 0; } }
+</style>
+</head>
+<body>
+
+<h1>FairScan</h1>
+<p class="subtitle">Análisis de Costos de Infraestructura</p>
+<p class="date">Marzo 2026</p>
+
+<div class="flex-row">
+  <div class="stat-card">
+    <div class="value">~$124</div>
+    <div class="label">Costo de construcción</div>
+  </div>
+  <div class="stat-card">
+    <div class="value">$1.50-$9</div>
+    <div class="label">Costo mensual operativo</div>
+  </div>
+  <div class="stat-card">
+    <div class="value">10,000</div>
+    <div class="label">Productos soportados</div>
+  </div>
+</div>
+
+<h2>1. Servicios Utilizados</h2>
+
+<table>
+  <tr><th>Servicio</th><th>Función</th><th>Plan</th></tr>
+  <tr><td><strong>Netlify</strong></td><td>Hosting de la app web + 6 funciones serverless (IA, upload, health)</td><td><span class="badge badge-free">FREE</span></td></tr>
+  <tr><td><strong>Anthropic Claude API</strong></td><td>IA que analiza fotos de productos, lee tarjetas y transcribe audio (Haiku 4.5)</td><td><span class="badge badge-paid">PAGO POR USO</span></td></tr>
+  <tr><td><strong>Supabase</strong></td><td>Base de datos PostgreSQL + sincronización en tiempo real entre dispositivos</td><td><span class="badge badge-free">FREE</span></td></tr>
+  <tr><td><strong>Cloudflare R2</strong></td><td>Almacenamiento de fotos de productos y tarjetas en la nube</td><td><span class="badge badge-free">FREE</span></td></tr>
+  <tr><td><strong>Sentry</strong></td><td>Monitoreo automático de errores de la app</td><td><span class="badge badge-free">FREE</span></td></tr>
+  <tr><td><strong>UptimeRobot</strong></td><td>Monitoreo de disponibilidad cada 5 minutos</td><td><span class="badge badge-free">FREE</span></td></tr>
+</table>
+
+<h2>2. Costos de Construcción (únicos, ya pagados)</h2>
+
+<table>
+  <tr><th>Concepto</th><th>Costo</th><th>Notas</th></tr>
+  <tr><td>Claude Code (suscripción desarrollo)</td><td>~$100</td><td>Herramienta IA para construir la app. Suscripción mensual.</td></tr>
+  <tr><td>Netlify (deploys febrero)</td><td>$9</td><td>26 deploys x 15 créditos = 390 (excede los 300 gratis)</td></tr>
+  <tr><td>Netlify (deploys marzo)</td><td>$10</td><td>Deploys durante desarrollo activo</td></tr>
+  <tr><td>Anthropic API (testing)</td><td>~$2-5</td><td>Llamadas de prueba durante desarrollo</td></tr>
+  <tr class="total"><td><strong>TOTAL CONSTRUCCIÓN</strong></td><td><strong>~$121-124</strong></td><td>Costo único, no se repite</td></tr>
+</table>
+
+<div class="note">
+  <strong>Tip:</strong> Los cargos de Netlify fueron por exceso de deploys durante desarrollo activo. En uso normal (sin desarrollo), el costo de Netlify es $0. Para desarrollo futuro, usar <code>netlify dev</code> localmente reduce deploys.
+</div>
+
+<h2 class="page-break">3. Costos de Uso / Mantenimiento (mensuales)</h2>
+
+<h3>Escenarios de uso</h3>
+
+<table>
+  <tr><th>Escenario</th><th>Productos</th><th>Claude API</th><th>R2 Storage</th><th>Otros</th><th>Total/mes</th></tr>
+  <tr><td>Feria corta (1 semana)</td><td>~500</td><td>$1.50</td><td>$0</td><td>$0</td><td class="green">$1.50-$4</td></tr>
+  <tr><td>Feria larga (2 semanas)</td><td>~2,000</td><td>$3</td><td>$0</td><td>$0</td><td class="orange">$3-$5</td></tr>
+  <tr><td>Uso intensivo</td><td>~10,000</td><td>$6.50</td><td>$0.10</td><td>$0</td><td class="orange">$3-$9</td></tr>
+  <tr><td>Meses sin usar (entre ferias)</td><td>—</td><td>$0</td><td>$0*</td><td>$0</td><td class="green">$0</td></tr>
+</table>
+
+<p style="font-size:11px; color:#888;">* R2 cobra $0.015/GB/mes por almacenamiento acumulado sobre 10 GB. Con 10,000 productos (~16.5 GB) el costo de storage es ~$0.10/mes incluso sin usar la app.</p>
+
+<h3>Detalle por servicio</h3>
+
+<table>
+  <tr><th>Servicio</th><th>Costo mensual</th><th>Notas</th></tr>
+  <tr><td>Anthropic Claude API (Haiku 4.5)</td><td class="orange">$1.50-$8</td><td>$1/M tokens input + $5/M tokens output. Solo se cobra al capturar.</td></tr>
+  <tr><td>Netlify</td><td class="green">$0</td><td>Sin desarrollo activo = sin deploys = sin costo.</td></tr>
+  <tr><td>Supabase</td><td class="green">$0</td><td>10,000 productos = ~23 MB de 500 MB disponibles.</td></tr>
+  <tr><td>Cloudflare R2</td><td class="green">$0-$0.15</td><td>10 GB gratis. Cada GB extra = $0.015/mes. Descarga siempre gratis.</td></tr>
+  <tr><td>Sentry</td><td class="green">$0</td><td>5,000 errores/mes gratis.</td></tr>
+  <tr><td>UptimeRobot</td><td class="green">$0</td><td>50 monitores gratis.</td></tr>
+  <tr class="total"><td><strong>TOTAL</strong></td><td><strong>$1.50-$9/mes</strong></td><td>Prácticamente solo la API de Claude</td></tr>
+</table>
+
+<h2 class="page-break">4. Capacidad para 10,000 Productos</h2>
+
+<h3>Supabase — Base de datos</h3>
+<table>
+  <tr><th>Tabla</th><th>Registros</th><th>Tamaño estimado</th><th>% del free tier (500 MB)</th></tr>
+  <tr><td>Products</td><td>10,000</td><td>~19.4 MB</td><td>3.9%</td></tr>
+  <tr><td>Suppliers</td><td>1,000</td><td>~1.2 MB</td><td>0.2%</td></tr>
+  <tr><td>Districts (ferias)</td><td>~5</td><td>despreciable</td><td>—</td></tr>
+  <tr class="total"><td><strong>Total sin backups</strong></td><td></td><td><strong>~23 MB</strong></td><td><strong>4.6%</strong></td></tr>
+</table>
+
+<div class="note">
+  Supabase free tier soporta cómodamente 10,000 productos. Se usaría solo el 5% de la capacidad.
+</div>
+
+<h3>Cloudflare R2 — Almacenamiento de fotos</h3>
+<table>
+  <tr><th>Tipo</th><th>Cantidad</th><th>Tamaño estimado</th></tr>
+  <tr><td>Fotos de productos (~800 KB c/u)</td><td>20,000</td><td>~16 GB</td></tr>
+  <tr><td>Tarjetas de proveedores</td><td>1,000</td><td>~0.5 GB</td></tr>
+  <tr class="total"><td><strong>Total</strong></td><td></td><td><strong>~16.5 GB</strong></td></tr>
+</table>
+
+<p>Free tier: 10 GB. Excedente de ~6.5 GB. Costo extra: <strong class="orange">~$0.10/mes</strong>. Descarga de fotos: <strong class="green">siempre gratis</strong>.</p>
+
+<h3>Claude API — Costo de procesamiento IA</h3>
+<table>
+  <tr><th>Operación</th><th>Llamadas</th><th>Costo estimado</th></tr>
+  <tr><td>Analizar foto de producto</td><td>10,000</td><td>~$5.00</td></tr>
+  <tr><td>Leer tarjeta de proveedor</td><td>1,000</td><td>~$1.00</td></tr>
+  <tr><td>Transcribir audio</td><td>~500</td><td>~$0.50</td></tr>
+  <tr class="total"><td><strong>Total (costo único al capturar)</strong></td><td></td><td><strong>~$6.50</strong></td></tr>
+</table>
+
+<div class="note">
+  La IA solo se usa al momento de capturar. Una vez procesados los 10,000 productos, el costo mensual de IA baja a $0 (solo productos nuevos generan costo).
+</div>
+
+<h2 class="page-break">5. ¿Cuándo se Necesita Plan Pago?</h2>
+
+<table>
+  <tr><th>Servicio</th><th>Cuándo pagar</th><th>Precio del upgrade</th></tr>
+  <tr><td>Supabase Pro</td><td>Si necesitás backups diarios automáticos o evitar pausa por inactividad (7 días sin uso)</td><td>$25/mes</td></tr>
+  <tr><td>Netlify Pro</td><td>Solo si hacés más de 20 deploys/mes (desarrollo activo)</td><td>$19/mes</td></tr>
+  <tr><td>Cloudflare R2</td><td>Automático al superar 10 GB (centavos por mes)</td><td>$0.015/GB/mes</td></tr>
+  <tr><td>Sentry Team</td><td>Si necesitás más de 1 usuario en el dashboard</td><td>$26/mes</td></tr>
+</table>
+
+<div class="warning">
+  <strong>Riesgo principal:</strong> Supabase pausa automáticamente proyectos del plan gratuito si no hay tráfico por 7 días. Mientras al menos 1 usuario use la app regularmente, no pasa. Si van a estar semanas sin usarla entre ferias, considerar el plan Pro ($25/mes) o configurar un ping automático.
+</div>
+
+<h2>6. Tips para Reducir Costos</h2>
+
+<table>
+  <tr><th>Tip</th><th>Ahorro</th></tr>
+  <tr><td><strong>Usar <code>netlify dev</code> para desarrollo local</strong> — evita deploys innecesarios</td><td>$9-$19/mes durante desarrollo</td></tr>
+  <tr><td><strong>Desactivar auto-recharge en Netlify</strong> — Team Settings > Billing</td><td>Evita cobros sorpresa</td></tr>
+  <tr><td><strong>Reducir UptimeRobot a cada 30 min</strong> — menos invocaciones de funciones</td><td>~50% menos requests</td></tr>
+  <tr><td><strong>Fotos a resolución media</strong> — 800px max ya configurado en la app</td><td>~50% menos storage en R2</td></tr>
+  <tr><td><strong>Borrar fotos de R2 de ferias antiguas</strong> — si ya no las necesitás</td><td>$0.015/GB/mes recuperado</td></tr>
+</table>
+
+<h2>7. Resumen Ejecutivo</h2>
+
+<div class="flex-row">
+  <div class="stat-card">
+    <div class="value" style="font-size:20px;">~$124</div>
+    <div class="label">Construcción (ya pagado)</div>
+  </div>
+  <div class="stat-card">
+    <div class="value" style="font-size:20px;">$0</div>
+    <div class="label">Meses sin usar</div>
+  </div>
+  <div class="stat-card">
+    <div class="value" style="font-size:20px;">$1.50-$4</div>
+    <div class="label">Feria corta/mes</div>
+  </div>
+  <div class="stat-card">
+    <div class="value" style="font-size:20px;">$3-$9</div>
+    <div class="label">Uso intenso/mes</div>
+  </div>
+</div>
+
+<p style="text-align:center; color:#888; font-size:12px; margin-top:30px;">
+  FairScan — Documento generado el 8 de marzo de 2026
+</p>
+
+</body>
+</html>
