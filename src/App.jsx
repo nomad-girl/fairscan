@@ -80,7 +80,7 @@ function calcImportCost(fobPrice, ncm, freightPct = 12, insurancePct = 1.5) {
   };
 }
 import db, { initDB, getSettings, saveSettings as dbSaveSettings, getDistricts, addDistrict, updateDistrict as dbUpdateDistrict, getSuppliers, addSupplier, updateSupplier as dbUpdateSupplier, deleteSupplier as dbDeleteSupplier, getProducts, addProduct, updateProduct as dbUpdateProduct, deleteProduct as dbDeleteProduct, deleteDistrict as dbDeleteDistrict, setSyncEngine, getSyncQueue } from './db';
-import { processImage, processAudio, processCard, urlToBase64, uploadPhoto, proxyImage } from './api/client';
+import { processImage, processAudio, processCard, urlToBase64, uploadPhoto, proxyImage, apiUrl } from './api/client';
 import useSync from './hooks/useSync';
 import useAuth from './hooks/useAuth';
 import useTeams from './hooks/useTeams';
@@ -2196,7 +2196,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
     setHealthLoading(true);
     setHealthError(null);
     try {
-      const res = await fetch('/api/health');
+      const res = await fetch(apiUrl('/api/health'));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setHealth(data);

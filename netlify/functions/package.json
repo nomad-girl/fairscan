@@ -1,0 +1,4 @@
+{
+  "_comentario": "El package.json de la raíz declara \"type\": \"module\", pero estas funciones están escritas en CommonJS (require / exports.handler). Sin este archivo, Node las trata como ES modules y fallan. Hoy funcionan en producción solo porque el empaquetador de Netlify es indulgente; esto lo vuelve explícito y evita que se rompan todas juntas si ese comportamiento cambia. Es la forma documentada por Netlify.",
+  "type": "commonjs"
+}

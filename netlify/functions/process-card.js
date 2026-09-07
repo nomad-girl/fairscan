@@ -1,19 +1,11 @@
 const Anthropic = require("@anthropic-ai/sdk");
+const { guard } = require("./_shared/guard");
 
 exports.handler = async (event) => {
-  const headers = {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type",
-  };
-
-  if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 200, headers, body: "" };
-  }
-
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, headers, body: JSON.stringify({ error: "Method not allowed" }) };
-  }
+  // CORS + sesión válida + tope de uso. Ver _shared/guard.js
+  const gate = await guard(event, { bucket: "ai", limit: 120, windowMs: 60_000, maxBodyKB: 4096 });
+  if (gate.response) return gate.response;
+  const { headers } = gate;
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return { statusCode: 500, headers, body: JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }) };

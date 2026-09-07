@@ -2,19 +2,14 @@
  * Proxy function to download images from R2 and return as base64.
  * Bypasses CORS restrictions when the browser can't fetch R2 directly.
  */
+const { guard } = require('./_shared/guard');
+
 exports.handler = async (event) => {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  };
-
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers };
-  }
-
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
-  }
+  // CORS + sesión válida + tope de uso. Ver _shared/guard.js
+  // El tope acompaña al de subida: el export descarga muchas fotos seguidas.
+  const gate = await guard(event, { bucket: 'proxy', limit: 900, windowMs: 60_000, maxBodyKB: 16 });
+  if (gate.response) return gate.response;
+  const { headers } = gate;
 
   try {
     const { url } = JSON.parse(event.body || '{}');
