@@ -112,10 +112,18 @@ orden histórico:
 3. `supabase-rls-policies.sql` — permisos por equipo
 4. `supabase-open-registration.sql` — registro abierto
 5. `supabase-migration-borrar-cuenta.sql` — necesaria para que el borrado de cuenta funcione
+6. `supabase-migration-room-id-a-teams.sql` — `room_id` pasa a apuntar a `teams`
+
+Las dos últimas ya están aplicadas en producción (07/09/2026).
 
 Ojo con un detalle heredado: en las tablas de datos, la columna se llama `room_id`
-pero **guarda el id del equipo**. Viene de que los "rooms" originales se convirtieron
-en "teams" conservando el mismo id.
+pero **guarda el id del equipo**, y desde el 07/09 su restricción apunta a `teams`.
+El nombre quedó del modelo viejo de "salas con código"; renombrarlo obliga a tocar
+`idMapper.js`, así que se dejó para más adelante.
+
+La tabla `rooms` ya no cumple ninguna función: nada la referencia y la app no la
+lee. Se puede eliminar cuando haya ganas, junto con los 13 equipos "Sala archivada"
+que se crearon para poder cambiar las restricciones.
 
 ---
 

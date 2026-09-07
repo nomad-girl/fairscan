@@ -85,43 +85,13 @@ WHERE tc.table_schema = 'public'
   AND ((tc.table_name = 'teams' AND kcu.column_name = 'created_by')
     OR (tc.table_name = 'team_invites' AND kcu.column_name = 'invited_by'));
 
-
 -- ═══════════════════════════════════════════════════════════════════
--- APARTE · una pregunta que quedó abierta y conviene contestar
+-- APARTE · la duda que dejó esta migración, ya contestada
 -- ═══════════════════════════════════════════════════════════════════
 --
--- Las tablas de datos (districts, suppliers, products, backups) tienen una
--- columna `room_id` que hoy guarda el id del EQUIPO — así lo dice la migración
--- de equipos y las políticas de acceso. Pero la restricción original apuntaba a
--- la tabla `rooms`, no a `teams`.
+-- Al escribir esto quedó una pregunta abierta: las tablas de datos guardaban en
+-- `room_id` el id del EQUIPO, pero su restricción apuntaba a la tabla `rooms`.
 --
--- Cuando se hizo la migración se copiaron los rooms como teams con el mismo id,
--- así que los equipos viejos tienen su fila en `rooms` y todo cierra. El
--- problema es que los equipos NUEVOS (los que crea el registro automático) se
--- insertan solo en `teams`. Si la restricción sigue apuntando a `rooms`, una
--- usuaria nueva no puede subir NADA a la nube: cada intento choca contra la
--- restricción, el sync lo encola y no se entera nadie.
---
--- Correr esto para saber si el problema existe de verdad:
-
-SELECT
-  tc.table_name        AS tabla,
-  ccu.table_name       AS apunta_a
-FROM information_schema.table_constraints tc
-JOIN information_schema.key_column_usage kcu
-  ON kcu.constraint_name = tc.constraint_name
-JOIN information_schema.constraint_column_usage ccu
-  ON ccu.constraint_name = tc.constraint_name
-WHERE tc.table_schema = 'public'
-  AND tc.constraint_type = 'FOREIGN KEY'
-  AND kcu.column_name = 'room_id';
-
--- Y esto para ver si hay equipos sin su fila espejo en `rooms`:
-
-SELECT count(*) AS equipos_sin_room
-FROM public.teams t
-WHERE NOT EXISTS (SELECT 1 FROM public.rooms r WHERE r.id = t.id);
-
--- Si `apunta_a` dice "rooms" Y `equipos_sin_room` es mayor que cero, el
--- problema es real. NO se arregla acá a propósito: es un tema aparte del
--- borrado de cuenta y merece su propia decisión. Está anotado en 🧰 Producto.
+-- Se verificó el 07/09/2026 contra producción y el problema era REAL: 7 de 8
+-- equipos no podían subir nada a la nube. Está arreglado en
+-- `supabase-migration-room-id-a-teams.sql`, que ya se aplicó.
