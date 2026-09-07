@@ -80,7 +80,7 @@ function calcImportCost(fobPrice, ncm, freightPct = 12, insurancePct = 1.5) {
   };
 }
 import db, { initDB, getSettings, saveSettings as dbSaveSettings, getDistricts, addDistrict, updateDistrict as dbUpdateDistrict, getSuppliers, addSupplier, updateSupplier as dbUpdateSupplier, deleteSupplier as dbDeleteSupplier, getProducts, addProduct, updateProduct as dbUpdateProduct, deleteProduct as dbDeleteProduct, deleteDistrict as dbDeleteDistrict, setSyncEngine, getSyncQueue } from './db';
-import { processImage, processAudio, processCard, urlToBase64, uploadPhoto, proxyImage, apiUrl } from './api/client';
+import { processImage, processAudio, processCard, urlToBase64, uploadPhoto, proxyImage, apiUrl, deleteAccountPreview, deleteAccount } from './api/client';
 import useSync from './hooks/useSync';
 import useAuth from './hooks/useAuth';
 import useTeams from './hooks/useTeams';
@@ -2162,7 +2162,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
 // ═══════════════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════════════
-function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers, districts, onReload, teams, activeTeam, teamMembers, isAdmin, fetchMembers, inviteMember, onSwitchTeam, userEmail, onSignOut }) {
+function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers, districts, onReload, teams, activeTeam, teamMembers, isAdmin, fetchMembers, inviteMember, onSwitchTeam, userEmail, onSignOut, onGoExport, onAccountDeleted }) {
   const handleSwitchTeam = async (teamId) => {
     if (onSwitchTeam) await onSwitchTeam(teamId);
   };
@@ -2175,6 +2175,35 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
   const [healthLoading, setHealthLoading] = useState(false);
   const [healthError, setHealthError] = useState(null);
   const [subScreen, setSubScreen] = useState(null);
+  // Borrar cuenta: aviso con lo que se pierde → confirmación escrita → borrado
+  const [delPreview, setDelPreview] = useState(null);
+  const [delStage, setDelStage] = useState("aviso"); // "aviso" | "confirmar"
+  const [delEmail, setDelEmail] = useState("");
+  const [delError, setDelError] = useState(null);
+  const [delBusy, setDelBusy] = useState(false);
+
+  const openDeleteAccount = async () => {
+    setSubScreen("delete-account");
+    setDelStage("aviso"); setDelEmail(""); setDelError(null); setDelPreview(null);
+    try {
+      setDelPreview(await deleteAccountPreview());
+    } catch (err) {
+      setDelError(err.message || "No se pudo consultar qué se borraría");
+    }
+  };
+
+  const confirmDeleteAccount = async () => {
+    setDelBusy(true); setDelError(null);
+    try {
+      await deleteAccount(delEmail.trim());
+      // La cuenta ya no existe: pase lo que pase, esta app no puede seguir como estaba.
+      if (onAccountDeleted) await onAccountDeleted();
+      else window.location.reload();
+    } catch (err) {
+      setDelError(err.message || "No se pudo borrar la cuenta");
+      setDelBusy(false);
+    }
+  };
 
   const checkHealth = async () => {
     setHealthLoading(true);
@@ -2544,6 +2573,124 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
     </div>
   );
 
+  // ─── BORRAR CUENTA ───
+  // Nada se borra sin pasar por acá: primero se dice qué se pierde y se ofrece
+  // salida (exportar o backup), y recién después una confirmación escrita.
+  if (subScreen === "delete-account") {
+    const p = delPreview;
+    const totales = p?.totales;
+    const hayCatalogo = p?.seBorraCatalogo && (totales?.proveedores > 0 || totales?.productos > 0);
+    const emailOk = delEmail.trim().toLowerCase() === String(userEmail || "").toLowerCase();
+
+    return (
+      <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
+        <Header title="Borrar mi cuenta" onBack={() => setSubScreen(null)} t={t} />
+        <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
+
+          {!p && !delError && (
+            <p style={{ fontSize:13, color:t.muted, textAlign:"center", padding:"40px 0" }}>⏳ Viendo qué se borraría...</p>
+          )}
+          {delError && (
+            <div style={{ background:t.redSoft, border:`1px solid ${t.red}40`, borderRadius:14, padding:14, marginBottom:16 }}>
+              <p style={{ fontSize:13, color:t.red, margin:0 }}>⚠️ {delError}</p>
+            </div>
+          )}
+
+          {p && delStage === "aviso" && (
+            <>
+              <div style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:16, padding:16, marginBottom:16 }}>
+                {hayCatalogo ? (
+                  <>
+                    <p style={{ fontSize:15, fontWeight:800, color:t.text, margin:"0 0 10px", lineHeight:1.4 }}>
+                      Sos la única usuaria activa de esta organización.
+                    </p>
+                    <p style={{ fontSize:13, color:t.dim, margin:0, lineHeight:1.6 }}>
+                      Si borrás tu cuenta se borrará también el catálogo
+                      {" "}(<strong style={{ color:t.text }}>{totales.proveedores} proveedores, {totales.productos} productos</strong>
+                      {totales.ferias > 0 ? ` en ${totales.ferias} feria${totales.ferias !== 1 ? "s" : ""}` : ""}),
+                      {" "}junto con todas las fotos. <strong style={{ color:t.text }}>Esto no se puede deshacer.</strong>
+                    </p>
+                    <p style={{ fontSize:13, color:t.text, margin:"12px 0 0", fontWeight:700 }}>
+                      ¿Querés exportarlo o hacer un backup antes?
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p style={{ fontSize:15, fontWeight:800, color:t.text, margin:"0 0 10px", lineHeight:1.4 }}>
+                      Se va a borrar tu cuenta.
+                    </p>
+                    <p style={{ fontSize:13, color:t.dim, margin:0, lineHeight:1.6 }}>
+                      {p.equiposQueQuedan?.length > 0 ? (
+                        <>Hay más gente en {p.equiposQueQuedan.length === 1 ? "tu organización" : "tus organizaciones"}
+                        {" "}(<strong style={{ color:t.text }}>{p.equiposQueQuedan.join(", ")}</strong>), así que el catálogo
+                        {" "}<strong style={{ color:t.text }}>no se borra</strong>: también es de ellos. Vos dejás de tener acceso.</>
+                      ) : (
+                        <>No hay catálogo asociado a tu cuenta.</>
+                      )}
+                      {" "}<strong style={{ color:t.text }}>Esto no se puede deshacer.</strong>
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {hayCatalogo && (
+                <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+                  <button onClick={() => onGoExport?.()} style={{
+                    flex:1, padding:"14px 12px", borderRadius:14, border:`1.5px solid ${t.accent}`,
+                    background:t.accentSoft, color:t.accent, fontSize:13, fontWeight:700, cursor:"pointer",
+                  }}>📊 Exportar catálogo</button>
+                  <button onClick={() => setSubScreen("backup")} style={{
+                    flex:1, padding:"14px 12px", borderRadius:14, border:`1.5px solid ${t.blue}`,
+                    background:t.blueSoft, color:t.blue, fontSize:13, fontWeight:700, cursor:"pointer",
+                  }}>💾 Hacer backup</button>
+                </div>
+              )}
+
+              <button onClick={() => { setDelStage("confirmar"); setDelError(null); }} style={{
+                width:"100%", padding:"12px", borderRadius:12, border:`1px solid ${t.red}40`,
+                background:"transparent", color:t.red, fontSize:13, fontWeight:600, cursor:"pointer",
+              }}>Continuar con el borrado</button>
+
+              <p style={{ fontSize:11, color:t.dim, textAlign:"center", margin:"12px 0 0" }}>
+                Todavía no se borró nada. Podés volver atrás.
+              </p>
+            </>
+          )}
+
+          {p && delStage === "confirmar" && (
+            <>
+              <div style={{ background:t.redSoft, border:`1.5px solid ${t.red}40`, borderRadius:16, padding:16, marginBottom:16 }}>
+                <p style={{ fontSize:14, fontWeight:800, color:t.red, margin:"0 0 8px" }}>Última confirmación</p>
+                <p style={{ fontSize:13, color:t.text, margin:0, lineHeight:1.6 }}>
+                  Escribí <strong>{userEmail}</strong> para confirmar que querés borrar tu cuenta
+                  {hayCatalogo ? " y todo el catálogo" : ""}.
+                </p>
+              </div>
+
+              <input value={delEmail} onChange={e => setDelEmail(e.target.value)}
+                placeholder={userEmail} autoCapitalize="none" autoCorrect="off" inputMode="email"
+                style={{ width:"100%", padding:"14px 16px", borderRadius:14, marginBottom:12, boxSizing:"border-box",
+                  border:`1.5px solid ${delEmail && !emailOk ? t.red : t.border}`, background:t.surface,
+                  color:t.text, fontSize:16, outline:"none", fontFamily:"inherit" }} />
+
+              <button onClick={confirmDeleteAccount} disabled={!emailOk || delBusy} style={{
+                width:"100%", padding:"16px", borderRadius:14, border:"none",
+                background: emailOk && !delBusy ? t.red : t.surface,
+                color: emailOk && !delBusy ? "#fff" : t.dim,
+                fontSize:15, fontWeight:800, cursor: emailOk && !delBusy ? "pointer" : "default",
+              }}>{delBusy ? "⏳ Borrando..." : "Borrar mi cuenta para siempre"}</button>
+
+              <button onClick={() => { setDelStage("aviso"); setDelEmail(""); setDelError(null); }} disabled={delBusy} style={{
+                width:"100%", padding:"12px", borderRadius:12, marginTop:10, border:`1px solid ${t.border}`,
+                background:t.card, color:t.text, fontSize:13, fontWeight:700, cursor:"pointer",
+              }}>Cancelar</button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // ─── MAIN MENU ───
   const presetName = PRESETS[loc.preset]?.name || "General";
   const captureMode = (loc.quickCaptureMode !== false) ? "Rápida" : "Clásica";
@@ -2573,6 +2720,17 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
             color: t.red, fontSize: 13, fontWeight: 700, cursor: 'pointer',
           }}>
             Cerrar sesión
+          </button>
+
+          {/* Requisito de App Store: se tiene que poder borrar la cuenta desde
+              adentro de la app. Discreto a propósito, pero no escondido. */}
+          <button onClick={openDeleteAccount} style={{
+            width: '100%', padding: '12px', borderRadius: 12, marginTop: 10,
+            border: 'none', background: 'transparent',
+            color: t.dim, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            textDecoration: 'underline', textUnderlineOffset: 3,
+          }}>
+            Borrar mi cuenta
           </button>
         </div>
       </div>
@@ -4487,6 +4645,20 @@ export default function App() {
     showToast("Proveedor eliminado");
   };
 
+  /**
+   * Después de que el servidor borró la cuenta: no queda nada de ella en este
+   * teléfono. Se borra la base local entera (fotos incluidas), se limpia lo
+   * guardado en el navegador y se recarga, para que la app arranque como si
+   * fuera la primera vez.
+   */
+  const handleAccountDeleted = async () => {
+    try { await syncEngine.disconnectTeam?.(); } catch { /* da igual, ya no existe */ }
+    try { await db.delete(); } catch (e) { console.warn("No se pudo borrar la base local:", e); }
+    try { localStorage.clear(); } catch { /* modo privado */ }
+    try { await auth.signOut(); } catch { /* la sesión ya no vale */ }
+    window.location.reload();
+  };
+
   const handleSaveSettings = async (s, silent) => {
     await dbSaveSettings(s);
     setSettings(prev => ({ ...prev, ...s }));
@@ -4647,7 +4819,8 @@ export default function App() {
           products={products} suppliers={suppliers} districts={districts} onReload={reloadAll}
           teams={teamsHook.teams} activeTeam={teamsHook.teams.find(tm => tm.id === sync.teamId)} teamMembers={teamsHook.teamMembers}
           isAdmin={teamsHook.isAdmin} fetchMembers={teamsHook.fetchMembers} inviteMember={teamsHook.inviteMember}
-          onSwitchTeam={handleSwitchTeam} userEmail={auth.user?.email} onSignOut={auth.signOut} />
+          onSwitchTeam={handleSwitchTeam} userEmail={auth.user?.email} onSignOut={auth.signOut}
+          onGoExport={() => navigate("export")} onAccountDeleted={handleAccountDeleted} />
       )}
       {screen === "export" && (
         <ExportScreen products={products} suppliers={suppliers} districts={districts}

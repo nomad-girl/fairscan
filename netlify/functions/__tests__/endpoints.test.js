@@ -12,6 +12,7 @@ import { handler as processCard } from '../process-card.js';
 import { handler as processAudio } from '../process-audio.js';
 import { handler as uploadPhoto, isSafeKey } from '../upload-photo.js';
 import { handler as proxyImage } from '../proxy-image.js';
+import { handler as deleteAccount } from '../delete-account.js';
 
 const ENDPOINTS = [
   ['process-image', processImage],
@@ -19,6 +20,7 @@ const ENDPOINTS = [
   ['process-audio', processAudio],
   ['upload-photo', uploadPhoto],
   ['proxy-image', proxyImage],
+  ['delete-account', deleteAccount],
 ];
 
 const post = (body = '{}', headers = {}) => ({ httpMethod: 'POST', headers, body });

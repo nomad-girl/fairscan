@@ -139,6 +139,23 @@ export async function uploadPhoto(base64Image, key) {
   }
 }
 
+/**
+ * Qué pasaría si borrara mi cuenta. No toca nada: sirve para avisar antes.
+ * Devuelve qué equipos se borran, cuáles quedan, y cuántas ferias, proveedores
+ * y productos se perderían.
+ */
+export async function deleteAccountPreview() {
+  return post('/api/delete-account', { preview: true });
+}
+
+/**
+ * Borra la cuenta de verdad. Pide el mail escrito como confirmación final para
+ * que sea imposible llegar acá por accidente.
+ */
+export async function deleteAccount(email) {
+  return post('/api/delete-account', { confirm: true, email });
+}
+
 /** Helper: Blob a Base64 */
 function blobToBase64(blob) {
   return new Promise((resolve, reject) => {
