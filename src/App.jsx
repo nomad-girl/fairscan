@@ -88,6 +88,7 @@ import syncEngine from './lib/syncEngine';
 import LoginScreen from './components/LoginScreen';
 import TeamPanel from './components/TeamPanel';
 import { useSyncWithAI } from './hooks/useSyncWithAI.js';
+import { saveFile, sharePhotos, isNativeApp } from './lib/saveFile.js';
 
 const CURRENCIES = { USD: { symbol:"USD", label:"Dólar (USD)" }, ARS: { symbol:"ARS", label:"Peso Argentino (ARS)" }, CNY: { symbol:"¥", label:"Yuan Chino (CNY)" } };
 const DEFAULT_SETTINGS_FALLBACK = { activeDistrictId:1, theme:"dark", preset:"vajilla", minMargin:40, quickCaptureMode:true, currency:"USD", showImportCalculator:false, ...PRESETS.vajilla };
@@ -104,34 +105,21 @@ function dataURLtoUint8Array(dataURL) {
 }
 
 /**
- * Convert base64 photos to File objects and use navigator.share() to trigger
- * the iOS Share Sheet. User can then tap "Save Images" to save to Camera Roll.
+ * Ofrece las fotos capturadas para que la usuaria las guarde en su galería.
+ * En la app nativa abre la hoja de compartir del sistema; en el navegador usa la
+ * del navegador si existe, y si no, baja todo como ZIP. Ver src/lib/saveFile.js
  */
 async function sharePhotosToDevice(photos) {
   if (!photos || photos.length === 0) return false;
-  try {
-    const files = photos.map((p, i) => {
-      const byteStr = atob(p.data.split(',')[1]);
-      const arr = new Uint8Array(byteStr.length);
-      for (let j = 0; j < byteStr.length; j++) arr[j] = byteStr.charCodeAt(j);
-      return new File([arr], p.filename || `foto_${i+1}.jpg`, { type: 'image/jpeg' });
-    });
-    if (navigator.canShare && navigator.canShare({ files })) {
-      await navigator.share({ files, title: 'FairScan - Fotos' });
-      return true;
-    } else {
-      // Fallback: download as ZIP if share not supported
-      await flushPhotosToDeviceFromArray(photos);
-      return true;
-    }
-  } catch (e) {
-    if (e.name === 'AbortError') return false; // user cancelled share sheet
-    console.warn('[Share] Failed:', e);
-    return false;
-  }
+  const res = await sharePhotos(photos);
+  if (res.ok) return true;
+  if (res.cancelled) return false;
+  // Sin hoja de compartir disponible: plan B, todo junto en un ZIP.
+  await flushPhotosToDeviceFromArray(photos);
+  return true;
 }
 
-/** Fallback: download photos as ZIP (for browsers that don't support share) */
+/** Plan B: las fotos en un ZIP. */
 async function flushPhotosToDeviceFromArray(photos) {
   if (!photos || photos.length === 0) return;
   const JSZip = (await import('jszip')).default;
@@ -144,11 +132,7 @@ async function flushPhotosToDeviceFromArray(photos) {
   }
   const ts = new Date().toISOString().slice(0,10);
   const blob = await zip.generateAsync({ type: 'blob' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `FairScan_fotos_${ts}.zip`; a.style.display = 'none';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  await saveFile(blob, `FairScan_fotos_${ts}.zip`, { title: 'FairScan · Fotos' });
 }
 
 function slugify(text) {
@@ -2382,7 +2366,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>💾 Backup y restauración</p>
         <p style={{ fontSize:11, color:t.dim, marginBottom:12 }}>Exportá o importá toda tu data (proveedores, productos, ferias) como archivo JSON.</p>
         <div style={{ display:"flex", gap:8, marginBottom:12 }}>
-          <button onClick={() => {
+          <button onClick={async () => {
             const backup = {
               version: 1,
               exportedAt: new Date().toISOString(),
@@ -2392,11 +2376,11 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
               products: (products || []).map(p => { const { photos, ...rest } = p; return { ...rest, photoCount: p.photos?.length || 0 }; }),
             };
             const blob = new Blob([JSON.stringify(backup, null, 2)], { type:'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = `fairscan-backup-${new Date().toISOString().slice(0,10)}.json`;
-            a.click(); URL.revokeObjectURL(url);
-            setImportStatus("✅ Backup descargado");
+            const res = await saveFile(blob, `fairscan-backup-${new Date().toISOString().slice(0,10)}.json`, { title: 'FairScan · Backup' });
+            if (res.cancelled) return;
+            setImportStatus(res.ok
+              ? (isNativeApp() ? "✅ Backup listo para guardar" : "✅ Backup descargado")
+              : "❌ No se pudo guardar el backup");
             setTimeout(() => setImportStatus(null), 3000);
           }} style={{
             flex:1, padding:"12px", borderRadius:12, border:`1px solid ${t.blue}40`, background:t.blueSoft,
@@ -2637,6 +2621,16 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
   const totalCards = uniqueSupIds.map(id => suppliers.find(s => s.id === id)).filter(s => s?.cardPhoto || s?.cardPhotoUrl).length;
 
   const csvEscape = (c) => '"' + String(c).replace(/"/g, '""') + '"';
+
+  /**
+   * Entrega el archivo generado. En la app nativa abre la hoja de compartir; en el
+   * navegador lo descarga. Si la usuaria cancela, se queda en esta pantalla.
+   */
+  const deliver = async (blob, filename, okMsg) => {
+    const res = await saveFile(blob, filename, { title: "FairScan · Export" });
+    if (res.cancelled) return;
+    onExported(res.ok ? okMsg : "No se pudo guardar el archivo");
+  };
 
   const hasCloudPhotos = scopeProducts.some(p => (p.photoUrls || []).some(Boolean) || (p.photos || []).some(x => x && typeof x === 'string' && x.startsWith('http')));
   const photosNotUploaded = scopeProducts.filter(p => {
@@ -2911,15 +2905,11 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       setExportProgress("Generando archivo...");
       const buffer = await wb.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `FairScan_Export_${new Date().toISOString().slice(0, 10)}${dateFilter === "today" ? "_SOLO_HOY" : ""}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
-      onExported("Excel descargado con fotos embebidas");
+      await deliver(
+        blob,
+        `FairScan_Export_${new Date().toISOString().slice(0, 10)}${dateFilter === "today" ? "_SOLO_HOY" : ""}.xlsx`,
+        isNativeApp() ? "Excel listo — elegí dónde guardarlo" : "Excel descargado con fotos embebidas",
+      );
     } catch (err) {
       console.error("Error generando Excel:", err);
       setExportProgress("");
@@ -3093,16 +3083,12 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
         setExportProgress(`Comprimiendo... ${Math.round(meta.percent)}%`);
       });
 
-      // Download
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `FairScan_Export_${dateStr}${suffix}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
-      onExported("ZIP descargado con todas las fotos");
+      setExportProgress("Guardando...");
+      await deliver(
+        blob,
+        `FairScan_Export_${dateStr}${suffix}.zip`,
+        isNativeApp() ? "ZIP listo — elegí dónde guardarlo" : "ZIP descargado con todas las fotos",
+      );
     } catch (err) {
       console.error("Error generando ZIP:", err);
       setExportProgress("");
@@ -3113,18 +3099,16 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (format === "zip") { generateZIP(); return; }
     if (format === "csv") {
       const csv = generateCSV();
       const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `fairscan-export-${new Date().toISOString().slice(0,10)}${dateFilter === "today" ? "_SOLO_HOY" : ""}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-      onExported("CSV descargado");
+      await deliver(
+        blob,
+        `fairscan-export-${new Date().toISOString().slice(0,10)}${dateFilter === "today" ? "_SOLO_HOY" : ""}.csv`,
+        isNativeApp() ? "CSV listo \u2014 eleg\u00ED d\u00F3nde guardarlo" : "CSV descargado",
+      );
     } else if (format === "excel") {
       generateExcel();
     }
