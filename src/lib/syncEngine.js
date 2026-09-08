@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured } from './supabase.js';
 import idMapper from './idMapper.js';
 import db, { addToSyncQueue, getSyncQueue, deleteSyncQueueItem, saveSettings as dbSaveSettings } from '../db.js';
+import { sinAudio } from './audioNotes.js';
 
 /**
  * SyncEngine: Handles push/pull/realtime sync between local Dexie and Supabase.
@@ -521,7 +522,8 @@ class SyncEngine {
         counts: { districts: districts.length, suppliers: suppliers.length, products: products.length },
         districts: districts.map(d => ({ ...d, photos: undefined })),
         suppliers: suppliers.map(s => ({ ...s, cardPhoto: undefined })),
-        products: products.map(p => ({ ...p, photos: (p.photoUrls || p.photos || []).filter(u => typeof u === 'string' && u.startsWith('http')) })),
+        // Sin el audio: es binario, no cabe en JSON y ya vive en la base local (ver audioNotes.js).
+        products: products.map(p => ({ ...sinAudio(p), photos: (p.photoUrls || p.photos || []).filter(u => typeof u === 'string' && u.startsWith('http')) })),
       };
 
       const { error } = await supabase

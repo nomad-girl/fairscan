@@ -95,6 +95,7 @@ import { requestPersistentStorage } from './lib/platform.js';
 import { createAutosave } from './lib/autosave.js';
 import { groupBySupplier } from './lib/supplierGroups.js';
 import { explicarErrorDeCamara, explicarErrorDeMicrofono, abrirAjustesDeLaApp } from './lib/permisos.js';
+import { serializarAudio, urlDeAudio, esPunteroMuerto, sinAudio } from './lib/audioNotes.js';
 
 const CURRENCIES = { USD: { symbol:"USD", label:"Dólar (USD)" }, ARS: { symbol:"ARS", label:"Peso Argentino (ARS)" }, CNY: { symbol:"¥", label:"Yuan Chino (CNY)" } };
 const DEFAULT_SETTINGS_FALLBACK = { activeDistrictId:1, theme:"dark", preset:"vajilla", minMargin:40, quickCaptureMode:true, currency:"USD", showImportCalculator:false, ...PRESETS.vajilla };
@@ -513,6 +514,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
   const [price, setPrice] = useState("");
   const [moq, setMoq] = useState("");
   const [audioURL, setAudioURL] = useState(null);
+  const [audioBlob, setAudioBlob] = useState(null); // el audio en sí; audioURL es solo para escucharlo acá
   const [audioTranscript, setAudioTranscript] = useState("");
   const [textNote, setTextNote] = useState("");
   const [recording, setRecording] = useState(false);
@@ -708,6 +710,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
       mr.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
       mr.onstop = () => {
         const blob = new Blob(chunks, { type: mr.mimeType });
+        setAudioBlob(blob);
         setAudioURL(URL.createObjectURL(blob));
         stream.getTracks().forEach(t => t.stop());
       };
@@ -775,7 +778,8 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
       photos,
       price: price.trim(),
       moq: moq.trim(),
-      audioURL,
+      audioBlob,
+      audioDuracion: recordTime,
       audioTranscript: audioTranscript.trim(),
       textNote: textNote.trim(),
       rating,
@@ -927,7 +931,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
                 <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                   <span style={{ fontSize:16 }}>🎙</span>
                   <audio src={audioURL} controls style={{ flex:1, height:28 }} />
-                  <button onClick={() => { if (audioURL) URL.revokeObjectURL(audioURL); setAudioURL(null); setRecordTime(0); setAudioTranscript(""); }} style={{ background:t.redSoft, border:"none", borderRadius:10, width:36, height:36, color:t.red, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>✕</button>
+                  <button onClick={() => { if (audioURL) URL.revokeObjectURL(audioURL); setAudioURL(null); setAudioBlob(null); setRecordTime(0); setAudioTranscript(""); }} style={{ background:t.redSoft, border:"none", borderRadius:10, width:36, height:36, color:t.red, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>✕</button>
                 </div>
               )}
               {audioURL && audioTranscript && <p style={{ fontSize:11, color:t.text, margin:"6px 0 0", fontStyle:"italic" }}>📝 "{audioTranscript}"</p>}
@@ -1112,6 +1116,11 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
   const notesRef = useRef(null);
   const supplier = suppliers.find(s => s.id === p.supplierId);
   const district = districts.find(d => d.id === p.districtId);
+
+  // La nota de voz se reproduce desde los bytes guardados en la base. Las
+  // direcciones blob: de versiones anteriores están muertas y no se muestran.
+  const audioSrc = useMemo(() => urlDeAudio(p.audio) || (esPunteroMuerto(p.audioURL) ? null : p.audioURL || null), [p.audio, p.audioURL]);
+  useEffect(() => () => { if (audioSrc?.startsWith("blob:")) URL.revokeObjectURL(audioSrc); }, [audioSrc]);
 
   const categories = settings?.categories || [];
   const materials = settings?.materials || [];
@@ -1326,10 +1335,10 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
             </div>
 
             {/* Audio + Transcription */}
-            {(p.audioURL || p.audioTranscript) && (
+            {(audioSrc || p.audioTranscript) && (
               <div style={{ background:t.card, borderRadius:14, padding:12, marginTop:12, border:`1px solid ${t.accent}20` }}>
                 <p style={{ fontSize:10, fontWeight:700, color:t.accent, margin:"0 0 8px" }}>🎙 Tu nota de voz</p>
-                {p.audioURL && <audio src={p.audioURL} controls style={{ width:"100%", height:36 }} />}
+                {audioSrc && <audio src={audioSrc} controls style={{ width:"100%", height:36 }} />}
                 {p.audioTranscript && (
                   <div style={{ background:t.surface, borderRadius:10, padding:"10px 12px", marginTop:8 }}>
                     <p style={{ fontSize:10, fontWeight:600, color:t.muted, margin:"0 0 4px" }}>📝 Transcripción</p>
@@ -2502,7 +2511,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
               settings: { ...loc },
               districts: districts || [],
               suppliers: (suppliers || []).map(s => { const { cardPhoto, ...rest } = s; return rest; }),
-              products: (products || []).map(p => { const { photos, ...rest } = p; return { ...rest, photoCount: p.photos?.length || 0 }; }),
+              products: (products || []).map(p => { const { photos, ...rest } = sinAudio(p); return { ...rest, photoCount: p.photos?.length || 0, tieneNotaDeVoz: !!p.audio }; }),
             };
             const blob = new Blob([JSON.stringify(backup, null, 2)], { type:'application/json' });
             const res = await saveFile(blob, `fairscan-backup-${new Date().toISOString().slice(0,10)}.json`, { title: 'FairScan · Backup' });
@@ -4645,7 +4654,9 @@ export default function App() {
         photoUrls: null,
         price: data.price || aiPrice || null,
         moq: data.moq || aiMoq || null,
-        audioURL: data.audioURL,
+        // Se guarda el audio real (bytes), no la dirección temporal blob: (N3).
+        audio: data.audioBlob ? await serializarAudio(data.audioBlob, { duracion: data.audioDuracion }) : null,
+        audioURL: null,
         audioTranscript: aiAudioTranscript || null,
         rating: data.rating,
         category: aiCategory || null,
