@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "build:native": "VITE_NATIVE=1 vite build"
+    "build:native": "vite build --mode native"
   },
   "engines": {
     "node": ">=20"
@@ -30,6 +30,7 @@
     "react-dom": "18.3.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.5.1",
     "@vitejs/plugin-react": "4.7.0",
     "fake-indexeddb": "6.2.5",
     "vite": "5.4.21",

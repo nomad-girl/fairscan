@@ -1,0 +1,14 @@
+{
+  "appId": "app.fairscan",
+  "appName": "FairScan",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "ios": {
+    "contentInset": "automatic"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
