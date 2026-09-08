@@ -1,4 +1,5 @@
 import Dexie from 'dexie';
+import { fotosSinSubir, tarjetaSinSubir } from './lib/fotosPendientes.js';
 
 const db = new Dexie('FairScanDB');
 
@@ -33,6 +34,33 @@ db.version(2).stores({
     }),
   ]);
 });
+
+// Version 3: bandera indexada "hay fotos sin subir a la nube" (pieza 2.7).
+// IndexedDB no indexa booleanos, por eso es 1/0. Permite encontrar lo pendiente
+// sin recorrer todos los productos (que traen las fotos adentro y pesan).
+db.version(3).stores({
+  districts: '++id, name, uuid, roomId',
+  suppliers: '++id, districtId, company, ai_processed, uuid, roomId, cardUploadPending',
+  products:  '++id, supplierId, districtId, name, category, createdAt, ai_processed, uuid, roomId, uploadPending',
+  settings:  'key',
+  _syncQueue: '++id, table, uuid, action, timestamp',
+}).upgrade(tx => Promise.all([
+  tx.table('products').toCollection().modify(p => { p.uploadPending = fotosSinSubir(p).length ? 1 : 0; }),
+  tx.table('suppliers').toCollection().modify(s => { s.cardUploadPending = tarjetaSinSubir(s) ? 1 : 0; }),
+]));
+
+/** Deja la bandera de "fotos por subir" acorde a lo que hay en el registro. */
+export async function recomputeUploadFlags(table, id) {
+  const rec = await db.table(table).get(id);
+  if (!rec) return;
+  if (table === 'products') {
+    const flag = fotosSinSubir(rec).length ? 1 : 0;
+    if (rec.uploadPending !== flag) await db.products.update(id, { uploadPending: flag });
+  } else if (table === 'suppliers') {
+    const flag = tarjetaSinSubir(rec) ? 1 : 0;
+    if (rec.cardUploadPending !== flag) await db.suppliers.update(id, { cardUploadPending: flag });
+  }
+}
 
 // ─── Sync engine reference (set externally to avoid circular imports) ───
 let _syncEngine = null;
@@ -129,6 +157,7 @@ export async function getSuppliers() {
 export async function addSupplier(s) {
   s.uuid = s.uuid || crypto.randomUUID();
   s.updatedAt = Date.now();
+  s.cardUploadPending = tarjetaSinSubir(s) ? 1 : 0;
   const id = await db.suppliers.add(s);
   if (_syncEngine?.roomId) {
     _syncEngine.pushRecord('suppliers', { ...s, id }).catch(console.warn);
@@ -139,6 +168,7 @@ export async function addSupplier(s) {
 export async function updateSupplier(id, changes) {
   changes.updatedAt = Date.now();
   await db.suppliers.update(id, changes);
+  if ('cardPhoto' in changes || 'cardPhotoUrl' in changes) await recomputeUploadFlags('suppliers', id);
   if (_syncEngine?.roomId) {
     const record = await db.suppliers.get(id);
     if (record) _syncEngine.pushRecord('suppliers', record).catch(console.warn);
@@ -166,6 +196,7 @@ export async function getProducts() {
 export async function addProduct(p) {
   p.uuid = p.uuid || crypto.randomUUID();
   p.updatedAt = Date.now();
+  p.uploadPending = fotosSinSubir(p).length ? 1 : 0;
   const id = await db.products.add(p);
   if (_syncEngine?.roomId) {
     _syncEngine.pushRecord('products', { ...p, id }).catch(console.warn);
@@ -176,6 +207,7 @@ export async function addProduct(p) {
 export async function updateProduct(id, changes) {
   changes.updatedAt = Date.now();
   await db.products.update(id, changes);
+  if ('photos' in changes || 'photoUrls' in changes) await recomputeUploadFlags('products', id);
   if (_syncEngine?.roomId) {
     const record = await db.products.get(id);
     if (record) _syncEngine.pushRecord('products', record).catch(console.warn);

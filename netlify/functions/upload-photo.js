@@ -1,5 +1,6 @@
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
 const { guard } = require("./_shared/guard");
+const { buildPhotoKey, isValidKind } = require("./_shared/photoKey");
 
 let s3Client = null;
 
@@ -17,9 +18,8 @@ function getS3Client() {
   return s3Client;
 }
 
-// El nombre del archivo lo elige la app, así que hay que desconfiar de él: sin esto
-// se puede escribir en cualquier lado del bucket, o pisar la foto de otra persona.
-// El esquema definitivo (rutas por usuario e inadivinables) llega con la pieza 2.7.
+// El nombre del archivo lo pone el servidor (ver _shared/photoKey.js): inadivinable
+// y dentro de la carpeta de la usuaria. Esta validación queda como segunda barrera.
 const SAFE_KEY = /^[A-Za-z0-9][A-Za-z0-9._\-\/]{0,255}$/;
 function isSafeKey(key) {
   return typeof key === "string" && SAFE_KEY.test(key) && !key.includes("..") && !key.includes("//");
@@ -31,7 +31,7 @@ exports.handler = async (event) => {
   // El tope es alto a propósito: la sincronización de fotos sube muchas seguidas.
   const gate = await guard(event, { bucket: "upload", limit: 900, windowMs: 60_000, maxBodyKB: 6144 });
   if (gate.response) return gate.response;
-  const { headers } = gate;
+  const { headers, user } = gate;
 
   // Check R2 config
   if (!process.env.R2_ACCOUNT_ID || !process.env.R2_ACCESS_KEY_ID || !process.env.R2_SECRET_ACCESS_KEY || !process.env.R2_BUCKET_NAME) {
@@ -39,14 +39,17 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { image, key } = JSON.parse(event.body);
+    const body = JSON.parse(event.body);
+    const image = body.image;
+    // Versiones viejas de la app mandaban un nombre de archivo; de ahí se deduce
+    // solo el tipo. El nombre real lo arma el servidor.
+    const kind = body.kind || (typeof body.key === "string" && body.key.startsWith("cards/") ? "cards" : "products");
 
-    if (!image || !key) {
-      return { statusCode: 400, headers, body: JSON.stringify({ error: "image and key are required" }) };
+    if (!image) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: "image is required" }) };
     }
-
-    if (!isSafeKey(key)) {
-      return { statusCode: 400, headers, body: JSON.stringify({ error: "Nombre de archivo inválido" }) };
+    if (!isValidKind(kind)) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: "Tipo de foto inválido (products o cards)" }) };
     }
 
     // Convert base64 data URL to buffer
@@ -55,6 +58,10 @@ exports.handler = async (event) => {
 
     // Detect content type
     const contentType = image.startsWith("data:image/png") ? "image/png" : "image/jpeg";
+    const key = buildPhotoKey(kind, user.id, contentType === "image/png" ? "png" : "jpg");
+    if (!isSafeKey(key)) {
+      return { statusCode: 500, headers, body: JSON.stringify({ error: "No se pudo generar el nombre del archivo" }) };
+    }
 
     const client = getS3Client();
     await client.send(new PutObjectCommand({

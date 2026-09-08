@@ -90,7 +90,6 @@ import TeamPanel from './components/TeamPanel';
 import { useSyncWithAI } from './hooks/useSyncWithAI.js';
 import { saveFile, sharePhotos, isNativeApp } from './lib/saveFile.js';
 import { slugify } from './lib/slugify.js';
-import { productPhotoKey, cardPhotoKey } from './lib/photoKeys.js';
 import { requestPersistentStorage } from './lib/platform.js';
 import { createAutosave } from './lib/autosave.js';
 import { groupBySupplier } from './lib/supplierGroups.js';
@@ -2874,6 +2873,16 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
           }}>
             Borrar mi cuenta
           </button>
+
+          {/* Legales (pieza 10.0). Direcciones absolutas a propósito: en la app
+              nativa no hay "sitio", así que un link relativo no llevaría a ningún lado. */}
+          <p style={{ fontSize: 12, color: t.dim, margin: '18px 0 0', textAlign: 'center', lineHeight: 1.8 }}>
+            <a href="https://fairscan.app/privacidad" target="_blank" rel="noopener noreferrer" style={{ color: t.dim }}>Privacidad</a>
+            {' · '}
+            <a href="https://fairscan.app/terminos" target="_blank" rel="noopener noreferrer" style={{ color: t.dim }}>Términos</a>
+            {' · '}
+            <a href="https://fairscan.app/soporte" target="_blank" rel="noopener noreferrer" style={{ color: t.dim }}>Soporte</a>
+          </p>
         </div>
       </div>
     </div>
@@ -2956,8 +2965,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       const sup = suppliers.find(s => s.id === product.supplierId);
       const urls = [];
       for (let i = 0; i < product.photos.length; i++) {
-        const key = productPhotoKey(sup?.company, product.id, i);
-        const result = await uploadPhoto(product.photos[i], key);
+        const result = await uploadPhoto(product.photos[i], 'products');
         urls.push(result?.url || null);
         done++;
         setSyncProgress(`☁️ ${done}/${totalPhotosToSync}`);
@@ -2970,8 +2978,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
     for (const id of uniqueSupIds) {
       const s = suppliers.find(s => s.id === id);
       if (s?.cardPhoto && !s.cardPhotoUrl) {
-        const key = cardPhotoKey(s.company, s.id);
-        const result = await uploadPhoto(s.cardPhoto, key);
+        const result = await uploadPhoto(s.cardPhoto, 'cards');
         if (result?.url) await onUpdateSupplier(s.id, { cardPhotoUrl: result.url }, true);
       }
     }
@@ -3585,7 +3592,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
 // PRODUCT LIST (main screen)
 // ═══════════════════════════════════════════
 function ProductList({ products, suppliers, districts, activeDistrictId, activeDistrict, settings, onNavigate, onSwitchDistrict, onDeleteProduct, onBatchDelete, onBatchUpdate, onDeleteSupplier, t, isDark, onToggleTheme, activeTab, onTabChange, queueCount, scrollPositionRef }) {
-  const { isSyncing: aiSyncing, pendingCount: aiPending, processedCount: aiProcessed, totalCount: aiTotal, syncNow: aiSyncNow, error: aiError } = useSyncWithAI(settings);
+  const { isSyncing: aiSyncing, pendingCount: aiPending, processedCount: aiProcessed, totalCount: aiTotal, syncNow: aiSyncNow, error: aiError, photosPending } = useSyncWithAI(settings);
   const [search, setSearch] = useState("");
   const view = activeTab || "products";
   const setView = (v) => { if (onTabChange) onTabChange(v); };
@@ -3755,6 +3762,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
               {aiSyncing ? `Procesando IA ${aiProcessed}/${aiTotal}...` : `${aiPending} pendiente${aiPending!==1?"s":""} de IA`}
             </span>
             {aiError && <span style={{ fontSize:10, color:"#f44336" }}>{aiError}</span>}
+            {photosPending > 0 && <span title="Suben solas cuando hay señal" style={{ fontSize:10, color:t.muted }}>☁️ {photosPending} por subir</span>}
           </button>
         )}
       </div>
@@ -4372,8 +4380,7 @@ export default function App() {
     for (let i = 0; i < photos.length; i++) {
       // Skip if already a URL (already uploaded)
       if (photos[i]?.startsWith('http')) { urls.push(photos[i]); continue; }
-      const key = productPhotoKey(supplierName, productId, i);
-      const result = await uploadPhoto(photos[i], key);
+      const result = await uploadPhoto(photos[i], 'products');
       if (result?.url) urls.push(result.url);
       else urls.push(null);
     }
@@ -4534,8 +4541,7 @@ export default function App() {
         }
         // Background: upload card photo
         if (data.cardPhoto && supplierId && navigator.onLine) {
-          const cardKey = cardPhotoKey(data.supplierName, supplierId);
-          uploadPhoto(data.cardPhoto, cardKey).then(result => {
+          uploadPhoto(data.cardPhoto, 'cards').then(result => {
             if (result?.url) {
               dbUpdateSupplier(supplierId, { cardPhotoUrl: result.url });
               setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, cardPhotoUrl: result.url } : s));
@@ -4610,8 +4616,7 @@ export default function App() {
         }
         // Background: upload card photo
         if (data.cardPhoto && supplierId && navigator.onLine) {
-          const cardKey = cardPhotoKey(data.supplierName, supplierId);
-          uploadPhoto(data.cardPhoto, cardKey).then(result => {
+          uploadPhoto(data.cardPhoto, 'cards').then(result => {
             if (result?.url) {
               dbUpdateSupplier(supplierId, { cardPhotoUrl: result.url });
               setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, cardPhotoUrl: result.url } : s));
@@ -4732,8 +4737,7 @@ export default function App() {
         );
         // Also upload supplier card if new
         if (data.cardPhoto && supplierId) {
-          const cardKey = cardPhotoKey(data.supplierName, supplierId);
-          uploadPhoto(data.cardPhoto, cardKey).then(result => {
+          uploadPhoto(data.cardPhoto, 'cards').then(result => {
             if (result?.url) {
               dbUpdateSupplier(supplierId, { cardPhotoUrl: result.url });
               setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, cardPhotoUrl: result.url } : s));

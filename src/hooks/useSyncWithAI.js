@@ -11,7 +11,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import db, { updateProduct, updateSupplier } from '../db.js';
 import * as api from '../api/client.js';
-import { productPhotoKey, cardPhotoKey } from '../lib/photoKeys.js';
+import { fotosSinSubir, esperaReintento } from '../lib/fotosPendientes.js';
 
 // Check if a string is base64 image data (not a URL)
 const isBase64Photo = (photo) => {
@@ -40,6 +40,69 @@ export function useSyncWithAI(settings) {
     () => db.suppliers.filter(s => !s.ai_processed).limit(50).toArray(),
     []
   ) || [];
+
+  // ─── Fotos pendientes de subir a la nube (2.7) ───
+  // La copia local es la verdad y la nube el respaldo: lo que se capturó sin
+  // señal sube solo cuando vuelve, con reintentos que se espacian y nunca se rinden.
+  const pendingPhotoProducts = useLiveQuery(
+    () => db.products.where('uploadPending').equals(1).limit(50).toArray(),
+    []
+  ) || [];
+  const pendingCardSuppliers = useLiveQuery(
+    () => db.suppliers.where('cardUploadPending').equals(1).limit(50).toArray(),
+    []
+  ) || [];
+  const uploadingRef = useRef(false);
+  const uploadFailsRef = useRef(0);
+  const uploadTimerRef = useRef(null);
+
+  const uploadPendingPhotos = useCallback(async () => {
+    if (uploadingRef.current || !navigator.onLine) return;
+    if (!pendingPhotoProducts.length && !pendingCardSuppliers.length) return;
+    uploadingRef.current = true;
+    let failed = 0;
+    try {
+      for (const s of pendingCardSuppliers) {
+        if (!navigator.onLine) break;
+        const res = await api.uploadPhoto(s.cardPhoto, 'cards');
+        if (res?.url) await updateSupplier(s.id, { cardPhotoUrl: res.url });
+        else failed++;
+      }
+      for (const p of pendingPhotoProducts) {
+        if (!navigator.onLine) break;
+        const urls = [...(p.photoUrls || [])];
+        let completo = true;
+        for (const i of fotosSinSubir(p)) {
+          const res = await api.uploadPhoto(p.photos[i], 'products');
+          if (res?.url) urls[i] = res.url; else completo = false;
+        }
+        if (urls.some(Boolean)) await updateProduct(p.id, { photoUrls: urls });
+        if (!completo) failed++;
+      }
+    } catch (err) {
+      console.warn('[Fotos] Subida pendiente falló:', err);
+      failed++;
+    } finally {
+      uploadingRef.current = false;
+    }
+    if (failed > 0) {
+      uploadFailsRef.current += 1;
+      const espera = esperaReintento(uploadFailsRef.current);
+      console.log(`[Fotos] ${failed} sin subir, reintento en ${Math.round(espera / 1000)}s`);
+      if (uploadTimerRef.current) clearTimeout(uploadTimerRef.current);
+      uploadTimerRef.current = setTimeout(() => { if (navigator.onLine) uploadPendingPhotos(); }, espera);
+    } else {
+      uploadFailsRef.current = 0;
+    }
+  }, [pendingPhotoProducts, pendingCardSuppliers]);
+
+  useEffect(() => {
+    if (isOnline && (pendingPhotoProducts.length || pendingCardSuppliers.length)) {
+      const id = setTimeout(uploadPendingPhotos, 3000);
+      return () => clearTimeout(id);
+    }
+  }, [isOnline, pendingPhotoProducts.length, pendingCardSuppliers.length, uploadPendingPhotos]);
+  useEffect(() => () => { if (uploadTimerRef.current) clearTimeout(uploadTimerRef.current); }, []);
 
   useEffect(() => {
     const handleOnline = () => { setIsOnline(true); setError(null); };
@@ -104,25 +167,7 @@ export function useSyncWithAI(settings) {
 
       // Use updateProduct (triggers cloud sync push)
       await updateProduct(product.id, updates);
-
-      // Background: upload photos to R2
-      if (!product.photoUrls && navigator.onLine) {
-        for (let i = 0; i < product.photos.length; i++) {
-          if (!isBase64Photo(product.photos[i])) continue;
-          const key = productPhotoKey(product.supplierCompany, product.uuid || product.id, i);
-          api.uploadPhoto(product.photos[i], key).then(res => {
-            if (res?.url) {
-              db.products.get(product.id).then(p => {
-                if (p) {
-                  const urls = p.photoUrls || [];
-                  urls[i] = res.url;
-                  updateProduct(product.id, { photoUrls: urls });
-                }
-              });
-            }
-          }).catch(() => {});
-        }
-      }
+      // Las fotos las sube la cola de fotos pendientes (más abajo), con reintentos.
 
       return { success: true, updates };
     } catch (err) {
@@ -149,22 +194,10 @@ export function useSyncWithAI(settings) {
    * Process a single supplier card with AI
    */
   const processSupplier = async (supplier) => {
-    // Helper: upload card photo to R2 if not yet uploaded
-    const ensureCardUploaded = (s) => {
-      if (isBase64Photo(s.cardPhoto) && !s.cardPhotoUrl && navigator.onLine) {
-        const slugify = (t) => (t || 'card').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-        const key = cardPhotoKey(s.company, s.uuid || s.id);
-        api.uploadPhoto(s.cardPhoto, key).then(res => {
-          if (res?.url) updateSupplier(s.id, { cardPhotoUrl: res.url });
-        }).catch(() => {});
-      }
-    };
-
     // Already has full data (cloud sync) → mark done
     // Must have a real company name AND contact info
     if (supplier.company && supplier.company.trim() !== '' &&
         (supplier.phone || supplier.email || supplier.wechat || supplier.contact)) {
-      ensureCardUploaded(supplier);
       await updateSupplier(supplier.id, { ai_processed: true, ai_last_synced: new Date() });
       return { success: true, skipped: true };
     }
@@ -184,7 +217,6 @@ export function useSyncWithAI(settings) {
     // Has cardData and a real company name already → just mark done
     if (supplier.cardData && Object.keys(supplier.cardData).length > 0 &&
         supplier.company && supplier.company.trim() !== '') {
-      ensureCardUploaded(supplier);
       await updateSupplier(supplier.id, { ai_processed: true, ai_last_synced: new Date() });
       return { success: true, skipped: true };
     }
@@ -215,8 +247,6 @@ export function useSyncWithAI(settings) {
       // Use updateSupplier (triggers cloud sync push)
       await updateSupplier(supplier.id, updates);
 
-      // Upload card photo to R2 (uses company from AI result)
-      ensureCardUploaded({ ...supplier, company: result.company || supplier.company });
 
       // Also update any linked products' supplierCompany name
       if (result.company) {
@@ -360,6 +390,8 @@ export function useSyncWithAI(settings) {
     error,
     syncNow,
     pendingCount: pendingProducts.length + pendingSuppliers.length,
+    photosPending: pendingPhotoProducts.length + pendingCardSuppliers.length,
+    uploadPhotosNow: uploadPendingPhotos,
     processedCount: progress.processed,
     totalCount: progress.total,
   };

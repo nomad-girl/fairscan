@@ -45,6 +45,7 @@ vi.mock('../../db.js', async () => {
     getSyncQueue: vi.fn(() => []),
     deleteSyncQueueItem: vi.fn(),
     saveSettings: vi.fn(),
+    recomputeUploadFlags: vi.fn(async () => {}),
   };
 });
 

@@ -127,9 +127,11 @@ export async function processCard(base64Image) {
  * Devuelve { url, key } si salió bien, o null si R2 no está configurado.
  * Nunca tira: quien llama trata el null como "quedó solo local".
  */
-export async function uploadPhoto(base64Image, key) {
+export async function uploadPhoto(base64Image, kind = 'products') {
   try {
-    return await post('/api/upload-photo', { image: base64Image, key });
+    // El nombre del archivo lo elige el servidor (inadivinable, por usuaria);
+    // la app solo dice si es foto de producto o tarjeta de proveedor.
+    return await post('/api/upload-photo', { image: base64Image, kind });
   } catch (error) {
     if (error instanceof ApiError && error.status === 500 && /R2 not configured/i.test(error.message)) {
       return null;

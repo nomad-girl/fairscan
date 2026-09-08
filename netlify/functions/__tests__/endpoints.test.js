@@ -56,13 +56,29 @@ describe('endpoints', () => {
     expect(res.headers['Access-Control-Allow-Origin']).not.toBe('*');
   });
 
-  it('upload-photo rechaza un nombre de archivo con ruta hacia arriba', async () => {
+  it('upload-photo rechaza un tipo de foto que no sea producto o tarjeta', async () => {
     vi.stubGlobal('fetch', async () => ({ ok: true, json: async () => ({ id: 'u1' }) }));
     const res = await uploadPhoto(post(
-      JSON.stringify({ image: 'data:image/jpeg;base64,AAAA', key: '../../otro/lado.jpg' }),
+      JSON.stringify({ image: 'data:image/jpeg;base64,AAAA', kind: 'videos' }),
       { authorization: 'Bearer valido-1' },
     ));
     expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.body).error).toMatch(/Tipo de foto/);
+  });
+
+  it('upload-photo ya no acepta que la app elija el nombre: un key con ruta hacia arriba no llega al bucket', async () => {
+    // Sin R2 configurado, la función corta antes de subir; lo que importa es que
+    // el nombre sospechoso que manda la app no se use para nada más que deducir el tipo.
+    vi.stubGlobal('fetch', async () => ({ ok: true, json: async () => ({ id: 'u1' }) }));
+    const saved = { ...process.env };
+    delete process.env.R2_ACCOUNT_ID;
+    const res = await uploadPhoto(post(
+      JSON.stringify({ image: 'data:image/jpeg;base64,AAAA', key: '../../otro/lado.jpg' }),
+      { authorization: 'Bearer valido-2' },
+    ));
+    Object.assign(process.env, saved);
+    expect([400, 500]).toContain(res.statusCode);
+    expect(res.body).not.toMatch(/otro\/lado/);
   });
 
   describe('nombres de archivo aceptados', () => {

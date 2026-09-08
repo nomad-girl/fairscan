@@ -2,6 +2,7 @@ import { supabase, isSupabaseConfigured } from './supabase.js';
 import idMapper from './idMapper.js';
 import db, { addToSyncQueue, getSyncQueue, deleteSyncQueueItem, saveSettings as dbSaveSettings } from '../db.js';
 import { sinAudio } from './audioNotes.js';
+import { recomputeUploadFlags } from '../db.js';
 
 /**
  * SyncEngine: Handles push/pull/realtime sync between local Dexie and Supabase.
@@ -358,15 +359,14 @@ class SyncEngine {
       if (cloudTime > localTime) {
         const localData = idMapper.toLocal(table, cloudRecord);
 
-        // CRITICAL: Never overwrite local base64 photos with empty cloud data.
-        // Cloud records don't carry base64 — only URLs. If the cloud has no URLs
-        // but local has base64 photos, preserve the local photos.
+        // La copia local de las fotos es la verdad; la nube es el respaldo (2.7 / N9).
+        // Nunca se reemplazan las fotos guardadas en el teléfono por direcciones web,
+        // tenga o no tenga la nube esas direcciones: sin señal, la dirección no sirve.
         if (table === 'products') {
           const localHasPhotos = existingLocal.photos?.length > 0 &&
             existingLocal.photos.some(p => typeof p === 'string' && p.startsWith('data:'));
-          const cloudHasUrls = (cloudRecord.photo_urls || []).length > 0;
-          if (localHasPhotos && !cloudHasUrls) {
-            delete localData.photos; // Keep existing local base64 photos
+          if (localHasPhotos) {
+            delete localData.photos;
           }
           // Never null out photoUrls if local already has them
           if (existingLocal.photoUrls?.length > 0 && !localData.photoUrls?.length) {
@@ -384,12 +384,14 @@ class SyncEngine {
         }
 
         await db.table(table).update(existingLocal.id, localData);
+        if (table === 'products' || table === 'suppliers') await recomputeUploadFlags(table, existingLocal.id);
       }
       idMapper.register(table, existingLocal.id, cloudRecord.id);
     } else {
       // New record from another device - insert locally
       const localData = idMapper.toLocal(table, cloudRecord);
       const localId = await db.table(table).add(localData);
+      if (table === 'products' || table === 'suppliers') await recomputeUploadFlags(table, localId);
       idMapper.register(table, localId, cloudRecord.id);
     }
   }
