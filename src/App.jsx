@@ -89,6 +89,9 @@ import LoginScreen from './components/LoginScreen';
 import TeamPanel from './components/TeamPanel';
 import { useSyncWithAI } from './hooks/useSyncWithAI.js';
 import { saveFile, sharePhotos, isNativeApp } from './lib/saveFile.js';
+import { slugify } from './lib/slugify.js';
+import { productPhotoKey, cardPhotoKey } from './lib/photoKeys.js';
+import { requestPersistentStorage } from './lib/platform.js';
 
 const CURRENCIES = { USD: { symbol:"USD", label:"Dólar (USD)" }, ARS: { symbol:"ARS", label:"Peso Argentino (ARS)" }, CNY: { symbol:"¥", label:"Yuan Chino (CNY)" } };
 const DEFAULT_SETTINGS_FALLBACK = { activeDistrictId:1, theme:"dark", preset:"vajilla", minMargin:40, quickCaptureMode:true, currency:"USD", showImportCalculator:false, ...PRESETS.vajilla };
@@ -135,14 +138,7 @@ async function flushPhotosToDeviceFromArray(photos) {
   await saveFile(blob, `FairScan_fotos_${ts}.zip`, { title: 'FairScan · Fotos' });
 }
 
-function slugify(text) {
-  return (text || 'sin-nombre')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 50) || 'sin-nombre';
-}
+// slugify vive en src/lib/slugify.js (lo usan tambi\u00e9n las claves de fotos y el sync)
 
 // #10: Fuzzy string similarity for supplier dedup (normalized Levenshtein)
 function stringSimilarity(a, b) {
@@ -2812,10 +2808,9 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
     });
     for (const product of toSync) {
       const sup = suppliers.find(s => s.id === product.supplierId);
-      const prefix = `photos/${slugify(sup?.company || 'product')}`;
       const urls = [];
       for (let i = 0; i < product.photos.length; i++) {
-        const key = `${prefix}/${product.id}_${i + 1}.jpg`;
+        const key = productPhotoKey(sup?.company, product.id, i);
         const result = await uploadPhoto(product.photos[i], key);
         urls.push(result?.url || null);
         done++;
@@ -2829,7 +2824,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
     for (const id of uniqueSupIds) {
       const s = suppliers.find(s => s.id === id);
       if (s?.cardPhoto && !s.cardPhotoUrl) {
-        const key = `cards/${slugify(s.company)}_${s.id}.jpg`;
+        const key = cardPhotoKey(s.company, s.id);
         const result = await uploadPhoto(s.cardPhoto, key);
         if (result?.url) await onUpdateSupplier(s.id, { cardPhotoUrl: result.url }, true);
       }
@@ -4172,6 +4167,9 @@ export default function App() {
     if (!auth.user) return; // Wait for auth
     (async () => {
       await initDB();
+      // Que el sistema no borre la base local para liberar espacio (iOS lo hace
+      // sin avisar). No bloquea el arranque; el resultado queda en la consola.
+      requestPersistentStorage().then(r => console.log(`[storage] persistente: ${r}`));
       // Wire sync engine into db.js CRUD hooks
       setSyncEngine(syncEngine);
       const st = await reloadAll();
@@ -4230,11 +4228,10 @@ export default function App() {
   // Upload photos to R2 in background, update product record with URLs
   const uploadPhotosToCloud = async (productId, photos, supplierName) => {
     const urls = [];
-    const prefix = `photos/${slugify(supplierName || 'product')}`;
     for (let i = 0; i < photos.length; i++) {
       // Skip if already a URL (already uploaded)
       if (photos[i]?.startsWith('http')) { urls.push(photos[i]); continue; }
-      const key = `${prefix}/${productId}_${i + 1}.jpg`;
+      const key = productPhotoKey(supplierName, productId, i);
       const result = await uploadPhoto(photos[i], key);
       if (result?.url) urls.push(result.url);
       else urls.push(null);
@@ -4396,7 +4393,7 @@ export default function App() {
         }
         // Background: upload card photo
         if (data.cardPhoto && supplierId && navigator.onLine) {
-          const cardKey = `cards/${slugify(data.supplierName || 'card')}_${supplierId}.jpg`;
+          const cardKey = cardPhotoKey(data.supplierName, supplierId);
           uploadPhoto(data.cardPhoto, cardKey).then(result => {
             if (result?.url) {
               dbUpdateSupplier(supplierId, { cardPhotoUrl: result.url });
@@ -4472,7 +4469,7 @@ export default function App() {
         }
         // Background: upload card photo
         if (data.cardPhoto && supplierId && navigator.onLine) {
-          const cardKey = `cards/${slugify(data.supplierName || 'card')}_${supplierId}.jpg`;
+          const cardKey = cardPhotoKey(data.supplierName, supplierId);
           uploadPhoto(data.cardPhoto, cardKey).then(result => {
             if (result?.url) {
               dbUpdateSupplier(supplierId, { cardPhotoUrl: result.url });
@@ -4592,7 +4589,7 @@ export default function App() {
         );
         // Also upload supplier card if new
         if (data.cardPhoto && supplierId) {
-          const cardKey = `cards/${slugify(data.supplierName || 'card')}_${supplierId}.jpg`;
+          const cardKey = cardPhotoKey(data.supplierName, supplierId);
           uploadPhoto(data.cardPhoto, cardKey).then(result => {
             if (result?.url) {
               dbUpdateSupplier(supplierId, { cardPhotoUrl: result.url });

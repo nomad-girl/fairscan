@@ -11,6 +11,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import db, { updateProduct, updateSupplier } from '../db.js';
 import * as api from '../api/client.js';
+import { productPhotoKey, cardPhotoKey } from '../lib/photoKeys.js';
 
 // Check if a string is base64 image data (not a URL)
 const isBase64Photo = (photo) => {
@@ -105,10 +106,9 @@ export function useSyncWithAI(settings) {
 
       // Background: upload photos to R2
       if (!product.photoUrls && navigator.onLine) {
-        const slugify = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
         for (let i = 0; i < product.photos.length; i++) {
           if (!isBase64Photo(product.photos[i])) continue;
-          const key = `products/${slugify(product.supplierCompany || 'unknown')}/${product.uuid || product.id}_${i}.jpg`;
+          const key = productPhotoKey(product.supplierCompany, product.uuid || product.id, i);
           api.uploadPhoto(product.photos[i], key).then(res => {
             if (res?.url) {
               db.products.get(product.id).then(p => {
@@ -152,7 +152,7 @@ export function useSyncWithAI(settings) {
     const ensureCardUploaded = (s) => {
       if (isBase64Photo(s.cardPhoto) && !s.cardPhotoUrl && navigator.onLine) {
         const slugify = (t) => (t || 'card').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-        const key = `cards/${slugify(s.company)}_${s.uuid || s.id}.jpg`;
+        const key = cardPhotoKey(s.company, s.uuid || s.id);
         api.uploadPhoto(s.cardPhoto, key).then(res => {
           if (res?.url) updateSupplier(s.id, { cardPhotoUrl: res.url });
         }).catch(() => {});
