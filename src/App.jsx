@@ -96,6 +96,11 @@ import { createAutosave } from './lib/autosave.js';
 import { groupBySupplier } from './lib/supplierGroups.js';
 import { explicarErrorDeCamara, explicarErrorDeMicrofono, abrirAjustesDeLaApp } from './lib/permisos.js';
 import { serializarAudio, urlDeAudio, esPunteroMuerto, sinAudio } from './lib/audioNotes.js';
+import { crearPapelera } from './lib/deshacer.js';
+import { estadoIA, patchReintentoIA, explicarFalloIA } from './lib/aiEstado.js';
+
+// El catálogo se muestra del más nuevo al más viejo (mismo orden que la base).
+const ordenarPorFecha = (arr) => [...arr].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
 const CURRENCIES = { USD: { symbol:"USD", label:"Dólar (USD)" }, ARS: { symbol:"ARS", label:"Peso Argentino (ARS)" }, CNY: { symbol:"¥", label:"Yuan Chino (CNY)" } };
 const DEFAULT_SETTINGS_FALLBACK = { activeDistrictId:1, theme:"dark", preset:"vajilla", minMargin:40, quickCaptureMode:true, currency:"USD", showImportCalculator:false, ...PRESETS.vajilla };
@@ -331,8 +336,13 @@ const Header = memo(({ title, subtitle, onBack, right, t }) => (
   </div>
 ));
 
-const Toast = memo(({ msg, t }) => msg ? (
-  <div style={{ position:"fixed", top:"calc(env(safe-area-inset-top, 0px) + 16px)", left:"50%", transform:"translateX(-50%)", background:t.green, color:"#fff", padding:"10px 24px", borderRadius:12, fontWeight:700, fontSize:13, boxShadow:`0 8px 30px ${t.green}60`, zIndex:1000, whiteSpace:"nowrap" }} className="fade-in">✓ {msg}</div>
+const Toast = memo(({ msg, action, t }) => msg ? (
+  <div style={{ position:"fixed", top:"calc(env(safe-area-inset-top, 0px) + 16px)", left:"50%", transform:"translateX(-50%)", background:t.green, color:"#fff", padding:"10px 24px", borderRadius:12, fontWeight:700, fontSize:13, boxShadow:`0 8px 30px ${t.green}60`, zIndex:1000, whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:12 }} className="fade-in">
+    <span>✓ {msg}</span>
+    {action && (
+      <button onClick={action.onClick} style={{ background:"rgba(255,255,255,0.25)", border:"none", color:"#fff", fontWeight:800, fontSize:13, borderRadius:8, padding:"6px 12px", cursor:"pointer", fontFamily:"inherit" }}>{action.label}</button>
+    )}
+  </div>
 ) : null);
 
 /**
@@ -1258,7 +1268,9 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
                 </>
               )}
               {/* AI badge */}
-              {p.ai_processed ? (
+              {estadoIA(p) === "fallo" ? (
+                <span style={{ position:"absolute", top:12, left:12, fontSize:10, fontWeight:700, padding:"4px 8px", borderRadius:8, background:"rgba(244,67,54,0.9)", color:"#fff", backdropFilter:"blur(10px)" }}>⚠️ IA sin resultado</span>
+              ) : p.ai_processed ? (
                 <span style={{ position:"absolute", top:12, left:12, fontSize:10, fontWeight:700, padding:"4px 8px", borderRadius:8, background:"rgba(0,0,0,0.6)", color:"#fff", backdropFilter:"blur(10px)" }}>🤖 IA</span>
               ) : (
                 <span style={{ position:"absolute", top:12, left:12, fontSize:10, fontWeight:600, padding:"4px 8px", borderRadius:8, background:"rgba(255,152,0,0.85)", color:"#fff", backdropFilter:"blur(10px)", display:"flex", alignItems:"center", gap:4 }}>
@@ -1333,6 +1345,15 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
                 style={{ ...inp(), resize:"vertical", lineHeight:1.5, fontSize:14 }}
               />
             </div>
+
+            {/* La IA se rindió con este producto: decirlo y ofrecer reintentar (N8) */}
+            {estadoIA(p) === "fallo" && (
+              <div style={{ background:t.card, borderRadius:14, padding:12, marginTop:12, border:`1px solid #f4433640` }}>
+                <p style={{ fontSize:12, fontWeight:700, color:"#f44336", margin:"0 0 4px" }}>⚠️ La IA no pudo con este producto</p>
+                <p style={{ fontSize:12, color:t.muted, margin:"0 0 10px", lineHeight:1.4 }}>{explicarFalloIA(p.ai_error)} Podés escribir el nombre a mano o volver a intentar.</p>
+                <button onClick={() => onUpdate(p.id, patchReintentoIA())} style={{ padding:"8px 14px", borderRadius:10, border:"none", background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>↻ Reintentar con IA</button>
+              </div>
+            )}
 
             {/* Audio + Transcription */}
             {(audioSrc || p.audioTranscript) && (
@@ -1830,6 +1851,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   const [linkedSupplierId, setLinkedSupplierId] = useState(null);
   const [items, setItems] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
   const [addPhotoToItemId, setAddPhotoToItemId] = useState(null);
   const addPhotoGalleryRef = useRef(null);
   // Live camera state
@@ -2023,19 +2045,29 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   // Si se llegó desde la ficha de un proveedor, los productos nacen vinculados (bug 1).
   useEffect(() => { if (initialSupplier) linkSupplier(initialSupplier); }, []);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (saving) return;
     setSaving(true);
-    onSave({
-      quickCapture: true,
-      linkedSupplierId,
-      supplierName: supplierName.trim(),
-      supplierContact, supplierPhone, supplierEmail,
-      supplierWechat, supplierWhatsapp, supplierWhatsappLink, supplierWechatLink,
-      supplierWebsite, supplierAddress, supplierProducts, supplierNotes,
-      cardPhoto, cardData,
-      productItems: items,
-    });
+    setSaveError(null);
+    try {
+      const ok = await onSave({
+        quickCapture: true,
+        linkedSupplierId,
+        supplierName: supplierName.trim(),
+        supplierContact, supplierPhone, supplierEmail,
+        supplierWechat, supplierWhatsapp, supplierWhatsappLink, supplierWechatLink,
+        supplierWebsite, supplierAddress, supplierProducts, supplierNotes,
+        cardPhoto, cardData,
+        productItems: items,
+      });
+      if (ok === false) throw new Error("el guardado devolvió error");
+      // Si salió bien, la pantalla se cierra desde afuera.
+    } catch (err) {
+      // El botón vuelve y dice qué pasó: nada de quedarse en "Guardando..." para siempre (N11).
+      console.warn("Guardado de captura rápida falló:", err);
+      setSaving(false);
+      setSaveError("No se pudo guardar. Lo cargado sigue en pantalla: revisá la señal y tocá Guardar de nuevo.");
+    }
   };
 
   const [supplierSearch, setSupplierSearch] = useState(false);
@@ -2261,8 +2293,9 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
         <button onClick={handleSave} disabled={saving}
           style={{ width:"100%", padding:"16px", borderRadius:16, border:"none", fontSize:15, fontWeight:700, cursor:saving?"default":"pointer",
             background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff", opacity:saving?0.6:1 }}>
-          {saving ? "⏳ Guardando..." : `✓ Guardar${items.length > 0 ? ` (${items.length} producto${items.length > 1 ? "s" : ""})` : ""}`}
+          {saving ? "⏳ Guardando..." : saveError ? "↻ Reintentar guardar" : `✓ Guardar${items.length > 0 ? ` (${items.length} producto${items.length > 1 ? "s" : ""})` : ""}`}
         </button>
+        {saveError && <p style={{ fontSize:12, color:t.red, fontWeight:600, margin:"8px 0 0", textAlign:"center" }}>{saveError}</p>}
       </div>
     </div>
   );
@@ -3817,7 +3850,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:5 }}>
                     <p style={{ fontSize:13, fontWeight:700, color:t.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", margin:0, flex:1 }}>{p.name || "Procesando..."}</p>
-                    {!p.ai_processed && <div title="Pendiente IA" style={{ width:7, height:7, borderRadius:"50%", background:"#ff9800", boxShadow:"0 0 4px #ff980080", flexShrink:0, animation:"aiSyncPulse 1.5s ease-in-out infinite" }} />}
+                    {!p.ai_processed && <div title="Pendiente IA" style={{ width:7, height:7, borderRadius:"50%", background:"#ff9800", boxShadow:"0 0 4px #ff980080", flexShrink:0, animation:"aiSyncPulse 1.5s ease-in-out infinite" }} />}{estadoIA(p) === "fallo" && <div title="IA sin resultado" style={{ width:7, height:7, borderRadius:"50%", background:"#f44336", flexShrink:0 }} />}
                   </div>
                   <p style={{ fontSize:11, color:t.muted, margin:"2px 0 0" }}>{isAllFairs && dist ? dist.emoji + " " : ""}{p.supplierCompany || "—"}</p>
                 </div>
@@ -3857,7 +3890,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
                   </p>
                   {p.price && <span style={{ fontSize:11, fontWeight:800, color:"#4ade80" }}>${p.price}</span>}
                 </div>
-                {!p.ai_processed && <div style={{ position:"absolute", top:4, right:4, width:8, height:8, borderRadius:4, background:"#ff9800", boxShadow:"0 0 4px #ff980080" }} />}
+                {!p.ai_processed && <div style={{ position:"absolute", top:4, right:4, width:8, height:8, borderRadius:4, background:"#ff9800", boxShadow:"0 0 4px #ff980080" }} />}{estadoIA(p) === "fallo" && <div title="IA sin resultado" style={{ position:"absolute", top:4, right:4, width:8, height:8, borderRadius:4, background:"#f44336" }} />}
                 {p.photos?.length > 1 && <div style={{ position:"absolute", top:4, left:4, padding:"2px 5px", borderRadius:6, background:"rgba(0,0,0,0.5)", fontSize:9, color:"#fff", fontWeight:700 }}>{p.photos.length}</div>}
               </button>
             ))}
@@ -4227,6 +4260,18 @@ export default function App() {
   const [prevScreen, setPrevScreen] = useState(null);
   const [listTab, setListTab] = useState("products");
   const [toast, setToast] = useState("");
+  // Deshacer al borrar (U7): la pantalla borra al instante, la base espera 5 s.
+  const [undo, setUndo] = useState(null); // { mensaje } mientras hay algo para deshacer
+  const papeleraRef = useRef(null);
+  if (!papeleraRef.current) papeleraRef.current = crearPapelera({ onCambio: setUndo });
+  useEffect(() => {
+    // Si la app se cierra o pasa a segundo plano, lo que se vio borrado queda borrado.
+    const confirmar = () => { papeleraRef.current.confirmarAhora(); };
+    const onHide = () => { if (document.visibilityState === "hidden") confirmar(); };
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", confirmar);
+    return () => { document.removeEventListener("visibilitychange", onHide); window.removeEventListener("pagehide", confirmar); };
+  }, []);
   const [ready, setReady] = useState(false);
   const [isDark, setIsDark] = useState(true);
   // #10: Supplier dedup prompt state
@@ -4696,9 +4741,11 @@ export default function App() {
           }).catch(() => {});
         }
       }
+      return true;
     } catch (err) {
       console.error("Error en handleCaptureSave:", err);
       showToast(data.supplierOnly ? "❌ Error guardando proveedor" : "❌ Error guardando producto");
+      return false;
     }
   };
 
@@ -4707,17 +4754,29 @@ export default function App() {
     setProducts(prev => prev.map(p => p.id === id ? { ...p, ...changes } : p));
   };
 
+  // Los borrados pasan por la papelera: desaparecen de la pantalla ya, y de la
+  // base 5 segundos después, salvo que se toque "Deshacer".
   const handleDeleteProduct = async (id) => {
-    await dbDeleteProduct(id);
+    const borrado = products.find(p => p.id === id);
+    if (!borrado) return;
     setProducts(prev => prev.filter(p => p.id !== id));
     navigate("list");
-    showToast("Producto eliminado");
+    await papeleraRef.current.programar({
+      mensaje: "Producto eliminado",
+      confirmar: () => dbDeleteProduct(id),
+      restaurar: () => setProducts(prev => ordenarPorFecha([...prev, borrado])),
+    });
   };
 
   const handleBatchDelete = async (ids) => {
-    for (const id of ids) await dbDeleteProduct(id);
-    setProducts(prev => prev.filter(p => !ids.includes(p.id)));
-    showToast(`${ids.length} productos eliminados`);
+    const set = new Set(ids);
+    const borrados = products.filter(p => set.has(p.id));
+    setProducts(prev => prev.filter(p => !set.has(p.id)));
+    await papeleraRef.current.programar({
+      mensaje: `${ids.length} productos eliminados`,
+      confirmar: async () => { for (const id of ids) await dbDeleteProduct(id); },
+      restaurar: () => setProducts(prev => ordenarPorFecha([...prev, ...borrados])),
+    });
   };
 
   const handleBatchUpdate = async (ids, changes) => {
@@ -4733,11 +4792,20 @@ export default function App() {
   };
 
   const handleDeleteSupplier = async (id) => {
-    await dbDeleteSupplier(id);
+    const borrado = suppliers.find(s => s.id === id);
+    if (!borrado) return;
+    const vinculados = new Set(products.filter(p => p.supplierId === id).map(p => p.id));
     setSuppliers(prev => prev.filter(s => s.id !== id));
     setProducts(prev => prev.map(p => p.supplierId === id ? { ...p, supplierId: null, supplierCompany: null } : p));
     navigate("list");
-    showToast("Proveedor eliminado");
+    await papeleraRef.current.programar({
+      mensaje: "Proveedor eliminado",
+      confirmar: () => dbDeleteSupplier(id),
+      restaurar: () => {
+        setSuppliers(prev => [...prev, borrado]);
+        setProducts(prev => prev.map(p => vinculados.has(p.id) ? { ...p, supplierId: id, supplierCompany: borrado.company } : p));
+      },
+    });
   };
 
   /**
@@ -4826,7 +4894,8 @@ export default function App() {
 
   return (
     <div style={{ height:"100%", background:t.bg, color:t.text, position:"relative", overflow:"hidden", fontFamily:"'DM Sans', -apple-system, sans-serif" }}>
-      <Toast msg={toast} t={t} />
+      <Toast msg={undo ? undo.mensaje : toast} t={t}
+        action={undo ? { label: "Deshacer", onClick: () => { papeleraRef.current.deshacer(); showToast("Restaurado"); } } : null} />
       {/* #10: Supplier dedup prompt */}
       {dedupPrompt && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>

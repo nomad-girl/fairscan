@@ -100,6 +100,7 @@ export function useSyncWithAI(settings) {
       updates.ai_processed = true;
       updates.ai_last_synced = new Date();
       updates.ai_retry_count = 0;
+      updates.ai_error = null;
 
       // Use updateProduct (triggers cloud sync push)
       await updateProduct(product.id, updates);
@@ -209,6 +210,7 @@ export function useSyncWithAI(settings) {
       updates.ai_processed = true;
       updates.ai_last_synced = new Date();
       updates.ai_retry_count = 0;
+      updates.ai_error = null;
 
       // Use updateSupplier (triggers cloud sync push)
       await updateSupplier(supplier.id, updates);
