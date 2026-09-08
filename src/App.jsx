@@ -92,6 +92,8 @@ import { saveFile, sharePhotos, isNativeApp } from './lib/saveFile.js';
 import { slugify } from './lib/slugify.js';
 import { productPhotoKey, cardPhotoKey } from './lib/photoKeys.js';
 import { requestPersistentStorage } from './lib/platform.js';
+import { createAutosave } from './lib/autosave.js';
+import { groupBySupplier } from './lib/supplierGroups.js';
 
 const CURRENCIES = { USD: { symbol:"USD", label:"Dólar (USD)" }, ARS: { symbol:"ARS", label:"Peso Argentino (ARS)" }, CNY: { symbol:"¥", label:"Yuan Chino (CNY)" } };
 const DEFAULT_SETTINGS_FALLBACK = { activeDistrictId:1, theme:"dark", preset:"vajilla", minMargin:40, quickCaptureMode:true, currency:"USD", showImportCalculator:false, ...PRESETS.vajilla };
@@ -460,7 +462,7 @@ const parseQRContent = (qrData) => {
 // ═══════════════════════════════════════════
 // CAPTURE FLOW
 // ═══════════════════════════════════════════
-function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave, onClose, t, isDark, initialStep = 0, supplierOnly = false }) {
+function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave, onClose, t, isDark, initialStep = 0, supplierOnly = false, initialSupplier = null }) {
   const [step, setStep] = useState(initialStep);
   const [supplierName, setSupplierName] = useState("");
   const [supplierContact, setSupplierContact] = useState("");
@@ -660,6 +662,8 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
     setSupplierAddress(s.address || "");
     if (s.cardPhoto) setCardPhoto(s.cardPhoto);
   };
+  // Si se llegó desde la ficha de un proveedor, el producto nace vinculado (bug 1).
+  useEffect(() => { if (initialSupplier) linkSupplier(initialSupplier); }, []);
 
   const districtSuppliers = suppliers.filter(s => s.districtId === activeDistrictId);
   const recentSuppliers = [...districtSuppliers].sort((a,b) => (b.createdAt||0) - (a.createdAt||0)).slice(0, 5);
@@ -805,7 +809,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
             <div style={{ display:"flex", gap:10 }}>
               <FilePickerBtn onFile={ph => setPhotos(p => [...p, ph])} capture="environment" t={t}
                 style={{ flex:1 }}>
-                📷 Otra foto
+                {photos.length ? "📷 Otra foto" : "📷 Sacar foto"}
               </FilePickerBtn>
               <FilePickerBtn onFile={ph => setPhotos(p => [...p, ph])} onFiles={phs => setPhotos(p => [...p, ...phs])} multiple t={t}
                 style={{ flex:1 }}>
@@ -813,7 +817,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
               </FilePickerBtn>
             </div>
 
-            {photos.length === 0 && <p style={{ fontSize:12, color:t.red, marginTop:12, textAlign:"center" }}>Se necesita al menos 1 foto</p>}
+            {photos.length === 0 && <p style={{ fontSize:12, color:t.muted, marginTop:12, textAlign:"center" }}>Sacá una foto o elegí de la galería para seguir</p>}
           </div>
         )}
 
@@ -1074,7 +1078,7 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
   const prevProduct = productIdx > 0 ? allProducts[productIdx - 1] : null;
   const nextProduct = productIdx < allProducts.length - 1 ? allProducts[productIdx + 1] : null;
 
-  // Inline save helper - saves a single field immediately
+  // Guardado inmediato de un campo puntual (proveedor, categoría, rating…)
   const save = (field, value) => {
     const updates = { [field]: value };
     if (field === "supplierId") {
@@ -1083,6 +1087,39 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
     }
     onUpdate(p.id, updates);
   };
+
+  // Guardado silencioso de los campos de texto (bug 3 de Nati): se guarda mientras
+  // se escribe, medio segundo después de la última tecla, y se avisa con un tilde.
+  // Si la ficha se cierra, se pasa a otro producto o la app se va a segundo plano,
+  // lo pendiente se guarda al instante: el dato no depende de tocar afuera.
+  const [saveState, setSaveState] = useState("idle");
+  const onUpdateRef = useRef(onUpdate); onUpdateRef.current = onUpdate;
+  const autosaveRef = useRef(null);
+  if (!autosaveRef.current) {
+    autosaveRef.current = createAutosave(changes => onUpdateRef.current(p.id, changes), { onState: setSaveState });
+  }
+  const scheduleText = (field, raw) => {
+    const v = raw.trim();
+    if (field === "name" && !v) return; // un producto sin nombre no se guarda: conserva el anterior
+    autosaveRef.current.schedule(field, v);
+  };
+  const flushText = () => autosaveRef.current.flush();
+  useEffect(() => {
+    const a = autosaveRef.current;
+    const onHide = () => { if (document.visibilityState === "hidden") a.flush(); };
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", a.flush);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", a.flush);
+      a.flush();
+    };
+  }, []);
+  useEffect(() => {
+    if (saveState !== "saved") return;
+    const id = setTimeout(() => setSaveState("idle"), 2500);
+    return () => clearTimeout(id);
+  }, [saveState]);
 
   // Tap zones on photo edges for prev/next product (like Instagram Stories)
   const handlePhotoTap = (e) => {
@@ -1190,11 +1227,17 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
 
           {/* ═══ INLINE EDITABLE FIELDS (the important stuff) ═══ */}
           <div style={{ padding:"16px 20px 0" }}>
+            {/* Estado del guardado silencioso */}
+            <div style={{ height:14, display:"flex", justifyContent:"flex-end", alignItems:"center", marginBottom:-6 }}>
+              {saveState === "pending" && <span style={{ fontSize:11, color:t.muted }}>Guardando…</span>}
+              {saveState === "saved" && <span className="fade-in" style={{ fontSize:11, fontWeight:700, color:t.green }}>✓ Guardado</span>}
+            </div>
 
             {/* Product name - editable inline */}
             <input
               defaultValue={p.name || ""}
-              onBlur={e => { const v = e.target.value.trim(); if (v !== (p.name || "")) save("name", v || p.name); }}
+              onChange={e => scheduleText("name", e.target.value)}
+              onBlur={flushText}
               placeholder="Nombre del producto"
               style={{ ...inp({ fontSize:18, fontWeight:700, border:"none", background:"transparent", padding:"0 0 8px", borderBottom:`1px solid ${t.border}` }) }}
             />
@@ -1205,8 +1248,8 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
                 <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px", fontWeight:600 }}>💰 Precio {CURRENCIES[settings?.currency]?.symbol || "USD"}</p>
                 <input
                   defaultValue={p.price || ""}
-                  onBlur={e => { const v = e.target.value.trim(); if (v !== (p.price || "")) save("price", v); }}
-                  onChange={e => { e.target.value = e.target.value.replace(/[^0-9.,]/g,"").replace(",","."); }}
+                  onChange={e => { e.target.value = e.target.value.replace(/[^0-9.,]/g,"").replace(",","."); scheduleText("price", e.target.value); }}
+                  onBlur={flushText}
                   inputMode="decimal"
                   placeholder="0.00"
                   style={inp({ color:t.green, fontWeight:700, fontSize:18 })}
@@ -1216,8 +1259,8 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
                 <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px", fontWeight:600 }}>📦 MOQ</p>
                 <input
                   defaultValue={p.moq || ""}
-                  onBlur={e => { const v = e.target.value.trim(); if (v !== (p.moq || "")) save("moq", v); }}
-                  onChange={e => { e.target.value = e.target.value.replace(/[^0-9]/g,""); }}
+                  onChange={e => { e.target.value = e.target.value.replace(/[^0-9]/g,""); scheduleText("moq", e.target.value); }}
+                  onBlur={flushText}
                   inputMode="numeric"
                   placeholder="Min."
                   style={inp({ fontSize:18, fontWeight:700 })}
@@ -1231,7 +1274,8 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
               <textarea
                 ref={notesRef}
                 defaultValue={p.notes || ""}
-                onBlur={e => { const v = e.target.value.trim(); if (v !== (p.notes || "")) save("notes", v); }}
+                onChange={e => scheduleText("notes", e.target.value)}
+                onBlur={flushText}
                 rows={2}
                 placeholder="Notas: compra mín., pagos, descuentos, detalles..."
                 style={{ ...inp(), resize:"vertical", lineHeight:1.5, fontSize:14 }}
@@ -1398,7 +1442,7 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
                   <p style={{ fontSize:13, fontWeight:700, color:t.red, margin:"0 0 10px", textAlign:"center" }}>¿Seguro? No se puede deshacer.</p>
                   <div style={{ display:"flex", gap:10 }}>
                     <button onClick={() => setConfirmDelete(false)} style={{ flex:1, padding:"10px", borderRadius:10, border:`1px solid ${t.border}`, background:t.card, color:t.text, fontSize:13, fontWeight:600, cursor:"pointer" }}>Cancelar</button>
-                    <button onClick={() => onDelete(p.id)} style={{ flex:1, padding:"10px", borderRadius:10, border:"none", background:t.red, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>Sí, eliminar</button>
+                    <button onClick={() => { autosaveRef.current.cancel(); onDelete(p.id); }} style={{ flex:1, padding:"10px", borderRadius:10, border:"none", background:t.red, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>Sí, eliminar</button>
                   </div>
                 </div>
               )}
@@ -1715,7 +1759,7 @@ function DistrictsScreen({ districts, activeDistrictId, products, onActivate, on
 // ═══════════════════════════════════════════
 // QUICK CAPTURE — Single-page supplier card + product photos
 // ═══════════════════════════════════════════
-function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave, onClose, t, isDark }) {
+function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave, onClose, t, isDark, initialSupplier = null }) {
   const [cardPhoto, setCardPhoto] = useState(null);
   const [cardData, setCardData] = useState(null);
   const [cardProcessing, setCardProcessing] = useState(false);
@@ -1914,6 +1958,8 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     setSupplierNotes(s.notes || "");
     if (s.cardPhoto) setCardPhoto(s.cardPhoto);
   };
+  // Si se llegó desde la ficha de un proveedor, los productos nacen vinculados (bug 1).
+  useEffect(() => { if (initialSupplier) linkSupplier(initialSupplier); }, []);
 
   const handleSave = () => {
     if (saving) return;
@@ -3474,13 +3520,6 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
   const categories = [...new Set([...(settings?.categories||[]), ...products.map(p => p.category).filter(Boolean)])];
   const materials = [...new Set([...(settings?.materials||[]), ...products.flatMap(p => p.material || [])])];
 
-  // #7: O(1) supplier lookup Map instead of O(n) find() in loops
-  const supplierMap = useMemo(() => {
-    const m = new Map();
-    suppliers.forEach(s => m.set(s.id, s));
-    return m;
-  }, [suppliers]);
-
   const districtProducts = useMemo(() => {
     if (filterDistrict === "all") return products;
     if (filterDistrict === "active") return products.filter(p => p.districtId === activeDistrictId);
@@ -3522,28 +3561,18 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
     return filteredOnly; // "recent" = default order from DB (already sorted by createdAt desc)
   }, [sortBy, filteredOnly]);
 
-  const grouped = useMemo(() => {
-    const map = {};
-    filtered.forEach(p => {
-      // Group by supplierId, or by supplierCompany name, or "unknown"
-      const sid = p.supplierId || (p.supplierCompany ? `name:${p.supplierCompany}` : "unknown");
-      if (!map[sid]) {
-        const sup = p.supplierId ? supplierMap.get(p.supplierId) : null;
-        // For unlinked products with supplierCompany, create a pseudo-supplier for display
-        const displaySupplier = sup || (p.supplierCompany ? { company: p.supplierCompany, _unlinked: true } : null);
-        map[sid] = { supplier: displaySupplier, districtId:p.districtId, products:[] };
-      }
-      map[sid].products.push(p);
-    });
-    // Sort by most recent supplier first, "Sin proveedor" always last
-    return Object.values(map).sort((a, b) => {
-      if (!a.supplier && b.supplier) return 1;
-      if (a.supplier && !b.supplier) return -1;
-      const aTime = a.supplier?.createdAt || Math.max(...a.products.map(p => p.createdAt || 0));
-      const bTime = b.supplier?.createdAt || Math.max(...b.products.map(p => p.createdAt || 0));
-      return bTime - aTime;
-    });
-  }, [filtered, supplierMap]);
+  // La pestaña de proveedores se arma desde la lista de proveedores y le cuelga los
+  // productos, no al revés: una tarjeta sin productos tiene que verse (N4).
+  const districtSuppliers = useMemo(() => {
+    if (filterDistrict === "all") return suppliers;
+    if (filterDistrict === "active") return suppliers.filter(s => s.districtId === activeDistrictId);
+    return suppliers.filter(s => s.districtId === parseInt(filterDistrict));
+  }, [suppliers, filterDistrict, activeDistrictId]);
+  const filtersActive = filterCat !== "all" || filterViability !== "all" || filterMaterial !== "all" || filterPrice !== "all";
+  const grouped = useMemo(
+    () => groupBySupplier({ suppliers: districtSuppliers, products: filtered, search, filtersActive }),
+    [districtSuppliers, filtered, search, filtersActive]
+  );
 
   const sel = (active, color) => ({
     padding:"6px 8px", borderRadius:20, border:`1px solid ${active ? color : t.border}`,
@@ -3777,11 +3806,11 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
             const avgR = g.products.length > 0 ? g.products.reduce((a,p)=>a+(p.rating||0),0)/g.products.length : 0;
             const dist = districts.find(d => d.id === g.districtId);
             return (
-              <div key={gi} style={{ background:t.card, borderRadius:16, padding:"12px 14px", border:`1px solid ${t.border}`, marginBottom:6, animation:`fadeIn 0.3s ease ${gi*0.05}s both` }}>
+              <div key={g.key} style={{ background:t.card, borderRadius:16, padding:"12px 14px", border:`1px solid ${t.border}`, marginBottom:6, animation:`fadeIn 0.3s ease ${gi*0.05}s both` }}>
                 <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:8 }}>
                   <button onClick={() => g.supplier && onNavigate("supplier", g.supplier)} style={{ display:"flex", alignItems:"center", gap:10, flex:1, background:"none", border:"none", cursor:"pointer", padding:0, textAlign:"left" }}>
                     <div style={{ width:40, height:40, borderRadius:10, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, border:`1px solid ${t.border}` }}>🏭</div>
-                    <div style={{ flex:1 }}><div style={{ fontSize:14, fontWeight:700, color:g.supplier ? t.text : t.muted }}>{g.supplier?.company || "Sin proveedor"}</div><span style={{ fontSize:11, color:t.muted }}>{isAllFairs&&dist?dist.emoji+" "+dist.name+" · ":""}{g.products.length} prod. →</span></div>
+                    <div style={{ flex:1 }}><div style={{ fontSize:14, fontWeight:700, color:g.supplier ? t.text : t.muted }}>{g.supplier?.company || "Sin proveedor"}</div><span style={{ fontSize:11, color:t.muted }}>{isAllFairs&&dist?dist.emoji+" "+dist.name+" · ":""}{g.products.length === 0 ? "Sin productos aún" : `${g.products.length} prod.`} →</span></div>
                     <MiniStars rating={avgR} t={t} />
                   </button>
                   {/* #15: Quick contact buttons */}
@@ -4784,21 +4813,23 @@ export default function App() {
       {(screen === "capture" || screen === "capture-supplier") && (
         <CaptureFlow suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings}
           onSave={handleCaptureSave} onClose={() => navigate("list")} t={t} isDark={isDark}
+          initialSupplier={screenData?.fromSupplierId != null ? suppliers.find(s => s.id === screenData.fromSupplierId) || null : null}
           initialStep={screen === "capture-supplier" ? 2 : 0} supplierOnly={screen === "capture-supplier"} />
       )}
       {screen === "quick-capture" && (
         <QuickCapture suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings}
-          onSave={handleCaptureSave} onClose={() => navigate("list")} t={t} isDark={isDark} />
+          onSave={handleCaptureSave} onClose={() => navigate("list")} t={t} isDark={isDark}
+          initialSupplier={screenData?.fromSupplierId != null ? suppliers.find(s => s.id === screenData.fromSupplierId) || null : null} />
       )}
       {screen === "detail" && screenData && (
-        <ProductDetail product={products.find(p => p.id === screenData.id) || screenData} allProducts={products} suppliers={suppliers} districts={districts}
+        <ProductDetail key={screenData.id} product={products.find(p => p.id === screenData.id) || screenData} allProducts={products} suppliers={suppliers} districts={districts}
           onBack={goBack} onUpdate={(id, changes) => { handleUpdateProduct(id, changes); }} onCalc={p => navigate("calc", p)} onDelete={handleDeleteProduct}
           onNavigateSupplier={s => navigate("supplier", s)} onNavigateProduct={p => { setScreenData(p); }} t={t} isDark={isDark} settings={settings} />
       )}
       {screen === "supplier" && screenData && (
         <SupplierDetail supplier={suppliers.find(s => s.id === screenData.id) || screenData} products={products}
           onBack={goBack} onUpdate={handleUpdateSupplier} onDelete={handleDeleteSupplier}
-          onAddProduct={() => navigate(settings?.quickCaptureMode !== false ? "quick-capture" : "capture")}
+          onAddProduct={() => navigate(settings?.quickCaptureMode !== false ? "quick-capture" : "capture", { fromSupplierId: screenData.id })}
           onNavigateProduct={p => navigate("detail", p)} t={t} />
       )}
       {screen === "calc" && screenData && (
