@@ -94,6 +94,7 @@ import { productPhotoKey, cardPhotoKey } from './lib/photoKeys.js';
 import { requestPersistentStorage } from './lib/platform.js';
 import { createAutosave } from './lib/autosave.js';
 import { groupBySupplier } from './lib/supplierGroups.js';
+import { explicarErrorDeCamara, explicarErrorDeMicrofono, abrirAjustesDeLaApp } from './lib/permisos.js';
 
 const CURRENCIES = { USD: { symbol:"USD", label:"Dólar (USD)" }, ARS: { symbol:"ARS", label:"Peso Argentino (ARS)" }, CNY: { symbol:"¥", label:"Yuan Chino (CNY)" } };
 const DEFAULT_SETTINGS_FALLBACK = { activeDistrictId:1, theme:"dark", preset:"vajilla", minMargin:40, quickCaptureMode:true, currency:"USD", showImportCalculator:false, ...PRESETS.vajilla };
@@ -333,6 +334,35 @@ const Toast = memo(({ msg, t }) => msg ? (
   <div style={{ position:"fixed", top:"calc(env(safe-area-inset-top, 0px) + 16px)", left:"50%", transform:"translateX(-50%)", background:t.green, color:"#fff", padding:"10px 24px", borderRadius:12, fontWeight:700, fontSize:13, boxShadow:`0 8px 30px ${t.green}60`, zIndex:1000, whiteSpace:"nowrap" }} className="fade-in">✓ {msg}</div>
 ) : null);
 
+/**
+ * Aviso de permiso (cámara o micrófono) con salida clara: qué pasó, cómo se
+ * arregla, botón a los ajustes del teléfono en nativo, y una alternativa.
+ */
+function PermisoAviso({ info, onRetry, onAlternativa, alternativaLabel, onClose, t }) {
+  if (!info) return null;
+  const btn = (extra) => ({ padding:"12px 14px", borderRadius:12, border:"none", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit", ...extra });
+  return (
+    <div role="alertdialog" style={{ position:"fixed", inset:0, zIndex:200, background:"rgba(0,0,0,0.55)", display:"flex", alignItems:"flex-end", justifyContent:"center" }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ width:"100%", maxWidth:520, background:t.bg, borderRadius:"20px 20px 0 0", padding:"20px 20px calc(env(safe-area-inset-bottom, 0px) + 20px)", boxShadow:"0 -8px 40px rgba(0,0,0,0.3)" }}>
+        <p style={{ fontSize:17, fontWeight:800, color:t.text, margin:"0 0 8px" }}>{info.titulo}</p>
+        <p style={{ fontSize:14, color:t.muted, margin:"0 0 16px", lineHeight:1.5 }}>{info.texto}</p>
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          {info.puedeAbrirAjustes && (
+            <button onClick={() => abrirAjustesDeLaApp()} style={btn({ background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff" })}>⚙️ Abrir ajustes del teléfono</button>
+          )}
+          {onAlternativa && (
+            <button onClick={() => { onClose?.(); onAlternativa(); }} style={btn({ background:t.card, color:t.text, border:`1px solid ${t.border}` })}>{alternativaLabel}</button>
+          )}
+          <div style={{ display:"flex", gap:8 }}>
+            {onRetry && <button onClick={() => { onClose?.(); onRetry(); }} style={btn({ flex:1, background:t.surface, color:t.text })}>Reintentar</button>}
+            <button onClick={onClose} style={btn({ flex:1, background:"none", color:t.muted })}>Cerrar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const Empty = ({ icon, title, sub, t }) => (
   <div style={{ textAlign:"center", padding:"60px 20px" }}>
     <span style={{ fontSize:48, display:"block", marginBottom:16 }}>{icon}</span>
@@ -488,6 +518,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
   const [recording, setRecording] = useState(false);
   const [recordTime, setRecordTime] = useState(0);
   const [micAvailable, setMicAvailable] = useState(true);
+  const [micError, setMicError] = useState(null); // explicarErrorDeMicrofono()
   const [rating, setRating] = useState(0);
   const recorderRef = useRef(null);
   const timerRef = useRef(null);
@@ -550,7 +581,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
     }
     // Check mic permission without triggering prompt
     navigator.permissions?.query({ name: 'microphone' }).then(result => {
-      if (result.state === 'denied') setMicAvailable(false);
+      if (result.state === 'denied') { setMicAvailable(false); setMicError(explicarErrorDeMicrofono({ name: 'NotAllowedError' })); }
       // If 'prompt' or 'granted', we'll request when user taps record
     }).catch(() => { /* permissions API not available, assume mic is available */ });
     // Cleanup streams on unmount
@@ -707,8 +738,10 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
         sr.start();
         speechRef.current = sr;
       }
-    } catch {
+    } catch (err) {
+      // Sin permiso, sin micrófono u ocupado: se dice qué pasó y cómo se arregla.
       setMicAvailable(false);
+      setMicError(explicarErrorDeMicrofono(err));
     }
   }, []);
 
@@ -876,7 +909,17 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
                         {audioTranscript && <p style={{ fontSize:11, color:t.text, margin:"4px 0 0", fontStyle:"italic" }}>"{audioTranscript}"</p>}
                       </>
                     ) : (
-                      <p style={{ fontSize:12, color:t.muted, margin:0 }}>{micAvailable ? "Nota de voz (se transcribe)" : "Micrófono no disponible"}</p>
+                      <>
+                        <p style={{ fontSize:12, color:micAvailable ? t.muted : t.text, fontWeight:micAvailable ? 400 : 700, margin:0 }}>{micAvailable ? "Nota de voz (se transcribe)" : (micError?.titulo || "Micrófono no disponible")}</p>
+                        {!micAvailable && micError && (
+                          <>
+                            <p style={{ fontSize:11, color:t.muted, margin:"4px 0 0", lineHeight:1.4 }}>{micError.texto}</p>
+                            {micError.puedeAbrirAjustes && (
+                              <button onClick={() => abrirAjustesDeLaApp()} style={{ marginTop:6, padding:"6px 10px", borderRadius:8, border:"none", background:t.accentSoft, color:t.accent, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>⚙️ Abrir ajustes</button>
+                            )}
+                          </>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -1782,6 +1825,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   const addPhotoGalleryRef = useRef(null);
   // Live camera state
   const [cameraMode, setCameraMode] = useState(null); // null | "card" | "product"
+  const [cameraError, setCameraError] = useState(null); // { ...explicarErrorDeCamara(), modo }
   const [flashVisible, setFlashVisible] = useState(false);
   const [lastCapture, setLastCapture] = useState(null);
   const videoRef = useRef(null);
@@ -1795,6 +1839,12 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   }, []);
 
   const openCamera = async (mode) => {
+    setCameraError(null);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      // Navegador sin soporte (o página sin HTTPS): no hay cámara posible, se explica.
+      setCameraError({ ...explicarErrorDeCamara(new TypeError("mediaDevices no disponible")), modo: mode });
+      return;
+    }
     setCameraMode(mode);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -1804,8 +1854,11 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
       // Wait for video element to mount
       setTimeout(() => { if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play().catch(() => {}); } }, 50);
     } catch (err) {
+      // Permiso denegado, cámara ocupada o inexistente: se cierra el visor y se
+      // explica qué pasó, con el camino a los ajustes y la galería como salida (N5).
       console.warn("Camera error:", err);
       setCameraMode(null);
+      setCameraError({ ...explicarErrorDeCamara(err), modo: mode });
     }
   };
 
@@ -2053,6 +2106,11 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
       <Header title="Captura rápida" subtitle="Tarjeta + fotos de productos" onBack={onClose} t={t} />
+      <PermisoAviso info={cameraError} t={t}
+        onClose={() => setCameraError(null)}
+        onRetry={() => openCamera(cameraError.modo)}
+        alternativaLabel="🖼 Elegir de la galería"
+        onAlternativa={() => (cameraError.modo === "card" ? cardGalleryRef : prodGalleryRef).current?.click()} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 120px" }}>
 
         {/* === SECTION 1: SUPPLIER CARD === */}
