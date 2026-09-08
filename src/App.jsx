@@ -97,6 +97,8 @@ import { explicarErrorDeCamara, explicarErrorDeMicrofono, abrirAjustesDeLaApp } 
 import { serializarAudio, urlDeAudio, esPunteroMuerto, sinAudio } from './lib/audioNotes.js';
 import { crearPapelera } from './lib/deshacer.js';
 import { estadoIA, patchReintentoIA, explicarFalloIA } from './lib/aiEstado.js';
+import { debeLimpiarBaseLocal } from './lib/cuentaLocal.js';
+import { supabase } from './lib/supabase.js';
 
 // El catálogo se muestra del más nuevo al más viejo (mismo orden que la base).
 const ordenarPorFecha = (arr) => [...arr].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -4316,6 +4318,28 @@ export default function App() {
     if (!auth.user) return; // Wait for auth
     (async () => {
       await initDB();
+
+      // ¿Esta base local es de la usuaria que entró? Si entra otra, se limpia todo
+      // antes de conectar nada: si no, la cuenta nueva ve y sincroniza el catálogo
+      // de la anterior (2.12, lo encontró Nati el 08/09).
+      const previa = await getSettings();
+      let teamIds = null;
+      if (previa.roomId && supabase) {
+        try {
+          const { data } = await supabase.from('team_members').select('team_id').eq('user_id', auth.user.id);
+          if (data) teamIds = data.map(m => m.team_id);
+        } catch { /* sin señal: se decide con lo que hay */ }
+      }
+      const { limpiar, motivo } = debeLimpiarBaseLocal({ lastUserId: previa.lastUserId, userId: auth.user.id, roomId: previa.roomId, teamIds });
+      if (limpiar) {
+        console.warn(`[cuenta] Base local de otra cuenta (${motivo}): se limpia antes de arrancar`);
+        try { await syncEngine.disconnectTeam?.(); } catch { /* no estaba conectado */ }
+        await db.delete();
+        await db.open();
+        await initDB();
+      }
+      await dbSaveSettings({ lastUserId: auth.user.id });
+
       // Que el sistema no borre la base local para liberar espacio (iOS lo hace
       // sin avisar). No bloquea el arranque; el resultado queda en la consola.
       requestPersistentStorage().then(r => console.log(`[storage] persistente: ${r}`));
