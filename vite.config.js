@@ -46,7 +46,9 @@ export default defineConfig(({ mode }) => {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
           // Don't cache API or Supabase calls in precache
           navigateFallback: '/index.html',
-          navigateFallbackDenylist: [/^\/api\//, /^\/.netlify\//],
+          // Las páginas legales (/privacidad, /terminos, /soporte) son HTML estático:
+          // el service worker no las tiene que reemplazar por la app.
+          navigateFallbackDenylist: [/^\/api\//, /^\/.netlify\//, /^\/(privacidad|terminos|soporte)(\/|$)/],
           runtimeCaching: [
             // API calls (Netlify functions) - always hit network first
             {

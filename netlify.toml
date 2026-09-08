@@ -38,6 +38,23 @@
   to = "/.netlify/functions/health"
   status = 200
 
+# Páginas legales estáticas (pieza 10.0). Tienen que ir ANTES del catch-all de abajo,
+# si no la app se queda con la ruta y las páginas nunca se ven.
+[[redirects]]
+  from = "/privacidad"
+  to = "/privacidad/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/terminos"
+  to = "/terminos/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/soporte"
+  to = "/soporte/index.html"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
