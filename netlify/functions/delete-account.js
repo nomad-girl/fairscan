@@ -275,6 +275,17 @@ exports.handler = async (event) => {
     return { statusCode: 200, headers, body: JSON.stringify({ ok: true, fotos }) };
   } catch (err) {
     console.error("[delete-account] Falló:", err);
+    // Supabase rechazó la llave maestra. Es configuración del servidor, no algo
+    // que la usuaria pueda arreglar: que el mensaje lo diga, y no "Invalid API key".
+    if (/invalid api key/i.test(err?.message || "")) {
+      return {
+        statusCode: 503,
+        headers,
+        body: JSON.stringify({
+          error: "La llave del servidor no es válida para este proyecto de Supabase (revisar SUPABASE_SERVICE_ROLE_KEY en Netlify)",
+        }),
+      };
+    }
     return {
       statusCode: 500,
       headers,
