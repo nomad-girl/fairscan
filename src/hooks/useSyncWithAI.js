@@ -32,12 +32,12 @@ export function useSyncWithAI(settings) {
   const retryTimerRef = useRef(null);
 
   const pendingProducts = useLiveQuery(
-    () => db.products.filter(p => !p.ai_processed).limit(50).toArray(),
+    () => db.products.where('aiPendiente').equals(1).limit(50).toArray(),
     []
   ) || [];
 
   const pendingSuppliers = useLiveQuery(
-    () => db.suppliers.filter(s => !s.ai_processed).limit(50).toArray(),
+    () => db.suppliers.where('aiPendiente').equals(1).limit(50).toArray(),
     []
   ) || [];
 

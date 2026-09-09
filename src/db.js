@@ -49,17 +49,41 @@ db.version(3).stores({
   tx.table('suppliers').toCollection().modify(s => { s.cardUploadPending = tarjetaSinSubir(s) ? 1 : 0; }),
 ]));
 
-/** Deja la bandera de "fotos por subir" acorde a lo que hay en el registro. */
+// Version 4: bandera indexada "falta procesar con IA" (pieza 3.5). El motor de IA
+// preguntaba "¿qué falta?" recorriendo todos los productos con las fotos adentro,
+// porque IndexedDB no indexa verdadero/falso. Con 1/0 indexado, trae solo lo pendiente.
+db.version(4).stores({
+  districts: '++id, name, uuid, roomId',
+  suppliers: '++id, districtId, company, ai_processed, uuid, roomId, cardUploadPending, aiPendiente',
+  products:  '++id, supplierId, districtId, name, category, createdAt, ai_processed, uuid, roomId, uploadPending, aiPendiente',
+  settings:  'key',
+  _syncQueue: '++id, table, uuid, action, timestamp',
+}).upgrade(tx => Promise.all([
+  tx.table('products').toCollection().modify(p => { p.aiPendiente = p.ai_processed ? 0 : 1; }),
+  tx.table('suppliers').toCollection().modify(s => { s.aiPendiente = s.ai_processed ? 0 : 1; }),
+]));
+
+/** La bandera "falta IA" siempre sale de ai_processed: un solo lugar. */
+function conBanderaIA(changes) {
+  if (changes && 'ai_processed' in changes) changes.aiPendiente = changes.ai_processed ? 0 : 1;
+  return changes;
+}
+
+/** Deja las banderas indexadas ("fotos por subir", "falta IA") acorde al registro. */
 export async function recomputeUploadFlags(table, id) {
   const rec = await db.table(table).get(id);
   if (!rec) return;
+  const cambios = {};
+  const ia = rec.ai_processed ? 0 : 1;
+  if (rec.aiPendiente !== ia) cambios.aiPendiente = ia;
   if (table === 'products') {
     const flag = fotosSinSubir(rec).length ? 1 : 0;
-    if (rec.uploadPending !== flag) await db.products.update(id, { uploadPending: flag });
+    if (rec.uploadPending !== flag) cambios.uploadPending = flag;
   } else if (table === 'suppliers') {
     const flag = tarjetaSinSubir(rec) ? 1 : 0;
-    if (rec.cardUploadPending !== flag) await db.suppliers.update(id, { cardUploadPending: flag });
+    if (rec.cardUploadPending !== flag) cambios.cardUploadPending = flag;
   }
+  if (Object.keys(cambios).length) await db.table(table).update(id, cambios);
 }
 
 // ─── Sync engine reference (set externally to avoid circular imports) ───
@@ -158,6 +182,7 @@ export async function addSupplier(s) {
   s.uuid = s.uuid || crypto.randomUUID();
   s.updatedAt = Date.now();
   s.cardUploadPending = tarjetaSinSubir(s) ? 1 : 0;
+  s.aiPendiente = s.ai_processed ? 0 : 1;
   const id = await db.suppliers.add(s);
   if (_syncEngine?.roomId) {
     _syncEngine.pushRecord('suppliers', { ...s, id }).catch(console.warn);
@@ -167,6 +192,7 @@ export async function addSupplier(s) {
 
 export async function updateSupplier(id, changes) {
   changes.updatedAt = Date.now();
+  conBanderaIA(changes);
   await db.suppliers.update(id, changes);
   if ('cardPhoto' in changes || 'cardPhotoUrl' in changes) await recomputeUploadFlags('suppliers', id);
   if (_syncEngine?.roomId) {
@@ -197,6 +223,7 @@ export async function addProduct(p) {
   p.uuid = p.uuid || crypto.randomUUID();
   p.updatedAt = Date.now();
   p.uploadPending = fotosSinSubir(p).length ? 1 : 0;
+  p.aiPendiente = p.ai_processed ? 0 : 1;
   const id = await db.products.add(p);
   if (_syncEngine?.roomId) {
     _syncEngine.pushRecord('products', { ...p, id }).catch(console.warn);
@@ -206,6 +233,7 @@ export async function addProduct(p) {
 
 export async function updateProduct(id, changes) {
   changes.updatedAt = Date.now();
+  conBanderaIA(changes);
   await db.products.update(id, changes);
   if ('photos' in changes || 'photoUrls' in changes) await recomputeUploadFlags('products', id);
   if (_syncEngine?.roomId) {
