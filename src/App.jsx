@@ -377,6 +377,29 @@ function PermisoAviso({ info, onRetry, onAlternativa, alternativaLabel, onClose,
   );
 }
 
+/**
+ * Esqueleto del catálogo mientras carga la base local (3.4): estructura al toque,
+ * cuadrados grises donde van a estar las fotos. La app se siente instantánea
+ * aunque tarde lo mismo.
+ */
+const EsqueletoCatalogo = ({ t }) => {
+  const bloque = (extra) => ({ background:t.surface, borderRadius:12, animation:"esqueletoPulso 1.2s ease-in-out infinite", ...extra });
+  return (
+    <div style={{ height:"100%", background:t.bg, padding:"12px 20px", boxSizing:"border-box", overflow:"hidden" }} aria-busy="true" aria-label="Cargando el catálogo">
+      <style>{`@keyframes esqueletoPulso { 0%, 100% { opacity: 0.55 } 50% { opacity: 1 } }`}</style>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+        <div style={bloque({ width:140, height:34 })} />
+        <div style={bloque({ width:36, height:36, borderRadius:18 })} />
+      </div>
+      <div style={bloque({ height:44, marginBottom:10, borderRadius:14 })} />
+      <div style={bloque({ height:36, marginBottom:10 })} />
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:3 }}>
+        {Array.from({ length: 18 }, (_, i) => <div key={i} style={bloque({ aspectRatio:"1", borderRadius:6, animationDelay:`${(i % 3) * 0.1}s` })} />)}
+      </div>
+    </div>
+  );
+};
+
 const Empty = ({ icon, title, sub, t }) => (
   <div style={{ textAlign:"center", padding:"60px 20px" }}>
     <span style={{ fontSize:48, display:"block", marginBottom:16 }}>{icon}</span>
@@ -3966,7 +3989,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
               <button onClick={() => onNavigate("detail", p)} style={{
                 width:"100%", textAlign:"left", background:t.card, border:`1px solid ${t.border}`,
                 borderRadius:14, padding:"10px 12px", display:"flex", alignItems:"center", gap:10,
-                animation:`fadeIn 0.3s ease ${Math.min(i*0.03, 0.3)}s both`, cursor:"pointer",
+                cursor:"pointer",
               }}>
                 {p.photos?.[0] ? (
                   <div style={{ width:50, height:50, borderRadius:10, overflow:"hidden", flexShrink:0, border:`1px solid ${t.border}` }}>
@@ -4005,7 +4028,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
             {filtered.map((p, i) => (
               <button key={p.id} onClick={() => onNavigate("detail", p)} style={{
                 background:t.card, border:"none", borderRadius:0, overflow:"hidden", cursor:"pointer", textAlign:"left", padding:0,
-                animation:`fadeIn 0.2s ease ${Math.min(i*0.015, 0.3)}s both`, position:"relative", aspectRatio:"1",
+                position:"relative", aspectRatio:"1",
               }}>
                 {p.photos?.[0] ? (
                   <img src={elegirMiniatura(p)} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
@@ -4034,7 +4057,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
             const avgR = g.products.length > 0 ? g.products.reduce((a,p)=>a+(p.rating||0),0)/g.products.length : 0;
             const dist = districts.find(d => d.id === g.districtId);
             return (
-              <div key={g.key} style={{ background:t.card, borderRadius:16, padding:"12px 14px", border:`1px solid ${t.border}`, marginBottom:6, animation:`fadeIn 0.3s ease ${gi*0.05}s both` }}>
+              <div key={g.key} style={{ background:t.card, borderRadius:16, padding:"12px 14px", border:`1px solid ${t.border}`, marginBottom:6 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:8 }}>
                   <button onClick={() => g.supplier && onNavigate("supplier", g.supplier)} style={{ display:"flex", alignItems:"center", gap:10, flex:1, background:"none", border:"none", cursor:"pointer", padding:0, textAlign:"left" }}>
                     <div style={{ width:40, height:40, borderRadius:10, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, border:`1px solid ${t.border}` }}>🏭</div>
@@ -4260,7 +4283,7 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onDelete, onNavi
                 return (
                   <button key={p.id} onClick={() => { if (photoIdx >= 0) { setSwiperIdx(photoIdx); } else { onNavigateProduct(p); } }} style={{
                     background:t.card, border:"none", borderRadius:0, overflow:"hidden", cursor:"pointer", textAlign:"left", padding:0,
-                    animation:`fadeIn 0.2s ease ${Math.min(i*0.015, 0.3)}s both`, position:"relative", aspectRatio:"1",
+                    position:"relative", aspectRatio:"1",
                   }}>
                     {p.photos?.[0] ? (
                       <img src={elegirMiniatura(p)} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
@@ -5044,13 +5067,7 @@ export default function App() {
 
   if (!auth.user) return <LoginScreen t={t} onAuth={auth} />;
 
-  if (!ready) return (
-    <div style={{ height:"100%", display:"flex", alignItems:"center", justifyContent:"center", background:t.bg, flexDirection:"column", gap:12 }}>
-      <span style={{ fontSize:48 }}>📸</span>
-      <span style={{ fontSize:18, fontWeight:800, color:t.text }}>FairScan</span>
-      <span style={{ fontSize:12, color:t.muted }}>Cargando...</span>
-    </div>
-  );
+  if (!ready) return <EsqueletoCatalogo t={t} />;
 
   return (
     <div style={{ height:"100%", background:t.bg, color:t.text, position:"relative", overflow:"hidden", fontFamily:"'DM Sans', -apple-system, sans-serif" }}>
