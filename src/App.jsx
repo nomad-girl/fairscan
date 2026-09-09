@@ -407,6 +407,21 @@ const DiaHeader = ({ etiqueta, n, grid, t }) => (
   </div>
 );
 
+/** Bienvenida de un solo golpe: el "para qué" antes de pedir la cámara (4.1, 1.5). */
+function Bienvenida({ t, onEmpezar, sinCuenta }) {
+  return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", justifyContent:"flex-end", background:t.bg, padding:"24px 24px calc(28px + env(safe-area-inset-bottom, 0px))", boxSizing:"border-box" }}>
+      <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", gap:10 }}>
+        <span style={{ fontSize:56 }}>📸</span>
+        <h1 style={{ fontSize:28, fontWeight:800, color:t.text, margin:0 }}>FairScan</h1>
+        <p style={{ fontSize:15, color:t.muted, margin:0, textAlign:"center", lineHeight:1.5, maxWidth:320 }}>Sacás la foto, la IA le pone nombre. Escaneás la tarjeta del proveedor al final. Exportás todo a Excel.</p>
+      </div>
+      <p style={{ fontSize:12, color:t.dim, margin:"0 0 12px", textAlign:"center" }}>Al tocar Empezar, el teléfono te va a pedir permiso para usar la cámara.{sinCuenta ? " No hace falta cuenta para empezar." : ""}</p>
+      <button onClick={onEmpezar} style={{ width:"100%", padding:16, borderRadius:16, border:"none", background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff", fontSize:16, fontWeight:800, cursor:"pointer", fontFamily:"inherit" }}>Empezar</button>
+    </div>
+  );
+}
+
 const Empty = ({ icon, title, sub, t }) => (
   <div style={{ textAlign:"center", padding:"60px 20px" }}>
     <span style={{ fontSize:48, display:"block", marginBottom:16 }}>{icon}</span>
@@ -532,620 +547,6 @@ const parseQRContent = (qrData) => {
   info.qrSource = true;
   return Object.keys(info).length > 1 ? info : null;
 };
-
-// ═══════════════════════════════════════════
-// CAPTURE FLOW
-// ═══════════════════════════════════════════
-function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave, onClose, t, isDark, initialStep = 0, supplierOnly = false, initialSupplier = null }) {
-  const [step, setStep] = useState(initialStep);
-  const [supplierName, setSupplierName] = useState("");
-  const [supplierContact, setSupplierContact] = useState("");
-  const [cardPhoto, setCardPhoto] = useState(null);
-  const [cardData, setCardData] = useState(null);
-  const [cardProcessing, setCardProcessing] = useState(false);
-  const [supplierPhone, setSupplierPhone] = useState("");
-  const [supplierEmail, setSupplierEmail] = useState("");
-  const [supplierWechat, setSupplierWechat] = useState("");
-  const [supplierWhatsapp, setSupplierWhatsapp] = useState("");
-  const [supplierWhatsappLink, setSupplierWhatsappLink] = useState("");
-  const [supplierWechatLink, setSupplierWechatLink] = useState("");
-  const [supplierWebsite, setSupplierWebsite] = useState("");
-  const [supplierAddress, setSupplierAddress] = useState("");
-  const [supplierProducts, setSupplierProducts] = useState("");
-  const [linkedSupplierId, setLinkedSupplierId] = useState(null);
-  const [photos, setPhotos] = useState([]);
-  const [price, setPrice] = useState("");
-  const [moq, setMoq] = useState("");
-  const [audioURL, setAudioURL] = useState(null);
-  const [audioBlob, setAudioBlob] = useState(null); // el audio en sí; audioURL es solo para escucharlo acá
-  const [audioTranscript, setAudioTranscript] = useState("");
-  const [textNote, setTextNote] = useState("");
-  const [recording, setRecording] = useState(false);
-  const [recordTime, setRecordTime] = useState(0);
-  const [micAvailable, setMicAvailable] = useState(true);
-  const [micError, setMicError] = useState(null); // explicarErrorDeMicrofono()
-  const [rating, setRating] = useState(0);
-  const recorderRef = useRef(null);
-  const timerRef = useRef(null);
-  const fileInputRef = useRef(null);
-  const speechRef = useRef(null);
-
-  const streamRef = useRef(null);
-
-  // Cleanup audio blob URL on unmount or change to prevent memory leak
-  useEffect(() => {
-    return () => { if (audioURL) URL.revokeObjectURL(audioURL); };
-  }, [audioURL]);
-
-  // #12: Auto-save draft to localStorage every 5 seconds
-  const DRAFT_KEY = 'fairscan_capture_draft';
-  useEffect(() => {
-    // Restore draft on mount
-    try {
-      const saved = localStorage.getItem(DRAFT_KEY);
-      if (saved) {
-        const draft = JSON.parse(saved);
-        if (draft.supplierName) setSupplierName(draft.supplierName);
-        if (draft.supplierContact) setSupplierContact(draft.supplierContact);
-        if (draft.supplierPhone) setSupplierPhone(draft.supplierPhone);
-        if (draft.supplierEmail) setSupplierEmail(draft.supplierEmail);
-        if (draft.supplierWechat) setSupplierWechat(draft.supplierWechat);
-        if (draft.supplierWhatsapp) setSupplierWhatsapp(draft.supplierWhatsapp);
-        if (draft.supplierWebsite) setSupplierWebsite(draft.supplierWebsite);
-        if (draft.supplierAddress) setSupplierAddress(draft.supplierAddress);
-        if (draft.price) setPrice(draft.price);
-        if (draft.moq) setMoq(draft.moq);
-        if (draft.textNote) setTextNote(draft.textNote);
-        if (draft.rating) setRating(draft.rating);
-        if (draft.step) setStep(draft.step);
-      }
-    } catch {}
-    return () => { localStorage.removeItem(DRAFT_KEY); };
-  }, []);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const hasData = supplierName || price || moq || textNote || photos.length > 0;
-      if (hasData) {
-        try {
-          localStorage.setItem(DRAFT_KEY, JSON.stringify({
-            supplierName, supplierContact, supplierPhone, supplierEmail,
-            supplierWechat, supplierWhatsapp, supplierWebsite, supplierAddress,
-            price, moq, textNote, rating, step,
-          }));
-        } catch {}
-      }
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [supplierName, supplierContact, supplierPhone, supplierEmail, supplierWechat, supplierWhatsapp, supplierWebsite, supplierAddress, price, moq, textNote, rating, step, photos]);
-
-  // Auto-open camera on mount (Step 0)
-  useEffect(() => {
-    if (step === 0 && photos.length === 0 && fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-    // Check mic permission without triggering prompt
-    navigator.permissions?.query({ name: 'microphone' }).then(result => {
-      if (result.state === 'denied') { setMicAvailable(false); setMicError(explicarErrorDeMicrofono({ name: 'NotAllowedError' })); }
-      // If 'prompt' or 'granted', we'll request when user taps record
-    }).catch(() => { /* permissions API not available, assume mic is available */ });
-    // Cleanup streams on unmount
-    return () => {
-      if (recorderRef.current) { try { recorderRef.current.stop(); } catch {} }
-      if (speechRef.current) { try { speechRef.current.onend = null; speechRef.current.stop(); } catch {} }
-      clearInterval(timerRef.current);
-    };
-  }, []);
-
-  // decodeQR and parseQRContent are defined at module level (above)
-
-  // Apply contact info to supplier fields
-  const applyContactInfo = (info) => {
-    if (info.company) setSupplierName(prev => prev || info.company);
-    if (info.contactName) setSupplierContact(prev => prev || info.contactName);
-    if (info.phone) setSupplierPhone(prev => prev || info.phone);
-    if (info.email) setSupplierEmail(prev => prev || info.email);
-    if (info.wechat) setSupplierWechat(prev => prev || info.wechat);
-    if (info.whatsapp) setSupplierWhatsapp(prev => prev || info.whatsapp);
-    if (info.whatsappLink) setSupplierWhatsappLink(prev => prev || info.whatsappLink);
-    if (info.wechatLink) setSupplierWechatLink(prev => prev || info.wechatLink);
-    if (info.website) setSupplierWebsite(prev => prev || info.website);
-    if (info.address) setSupplierAddress(prev => prev || info.address);
-  };
-
-  // Process business card / QR photo with AI + QR decoding
-  const handleCardPhoto = async (photo, originalFile) => {
-    setCardPhoto(photo);
-    setCardProcessing(true);
-    try {
-      // Try QR decode from HIGH-RES original file first, fallback to compressed
-      const qrData = await decodeQR(originalFile || photo);
-      let qrInfo = null;
-      if (qrData) {
-        console.log("📱 QR detectado en la tarjeta");
-        qrInfo = parseQRContent(qrData);
-        if (qrInfo) applyContactInfo(qrInfo);
-      }
-
-      // Always run AI to get name, company, and other visible text
-      console.log("🔄 Procesando imagen con IA...");
-      const result = await processCard(photo);
-      console.log("✓ Tarjeta procesada por IA: ok");
-      setCardData({ ...result, ...(qrInfo || {}), qrRaw: qrData || null });
-
-      // AI results have priority for name/company (QR never sets name)
-      if (result.company) setSupplierName(result.company);
-      else if (result.contactName) setSupplierName(result.contactName);
-      if (result.contactName) setSupplierContact(prev => prev || (result.contactName + (result.contactTitle ? ` (${result.contactTitle})` : "")));
-      if (result.phone || result.mobile) setSupplierPhone(prev => prev || result.mobile || result.phone || "");
-      if (result.email) setSupplierEmail(prev => prev || result.email);
-      if (result.wechat) setSupplierWechat(prev => prev || result.wechat);
-      if (result.whatsapp) {
-        setSupplierWhatsapp(prev => prev || result.whatsapp);
-        // Generate deep link if we got a phone from AI and don't have one from QR
-        if (!qrInfo?.whatsappLink) {
-          const waNum = result.whatsapp.replace(/[^\d+]/g, "").replace(/\+/g, "");
-          if (waNum.length >= 6) setSupplierWhatsappLink(prev => prev || `https://wa.me/${waNum}`);
-        }
-      }
-      if (result.website) setSupplierWebsite(prev => prev || result.website);
-      if (result.address) setSupplierAddress(prev => prev || result.address);
-      if (result.products) setSupplierProducts(result.products);
-
-      // AI FALLBACK: if jsQR failed but AI sees a QR code, identify the QR type
-      // This is critical for WeChat QRs which have a logo in the center that breaks jsQR
-      if (!qrData && result.qrDetected) {
-        console.log("🔄 jsQR falló pero AI detectó QR, identificando tipo...");
-        // If AI detected a QR and identified it as WeChat (green icon, WeChat logo, etc.)
-        const qrType = result.qrType?.toLowerCase() || "";
-        if (qrType.includes("wechat") || qrType.includes("weixin")) {
-          if (!qrInfo?.wechat) {
-            setSupplierWechat(prev => prev || result.wechat || "QR escaneado");
-            // If AI extracted a wechatLink from visible text near QR
-            if (result.qrUrl) setSupplierWechatLink(prev => prev || result.qrUrl);
-          }
-        } else if (qrType.includes("whatsapp")) {
-          if (!qrInfo?.whatsapp && result.whatsapp) {
-            setSupplierWhatsapp(prev => prev || result.whatsapp);
-          }
-        } else {
-          // AI detected QR but couldn't determine type - if we see WeChat visual cues, assume WeChat
-          // (most QRs in Chinese trade fairs are WeChat)
-          if (!qrInfo?.wechat && !qrInfo?.whatsapp && !result.wechat && !result.whatsapp) {
-            setSupplierWechat(prev => prev || "QR escaneado");
-          }
-        }
-      }
-    } catch (err) {
-      console.warn("⚠️ Error procesando imagen:", err);
-    } finally {
-      setCardProcessing(false);
-    }
-  };
-
-  // Link to existing supplier
-  const linkSupplier = (s) => {
-    setLinkedSupplierId(s.id);
-    setSupplierName(s.company || "");
-    setSupplierContact(s.contact || "");
-    setSupplierPhone(s.phone || "");
-    setSupplierEmail(s.email || "");
-    setSupplierWechat(s.wechat || "");
-    setSupplierWhatsapp(s.whatsapp || "");
-    setSupplierWhatsappLink(s.whatsappLink || "");
-    setSupplierWechatLink(s.wechatLink || "");
-    setSupplierWebsite(s.website || "");
-    setSupplierAddress(s.address || "");
-    if (s.cardPhoto) setCardPhoto(s.cardPhoto);
-  };
-  // Si se llegó desde la ficha de un proveedor, el producto nace vinculado (bug 1).
-  useEffect(() => { if (initialSupplier) linkSupplier(initialSupplier); }, []);
-
-  const districtSuppliers = suppliers.filter(s => s.districtId === activeDistrictId);
-  const recentSuppliers = [...districtSuppliers].sort((a,b) => (b.createdAt||0) - (a.createdAt||0)).slice(0, 5);
-  const suggestions = supplierName.length > 0 ? districtSuppliers.filter(s => s.company?.toLowerCase().includes(supplierName.toLowerCase())) : [];
-
-  const startRec = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream);
-      const chunks = [];
-      mr.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-      mr.onstop = () => {
-        const blob = new Blob(chunks, { type: mr.mimeType });
-        setAudioBlob(blob);
-        setAudioURL(URL.createObjectURL(blob));
-        stream.getTracks().forEach(t => t.stop());
-      };
-      mr.start(100);
-      recorderRef.current = mr;
-      setRecording(true);
-      setRecordTime(0);
-      timerRef.current = setInterval(() => setRecordTime(t => t + 1), 1000);
-
-      // Start speech recognition for live transcription
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const sr = new SpeechRecognition();
-        sr.continuous = true;
-        sr.interimResults = true;
-        sr.lang = navigator.language || "es-AR";
-        let finalText = "";
-        sr.onresult = (e) => {
-          let interim = "";
-          for (let i = e.resultIndex; i < e.results.length; i++) {
-            if (e.results[i].isFinal) finalText += e.results[i][0].transcript + " ";
-            else interim = e.results[i][0].transcript;
-          }
-          setAudioTranscript((finalText + interim).trim());
-        };
-        sr.onerror = () => {};
-        sr.onend = () => { if (recorderRef.current) sr.start(); }; // restart if still recording
-        sr.start();
-        speechRef.current = sr;
-      }
-    } catch (err) {
-      // Sin permiso, sin micrófono u ocupado: se dice qué pasó y cómo se arregla.
-      setMicAvailable(false);
-      setMicError(explicarErrorDeMicrofono(err));
-    }
-  }, []);
-
-  const stopRec = useCallback(() => {
-    recorderRef.current?.stop();
-    recorderRef.current = null;
-    setRecording(false);
-    clearInterval(timerRef.current);
-    if (speechRef.current) { speechRef.current.onend = null; speechRef.current.stop(); speechRef.current = null; }
-  }, []);
-
-  const handleSave = () => {
-    // #12: Clear draft on save
-    try { localStorage.removeItem(DRAFT_KEY); } catch {}
-    onSave({
-      supplierOnly,
-      supplierName: supplierName.trim(),
-      supplierContact: supplierContact.trim(),
-      supplierPhone: supplierPhone.trim(),
-      supplierEmail: supplierEmail.trim(),
-      supplierWechat: supplierWechat.trim(),
-      supplierWhatsapp: supplierWhatsapp.trim(),
-      supplierWhatsappLink: supplierWhatsappLink.trim(),
-      supplierWechatLink: supplierWechatLink.trim(),
-      supplierWebsite: supplierWebsite.trim(),
-      supplierAddress: supplierAddress.trim(),
-      supplierProducts: supplierProducts.trim(),
-      linkedSupplierId,
-      cardPhoto,
-      cardData,
-      photos,
-      price: price.trim(),
-      moq: moq.trim(),
-      audioBlob,
-      audioDuracion: recordTime,
-      audioTranscript: audioTranscript.trim(),
-      textNote: textNote.trim(),
-      rating,
-    });
-  };
-
-  // NEW FLOW: Step 0=Photo, Step 1=Price+MOQ+Audio+Rating, Step 2=Supplier
-  const canNext = [
-    photos.length > 0,
-    true,
-    true,
-  ];
-
-  const stepTitles = ["Foto del producto", "Precio y notas", "Proveedor"];
-  const progress = ((step + 1) / 3) * 100;
-
-  const inp = (extra = {}) => ({
-    width:"100%", padding:"14px 16px", borderRadius:14, border:`1px solid ${t.border}`,
-    background:t.surface, color:t.text, fontSize:16, outline:"none", boxSizing:"border-box",
-    fontFamily:"inherit", ...extra,
-  });
-
-  return (
-    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg, position:"relative" }}>
-      {/* Progress bar */}
-      <div style={{ height:3, background:t.border, flexShrink:0 }}>
-        <div style={{ height:"100%", width:`${progress}%`, background:t.accent, borderRadius:2, transition:"width 0.3s" }} />
-      </div>
-
-      <Header title={stepTitles[step]} subtitle={`Paso ${step+1} de 3`} onBack={step > 0 ? () => setStep(s=>s-1) : onClose} t={t}
-        right={step < 2 && <button onClick={() => setStep(s=>s+1)} style={{ background:"none", border:"none", color:t.accent, fontSize:13, fontWeight:700, cursor:"pointer" }}>Saltar →</button>}
-      />
-
-      <div style={{ flex:1, padding:"20px", overflowY:"scroll", WebkitOverflowScrolling:"touch", paddingBottom:120 }}>
-
-        {/* ═══ STEP 0: FOTO DEL PRODUCTO (instant camera) ═══ */}
-        {step === 0 && (
-          <div>
-            {/* Hidden file input that auto-opens camera */}
-            <input ref={fileInputRef} type="file" accept="image/*" capture="environment" style={{ display:"none" }}
-              onChange={async e => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  const dataUrl = await resizeImage(file, 800, 0.80);
-                  setPhotos(p => [...p, dataUrl]);
-                }
-              }}
-            />
-
-            <p style={{ fontSize:13, color:t.muted, marginBottom:16 }}>Sacale foto al producto. La IA identifica nombre, categoría y materiales.</p>
-
-            {/* Photos grid */}
-            <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:16 }}>
-              {photos.map((ph, i) => (
-                <div key={i} style={{ position:"relative", width:"calc(50% - 4px)", aspectRatio:"1", borderRadius:14, overflow:"hidden", border:`1px solid ${t.border}` }}>
-                  <img src={ph} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                  <button onClick={() => setPhotos(p => p.filter((_,j) => j !== i))} style={{ position:"absolute", top:4, right:4, width:36, height:36, borderRadius:18, background:"#000a", color:"#fff", border:"none", fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-                  {i === 0 && <span style={{ position:"absolute", bottom:6, left:6, background:t.accent, color:"#fff", fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:6 }}>Principal</span>}
-                </div>
-              ))}
-            </div>
-
-            {/* Add more photos */}
-            <div style={{ display:"flex", gap:10 }}>
-              <FilePickerBtn onFile={ph => setPhotos(p => [...p, ph])} capture="environment" t={t}
-                style={{ flex:1 }}>
-                {photos.length ? "📷 Otra foto" : "📷 Sacar foto"}
-              </FilePickerBtn>
-              <FilePickerBtn onFile={ph => setPhotos(p => [...p, ph])} onFiles={phs => setPhotos(p => [...p, ...phs])} multiple t={t}
-                style={{ flex:1 }}>
-                🖼 Galería (varias)
-              </FilePickerBtn>
-            </div>
-
-            {photos.length === 0 && <p style={{ fontSize:12, color:t.muted, marginTop:12, textAlign:"center" }}>Sacá una foto o elegí de la galería para seguir</p>}
-          </div>
-        )}
-
-        {/* ═══ STEP 1: PRECIO + MOQ + AUDIO + RATING ═══ */}
-        {step === 1 && (
-          <div>
-            {/* HERO: Price - biggest, centered, auto-focused */}
-            <div style={{ textAlign:"center", marginBottom:20 }}>
-              <p style={{ fontSize:24, fontWeight:800, color:t.green, margin:"0 0 8px" }}>💲</p>
-              <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:8, textTransform:"uppercase" }}>Precio unitario (USD)</p>
-              <div style={{ position:"relative", maxWidth:240, margin:"0 auto" }}>
-                <span style={{ position:"absolute", left:16, top:"50%", transform:"translateY(-50%)", fontSize:22, fontWeight:800, color:t.green }}>$</span>
-                <input ref={el => { if (el && step === 1) setTimeout(() => el.focus(), 100); }}
-                  value={price} onChange={e => setPrice(e.target.value.replace(/[^0-9.,]/g, "").replace(",", "."))} placeholder="0.00" inputMode="decimal"
-                  style={{
-                    width:"100%", padding:"16px 16px 16px 44px", borderRadius:16, border:`2px solid ${t.green}40`,
-                    background:t.surface, color:t.green, fontSize:36, fontWeight:800, textAlign:"center",
-                    outline:"none", boxSizing:"border-box", fontFamily:"inherit",
-                  }} />
-              </div>
-            </div>
-
-            {/* MOQ + Rating side by side */}
-            <div style={{ display:"flex", gap:10, marginBottom:16 }}>
-              <div style={{ flex:1 }}>
-                <p style={{ fontSize:10, fontWeight:700, color:t.muted, marginBottom:4, textTransform:"uppercase" }}>📦 MOQ</p>
-                <input value={moq} onChange={e => setMoq(e.target.value.replace(/[^0-9]/g, ""))} placeholder="500" inputMode="numeric"
-                  style={inp({ fontSize:16, padding:"10px 12px" })} />
-              </div>
-              <div style={{ flex:1 }}>
-                <p style={{ fontSize:10, fontWeight:700, color:t.muted, marginBottom:4, textTransform:"uppercase" }}>⭐ Rating</p>
-                <div style={{ background:t.surface, borderRadius:14, border:`1px solid ${t.border}`, padding:"6px 8px", display:"flex", justifyContent:"center" }}>
-                  <Stars value={rating} onChange={setRating} size={24} t={t} />
-                </div>
-              </div>
-            </div>
-
-            {/* Audio - compact */}
-            <div style={{ background:t.card, borderRadius:14, padding:"10px 14px", marginBottom:10, border:`1px solid ${t.border}` }}>
-              {!audioURL ? (
-                <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                  <button onClick={recording ? stopRec : startRec} style={{
-                    width:44, height:44, borderRadius:22, border:"none", flexShrink:0,
-                    background: recording ? t.red : `linear-gradient(135deg, ${t.accent}, #FF8F35)`,
-                    color:"#fff", fontSize:18, cursor:"pointer",
-                    boxShadow: recording ? `0 0 0 4px ${t.redSoft}` : "none",
-                    animation: recording ? "pulse 1.5s ease infinite" : "none",
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                  }}>
-                    {recording ? "⏹" : "🎙"}
-                  </button>
-                  <div style={{ flex:1 }}>
-                    {recording ? (
-                      <>
-                        <p style={{ fontSize:13, fontWeight:700, color:t.red, margin:0 }}>Grabando... {Math.floor(recordTime/60)}:{String(recordTime%60).padStart(2,"0")}</p>
-                        {audioTranscript && <p style={{ fontSize:11, color:t.text, margin:"4px 0 0", fontStyle:"italic" }}>"{audioTranscript}"</p>}
-                      </>
-                    ) : (
-                      <>
-                        <p style={{ fontSize:12, color:micAvailable ? t.muted : t.text, fontWeight:micAvailable ? 400 : 700, margin:0 }}>{micAvailable ? "Nota de voz (se transcribe)" : (micError?.titulo || "Micrófono no disponible")}</p>
-                        {!micAvailable && micError && (
-                          <>
-                            <p style={{ fontSize:11, color:t.muted, margin:"4px 0 0", lineHeight:1.4 }}>{micError.texto}</p>
-                            {micError.puedeAbrirAjustes && (
-                              <button onClick={() => abrirAjustesDeLaApp()} style={{ marginTop:6, padding:"6px 10px", borderRadius:8, border:"none", background:t.accentSoft, color:t.accent, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>⚙️ Abrir ajustes</button>
-                            )}
-                          </>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                  <span style={{ fontSize:16 }}>🎙</span>
-                  <audio src={audioURL} controls style={{ flex:1, height:28 }} />
-                  <button onClick={() => { if (audioURL) URL.revokeObjectURL(audioURL); setAudioURL(null); setAudioBlob(null); setRecordTime(0); setAudioTranscript(""); }} style={{ background:t.redSoft, border:"none", borderRadius:10, width:36, height:36, color:t.red, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>✕</button>
-                </div>
-              )}
-              {audioURL && audioTranscript && <p style={{ fontSize:11, color:t.text, margin:"6px 0 0", fontStyle:"italic" }}>📝 "{audioTranscript}"</p>}
-            </div>
-
-            {/* Text note - compact */}
-            <textarea value={textNote} onChange={e => setTextNote(e.target.value)} placeholder="📝 Nota escrita (detalles, colores, negociación...)"
-              rows={2} style={{
-                width:"100%", padding:"10px 14px", borderRadius:14, border:`1px solid ${t.border}`,
-                background:t.surface, color:t.text, fontSize:16, outline:"none", boxSizing:"border-box",
-                fontFamily:"inherit", resize:"vertical", lineHeight:1.5,
-              }} />
-          </div>
-        )}
-
-        {/* ═══ STEP 2: PROVEEDOR ═══ */}
-        {step === 2 && (
-          <div>
-            {/* === LINKED SUPPLIER BADGE === */}
-            {linkedSupplierId && (
-              <div style={{ background:t.greenSoft, border:`1px solid ${t.green}40`, borderRadius:12, padding:"10px 14px", marginBottom:16, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                <p style={{ fontSize:13, fontWeight:700, color:t.green }}>✓ Vinculado: {supplierName}</p>
-                <button onClick={() => { setLinkedSupplierId(null); setSupplierName(""); setSupplierContact(""); }} style={{ background:"none", border:"none", color:t.red, fontSize:12, fontWeight:700, cursor:"pointer" }}>Desvincular</button>
-              </div>
-            )}
-
-            {!linkedSupplierId && (
-              <>
-                {/* === PRIMARY ACTION: SCAN CARD === */}
-                {!cardPhoto ? (
-                  <div style={{ marginBottom:20 }}>
-                    <FilePickerBtn onFile={handleCardPhoto} capture="environment" t={t} style={{
-                      width:"100%", padding:"28px 20px", borderRadius:16, fontSize:17, fontWeight:800,
-                      background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff", border:"none",
-                      display:"flex", flexDirection:"column", alignItems:"center", gap:6,
-                      boxShadow:"0 4px 16px rgba(255,106,0,0.3)",
-                    }}>
-                      <span style={{ fontSize:36 }}>📸</span>
-                      Escanear Tarjeta
-                    </FilePickerBtn>
-                    <p style={{ textAlign:"center", fontSize:11, color:t.muted, marginTop:8 }}>
-                      Tarjeta de visita, QR, catálogo, banner...
-                    </p>
-
-                    {/* Secondary: gallery */}
-                    <FilePickerBtn onFile={handleCardPhoto} t={t} style={{
-                      width:"100%", padding:"10px 16px", borderRadius:12, fontSize:13, fontWeight:600,
-                      background:t.surface, color:t.text, border:`1px solid ${t.border}`, marginTop:4,
-                    }}>
-                      🖼 Elegir de galería
-                    </FilePickerBtn>
-                  </div>
-                ) : (
-                  /* === SCANNED CARD RESULT === */
-                  <div style={{ marginBottom:16 }}>
-                    <div style={{ position:"relative", marginBottom:8 }}>
-                      <img src={cardPhoto} alt="Card" style={{ width:"100%", borderRadius:14, border:`1px solid ${t.border}` }} />
-                      <button onClick={() => { setCardPhoto(null); setCardData(null); }} style={{ position:"absolute", top:8, right:8, width:28, height:28, borderRadius:14, background:"#000a", color:"#fff", border:"none", fontSize:14, cursor:"pointer" }}>✕</button>
-                      {cardProcessing && (
-                        <div style={{ position:"absolute", bottom:0, left:0, right:0, background:"rgba(0,0,0,0.7)", borderRadius:"0 0 14px 14px", padding:"10px", textAlign:"center" }}>
-                          <span style={{ color:"#fff", fontSize:13, fontWeight:600 }}>⏳ Procesando con IA...</span>
-                        </div>
-                      )}
-                    </div>
-                    {cardData && !cardProcessing && (
-                      <div style={{ background:t.greenSoft, border:`1px solid ${t.green}40`, borderRadius:12, padding:"8px 14px", marginBottom:4 }}>
-                        <p style={{ fontSize:12, fontWeight:700, color:t.green }}>✓ Datos extraídos por IA</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* === RECENT SUPPLIERS (compact) === */}
-                {recentSuppliers.length > 0 && !cardPhoto && (
-                  <div style={{ marginBottom:16 }}>
-                    <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:6, textTransform:"uppercase" }}>⚡ Proveedor reciente</p>
-                    <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:4 }}>
-                      {recentSuppliers.map(s => (
-                        <button key={s.id} onClick={() => linkSupplier(s)} style={{
-                          display:"flex", alignItems:"center", gap:6, padding:"8px 12px",
-                          background:t.card, border:`1px solid ${t.border}`, borderRadius:10,
-                          cursor:"pointer", whiteSpace:"nowrap", flexShrink:0,
-                        }}>
-                          <span style={{ fontSize:14 }}>🏭</span>
-                          <span style={{ fontSize:12, fontWeight:700, color:t.text }}>{s.company || "—"}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* === FORM FIELDS === */}
-                <div style={{ borderTop: cardPhoto || recentSuppliers.length > 0 ? `1px solid ${t.border}` : "none", paddingTop: cardPhoto || recentSuppliers.length > 0 ? 12 : 0 }}>
-                  <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, textTransform:"uppercase" }}>🏭 Empresa</p>
-                  <input value={supplierName} onChange={e => setSupplierName(e.target.value)} placeholder="Nombre..." style={inp({ marginBottom:6 })} />
-                  {suggestions.length > 0 && !suggestions.find(s => s.company === supplierName) && (
-                    <div style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:12, marginBottom:6, overflow:"hidden" }}>
-                      {suggestions.slice(0,3).map(s => (
-                        <button key={s.id} onClick={() => linkSupplier(s)} style={{
-                          width:"100%", textAlign:"left", padding:"8px 14px", border:"none", borderBottom:`1px solid ${t.border}`,
-                          background:"transparent", color:t.text, fontSize:12, cursor:"pointer",
-                        }}>🏭 {s.company}{s.contact ? ` · ${s.contact}` : ""}</button>
-                      ))}
-                    </div>
-                  )}
-
-                  <p style={{ fontSize:11, fontWeight:700, color:t.muted, marginBottom:4, marginTop:6, textTransform:"uppercase" }}>👤 Contacto</p>
-                  <input value={supplierContact} onChange={e => setSupplierContact(e.target.value)} placeholder="Nombre contacto..." style={inp({ marginBottom:6 })} />
-
-                  {/* Contact fields - compact 2-col grid */}
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6, marginTop:6 }}>
-                    <div>
-                      <p style={{ fontSize:10, fontWeight:700, color:t.muted, marginBottom:3, textTransform:"uppercase" }}>💬 WeChat</p>
-                      <div style={{ display:"flex", gap:4 }}>
-                        <input value={supplierWechat} onChange={e => setSupplierWechat(e.target.value)} placeholder="WeChat ID" style={inp({ fontSize:16, padding:"8px 10px", flex:1 })} />
-                        {(supplierWechatLink || supplierWechat) && (
-                          <a href={supplierWechatLink || `weixin://dl/chat?${supplierWechat}`} target="_blank" rel="noopener noreferrer" style={{
-                            display:"flex", alignItems:"center", justifyContent:"center", width:40, height:40,
-                            background:"#07C160", borderRadius:8, color:"#fff", fontSize:15, textDecoration:"none", flexShrink:0,
-                          }}>💬</a>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <p style={{ fontSize:10, fontWeight:700, color:t.muted, marginBottom:3, textTransform:"uppercase" }}>📱 WhatsApp</p>
-                      <div style={{ display:"flex", gap:4 }}>
-                        <input value={supplierWhatsapp} onChange={e => setSupplierWhatsapp(e.target.value)} placeholder="+número" style={inp({ fontSize:16, padding:"8px 10px", flex:1 })} />
-                        {(supplierWhatsappLink || supplierWhatsapp) && (
-                          <a href={supplierWhatsappLink || `https://wa.me/${supplierWhatsapp.replace(/[^\d]/g, "")}`} target="_blank" rel="noopener noreferrer" style={{
-                            display:"flex", alignItems:"center", justifyContent:"center", width:40, height:40,
-                            background:"#25D366", borderRadius:8, color:"#fff", fontSize:15, textDecoration:"none", flexShrink:0,
-                          }}>📱</a>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <p style={{ fontSize:10, fontWeight:700, color:t.muted, marginBottom:3, textTransform:"uppercase" }}>📞 Teléfono</p>
-                      <input value={supplierPhone} onChange={e => setSupplierPhone(e.target.value)} placeholder="+86..." style={inp({ fontSize:16, padding:"8px 10px" })} />
-                    </div>
-                    <div>
-                      <p style={{ fontSize:10, fontWeight:700, color:t.muted, marginBottom:3, textTransform:"uppercase" }}>📧 Email</p>
-                      <input value={supplierEmail} onChange={e => setSupplierEmail(e.target.value)} placeholder="email@..." style={inp({ fontSize:16, padding:"8px 10px" })} />
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Bottom action - FIXED at bottom for mobile */}
-      <div style={{
-        position:"fixed", bottom:0, left:0, right:0,
-        padding:"12px 20px", paddingBottom:"calc(16px + env(safe-area-inset-bottom, 0px))",
-        borderTop:`1px solid ${t.border}`, background:t.bg,
-        zIndex:100,
-      }}>
-        {step < 2 ? (
-          <Btn onClick={() => setStep(s=>s+1)} disabled={!canNext[step]} full t={t}>
-            Siguiente →
-          </Btn>
-        ) : (
-          <Btn onClick={handleSave} full t={t}>
-            {supplierOnly ? "✓ Guardar proveedor" : "✓ Guardar producto"}
-          </Btn>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // ═══════════════════════════════════════════
 // PRODUCT DETAIL
@@ -1659,7 +1060,13 @@ function DistrictsScreen({ districts, activeDistrictId, products, onActivate, on
 // ═══════════════════════════════════════════
 // QUICK CAPTURE — Single-page supplier card + product photos
 // ═══════════════════════════════════════════
-function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave, onClose, t, isDark, initialSupplier = null, products = [], onProductoNuevo, onProductoCambio, onProductoBorrar }) {
+/**
+ * La captura (capa 04, layout A decidido el 09/09): la app abre acá, en el visor.
+ * Se dispara N veces (cada foto ya es un producto guardado, 4.3), y el cierre del
+ * stand es la tarjeta del proveedor (4.4). El catálogo sube desde abajo con un
+ * gesto o con el botón "Catálogo". Un solo modo (4.5).
+ */
+function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave, onClose, onCatalogo, t, isDark, initialSupplier = null, products = [], onProductoNuevo, onProductoCambio, onProductoBorrar, soloProveedor = false }) {
   const [cardPhoto, setCardPhoto] = useState(null);
   const [cardData, setCardData] = useState(null);
   const [cardProcessing, setCardProcessing] = useState(false);
@@ -1692,8 +1099,22 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   const [borrador, setBorrador] = useState(null);   // el que se ofrece retomar
   const borradorListoRef = useRef(false);            // no autoguardar hasta decidir
   useEffect(() => {
-    leerBorrador().then(b => { if (b) setBorrador(b); else borradorListoRef.current = true; });
+    leerBorrador().then(b => {
+      if (b) { setBorrador(b); return; }
+      borradorListoRef.current = true;
+      // Abrir es capturar (4.1): sin stand pendiente, el visor se abre solo.
+      if (!soloProveedor && !initialSupplier) openCamera("product");
+    });
   }, []);
+  // Deslizar hacia arriba sobre el visor abre el catálogo (layout A).
+  const gestoRef = useRef(null);
+  const onVisorTouchStart = (e) => { const t0 = e.touches?.[0]; if (t0) gestoRef.current = { y: t0.clientY, x: t0.clientX }; };
+  const onVisorTouchEnd = (e) => {
+    const t0 = gestoRef.current, t1 = e.changedTouches?.[0]; gestoRef.current = null;
+    if (!t0 || !t1) return;
+    if (t0.y - t1.clientY > 90 && Math.abs(t1.clientX - t0.x) < 80) { closeCamera(); onCatalogo?.(); }
+  };
+  const activeDistrict = districts.find(d => d.id === activeDistrictId);
   useEffect(() => {
     if (!borradorListoRef.current || saving) return;
     const id = setTimeout(async () => guardarBorrador({
@@ -1718,7 +1139,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     if (b.standAudio?.data) nota.cargar(new Blob([b.standAudio.data], { type: b.standAudio.type || "audio/webm" }), b.standTranscript, b.standAudio.duracion);
     setBorrador(null); borradorListoRef.current = true;
   };
-  const descartarBorrador = () => { borrarBorrador(); setBorrador(null); borradorListoRef.current = true; };
+  const descartarBorrador = () => { borrarBorrador(); setBorrador(null); borradorListoRef.current = true; openCamera("product"); };
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const cardGalleryRef = useRef(null);
@@ -2002,8 +1423,14 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   // === CAMERA OVERLAY (fullscreen live viewfinder) ===
   if (cameraMode) {
     return (
-      <div style={{ position:"fixed", inset:0, zIndex:100, background:"#000", display:"flex", flexDirection:"column" }}>
+      <div onTouchStart={onVisorTouchStart} onTouchEnd={onVisorTouchEnd} style={{ position:"fixed", inset:0, zIndex:100, background:"#000", display:"flex", flexDirection:"column" }}>
         <video ref={videoRef} autoPlay playsInline muted style={{ flex:1, objectFit:"cover", width:"100%" }} />
+        {/* Feria activa, discreta (layout A) */}
+        {activeDistrict && (
+          <div style={{ position:"absolute", top:"calc(env(safe-area-inset-top, 0px) + 14px)", left:16, zIndex:3, padding:"6px 10px", borderRadius:14, background:"rgba(0,0,0,0.45)", backdropFilter:"blur(8px)", color:"rgba(255,255,255,0.85)", fontSize:11, fontWeight:700, maxWidth:"45%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+            {activeDistrict.emoji} {activeDistrict.name}
+          </div>
+        )}
 
         {/* Flash overlay */}
         {flashVisible && <div style={{ position:"absolute", inset:0, background:"#fff", opacity:0.7, pointerEvents:"none", zIndex:2 }} />}
@@ -2057,8 +1484,12 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
           padding:"20px 20px calc(24px + env(safe-area-inset-bottom, 0px))",
           display:"flex", alignItems:"center", justifyContent:"center", gap:20,
           background:"linear-gradient(transparent, rgba(0,0,0,0.75))" }}>
-          {/* Spacer for symmetry */}
-          <div style={{ minWidth:100 }} />
+          {/* Catálogo: sube desde abajo con el botón o deslizando hacia arriba */}
+          <button onClick={() => { closeCamera(); onCatalogo?.(); }} style={{
+            padding:"14px 16px", borderRadius:24, border:"2px solid rgba(255,255,255,0.5)",
+            background:"rgba(0,0,0,0.4)", color:"#fff", fontSize:14, fontWeight:700,
+            cursor:"pointer", display:"flex", alignItems:"center", gap:6, minWidth:100, justifyContent:"center", fontFamily:"inherit",
+          }}>🗂 Catálogo</button>
           {/* Shutter button */}
           <button onClick={handleCameraShutter} style={{
             width:72, height:72, borderRadius:36, border:"4px solid #fff", background:"rgba(255,255,255,0.2)",
@@ -2066,12 +1497,12 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
           }}>
             <div style={{ width:56, height:56, borderRadius:28, background:"#fff" }} />
           </button>
-          {/* "✓ Listo" button — right side */}
+          {/* Cerrar el stand: la tarjeta del proveedor va al final (4.4) */}
           <button onClick={closeCamera} style={{
-            padding:"14px 22px", borderRadius:24, border:"2px solid rgba(255,255,255,0.8)",
-            background:"rgba(0,0,0,0.4)", color:"#fff", fontSize:15, fontWeight:700,
-            cursor:"pointer", display:"flex", alignItems:"center", gap:6, minWidth:100, justifyContent:"center",
-          }}>✓ Listo</button>
+            padding:"14px 16px", borderRadius:24, border:"2px solid rgba(255,255,255,0.8)",
+            background: cameraMode === "card" ? "rgba(0,0,0,0.4)" : "rgba(255,143,53,0.85)", color:"#fff", fontSize:14, fontWeight:800,
+            cursor:"pointer", display:"flex", alignItems:"center", gap:6, minWidth:100, justifyContent:"center", fontFamily:"inherit",
+          }}>{cameraMode === "card" ? "✕ Cancelar" : `📇 Cerrar stand${items.length ? ` (${items.length})` : ""}`}</button>
         </div>
       </div>
     );
@@ -2079,7 +1510,9 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
 
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
-      <Header title="Captura rápida" subtitle="Tarjeta + fotos de productos" onBack={onClose} t={t} />
+      <Header title={soloProveedor ? "Nuevo proveedor" : "Cerrar stand"} subtitle={soloProveedor ? "Solo la tarjeta, sin productos" : `${items.length} producto${items.length === 1 ? "" : "s"} · la tarjeta va al final`}
+        onBack={soloProveedor ? onClose : () => openCamera("product")} t={t}
+        right={!soloProveedor && <button onClick={() => { closeCamera(); onCatalogo?.(); }} style={{ background:"none", border:"none", color:t.accent, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>🗂 Catálogo</button>} />
       {borrador && (() => { const d = describirBorrador(borrador); return (
         <div role="alertdialog" style={{ position:"fixed", inset:0, zIndex:200, background:"rgba(0,0,0,0.55)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
           <div style={{ width:"100%", maxWidth:520, background:t.bg, borderRadius:"20px 20px 0 0", padding:"20px 20px calc(env(safe-area-inset-bottom, 0px) + 20px)", boxShadow:"0 -8px 40px rgba(0,0,0,0.3)" }}>
@@ -2100,7 +1533,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 120px" }}>
 
         {/* === SECTION 1: SUPPLIER CARD === */}
-        <p style={{ fontSize:11, fontWeight:700, color:t.muted, margin:"0 0 12px", textTransform:"uppercase", letterSpacing:"0.08em" }}>1. Tarjeta del proveedor</p>
+        <p style={{ fontSize:11, fontWeight:700, color:t.muted, margin:"0 0 12px", textTransform:"uppercase", letterSpacing:"0.08em" }}>Tarjeta del proveedor</p>
 
         {!cardPhoto ? (
           <div style={{ display:"flex", gap:8, marginBottom:12 }}>
@@ -2224,7 +1657,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
 
         {/* === SECTION 2: PRODUCTS === */}
         <div style={{ height:1, background:t.border, margin:"8px 0 16px" }} />
-        <p style={{ fontSize:11, fontWeight:700, color:t.muted, margin:"0 0 12px", textTransform:"uppercase", letterSpacing:"0.08em" }}>2. Productos{items.length > 0 ? ` (${items.length})` : ""}</p>
+        <p style={{ fontSize:11, fontWeight:700, color:t.muted, margin:"0 0 12px", textTransform:"uppercase", letterSpacing:"0.08em" }}>Productos de este stand{items.length > 0 ? ` (${items.length})` : ""}</p>
 
         {/* Add product buttons — always at top */}
         <div style={{ display:"flex", gap:8, marginBottom:12 }}>
@@ -2278,7 +1711,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
         <button onClick={handleSave} disabled={saving}
           style={{ width:"100%", padding:"16px", borderRadius:16, border:"none", fontSize:15, fontWeight:700, cursor:saving?"default":"pointer",
             background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff", opacity:saving?0.6:1 }}>
-          {saving ? "⏳ Guardando..." : saveError ? "↻ Reintentar guardar" : `✓ Guardar${items.length > 0 ? ` (${items.length} producto${items.length > 1 ? "s" : ""})` : ""}`}
+          {saving ? "⏳ Guardando..." : saveError ? "↻ Reintentar" : soloProveedor ? "✓ Guardar proveedor" : `✓ Cerrar stand${items.length > 0 ? ` (${items.length} producto${items.length > 1 ? "s" : ""})` : ""}`}
         </button>
         {saveError && <p style={{ fontSize:12, color:t.red, fontWeight:600, margin:"8px 0 0", textAlign:"center" }}>{saveError}</p>}
       </div>
@@ -2459,23 +1892,6 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
       <Header title="Captura y fotos" onBack={() => setSubScreen(null)} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.08em" }}>⚡ Modo de captura</p>
-        <p style={{ fontSize:11, color:t.dim, marginBottom:12, lineHeight:1.5 }}>
-          Cuando está activo, el botón "+" abre una pantalla única para escanear tarjeta del proveedor y agregar productos con foto + precio en un solo paso.
-        </p>
-        <button onClick={() => updateLoc(p => ({ ...p, quickCaptureMode: !(p.quickCaptureMode !== false) }))}
-          style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", padding:"14px 16px", borderRadius:14,
-            background: (loc.quickCaptureMode !== false) ? t.accentSoft : t.surface,
-            border:`1.5px solid ${(loc.quickCaptureMode !== false) ? t.accent : t.border}`, cursor:"pointer", marginBottom:24 }}>
-          <span style={{ fontSize:13, fontWeight:700, color: (loc.quickCaptureMode !== false) ? t.accent : t.text }}>
-            {(loc.quickCaptureMode !== false) ? "⚡ Captura rápida ON" : "📷 Captura clásica (3 pasos)"}
-          </span>
-          <span style={{ width:44, height:24, borderRadius:12, padding:2,
-            background: (loc.quickCaptureMode !== false) ? t.accent : t.border,
-            display:"flex", alignItems:"center", justifyContent: (loc.quickCaptureMode !== false) ? "flex-end" : "flex-start", transition:"all 0.2s" }}>
-            <span style={{ width:20, height:20, borderRadius:10, background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }} />
-          </span>
-        </button>
         <div style={{ height:1, background:t.border, margin:"0 0 20px" }} />
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.08em" }}>📱 Backup de fotos</p>
         <div style={{ padding:"12px 14px", borderRadius:14, background:t.greenSoft, border:`1.5px solid ${t.green}40`, marginBottom:16 }}>
@@ -2874,7 +2290,6 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
 
   // ─── MAIN MENU ───
   const presetName = PRESETS[loc.preset]?.name || "General";
-  const captureMode = (loc.quickCaptureMode !== false) ? "Rápida" : "Clásica";
   const healthStatus = health ? (health.status === "ok" ? "✓ Todo OK" : "⚠️ Problemas") : null;
 
   return (
@@ -2883,7 +2298,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
         <MenuItem icon="👥" title="Equipo y sincronización" subtitle={activeTeam ? activeTeam.name : "Sin equipo"} onClick={() => setSubScreen("room")} />
         <MenuItem icon="🏷" title="Rubros y etiquetas" subtitle={presetName} onClick={() => setSubScreen("tags")} accent={t.accent} />
-        <MenuItem icon="📸" title="Captura y fotos" subtitle={`Modo: ${captureMode}`} onClick={() => setSubScreen("capture")} />
+        <MenuItem icon="📸" title="Fotos y backup" subtitle="Copia en tu galería" onClick={() => setSubScreen("capture")} />
         <MenuItem icon="🎯" title="Costos de importación" subtitle={`${CURRENCIES[loc.currency]?.label || "USD"} · Margen: ${loc.minMargin || 40}%`} onClick={() => setSubScreen("costs")} />
         <MenuItem icon="💾" title="Backup y datos" subtitle="JSON, nube" onClick={() => setSubScreen("backup")} />
         <MenuItem icon="🏥" title="Salud del sistema" subtitle={healthStatus} onClick={() => { if (!health) checkHealth(); setSubScreen("health"); }} accent={health?.status === "ok" ? "#22c55e" : health ? "#ef4444" : undefined} />
@@ -3721,8 +3136,8 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
 // ═══════════════════════════════════════════
 // PRODUCT LIST (main screen)
 // ═══════════════════════════════════════════
-function ProductList({ products, suppliers, districts, activeDistrictId, activeDistrict, settings, onNavigate, onSwitchDistrict, onDeleteProduct, onBatchDelete, onBatchUpdate, onDeleteSupplier, t, isDark, onToggleTheme, activeTab, onTabChange, queueCount, scrollPositionRef, saldoCreditos = null }) {
-  const { isSyncing: aiSyncing, pendingCount: aiPending, processedCount: aiProcessed, totalCount: aiTotal, syncNow: aiSyncNow, error: aiError, photosPending } = useSyncWithAI(settings);
+function ProductList({ products, suppliers, districts, activeDistrictId, activeDistrict, settings, onNavigate, onSwitchDistrict, onDeleteProduct, onBatchDelete, onBatchUpdate, onDeleteSupplier, t, isDark, onToggleTheme, activeTab, onTabChange, queueCount, scrollPositionRef, saldoCreditos = null, aiSync }) {
+  const { isSyncing: aiSyncing, pendingCount: aiPending, processedCount: aiProcessed, totalCount: aiTotal, syncNow: aiSyncNow, error: aiError, photosPending } = aiSync;
   const [search, setSearch] = useState("");
   const view = activeTab || "products";
   const setView = (v) => { if (onTabChange) onTabChange(v); };
@@ -4117,12 +3532,12 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
       )}
 
       {/* FAB */}
-      {view === "suppliers" && fabOpen && settings?.quickCaptureMode === false && (
+      {view === "suppliers" && fabOpen && (
         <div style={{ position:"fixed", bottom:"calc(100px + env(safe-area-inset-bottom, 0px))", right:24, display:"flex", flexDirection:"column", gap:8, zIndex:11 }}>
           <button onClick={() => { setFabOpen(false); onNavigate("capture"); }} style={{
             display:"flex", alignItems:"center", gap:8, padding:"12px 18px", borderRadius:16, border:"none",
             background:t.card, color:t.text, fontSize:13, fontWeight:700, boxShadow:"0 4px 20px rgba(0,0,0,0.3)", cursor:"pointer",
-          }}>📦 Nuevo producto</button>
+          }}>📸 Capturar</button>
           <button onClick={() => { setFabOpen(false); onNavigate("capture-supplier"); }} style={{
             display:"flex", alignItems:"center", gap:8, padding:"12px 18px", borderRadius:16, border:"none",
             background:t.card, color:t.text, fontSize:13, fontWeight:700, boxShadow:"0 4px 20px rgba(0,0,0,0.3)", cursor:"pointer",
@@ -4130,8 +3545,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
         </div>
       )}
       <button onClick={() => {
-        if (settings?.quickCaptureMode !== false) { onNavigate("quick-capture"); }
-        else if (view === "suppliers") { setFabOpen(!fabOpen); }
+        if (view === "suppliers") { setFabOpen(!fabOpen); }
         else { onNavigate("capture"); }
       }} style={{
         position:"fixed", bottom:"calc(30px + env(safe-area-inset-bottom, 0px))", right:24, width:60, height:60, borderRadius:30, border:"none",
@@ -4442,7 +3856,8 @@ export default function App() {
   const [suppliers, setSuppliers] = useState([]);
   const [products, setProducts] = useState([]);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS_FALLBACK);
-  const [screen, setScreen] = useState("list");
+  const [screen, setScreen] = useState("capture"); // abrir es capturar (4.1)
+  const [standKey, setStandKey] = useState(0);     // cada stand cerrado arranca una captura nueva
   const [screenData, setScreenData] = useState(null);
   const [prevScreen, setPrevScreen] = useState(null);
   const [listTab, setListTab] = useState("products");
@@ -4540,6 +3955,9 @@ export default function App() {
 
   // Sync hook
   const sync = useSync(reloadAll);
+  // Motor de IA y colas de subida: viven acá para correr desde cualquier pantalla
+  // (la app abre en el visor; antes solo corrían con el catálogo abierto).
+  const aiSync = useSyncWithAI(settings);
 
   // Load from Dexie on mount + resume cloud sync + auto-connect team
   useEffect(() => {
@@ -4887,8 +4305,10 @@ export default function App() {
           }).catch(() => {});
         }
         await reloadAll();
-        navigate("list");
-        showToast(`✓ Stand cerrado: ${createdIds.length} producto${createdIds.length !== 1 ? "s" : ""}`);
+        // De vuelta al visor, con un stand nuevo: nunca tocaste "guardar" (4.1).
+        setStandKey(k => k + 1);
+        navigate(data.soloProveedor ? "list" : "capture");
+        showToast(data.soloProveedor ? "✓ Proveedor guardado" : `✓ Stand cerrado: ${createdIds.length} producto${createdIds.length !== 1 ? "s" : ""}`);
         // Show share dialog so user can save photos to Camera Roll
         if (sessionPhotos.length > 0) {
           setTimeout(() => setPhotosToShare(sessionPhotos), 600);
@@ -4896,119 +4316,6 @@ export default function App() {
         return;
       }
 
-      // === FULL PRODUCT FLOW ===
-      // Collect photos for share dialog (classic flow)
-      const classicPhotos = [];
-      {
-        const ts = new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
-        const supSlug = slugify(data.supplierName || 'proveedor');
-        if (data.cardPhoto) {
-          classicPhotos.push({ data: data.cardPhoto, filename: `tarjeta_${supSlug}_${ts}.jpg` });
-        }
-        (data.photos || []).forEach((photo, i) => {
-          if (photo && typeof photo === 'string' && photo.startsWith('data:')) {
-            classicPhotos.push({ data: photo, filename: `producto_${supSlug}_${i+1}_${ts}.jpg` });
-          }
-        });
-      }
-
-      showToast("⏳ Procesando con IA...");
-
-      let aiName = null;
-      let aiDescription = null;
-      let aiCategory = null;
-      let aiMaterials = [];
-      let aiAudioTranscript = null;
-      let aiPrice = null;
-      let aiMoq = null;
-
-      // Process first photo with Claude Vision if available
-      if (data.photos && data.photos.length > 0) {
-        try {
-          console.log("🔄 Procesando imagen con IA...");
-          const base64Image = data.photos[0];
-          const imageResult = await processImage(base64Image, { categories: settings.categories, materials: settings.materials });
-          aiName = imageResult.name;
-          aiDescription = imageResult.description;
-          aiCategory = imageResult.category;
-          aiMaterials = imageResult.materials || [];
-          console.log("✓ Imagen procesada por IA: ok");
-        } catch (imgErr) {
-          console.warn("⚠️ Error procesando imagen:", imgErr);
-        }
-      }
-
-      // Use browser speech transcript (captured during recording)
-      if (data.audioTranscript) {
-        aiAudioTranscript = data.audioTranscript;
-        console.log(`✓ Transcripción del navegador: ${aiAudioTranscript.length} caracteres`);
-      }
-
-      // #11: Check for duplicate products (same name + same supplier)
-      const finalName = aiName || (data.supplierName ? `Producto de ${data.supplierName}` : `Producto ${products.length + 1}`);
-      if (finalName && supplierId) {
-        const dupProduct = products.find(p =>
-          p.supplierId === supplierId &&
-          stringSimilarity(p.name, finalName) >= 0.85
-        );
-        if (dupProduct) {
-          showToast(`⚠️ Posible duplicado: "${dupProduct.name}"`);
-        }
-      }
-
-      // Add product with AI-enriched data
-      const productId = await addProduct({
-        name: finalName,
-        description: aiDescription || null,
-        supplierCompany: data.supplierName || null,
-        supplierId,
-        districtId: activeDistrictId,
-        photos: data.photos,
-        photoUrls: null,
-        thumb: await miniaturaDe(data.photos?.[0]),
-        price: data.price || aiPrice || null,
-        moq: data.moq || aiMoq || null,
-        // Se guarda el audio real (bytes), no la dirección temporal blob: (N3).
-        audio: data.audioBlob ? await serializarAudio(data.audioBlob, { duracion: data.audioDuracion }) : null,
-        audioURL: null,
-        audioTranscript: aiAudioTranscript || null,
-        rating: data.rating,
-        category: aiCategory || null,
-        material: aiMaterials,
-        notes: data.textNote || null,
-        viability: null,
-        costTotal: null,
-        costData: null,
-        targetPrice: null,
-        ai_processed: !!(aiName || aiDescription || aiAudioTranscript),
-        ai_last_synced: navigator.onLine ? new Date() : null,
-        createdAt: Date.now(),
-      });
-
-      await reloadAll();
-      navigate("list");
-      showToast("✓ Producto guardado con IA");
-
-      // Show share dialog so user can save photos to Camera Roll
-      if (classicPhotos.length > 0) {
-        setTimeout(() => setPhotosToShare(classicPhotos), 600);
-      }
-
-      // Background: upload photos to R2 cloud storage
-      if (data.photos?.length && navigator.onLine) {
-        uploadPhotosToCloud(productId, data.photos, data.supplierName).catch(e =>
-          console.warn("Cloud upload failed:", e)
-        );
-        // Also upload supplier card if new
-        if (data.cardPhoto && supplierId) {
-          uploadPhoto(data.cardPhoto, 'cards').then(result => {
-            if (result?.url) {
-              dbUpdateSupplier(supplierId, { cardPhotoUrl: result.url });
-              setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, cardPhotoUrl: result.url } : s));
-            }
-          }).catch(() => {});
-        }
-      }
       return true;
     } catch (err) {
       console.error("Error en handleCaptureSave:", err);
@@ -5186,6 +4493,9 @@ export default function App() {
   if (!auth.user) return <LoginScreen t={t} onAuth={auth} />;
 
   if (!ready) return <EsqueletoCatalogo t={t} />;
+  if (!settings.bienvenidaVista) return (
+    <Bienvenida t={t} sinCuenta={auth.esAnonima} onEmpezar={async () => { await dbSaveSettings({ bienvenidaVista: true }); setSettings(prev => ({ ...prev, bienvenidaVista: true })); }} />
+  );
 
   return (
     <div style={{ height:"100%", background:t.bg, color:t.text, position:"relative", overflow:"hidden", fontFamily:"'DM Sans', -apple-system, sans-serif" }}>
@@ -5241,18 +4551,13 @@ export default function App() {
         <ProductList products={products} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} activeDistrict={activeDistrict} settings={settings}
           onNavigate={navigate} onSwitchDistrict={switchDistrict} onDeleteProduct={handleDeleteProduct} onBatchDelete={handleBatchDelete} onBatchUpdate={handleBatchUpdate} onDeleteSupplier={handleDeleteSupplier}
           t={t} isDark={isDark} onToggleTheme={toggleTheme}
-          activeTab={listTab} onTabChange={setListTab} queueCount={queueCount} scrollPositionRef={scrollPositionRef} saldoCreditos={creditos ? saldoVisible(creditos) : null} />
+          activeTab={listTab} onTabChange={setListTab} queueCount={queueCount} scrollPositionRef={scrollPositionRef} saldoCreditos={creditos ? saldoVisible(creditos) : null} aiSync={aiSync} />
       )}
       {(screen === "capture" || screen === "capture-supplier") && (
-        <CaptureFlow suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings}
-          onSave={handleCaptureSave} onClose={() => navigate("list")} t={t} isDark={isDark}
-          initialSupplier={screenData?.fromSupplierId != null ? suppliers.find(s => s.id === screenData.fromSupplierId) || null : null}
-          initialStep={screen === "capture-supplier" ? 2 : 0} supplierOnly={screen === "capture-supplier"} />
-      )}
-      {screen === "quick-capture" && (
-        <QuickCapture suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings} products={products}
+        <QuickCapture key={`${screen}-${standKey}`} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings} products={products}
           onProductoNuevo={crearProductoDesdeCaptura} onProductoCambio={handleUpdateProduct} onProductoBorrar={borrarProductoDesdeCaptura}
-          onSave={handleCaptureSave} onClose={() => navigate("list")} t={t} isDark={isDark}
+          onSave={(data) => handleCaptureSave({ ...data, soloProveedor: screen === "capture-supplier" })} onClose={() => navigate("list")} onCatalogo={() => navigate("list")} t={t} isDark={isDark}
+          soloProveedor={screen === "capture-supplier"}
           initialSupplier={screenData?.fromSupplierId != null ? suppliers.find(s => s.id === screenData.fromSupplierId) || null : null} />
       )}
       {screen === "detail" && screenData && (
@@ -5263,7 +4568,7 @@ export default function App() {
       {screen === "supplier" && screenData && (
         <SupplierDetail supplier={suppliers.find(s => s.id === screenData.id) || screenData} products={products}
           onBack={goBack} onUpdate={handleUpdateSupplier} onDelete={handleDeleteSupplier}
-          onAddProduct={() => navigate(settings?.quickCaptureMode !== false ? "quick-capture" : "capture", { fromSupplierId: screenData.id })}
+          onAddProduct={() => navigate("capture", { fromSupplierId: screenData.id })}
           onNavigateProduct={p => navigate("detail", p)} t={t} />
       )}
       {screen === "districts" && (

@@ -93,11 +93,11 @@ export function setSyncEngine(engine) { _syncEngine = engine; }
 export function getSyncEngine() { return _syncEngine; }
 
 // ─── Default data ───
-const DEFAULT_DISTRICT = {
-  name: "Canton Fair",
-  location: "Guangzhou, China",
-  emoji: "\u{1F3EE}",
-  dates: "Abr 2026",
+// Feria creada sola con la fecha del día, nombre editable después (decisión 6 del 04/09).
+const feriaPorDefecto = () => {
+  const hoy = new Date();
+  const fecha = hoy.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' });
+  return { name: `Feria ${fecha}`, location: "", emoji: "📍", dates: fecha };
 };
 
 const DEFAULT_SETTINGS = {
@@ -116,7 +116,7 @@ export async function initDB() {
   const distCount = await db.districts.count();
   if (distCount === 0) {
     const id = await db.districts.add({
-      ...DEFAULT_DISTRICT,
+      ...feriaPorDefecto(),
       uuid: crypto.randomUUID(),
       updatedAt: Date.now(),
     });
