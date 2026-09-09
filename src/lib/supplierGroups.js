@@ -29,7 +29,8 @@ export function groupBySupplier({ suppliers, products, search = "", filtersActiv
   const words = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const matchesSupplier = (s) => {
     if (!words.length) return true;
-    const hay = [s.company, s.contact, s.notes].filter(Boolean).join(" ").toLowerCase();
+    // 7.3: buscar también por teléfono, WeChat, WhatsApp y mail del proveedor
+    const hay = [s.company, s.contact, s.notes, s.phone, s.wechat, s.whatsapp, s.email].filter(Boolean).join(" ").toLowerCase();
     return words.every(w => hay.includes(w));
   };
 

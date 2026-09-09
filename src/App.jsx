@@ -1142,7 +1142,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
 // ═══════════════════════════════════════════
 // PRODUCT DETAIL
 // ═══════════════════════════════════════════
-function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, onUpdate, onCalc, onDelete, onNavigateSupplier, onNavigateProduct, t, isDark, settings }) {
+function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, onUpdate, onAddPhoto, onDelete, onNavigateSupplier, onNavigateProduct, t, isDark, settings }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [showSupplierPicker, setShowSupplierPicker] = useState(false);
@@ -1208,6 +1208,19 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
     return () => clearTimeout(id);
   }, [saveState]);
 
+  // 7.7: deslizar vertical sobre la foto cambia de producto; horizontal cambia de foto.
+  const touchRef = useRef(null);
+  const onTouchStart = (e) => { const t0 = e.touches?.[0]; if (t0) touchRef.current = { x: t0.clientX, y: t0.clientY }; };
+  const onTouchEnd = (e) => {
+    const t0 = touchRef.current, t1 = e.changedTouches?.[0]; touchRef.current = null;
+    if (!t0 || !t1 || !onNavigateProduct) return;
+    const dx = t1.clientX - t0.x, dy = t1.clientY - t0.y;
+    if (Math.abs(dy) > 60 && Math.abs(dy) > Math.abs(dx) * 1.5) {
+      if (dy < 0 && nextProduct) onNavigateProduct(nextProduct);
+      else if (dy > 0 && prevProduct) onNavigateProduct(prevProduct);
+    }
+  };
+
   // Tap zones on photo edges for prev/next product (like Instagram Stories)
   const handlePhotoTap = (e) => {
     if (!onNavigateProduct) return;
@@ -1228,14 +1241,14 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
       <Header title={p.name || "Producto"} subtitle={supplier?.company} onBack={onBack} t={t}
         right={allProducts.length > 1 ? (
-          <span style={{ fontSize:10, color:t.muted }}>{productIdx+1}/{allProducts.length}</span>
+          <span title="Deslizá hacia arriba o abajo sobre la foto para cambiar de producto" style={{ fontSize:12, fontWeight:700, color:t.text, background:t.surface, border:`1px solid ${t.border}`, borderRadius:10, padding:"4px 10px" }}>{productIdx+1} / {allProducts.length}</span>
         ) : null}
       />
-      <div style={{ flex:1, overflow:"auto", padding:`0 0 ${settings?.showImportCalculator ? "80px" : "20px"}` }}>
+      <div style={{ flex:1, overflow:"auto", padding:"0 0 20px" }}>
         <>
           {/* PHOTO CAROUSEL — tap edges to change product */}
           {p.photos?.length > 0 && (
-            <div onClick={handlePhotoTap} style={{ position:"relative", width:"100%", background:t.surface }}>
+            <div onClick={handlePhotoTap} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={{ position:"relative", width:"100%", background:t.surface }}>
               <div ref={photoScrollRef} onScroll={e => {
                 const el = e.target;
                 const idx = Math.round(el.scrollLeft / el.offsetWidth);
@@ -1250,6 +1263,15 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
                   </div>
                 ))}
               </div>
+              {/* 7.4: sumar fotos a un producto ya guardado */}
+              {onAddPhoto && (
+                <div onClick={e => e.stopPropagation()} style={{ position:"absolute", top:12, right:12, zIndex:3 }}>
+                  <FilePickerBtn onFile={(dataUrl) => onAddPhoto(p.id, dataUrl)} t={t}
+                    style={{ padding:"6px 10px", borderRadius:10, fontSize:12, background:"rgba(0,0,0,0.6)", color:"#fff", border:"none", flex:"none", backdropFilter:"blur(10px)" }}>
+                    ＋ Foto
+                  </FilePickerBtn>
+                </div>
+              )}
               {/* Price overlay on photo */}
               <div style={{ position:"absolute", bottom:0, left:0, right:0, background:"linear-gradient(transparent, rgba(0,0,0,0.75))", padding:"30px 16px 12px", pointerEvents:"none" }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
@@ -1549,18 +1571,6 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
         </>
       </div>
 
-      {/* Fixed calculator button at bottom — only if enabled in settings */}
-      {settings?.showImportCalculator && (
-        <div style={{
-          position:"fixed", bottom:0, left:0, right:0,
-          padding:"10px 20px", paddingBottom:"calc(16px + env(safe-area-inset-bottom, 0px))",
-          background:t.bg, borderTop:`1px solid ${t.border}`, zIndex:50,
-        }}>
-          <Btn onClick={() => onCalc(p)} variant={p.costTotal ? "secondary" : "primary"} full t={t}>
-            🧮 {p.costTotal ? `Costo: ${CURRENCIES[settings?.currency]?.symbol || "USD"} ${p.costTotal} · Editar` : "Calcular costo importación"}
-          </Btn>
-        </div>
-      )}
     </div>
   );
 }
@@ -1568,222 +1578,6 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
 // ═══════════════════════════════════════════
 // IMPORT CALCULATOR
 // ═══════════════════════════════════════════
-function Calculator({ product, settings, onBack, onSave, t }) {
-  const [incoterm, setIncoterm] = useState("FOB");
-  const [freightPct, setFreightPct] = useState("12");
-  const [insurancePct, setInsurancePct] = useState("1.5");
-  const [selectedNCM, setSelectedNCM] = useState(product.costData?.ncm || null);
-  const [targetPrice, setTargetPrice] = useState(product.targetPrice || "");
-  const [showBreakdown, setShowBreakdown] = useState(false);
-  const [showAllNCM, setShowAllNCM] = useState(false);
-  const [viability, setViability] = useState(product.viability || null);
-
-  const suggestions = classifyNCM(product);
-  const ncm = selectedNCM || suggestions[0] || null;
-  const cost = ncm && product.price ? calcImportCost(product.price, ncm, parseFloat(freightPct)||12, parseFloat(insurancePct)||1.5) : null;
-
-  const minMargin = settings.minMargin || 40;
-  const actualMargin = cost && targetPrice ? Math.round(((parseFloat(targetPrice) - cost.total) / cost.total) * 100) : null;
-  const marginColor = actualMargin !== null ? (actualMargin >= minMargin ? t.green : actualMargin >= minMargin * 0.6 ? t.yellow : t.red) : t.muted;
-  const suggestedPrice = cost ? Math.ceil(cost.total * (1 + minMargin / 100) * 100) / 100 : null;
-
-  const handleSave = () => {
-    onSave(product.id, {
-      costTotal: cost?.total?.toFixed(2) || null,
-      costData: cost ? { ncm: ncm, total: cost.total, cif: cost.cif, markup: cost.markup, margin: actualMargin } : null,
-      targetPrice: targetPrice || null,
-      viability,
-    });
-    onBack();
-  };
-
-  const inp = (extra = {}) => ({
-    width:"100%", padding:"12px 14px", borderRadius:12, border:`1px solid ${t.border}`,
-    background:t.surface, color:t.text, fontSize:16, outline:"none", boxSizing:"border-box",
-    fontFamily:"inherit", ...extra,
-  });
-
-  return (
-    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
-      <Header title="Costo de importación" subtitle={product.name || "Producto"} onBack={onBack} t={t} />
-      <div style={{ flex:1, overflow:"auto", padding:"14px 20px 40px" }}>
-
-        {/* Product summary */}
-        <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:t.card, borderRadius:14, border:`1px solid ${t.border}`, marginBottom:16 }}>
-          {product.photos?.[0] ? <img src={elegirMiniatura(product)} alt="" style={{ width:44, height:44, borderRadius:10, objectFit:"cover" }} /> : <div style={{ width:44, height:44, borderRadius:10, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>📷</div>}
-          <div style={{ flex:1 }}>
-            <p style={{ fontSize:13, fontWeight:700, color:t.text, margin:0 }}>{product.name || "Producto"}</p>
-            <p style={{ fontSize:11, color:t.muted, margin:"2px 0 0" }}>{product.supplierCompany || "—"}</p>
-          </div>
-          <span style={{ fontSize:22, fontWeight:900, color:t.green }}>USD {product.price || "—"}</span>
-        </div>
-
-        {/* Incoterm + freight */}
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>📦 Condición de compra</p>
-        <div style={{ display:"flex", gap:6, marginBottom:12 }}>
-          {["EXW","FOB","CIF"].map(ic => (
-            <button key={ic} onClick={() => setIncoterm(ic)} style={{
-              flex:1, padding:"10px", borderRadius:10, border:`1.5px solid ${incoterm===ic?t.accent:t.border}`,
-              background:incoterm===ic?t.accentSoft:"transparent", color:incoterm===ic?t.accent:t.muted,
-              fontSize:13, fontWeight:700, cursor:"pointer",
-            }}>{ic}</button>
-          ))}
-        </div>
-        {incoterm !== "CIF" && (
-          <div style={{ display:"flex", gap:10, marginBottom:16 }}>
-            <div style={{ flex:1 }}>
-              <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px" }}>Flete %</p>
-              <input value={freightPct} onChange={e => setFreightPct(e.target.value)} inputMode="decimal" style={inp({ textAlign:"center", fontSize:16 })} />
-            </div>
-            <div style={{ flex:1 }}>
-              <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px" }}>Seguro %</p>
-              <input value={insurancePct} onChange={e => setInsurancePct(e.target.value)} inputMode="decimal" style={inp({ textAlign:"center", fontSize:16 })} />
-            </div>
-          </div>
-        )}
-
-        {/* NCM Classification */}
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>🏷 Posición arancelaria (NCM)</p>
-        {suggestions.length > 0 && (
-          <div style={{ marginBottom:8 }}>
-            <p style={{ fontSize:10, color:t.dim, marginBottom:6 }}>Sugerencias automáticas:</p>
-            {suggestions.map(s => (
-              <button key={s.code} onClick={() => setSelectedNCM(s)} style={{
-                width:"100%", display:"flex", alignItems:"center", gap:10, padding:"10px 12px",
-                borderRadius:12, border:`1.5px solid ${(selectedNCM||suggestions[0]).code===s.code?t.blue:t.border}`,
-                background:(selectedNCM||suggestions[0]).code===s.code?t.blueSoft:"transparent",
-                cursor:"pointer", marginBottom:6, textAlign:"left",
-              }}>
-                <div style={{ flex:1 }}>
-                  <span style={{ fontSize:12, fontWeight:700, color:(selectedNCM||suggestions[0]).code===s.code?t.blue:t.text }}>{s.code}</span>
-                  <p style={{ fontSize:11, color:t.muted, margin:"2px 0 0" }}>{s.desc}</p>
-                </div>
-                <div style={{ textAlign:"right" }}>
-                  <span style={{ fontSize:12, fontWeight:700, color:s.score>=60?t.green:s.score>=30?t.yellow:t.muted }}>{s.score}%</span>
-                  <p style={{ fontSize:9, color:t.dim, margin:0 }}>match</p>
-                </div>
-                {(selectedNCM||suggestions[0]).code===s.code && <span style={{ color:t.blue }}>✓</span>}
-              </button>
-            ))}
-          </div>
-        )}
-        {/* Manual NCM browser — always available */}
-        <div style={{ marginBottom:16 }}>
-          {suggestions.length === 0 && <p style={{ fontSize:11, color:t.muted, marginBottom:8 }}>No hubo match automático — elegí manualmente:</p>}
-          {!showAllNCM ? (
-            <button onClick={() => setShowAllNCM(true)} style={{ width:"100%", padding:"10px", borderRadius:10, border:`1.5px dashed ${t.blue}40`, background:"transparent", color:t.blue, fontSize:12, fontWeight:600, cursor:"pointer" }}>
-              📋 {suggestions.length > 0 ? "Ver todas las posiciones" : "Elegir posición arancelaria"}
-            </button>
-          ) : (
-            <div style={{ background:t.card, borderRadius:12, border:`1px solid ${t.border}`, overflow:"hidden", maxHeight:260, overflowY:"auto" }}>
-              {NCM_DB.map(n => (
-                <button key={n.code} onClick={() => { setSelectedNCM(n); setShowAllNCM(false); }} style={{
-                  width:"100%", display:"flex", alignItems:"center", gap:8, padding:"10px 12px",
-                  border:"none", borderBottom:`1px solid ${t.border}`, cursor:"pointer", textAlign:"left",
-                  background: selectedNCM?.code===n.code ? t.blueSoft : "transparent",
-                }}>
-                  <div style={{ flex:1 }}>
-                    <span style={{ fontSize:11, fontWeight:700, color:selectedNCM?.code===n.code?t.blue:t.text }}>{n.code}</span>
-                    <span style={{ fontSize:11, color:t.muted, marginLeft:6 }}>{n.desc}</span>
-                  </div>
-                  <span style={{ fontSize:11, color:t.dim }}>{n.duty}%</span>
-                  {selectedNCM?.code===n.code && <span style={{ color:t.blue, fontSize:12 }}>✓</span>}
-                </button>
-              ))}
-            </div>
-          )}
-          <p style={{ fontSize:10, color:t.dim, fontStyle:"italic", marginTop:6 }}>⚠️ Estimación — confirmar con despachante</p>
-        </div>
-
-        {/* Cost result */}
-        {cost && <>
-          <div style={{ background:t.card, borderRadius:16, padding:16, border:`1.5px solid ${t.accent}`, marginBottom:12 }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-              <div>
-                <p style={{ fontSize:10, color:t.muted, margin:"0 0 2px" }}>Costo total importado</p>
-                <span style={{ fontSize:32, fontWeight:900, color:t.accent }}>USD {cost.total.toFixed(2)}</span>
-              </div>
-              <div style={{ textAlign:"right" }}>
-                <p style={{ fontSize:10, color:t.muted, margin:"0 0 2px" }}>Markup</p>
-                <span style={{ fontSize:20, fontWeight:800, color:t.red }}>+{cost.markup}%</span>
-              </div>
-            </div>
-
-            <button onClick={() => setShowBreakdown(!showBreakdown)} style={{
-              width:"100%", padding:"8px", borderRadius:8, border:`1px solid ${t.border}`,
-              background:t.surface, color:t.muted, fontSize:11, fontWeight:600, cursor:"pointer",
-              display:"flex", alignItems:"center", justifyContent:"center", gap:6,
-            }}>
-              {showBreakdown ? "▲ Ocultar" : "▼ Ver"} desglose completo
-            </button>
-
-            {showBreakdown && (
-              <div style={{ marginTop:12, borderTop:`1px solid ${t.border}`, paddingTop:10 }}>
-                {cost.breakdown.map((item, i) => (
-                  <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"5px 0", borderBottom: item.bold ? `1px solid ${t.accent}40` : "none" }}>
-                    <span style={{ fontSize:12, color:item.bold?t.text:t.muted, fontWeight:item.bold?700:400 }}>{item.label}</span>
-                    <span style={{ fontSize:12, color:item.bold?t.accent:t.text, fontWeight:item.bold?800:600 }}>USD {item.value.toFixed(2)}</span>
-                  </div>
-                ))}
-                <div style={{ display:"flex", justifyContent:"space-between", padding:"8px 0 0", marginTop:4, borderTop:`2px solid ${t.accent}` }}>
-                  <span style={{ fontSize:13, fontWeight:800, color:t.text }}>TOTAL</span>
-                  <span style={{ fontSize:13, fontWeight:900, color:t.accent }}>USD {cost.total.toFixed(2)}</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Target price + margin */}
-          <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>🎯 Tu precio de venta (ARS/USD)</p>
-          <div style={{ position:"relative", marginBottom:12 }}>
-            <span style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", fontSize:16, fontWeight:800, color:t.green }}>$</span>
-            <input value={targetPrice} onChange={e => setTargetPrice(e.target.value.replace(/[^0-9.,]/g,"").replace(",","."))} placeholder={suggestedPrice?.toFixed(2) || "0.00"} inputMode="decimal"
-              style={inp({ paddingLeft:36, fontSize:22, fontWeight:800, color:t.green, textAlign:"center" })} />
-          </div>
-
-          {actualMargin !== null && (
-            <div style={{ background:marginColor+"15", border:`1.5px solid ${marginColor}40`, borderRadius:14, padding:14, marginBottom:12, textAlign:"center" }}>
-              <p style={{ fontSize:10, color:t.muted, margin:"0 0 4px" }}>Tu margen real</p>
-              <span style={{ fontSize:36, fontWeight:900, color:marginColor }}>{actualMargin}%</span>
-              <p style={{ fontSize:11, color:marginColor, fontWeight:600, margin:"4px 0 0" }}>
-                {actualMargin >= minMargin ? `✅ Supera tu mínimo de ${minMargin}%` : actualMargin >= minMargin * 0.6 ? `⚠️ Por debajo de tu mínimo (${minMargin}%)` : `❌ Margen muy bajo vs tu mínimo (${minMargin}%)`}
-              </p>
-            </div>
-          )}
-
-          {suggestedPrice && (
-            <p style={{ fontSize:11, color:t.dim, textAlign:"center", marginBottom:16 }}>
-              💡 Precio sugerido para {minMargin}% margen: <b style={{ color:t.text }}>USD {suggestedPrice.toFixed(2)}</b>
-            </p>
-          )}
-
-          {/* Viability */}
-          <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>📊 Viabilidad — tu decisión</p>
-          <div style={{ display:"flex", gap:8, marginBottom:20 }}>
-            {[
-              { k:"viable", l:"✅ Viable", c:t.green },
-              { k:"marginal", l:"⚠️ Marginal", c:t.yellow },
-              { k:"no_viable", l:"❌ No viable", c:t.red },
-            ].map(v => (
-              <button key={v.k} onClick={() => setViability(v.k)} style={{
-                flex:1, padding:"12px 8px", borderRadius:12,
-                border:`1.5px solid ${viability===v.k?v.c:t.border}`,
-                background:viability===v.k?v.c+"18":"transparent",
-                color:viability===v.k?v.c:t.muted,
-                fontSize:12, fontWeight:700, cursor:"pointer",
-              }}>{v.l}</button>
-            ))}
-          </div>
-        </>}
-      </div>
-
-      <div style={{ padding:"12px 20px 28px", borderTop:`1px solid ${t.border}` }}>
-        <Btn onClick={handleSave} full t={t}>✓ Guardar cálculo</Btn>
-      </div>
-    </div>
-  );
-}
-
 // ═══════════════════════════════════════════
 // DISTRICTS
 // ═══════════════════════════════════════════
@@ -2693,22 +2487,6 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
       <Header title="Costos de importación" onBack={() => setSubScreen(null)} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
-
-        {/* Calculator toggle */}
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>🧮 Calculadora de importación</p>
-        <button onClick={() => updateLoc(p => ({ ...p, showImportCalculator: !p.showImportCalculator }))}
-          style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", padding:"14px 16px", borderRadius:14,
-            background: loc.showImportCalculator ? t.accentSoft : t.surface,
-            border:`1.5px solid ${loc.showImportCalculator ? t.accent : t.border}`, cursor:"pointer", marginBottom:20 }}>
-          <span style={{ fontSize:13, fontWeight:700, color: loc.showImportCalculator ? t.accent : t.text }}>
-            {loc.showImportCalculator ? "🧮 Calculadora ON" : "🧮 Calculadora OFF"}
-          </span>
-          <span style={{ width:44, height:24, borderRadius:12, padding:2,
-            background: loc.showImportCalculator ? t.accent : t.border,
-            display:"flex", alignItems:"center", justifyContent: loc.showImportCalculator ? "flex-end" : "flex-start", transition:"all 0.2s" }}>
-            <span style={{ width:20, height:20, borderRadius:10, background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }} />
-          </span>
-        </button>
 
         {/* Currency selector */}
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>💱 Moneda de precios</p>
@@ -4270,7 +4048,10 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
                   <button onClick={() => g.supplier && onNavigate("supplier", g.supplier)} style={{ display:"flex", alignItems:"center", gap:10, flex:1, background:"none", border:"none", cursor:"pointer", padding:0, textAlign:"left" }}>
                     <div style={{ width:40, height:40, borderRadius:10, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, border:`1px solid ${t.border}` }}>🏭</div>
                     <div style={{ flex:1 }}><div style={{ fontSize:14, fontWeight:700, color:g.supplier ? t.text : t.muted }}>{g.supplier?.company || "Sin proveedor"}</div><span style={{ fontSize:11, color:t.muted }}>{isAllFairs&&dist?dist.emoji+" "+dist.name+" · ":""}{g.products.length === 0 ? "Sin productos aún" : `${g.products.length} prod.`} →</span></div>
-                    <MiniStars rating={avgR} t={t} />
+                    <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:2 }}>
+                      {g.supplier?.rating > 0 && <span style={{ display:"flex", alignItems:"center", gap:4 }}><span style={{ fontSize:9, color:t.muted }}>prov.</span><MiniStars rating={g.supplier.rating} t={t} /></span>}
+                      <MiniStars rating={avgR} t={t} />
+                    </div>
                   </button>
                   {/* #15: Quick contact buttons */}
                   {g.supplier && (g.supplier.whatsapp || g.supplier.whatsappLink || g.supplier.phone) && (
@@ -4534,6 +4315,14 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onDelete, onNavi
           {field("Dirección", "📍", "address", "Dirección")}
           {field("Productos", "📦", "products", "Productos que ofrece")}
           {field("Notas", "📝", "notes", "Compra mín., pagos, descuentos...")}
+          {/* 7.5: calificación propia del proveedor (trato, negociación, stand), aparte del promedio de sus productos */}
+          <div style={{ background:t.card, borderRadius:14, padding:12, marginTop:10, border:`1px solid ${t.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", gap:10 }}>
+            <div>
+              <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:0, textTransform:"uppercase" }}>⭐ Tu calificación del proveedor</p>
+              <p style={{ fontSize:11, color:t.dim, margin:"2px 0 0" }}>Trato, negociación, stand. Productos: ★{avgRating.toFixed(1)}</p>
+            </div>
+            <Stars value={supplier.rating || 0} onChange={v => onUpdate(supplier.id, { rating: v }, true)} size={22} t={t} />
+          </div>
           {(supplier.audio || supplier.audioTranscript) && (() => { const src = urlDeAudio(supplier.audio); return (
             <div style={{ background:t.card, borderRadius:14, padding:12, marginTop:10, border:`1px solid ${t.accent}20` }}>
               <p style={{ fontSize:10, fontWeight:700, color:t.accent, margin:"0 0 8px" }}>🎙 Nota de voz del stand</p>
@@ -5216,6 +5005,16 @@ export default function App() {
     if (uuid) devolverAlBorrar(uuid);
   };
 
+  // 7.4: sumar una foto a un producto guardado. Las que ya están se leen de la
+  // base tal cual (bytes o direcciones), para no guardar una dirección blob:.
+  const agregarFotoAProducto = async (id, dataUrl) => {
+    const raw = await db.products.get(id);
+    if (!raw) return;
+    await dbUpdateProduct(id, { photos: [...(raw.photos || []), dataUrl] });
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, photos: [...(p.photos || []), dataUrl] } : p));
+    showToast("Foto agregada");
+  };
+
   const handleUpdateProduct = async (id, changes) => {
     await dbUpdateProduct(id, changes);
     setProducts(prev => prev.map(p => p.id === id ? { ...p, ...changes } : p));
@@ -5423,7 +5222,7 @@ export default function App() {
       )}
       {screen === "detail" && screenData && (
         <ProductDetail key={screenData.id} product={products.find(p => p.id === screenData.id) || screenData} allProducts={products} suppliers={suppliers} districts={districts}
-          onBack={goBack} onUpdate={(id, changes) => { handleUpdateProduct(id, changes); }} onCalc={p => navigate("calc", p)} onDelete={handleDeleteProduct}
+          onBack={goBack} onUpdate={(id, changes) => { handleUpdateProduct(id, changes); }} onAddPhoto={agregarFotoAProducto} onDelete={handleDeleteProduct}
           onNavigateSupplier={s => navigate("supplier", s)} onNavigateProduct={p => { setScreenData(p); }} t={t} isDark={isDark} settings={settings} />
       )}
       {screen === "supplier" && screenData && (
@@ -5431,11 +5230,6 @@ export default function App() {
           onBack={goBack} onUpdate={handleUpdateSupplier} onDelete={handleDeleteSupplier}
           onAddProduct={() => navigate(settings?.quickCaptureMode !== false ? "quick-capture" : "capture", { fromSupplierId: screenData.id })}
           onNavigateProduct={p => navigate("detail", p)} t={t} />
-      )}
-      {screen === "calc" && screenData && (
-        <Calculator product={products.find(p => p.id === screenData.id) || screenData} settings={settings}
-          onBack={goBack}
-          onSave={(id, changes) => { handleUpdateProduct(id, changes); showToast("Cálculo guardado"); }} t={t} />
       )}
       {screen === "districts" && (
         <DistrictsScreen districts={districts} activeDistrictId={activeDistrictId} products={products}

@@ -83,6 +83,7 @@ class IdMapper {
       cloud.card_photo_url = localRecord.cardPhotoUrl || null;
       cloud.card_data = localRecord.cardData || null;
       cloud.booth_number = localRecord.boothNumber || null;
+      cloud.rating = localRecord.rating || null; // 7.5
     }
 
     if (table === 'products') {
@@ -143,6 +144,7 @@ class IdMapper {
       local.cardPhotoUrl = cloudRecord.card_photo_url || null;
       local.cardData = cloudRecord.card_data || null;
       local.boothNumber = cloudRecord.booth_number || null;
+      local.rating = cloudRecord.rating || 0;
     }
 
     if (table === 'products') {

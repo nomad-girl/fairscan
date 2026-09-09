@@ -53,6 +53,9 @@ describe('groupBySupplier', () => {
     expect(groupBySupplier({ suppliers, products: [], search: 'textil' }).map(g => g.supplier.company)).toEqual(['Guangzhou Textiles']);
     expect(groupBySupplier({ suppliers, products: [], search: 'lin' }).map(g => g.supplier.company)).toEqual(['Guangzhou Textiles']);
     expect(groupBySupplier({ suppliers, products: [], search: 'zzz' })).toEqual([]);
+    const conTel = [sup(3, 'Tel Co', 300, { phone: '+86 139 0000 1234', wechat: 'lin_wx' })];
+    expect(groupBySupplier({ suppliers: conTel, products: [], search: '1234' }).map(g => g.supplier.company)).toEqual(['Tel Co']);
+    expect(groupBySupplier({ suppliers: conTel, products: [], search: 'lin_wx' }).map(g => g.supplier.company)).toEqual(['Tel Co']);
   });
 
   it('con filtros de producto activos, los proveedores vacíos se ocultan', () => {
