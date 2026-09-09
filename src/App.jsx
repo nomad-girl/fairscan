@@ -2305,7 +2305,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
 // ═══════════════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════════════
-function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers, districts, onReload, teams, activeTeam, teamMembers, isAdmin, fetchMembers, inviteMember, onSwitchTeam, userEmail, onSignOut, onGoExport, onAccountDeleted }) {
+function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers, districts, onReload, teams, activeTeam, teamMembers, isAdmin, fetchMembers, inviteMember, onSwitchTeam, userEmail, userId, onSignOut, onGoExport, onAccountDeleted }) {
   const handleSwitchTeam = async (teamId) => {
     if (onSwitchTeam) await onSwitchTeam(teamId);
   };
@@ -2318,6 +2318,25 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
   const [healthLoading, setHealthLoading] = useState(false);
   const [healthError, setHealthError] = useState(null);
   const [subScreen, setSubScreen] = useState(null);
+  // Novedades por mail (pieza 1.15): se lee del perfil. null = no consintió; una
+  // fecha = cuándo lo hizo. La baja es un toque: vuelve a null.
+  const [marketingOptInAt, setMarketingOptInAt] = useState(undefined);
+  useEffect(() => {
+    if (!supabase || !userId) return;
+    let alive = true;
+    supabase.from('profiles').select('marketing_opt_in_at').eq('id', userId).single()
+      .then(({ data, error }) => { if (alive && !error) setMarketingOptInAt(data?.marketing_opt_in_at ?? null); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [userId]);
+  const toggleMarketingOptIn = async () => {
+    if (!supabase || !userId) return;
+    const next = marketingOptInAt ? null : new Date().toISOString();
+    const prev = marketingOptInAt;
+    setMarketingOptInAt(next);
+    const { error } = await supabase.from('profiles').update({ marketing_opt_in_at: next }).eq('id', userId);
+    if (error) setMarketingOptInAt(prev);
+  };
   // Borrar cuenta: aviso con lo que se pierde → confirmación escrita → borrado
   const [delPreview, setDelPreview] = useState(null);
   const [delStage, setDelStage] = useState("aviso"); // "aviso" | "confirmar"
@@ -2856,6 +2875,20 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
             <p style={{ fontSize: 12, color: t.muted, margin: '0 0 12px', textAlign: 'center' }}>
               Sesión: {userEmail}
             </p>
+          )}
+          {marketingOptInAt !== undefined && (
+            <button onClick={toggleMarketingOptIn} style={{
+              display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%",
+              padding:"10px 14px", borderRadius:12, marginBottom:12,
+              background: t.surface, border:`1px solid ${t.border}`, cursor:"pointer",
+            }}>
+              <span style={{ fontSize:13, fontWeight:600, color:t.text, textAlign:"left" }}>Novedades por mail</span>
+              <span style={{ width:40, height:22, borderRadius:11, padding:2, flexShrink:0,
+                background: marketingOptInAt ? t.accent : t.border,
+                display:"flex", alignItems:"center", justifyContent: marketingOptInAt ? "flex-end" : "flex-start", transition:"all 0.2s" }}>
+                <span style={{ width:18, height:18, borderRadius:9, background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }} />
+              </span>
+            </button>
           )}
           <button onClick={onSignOut} style={{
             width: '100%', padding: '12px', borderRadius: 12,
@@ -5013,7 +5046,7 @@ export default function App() {
           products={products} suppliers={suppliers} districts={districts} onReload={reloadAll}
           teams={teamsHook.teams} activeTeam={teamsHook.teams.find(tm => tm.id === sync.teamId)} teamMembers={teamsHook.teamMembers}
           isAdmin={teamsHook.isAdmin} fetchMembers={teamsHook.fetchMembers} inviteMember={teamsHook.inviteMember}
-          onSwitchTeam={handleSwitchTeam} userEmail={auth.user?.email} onSignOut={auth.signOut}
+          onSwitchTeam={handleSwitchTeam} userEmail={auth.user?.email} userId={auth.user?.id} onSignOut={auth.signOut}
           onGoExport={() => navigate("export")} onAccountDeleted={handleAccountDeleted} />
       )}
       {screen === "export" && (

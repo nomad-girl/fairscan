@@ -10,6 +10,8 @@ export default function LoginScreen({ t, onAuth }) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+  // Novedades por mail: desmarcada por defecto (decisión legal 08/09).
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,7 +23,7 @@ export default function LoginScreen({ t, onAuth }) {
       if (mode === 'login') {
         await onAuth.signIn(email, password);
       } else {
-        const result = await onAuth.signUp(email, password, displayName || email.split('@')[0], teamName);
+        const result = await onAuth.signUp(email, password, displayName || email.split('@')[0], teamName, marketingOptIn);
         // If email confirmation is required, show message
         if (result?.user && !result.session) {
           setSuccess('Revisá tu email para confirmar la cuenta');
@@ -187,6 +189,30 @@ export default function LoginScreen({ t, onAuth }) {
             }
           </button>
         </form>
+
+        {/* Consentimiento (pieza 1.15). Casilla desmarcada por defecto y texto fijo
+            con links absolutos: en la app nativa un link relativo no lleva a ningún lado. */}
+        {mode === 'register' && (
+          <div style={{ marginTop: 16 }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={marketingOptIn}
+                onChange={e => setMarketingOptIn(e.target.checked)}
+                style={{ width: 18, height: 18, margin: '1px 0 0', accentColor: t.accent, flexShrink: 0 }}
+              />
+              <span style={{ fontSize: 13, color: t.text, lineHeight: 1.5 }}>
+                Quiero recibir novedades de FairScan por mail. Me puedo dar de baja con un clic.
+              </span>
+            </label>
+            <p style={{ fontSize: 12, color: t.muted, margin: '12px 0 0', lineHeight: 1.6 }}>
+              Al crear la cuenta aceptás los{' '}
+              <a href="https://fairscan.app/terminos" target="_blank" rel="noopener" style={{ color: t.accent, fontWeight: 600 }}>Términos y Condiciones</a>
+              {' '}y la{' '}
+              <a href="https://fairscan.app/privacidad" target="_blank" rel="noopener" style={{ color: t.accent, fontWeight: 600 }}>Política de Privacidad</a>.
+            </p>
+          </div>
+        )}
 
         {/* Toggle mode */}
         <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: t.muted }}>
