@@ -20,11 +20,11 @@ describe('agruparPorDia / conEncabezadosDeDia', () => {
   ];
   it('agrupa por día del más nuevo al más viejo, con etiqueta y conteo', () => {
     const g = agruparPorDia(productos, AHORA);
-    expect(g.map(x => [x.etiqueta, x.productos.length])).toEqual([['Hoy', 2], ['Ayer', 1], ['jue 4 sep', 1]]);
+    expect(g.map(x => [x.etiqueta, x.productos.length])).toEqual([['Hoy', 2], ['Ayer', 1], ['vie 4 sep', 1]]);
   });
   it('intercala encabezados para dibujar', () => {
     const l = conEncabezadosDeDia(productos, AHORA);
-    expect(l.map(x => (x.tipo === 'dia' ? `#${x.etiqueta}·${x.n}` : x.p.id))).toEqual(['#Hoy·2', 1, 2, '#Ayer·1', 3, '#jue 4 sep·1', 4]);
+    expect(l.map(x => (x.tipo === 'dia' ? `#${x.etiqueta}·${x.n}` : x.p.id))).toEqual(['#Hoy·2', 1, 2, '#Ayer·1', 3, '#vie 4 sep·1', 4]);
   });
   it('soloDeHoy filtra por el día local', () => {
     expect(soloDeHoy(productos, AHORA).map(p => p.id)).toEqual([1, 2]);
