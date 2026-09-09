@@ -4703,6 +4703,9 @@ export default function App() {
   // Handle capture save
   const handleCaptureSave = async (data) => {
     try {
+      // Una tarjeta vinculada llega como dirección blob: (3.2); antes de guardar o
+      // subir, se vuelve base64 para que nunca quede una dirección efímera en la base.
+      if (typeof data.cardPhoto === "string" && data.cardPhoto.startsWith("blob:")) data.cardPhoto = await aDataUrl(data.cardPhoto);
       // === Create or find supplier ===
       let supplierId = data.linkedSupplierId || null;
       // If card photo captured offline but no name extracted, force-create a new supplier
