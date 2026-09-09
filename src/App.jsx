@@ -630,7 +630,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
       const qrData = await decodeQR(originalFile || photo);
       let qrInfo = null;
       if (qrData) {
-        console.log("📱 QR detectado:", qrData);
+        console.log("📱 QR detectado en la tarjeta");
         qrInfo = parseQRContent(qrData);
         if (qrInfo) applyContactInfo(qrInfo);
       }
@@ -638,7 +638,7 @@ function CaptureFlow({ suppliers, districts, activeDistrictId, settings, onSave,
       // Always run AI to get name, company, and other visible text
       console.log("🔄 Procesando imagen con IA...");
       const result = await processCard(photo);
-      console.log("✓ Imagen procesada:", result);
+      console.log("✓ Tarjeta procesada por IA: ok");
       setCardData({ ...result, ...(qrInfo || {}), qrRaw: qrData || null });
 
       // AI results have priority for name/company (QR never sets name)
@@ -4693,7 +4693,7 @@ export default function App() {
           aiDescription = imageResult.description;
           aiCategory = imageResult.category;
           aiMaterials = imageResult.materials || [];
-          console.log("✓ Imagen procesada:", imageResult);
+          console.log("✓ Imagen procesada por IA: ok");
         } catch (imgErr) {
           console.warn("⚠️ Error procesando imagen:", imgErr);
         }
@@ -4702,7 +4702,7 @@ export default function App() {
       // Use browser speech transcript (captured during recording)
       if (data.audioTranscript) {
         aiAudioTranscript = data.audioTranscript;
-        console.log("✓ Transcripción del navegador:", aiAudioTranscript);
+        console.log(`✓ Transcripción del navegador: ${aiAudioTranscript.length} caracteres`);
       }
 
       // #11: Check for duplicate products (same name + same supplier)

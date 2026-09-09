@@ -146,7 +146,7 @@ export function useSyncWithAI(settings) {
         categories: settings?.categories,
         materials: settings?.materials,
       });
-      console.log(`[AI Sync] Product ${product.id} → "${result.name}"`);
+      console.log(`[AI Sync] Producto ${product.id}: ok`);
 
       const updates = {};
       if (result.name) updates.name = result.name;
@@ -224,7 +224,7 @@ export function useSyncWithAI(settings) {
     try {
       console.log(`[AI Sync] Processing supplier ${supplier.id} card (attempt ${(supplier.ai_retry_count || 0) + 1})...`);
       const result = await api.processCard(supplier.cardPhoto);
-      console.log(`[AI Sync] Supplier ${supplier.id} → "${result.company}"`);
+      console.log(`[AI Sync] Proveedor ${supplier.id}: ok`);
 
       const updates = {};
       // Update company name (especially if it's a placeholder)
