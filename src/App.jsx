@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { PRESETS } from "./lib/presets.js";
+import useGrabadora from "./hooks/useGrabadora.js";
 
 // ═══════════════════════════════════════════
 // THEME
@@ -1883,6 +1884,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   const [lastCapture, setLastCapture] = useState(null);
   // Borrador del stand en curso (2.6): se guarda en la base local mientras se
   // trabaja y se ofrece retomar al volver. Se borra cuando el stand se guarda.
+  const nota = useGrabadora();                       // nota de voz del stand (4.6)
   const [borrador, setBorrador] = useState(null);   // el que se ofrece retomar
   const borradorListoRef = useRef(false);            // no autoguardar hasta decidir
   useEffect(() => {
@@ -1890,15 +1892,17 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   }, []);
   useEffect(() => {
     if (!borradorListoRef.current || saving) return;
-    const id = setTimeout(() => guardarBorrador({
-      itemIds: items.map(it => it.id), cardPhoto, cardData, linkedSupplierId, supplierName, supplierContact, supplierPhone, supplierEmail,
+    const id = setTimeout(async () => guardarBorrador({
+      itemIds: items.map(it => it.id), cardPhoto, cardData, linkedSupplierId,
+      standAudio: nota.audioBlob ? await serializarAudio(nota.audioBlob, { duracion: nota.segundos }) : null,
+      standTranscript: nota.transcripcion || "", supplierName, supplierContact, supplierPhone, supplierEmail,
       supplierWechat, supplierWhatsapp, supplierWhatsappLink, supplierWechatLink, supplierWebsite, supplierAddress,
       supplierProducts, supplierNotes,
     }), ESPERA_BORRADOR_MS);
     return () => clearTimeout(id);
   }, [items, cardPhoto, cardData, linkedSupplierId, supplierName, supplierContact, supplierPhone, supplierEmail,
       supplierWechat, supplierWhatsapp, supplierWhatsappLink, supplierWechatLink, supplierWebsite, supplierAddress,
-      supplierProducts, supplierNotes, saving]);
+      supplierProducts, supplierNotes, saving, nota.audioBlob, nota.transcripcion]);
   const retomarBorrador = () => {
     const b = borrador;
     setItems(b.itemIds ? itemsDesdeIds(b.itemIds) : (b.items || [])); setCardPhoto(b.cardPhoto || null); setCardData(b.cardData || null);
@@ -1907,6 +1911,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     setSupplierWhatsapp(b.supplierWhatsapp || ""); setSupplierWhatsappLink(b.supplierWhatsappLink || ""); setSupplierWechatLink(b.supplierWechatLink || "");
     setSupplierWebsite(b.supplierWebsite || ""); setSupplierAddress(b.supplierAddress || ""); setSupplierProducts(b.supplierProducts || "");
     setSupplierNotes(b.supplierNotes || "");
+    if (b.standAudio?.data) nota.cargar(new Blob([b.standAudio.data], { type: b.standAudio.type || "audio/webm" }), b.standTranscript, b.standAudio.duracion);
     setBorrador(null); borradorListoRef.current = true;
   };
   const descartarBorrador = () => { borrarBorrador(); setBorrador(null); borradorListoRef.current = true; };
@@ -2131,6 +2136,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
         cardPhoto, cardData,
         productItems: items,
         productIds: items.map(it => it.id),
+        standAudioBlob: nota.audioBlob, standAudioDuracion: nota.segundos, standTranscript: nota.transcripcion.trim(),
       });
       if (ok === false) throw new Error("el guardado devolvió error");
       await borrarBorrador(); // el stand ya está en la base: el borrador sobra
@@ -2323,6 +2329,44 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
         <input placeholder="Notas: compra mín., pagos, descuentos..." value={supplierNotes}
           onChange={e => setSupplierNotes(e.target.value)}
           style={{ ...inputStyle, fontSize:13, marginBottom:12 }} />
+
+        {/* Nota de voz del stand (4.6): lo que no entra en un campo */}
+        <div style={{ background:t.card, borderRadius:14, padding:"10px 14px", marginBottom:12, border:`1px solid ${t.border}` }}>
+          {!nota.audioURL ? (
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+              <button onClick={nota.grabando ? nota.parar : nota.empezar} style={{
+                width:44, height:44, borderRadius:22, border:"none", flexShrink:0,
+                background: nota.grabando ? t.red : `linear-gradient(135deg, ${t.accent}, #FF8F35)`,
+                color:"#fff", fontSize:18, cursor:"pointer", boxShadow: nota.grabando ? `0 0 0 4px ${t.redSoft}` : "none",
+                display:"flex", alignItems:"center", justifyContent:"center" }}>{nota.grabando ? "⏹" : "🎙"}</button>
+              <div style={{ flex:1 }}>
+                {nota.grabando ? (
+                  <>
+                    <p style={{ fontSize:13, fontWeight:700, color:t.red, margin:0 }}>Grabando... {Math.floor(nota.segundos/60)}:{String(nota.segundos%60).padStart(2,"0")}</p>
+                    {nota.transcripcion && <p style={{ fontSize:11, color:t.text, margin:"4px 0 0", fontStyle:"italic" }}>"{nota.transcripcion}"</p>}
+                  </>
+                ) : (
+                  <>
+                    <p style={{ fontSize:12, color: nota.micError ? t.text : t.muted, fontWeight: nota.micError ? 700 : 400, margin:0 }}>{nota.micError ? nota.micError.titulo : "Nota de voz del stand (se transcribe)"}</p>
+                    {nota.micError && (
+                      <>
+                        <p style={{ fontSize:11, color:t.muted, margin:"4px 0 0", lineHeight:1.4 }}>{nota.micError.texto}</p>
+                        {nota.micError.puedeAbrirAjustes && <button onClick={() => abrirAjustesDeLaApp()} style={{ marginTop:6, padding:"6px 10px", borderRadius:8, border:"none", background:t.accentSoft, color:t.accent, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>⚙️ Abrir ajustes</button>}
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <span style={{ fontSize:16 }}>🎙</span>
+              <audio src={nota.audioURL} controls style={{ flex:1, height:28 }} />
+              <button onClick={nota.descartar} style={{ background:t.redSoft, border:"none", borderRadius:10, width:36, height:36, color:t.red, fontSize:12, cursor:"pointer", flexShrink:0 }}>✕</button>
+            </div>
+          )}
+          {nota.audioURL && nota.transcripcion && <p style={{ fontSize:11, color:t.text, margin:"6px 0 0", fontStyle:"italic" }}>📝 "{nota.transcripcion}"</p>}
+        </div>
 
         {/* === SECTION 2: PRODUCTS === */}
         <div style={{ height:1, background:t.border, margin:"8px 0 16px" }} />
@@ -2664,7 +2708,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
               exportedAt: new Date().toISOString(),
               settings: { ...loc },
               districts: districts || [],
-              suppliers: (suppliers || []).map(s => { const { cardPhoto, ...rest } = s; return rest; }),
+              suppliers: (suppliers || []).map(s => { const { cardPhoto, audio, ...rest } = s; return rest; }),
               products: (products || []).map(p => { const { photos, ...rest } = sinDerivados(p); return { ...rest, photoCount: p.photos?.length || 0, tieneNotaDeVoz: !!p.audio }; }),
             };
             const blob = new Blob([JSON.stringify(backup, null, 2)], { type:'application/json' });
@@ -4366,6 +4410,13 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onDelete, onNavi
           {field("Dirección", "📍", "address", "Dirección")}
           {field("Productos", "📦", "products", "Productos que ofrece")}
           {field("Notas", "📝", "notes", "Compra mín., pagos, descuentos...")}
+          {(supplier.audio || supplier.audioTranscript) && (() => { const src = urlDeAudio(supplier.audio); return (
+            <div style={{ background:t.card, borderRadius:14, padding:12, marginTop:10, border:`1px solid ${t.accent}20` }}>
+              <p style={{ fontSize:10, fontWeight:700, color:t.accent, margin:"0 0 8px" }}>🎙 Nota de voz del stand</p>
+              {src && <audio src={src} controls style={{ width:"100%", height:36 }} />}
+              {supplier.audioTranscript && <p style={{ fontSize:13, color:t.text, margin:"8px 0 0", lineHeight:1.6 }}>{supplier.audioTranscript}</p>}
+            </div>
+          ); })()}
         </div>
 
         {/* Delete supplier */}
@@ -4800,6 +4851,12 @@ export default function App() {
             const fn = `producto_${supSlug}_${pi}_${ts}.jpg`;
             sessionPhotos.push({ data: ph, filename: fn });
           }
+        }
+        // La nota de voz del stand va al proveedor, como bytes (4.6).
+        if (supplierId && data.standAudioBlob) {
+          const cambios = { audio: await serializarAudio(data.standAudioBlob, { duracion: data.standAudioDuracion }), audioTranscript: data.standTranscript || null };
+          await dbUpdateSupplier(supplierId, cambios);
+          setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, ...cambios } : s));
         }
         // Los productos ya existen en la base desde cada disparo (4.3). Cerrar el
         // stand es asignarles el proveedor y dejar el precio y las notas como quedaron.

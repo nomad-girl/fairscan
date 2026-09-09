@@ -523,7 +523,7 @@ class SyncEngine {
         timestamp: new Date().toISOString(),
         counts: { districts: districts.length, suppliers: suppliers.length, products: products.length },
         districts: districts.map(d => ({ ...d, photos: undefined })),
-        suppliers: suppliers.map(s => ({ ...s, cardPhoto: undefined })),
+        suppliers: suppliers.map(s => ({ ...s, cardPhoto: undefined, audio: undefined })),
         // Sin el audio: es binario, no cabe en JSON y ya vive en la base local (ver audioNotes.js).
         products: products.map(p => ({ ...sinDerivados(p), photos: (p.photoUrls || p.photos || []).filter(u => typeof u === 'string' && u.startsWith('http')) })),
       };
