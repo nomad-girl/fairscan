@@ -3912,7 +3912,11 @@ export default function App() {
     try {
       const { comprar } = await import("./lib/compras.js");
       const r = await comprar(pk.id);
-      if (r.ok) { showToast(`✓ ${pk.escaneos} escaneos`); sincronizarCreditos(); setPaywall(null); }
+      if (r.ok) {
+        showToast(`✓ Compra hecha: ${pk.escaneos} escaneos`); setPaywall(null);
+        // El saldo lo acredita el servidor cuando la tienda confirma; se relee varias veces.
+        [2000, 6000, 15000, 40000].forEach(ms => setTimeout(sincronizarCreditos, ms));
+      }
       else showToast(r.mensaje || "La compra no se completó");
     } catch (err) { showToast(err?.message || "La compra no se completó"); }
   };
@@ -4063,6 +4067,8 @@ export default function App() {
       setIsDark(st.theme !== "light");
       setReady(true);
       // Config del negocio y saldo (5.1, 5.2), sin bloquear el arranque.
+      // Compras (5.4): el SDK de la tienda se configura con el id de la usuaria; en la web no hace nada.
+      import("./lib/compras.js").then(m => m.configurar(auth.user.id)).catch(() => {});
       cargarNegocio(supabase, { get: getSettings, save: dbSaveSettings }).then(async (n) => {
         setNegocio(n);
         const previo = (await getSettings()).creditos;

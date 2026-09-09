@@ -21,6 +21,7 @@
     "@capacitor/filesystem": "8.1.3",
     "@capacitor/ios": "8.5.1",
     "@capacitor/share": "8.0.1",
+    "@revenuecat/purchases-capacitor": "^13.5.0",
     "@sentry/browser": "10.73.0",
     "@supabase/supabase-js": "2.97.0",
     "capacitor-native-settings": "^8.2.0",
