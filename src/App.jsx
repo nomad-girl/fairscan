@@ -4,6 +4,7 @@ import useGrabadora from "./hooks/useGrabadora.js";
 import { cargarNegocio, NEGOCIO_POR_DEFECTO } from "./lib/negocio.js";
 import { estadoInicial, descontarStand, devolverProducto, reconciliar, saldoVisible } from "./lib/creditos.js";
 import { conEncabezadosDeDia, soloDeHoy, resumenDelDia } from "./lib/porDia.js";
+import { evaluarCierreDeStand, packDestacado, FRASE_PAYWALL } from "./lib/paywall.js";
 
 // ═══════════════════════════════════════════
 // THEME
@@ -747,6 +748,12 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
 
           {/* ═══ INLINE EDITABLE FIELDS (the important stuff) ═══ */}
           <div style={{ padding:"16px 20px 0" }}>
+            {p.bloqueado ? (
+              <div style={{ background:t.card, border:`1px solid ${t.accent}60`, borderRadius:12, padding:"10px 12px", marginBottom:10 }}>
+                <p style={{ fontSize:12, fontWeight:700, color:t.text, margin:0 }}>🔒 Guardado, bloqueado hasta que compres escaneos</p>
+                <p style={{ fontSize:11, color:t.muted, margin:"4px 0 0" }}>La foto está. Al comprar un pack, la IA le pone nombre y se desbloquea solo.</p>
+              </div>
+            ) : null}
             {/* Estado del guardado silencioso */}
             <div style={{ height:14, display:"flex", justifyContent:"flex-end", alignItems:"center", marginBottom:-6 }}>
               {saveState === "pending" && <span style={{ fontSize:11, color:t.muted }}>Guardando…</span>}
@@ -2324,6 +2331,10 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
               </span>
             </button>
           )}
+          <button onClick={async () => { try { const { restaurar } = await import("./lib/compras.js"); const r = await restaurar(); alert(r.mensaje); } catch (e) { alert(e?.message || "No se pudo restaurar"); } }} style={{
+            width: '100%', padding: '12px', borderRadius: 12, marginBottom: 10,
+            border: `1px solid ${t.border}`, background: t.card, color: t.text, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+          }}>🧾 Restaurar compras</button>
           {esAnonima ? (
             <div style={{ background:t.accentSoft, border:`1px solid ${t.accent}40`, borderRadius:14, padding:14 }}>
               <p style={{ fontSize:13, fontWeight:700, color:t.text, margin:"0 0 4px" }}>Estás usando FairScan sin cuenta</p>
@@ -3474,7 +3485,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
                   </p>
                   {p.price && <span style={{ fontSize:11, fontWeight:800, color:"#4ade80" }}>${p.price}</span>}
                 </div>
-                {!p.ai_processed && <div style={{ position:"absolute", top:4, right:4, width:8, height:8, borderRadius:4, background:"#ff9800", boxShadow:"0 0 4px #ff980080" }} />}{estadoIA(p) === "fallo" && <div title="IA sin resultado" style={{ position:"absolute", top:4, right:4, width:8, height:8, borderRadius:4, background:"#f44336" }} />}
+                {!p.ai_processed && <div style={{ position:"absolute", top:4, right:4, width:8, height:8, borderRadius:4, background:"#ff9800", boxShadow:"0 0 4px #ff980080" }} />}{estadoIA(p) === "fallo" && <div title="IA sin resultado" style={{ position:"absolute", top:4, right:4, width:8, height:8, borderRadius:4, background:"#f44336" }} />}{p.bloqueado ? <div title="Bloqueado hasta que compres escaneos" style={{ position:"absolute", inset:0, background:"rgba(0,0,0,0.45)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>🔒</div> : null}
                 {p.photos?.length > 1 && <div style={{ position:"absolute", top:4, left:4, padding:"2px 5px", borderRadius:6, background:"rgba(0,0,0,0.5)", fontSize:9, color:"#fff", fontWeight:700 }}>{p.photos.length}</div>}
               </button>
             ); })())}
@@ -3896,11 +3907,59 @@ export default function App() {
       console.warn('[créditos] no se pudo reconciliar:', err?.message || err);
     }
   };
-  const descontarAlCerrarStand = async (uuids) => {
-    if (!creditosRef.current) return;
-    await guardarCreditos(descontarStand(creditosRef.current, uuids));
+  // Compras (5.4): la plomería llega con el build subido a las tiendas. Mientras, se explica.
+  const comprarPack = async (pk) => {
+    try {
+      const { comprar } = await import("./lib/compras.js");
+      const r = await comprar(pk.id);
+      if (r.ok) { showToast(`✓ ${pk.escaneos} escaneos`); sincronizarCreditos(); setPaywall(null); }
+      else showToast(r.mensaje || "La compra no se completó");
+    } catch (err) { showToast(err?.message || "La compra no se completó"); }
+  };
+  // Paywall (5.3): al cerrar el stand, si el saldo no alcanza. Nunca al disparar.
+  const [paywall, setPaywall] = useState(null); // { bloqueados }
+  const bloquearProductos = async (ids) => {
+    for (const id of ids) await dbUpdateProduct(id, { bloqueado: 1, ai_processed: true }); // la IA no gasta en lo bloqueado
+    setProducts(prev => prev.map(p => ids.includes(p.id) ? { ...p, bloqueado: 1, ai_processed: true } : p));
+  };
+  const desbloquearProductos = async () => {
+    const ids = products.filter(p => p.bloqueado).map(p => p.id);
+    for (const id of ids) await dbUpdateProduct(id, { bloqueado: 0, ai_processed: false });
+    if (ids.length) setProducts(prev => prev.map(p => p.bloqueado ? { ...p, bloqueado: 0, ai_processed: false } : p));
+    return ids.length;
+  };
+  const descontarAlCerrarStand = async (uuids, idsPorUuid = {}) => {
+    const e = creditosRef.current;
+    if (!e) return;
+    const nuevos = uuids.filter(u => !e.pendientes.includes(u));
+    const veredicto = evaluarCierreDeStand({ saldo: e.saldo, nuevos: nuevos.length, online: navigator.onLine, emergencia: negocio.emergencia, emergenciaUsada: e.emergenciaUsada || 0 });
+    await guardarCreditos({
+      ...descontarStand(e, uuids),
+      emergenciaUsada: (e.emergenciaUsada || 0) + veredicto.usarEmergencia,
+      paywallPendiente: veredicto.paywallPendiente || !!e.paywallPendiente,
+    });
+    if (veredicto.bloquear > 0) {
+      // Se bloquean los últimos del stand: los primeros entran con lo que había.
+      const ids = nuevos.slice(nuevos.length - veredicto.bloquear).map(u => idsPorUuid[u]).filter(id => id != null);
+      await bloquearProductos(ids);
+    }
+    if (veredicto.usarEmergencia > 0) showToast(`Sin señal: ${veredicto.usarEmergencia} escaneos de regalo. Nada se pierde.`);
+    else if (veredicto.avisoQuedan !== null && veredicto.avisoQuedan > 0) showToast(`Te quedan ${veredicto.avisoQuedan} escaneos`);
+    if (veredicto.mostrarPaywall) setPaywall({ bloqueados: veredicto.bloquear });
     sincronizarCreditos();
   };
+  // Con señal y paywall pendiente (se usaron los de emergencia sin señal): se muestra al abrir.
+  useEffect(() => {
+    const e = creditos;
+    if (!e || !ready || !navigator.onLine || !e.paywallPendiente) return;
+    if (e.saldo < 0) setPaywall({ bloqueados: products.filter(p => p.bloqueado).length });
+    guardarCreditos({ ...e, paywallPendiente: false });
+  }, [ready, creditos?.paywallPendiente]);
+  // Cuando el saldo vuelve a alcanzar (compra, devolución), lo bloqueado se libera.
+  useEffect(() => {
+    if (!ready || !creditos || creditos.saldo < 0) return;
+    if (products.some(p => p.bloqueado)) desbloquearProductos().then(n => { if (n) showToast(`✓ ${n} producto${n === 1 ? "" : "s"} desbloqueado${n === 1 ? "" : "s"}`); });
+  }, [ready, creditos?.saldo]);
   const devolverAlBorrar = async (uuid) => {
     const e = creditosRef.current;
     if (!e || !uuid) return;
@@ -4293,8 +4352,10 @@ export default function App() {
           createdIds.push(item.id);
         }
         // Cerrar el stand descuenta 1 por producto; las tarjetas no descuentan (5.2).
-        const uuidsStand = createdIds.map(id => products.find(p => p.id === id)?.uuid).filter(Boolean);
-        if (uuidsStand.length) await descontarAlCerrarStand(uuidsStand);
+        const idsPorUuid = {};
+        for (const id of createdIds) { const u = products.find(p => p.id === id)?.uuid; if (u) idsPorUuid[u] = id; }
+        const uuidsStand = Object.keys(idsPorUuid);
+        if (uuidsStand.length) await descontarAlCerrarStand(uuidsStand, idsPorUuid);
         // Background: upload card photo
         if (data.cardPhoto && supplierId && navigator.onLine) {
           uploadPhoto(data.cardPhoto, 'cards').then(result => {
@@ -4499,6 +4560,28 @@ export default function App() {
 
   return (
     <div style={{ height:"100%", background:t.bg, color:t.text, position:"relative", overflow:"hidden", fontFamily:"'DM Sans', -apple-system, sans-serif" }}>
+      {paywall && (
+        <div role="dialog" style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+          <div style={{ width:"100%", maxWidth:520, background:t.bg, borderRadius:"22px 22px 0 0", padding:"22px 20px calc(env(safe-area-inset-bottom, 0px) + 20px)", boxShadow:"0 -8px 40px rgba(0,0,0,0.35)" }}>
+            <p style={{ fontSize:17, fontWeight:800, color:t.text, margin:"0 0 6px", lineHeight:1.35 }}>{FRASE_PAYWALL}</p>
+            {paywall.bloqueados > 0 && <p style={{ fontSize:13, color:t.muted, margin:"0 0 14px" }}>{paywall.bloqueados} producto{paywall.bloqueados === 1 ? "" : "s"} de este stand quedaron guardados y bloqueados. No se pierde nada.</p>}
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              {(negocio.packs || []).map(pk => { const destacado = packDestacado(negocio.packs)?.id === pk.id; return (
+                <button key={pk.id} onClick={() => comprarPack(pk)} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 16px", borderRadius:14, cursor:"pointer", fontFamily:"inherit", textAlign:"left",
+                  border:`2px solid ${destacado ? t.accent : t.border}`, background: destacado ? t.accentSoft : t.card }}>
+                  <span>
+                    <span style={{ display:"block", fontSize:15, fontWeight:800, color:t.text }}>{pk.escaneos.toLocaleString("es-AR")} escaneos</span>
+                    {destacado && <span style={{ fontSize:11, fontWeight:700, color:t.accent }}>El más elegido</span>}
+                  </span>
+                  <span style={{ fontSize:15, fontWeight:800, color: destacado ? t.accent : t.text }}>USD {pk.usd.toFixed(2)}</span>
+                </button>
+              ); })}
+              <button onClick={() => setPaywall(null)} style={{ padding:"12px", borderRadius:12, border:"none", background:"none", color:t.muted, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Después</button>
+            </div>
+            <p style={{ fontSize:11, color:t.dim, margin:"10px 0 0", textAlign:"center" }}>Las tarjetas de proveedor no descuentan nunca. Los escaneos comprados no vencen.</p>
+          </div>
+        </div>
+      )}
       <Toast msg={undo ? undo.mensaje : toast} t={t}
         action={undo ? { label: "Deshacer", onClick: () => { papeleraRef.current.deshacer(); showToast("Restaurado"); } } : null} />
       {/* #10: Supplier dedup prompt */}
