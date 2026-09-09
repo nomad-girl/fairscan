@@ -1970,9 +1970,42 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   // ─── El stand es un grupo de productos ya guardados (4.3) ───
   const crearItem = async (photos) => {
     const id = await onProductoNuevo?.(photos);
-    if (id == null) return;
+    if (id == null) return null;
     setItems(prev => [{ id, photos, price: "", notes: "" }, ...prev]);
+    return id;
   };
+  // Precio al toque (4.8): después de disparar, un teclado grande sobre el visor
+  // durante un segundo y medio. Si se toca, se queda hasta confirmar; si no, se va.
+  const [precioRapido, setPrecioRapido] = useState(null); // { id, valor }
+  const precioTimerRef = useRef(null);
+  const ofrecerPrecio = (id) => {
+    clearTimeout(precioTimerRef.current);
+    setPrecioRapido({ id, valor: "" });
+    precioTimerRef.current = setTimeout(() => setPrecioRapido(p => (p && !p.valor ? null : p)), 1500);
+  };
+  const tocarPrecio = (tecla) => {
+    clearTimeout(precioTimerRef.current);
+    setPrecioRapido(p => {
+      if (!p) return p;
+      let v = p.valor;
+      if (tecla === "⌫") v = v.slice(0, -1);
+      else if (tecla === ".") { if (!v.includes(".")) v = (v || "0") + "."; }
+      else if (v.replace(".", "").length < 7) v = v + tecla;
+      return { ...p, valor: v };
+    });
+  };
+  const confirmarPrecio = () => {
+    clearTimeout(precioTimerRef.current);
+    setPrecioRapido(p => {
+      if (p?.valor) {
+        const v = p.valor.replace(/\.$/, "");
+        setItems(prev => prev.map(it => it.id === p.id ? { ...it, price: v } : it));
+        guardarCampoItem(p.id, "price", v);
+      }
+      return null;
+    });
+  };
+  useEffect(() => () => clearTimeout(precioTimerRef.current), []);
   const agregarFotoAItem = (id, photo) => {
     setItems(prev => prev.map(it => {
       if (it.id !== id) return it;
@@ -2006,7 +2039,8 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
       } else {
         // Cada disparo crea el producto en la base al instante (4.3): si la app
         // muere antes de cerrar el stand, el producto ya está.
-        crearItem([photo]);
+        if (precioRapido?.valor) confirmarPrecio();
+        crearItem([photo]).then(id => { if (id != null) ofrecerPrecio(id); });
       }
       setLastCapture(photo);
       setTimeout(() => setLastCapture(null), 800);
@@ -2183,6 +2217,22 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
             padding:"10px 24px", borderRadius:24, background:"rgba(0,0,0,0.55)", backdropFilter:"blur(8px)",
             color:"#fff", fontSize:16, fontWeight:700 }}>
             📇 Tarjeta del proveedor
+          </div>
+        )}
+
+        {/* Precio al toque (4.8) */}
+        {precioRapido && cameraMode === "product" && (
+          <div style={{ position:"absolute", left:"50%", bottom:130, transform:"translateX(-50%)", zIndex:4, width:220, background:"rgba(0,0,0,0.72)", backdropFilter:"blur(10px)", borderRadius:18, padding:10 }} onClick={e => e.stopPropagation()}>
+            <div style={{ display:"flex", alignItems:"baseline", justifyContent:"space-between", padding:"2px 6px 8px" }}>
+              <span style={{ color:"rgba(255,255,255,0.7)", fontSize:11, fontWeight:700 }}>💰 Precio {CURRENCIES[settings?.currency]?.symbol || "USD"}</span>
+              <span style={{ color:"#fff", fontSize:22, fontWeight:800, minWidth:60, textAlign:"right" }}>{precioRapido.valor || <span style={{ opacity:0.4 }}>0</span>}</span>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:6 }}>
+              {["1","2","3","⌫","4","5","6",".","7","8","9","0"].map(k => (
+                <button key={k} onClick={() => tocarPrecio(k)} style={{ height:40, borderRadius:10, border:"none", background:"rgba(255,255,255,0.15)", color:"#fff", fontSize:18, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{k}</button>
+              ))}
+            </div>
+            <button onClick={confirmarPrecio} style={{ width:"100%", marginTop:6, height:40, borderRadius:10, border:"none", background:precioRapido.valor ? t.green : "rgba(255,255,255,0.15)", color:"#fff", fontSize:14, fontWeight:800, cursor:"pointer", fontFamily:"inherit" }}>{precioRapido.valor ? "✓ Guardar precio" : "Seguir sin precio"}</button>
           </div>
         )}
 
@@ -3876,7 +3926,10 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
     if (filterViability !== "all") r = r.filter(p => (p.viability || "none") === filterViability);
     if (filterMaterial !== "all") r = r.filter(p => p.material?.includes(filterMaterial));
     // #14: Price range filter
-    if (filterPrice !== "all") {
+    if (filterPrice === "sin") {
+      // Los que faltan: un producto sin precio no sirve en la planilla (4.8).
+      r = r.filter(p => isNaN(parseFloat(p.price)));
+    } else if (filterPrice !== "all") {
       const [min, max] = filterPrice.split("-").map(Number);
       r = r.filter(p => {
         const price = parseFloat(p.price);
@@ -3976,6 +4029,9 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
           {materials.length > 0 && <select value={filterMaterial} onChange={e=>setFilterMaterial(e.target.value)} style={sel(filterMaterial!=="all", t.green)}>
             <option value="all">🏺 Material</option>{materials.map(m=><option key={m} value={m}>{m}</option>)}
           </select>}
+          <select value={filterPrice} onChange={e=>setFilterPrice(e.target.value)} style={sel(filterPrice!=="all", t.red)}>
+            <option value="all">💰 Precio</option><option value="sin">❗ Sin precio</option><option value="0-10">Hasta 10</option><option value="10-50">10 a 50</option><option value="50-">Más de 50</option>
+          </select>
           <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={sel(sortBy!=="recent", t.purple)}>
             <option value="recent">🕐 Recientes</option><option value="price_low">💲 Menor $</option><option value="price_high">💲 Mayor $</option><option value="rating">⭐ Rating</option>
           </select>
