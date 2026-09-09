@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { PRESETS } from "./lib/presets.js";
 import useGrabadora from "./hooks/useGrabadora.js";
+import { cargarNegocio, NEGOCIO_POR_DEFECTO } from "./lib/negocio.js";
+import { estadoInicial, descontarStand, devolverProducto, reconciliar, saldoVisible } from "./lib/creditos.js";
 
 // ═══════════════════════════════════════════
 // THEME
@@ -3933,7 +3935,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
 // ═══════════════════════════════════════════
 // PRODUCT LIST (main screen)
 // ═══════════════════════════════════════════
-function ProductList({ products, suppliers, districts, activeDistrictId, activeDistrict, settings, onNavigate, onSwitchDistrict, onDeleteProduct, onBatchDelete, onBatchUpdate, onDeleteSupplier, t, isDark, onToggleTheme, activeTab, onTabChange, queueCount, scrollPositionRef }) {
+function ProductList({ products, suppliers, districts, activeDistrictId, activeDistrict, settings, onNavigate, onSwitchDistrict, onDeleteProduct, onBatchDelete, onBatchUpdate, onDeleteSupplier, t, isDark, onToggleTheme, activeTab, onTabChange, queueCount, scrollPositionRef, saldoCreditos = null }) {
   const { isSyncing: aiSyncing, pendingCount: aiPending, processedCount: aiProcessed, totalCount: aiTotal, syncNow: aiSyncNow, error: aiError, photosPending } = useSyncWithAI(settings);
   const [search, setSearch] = useState("");
   const view = activeTab || "products";
@@ -4111,6 +4113,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
             </span>
             {aiError && <span style={{ fontSize:10, color:"#f44336" }}>{aiError}</span>}
             {photosPending > 0 && <span title="Suben solas cuando hay señal" style={{ fontSize:10, color:t.muted }}>☁️ {photosPending} por subir</span>}
+            {saldoCreditos !== null && <span title="Escaneos de producto disponibles. Las tarjetas de proveedor no descuentan." style={{ fontSize:10, fontWeight:700, color: saldoCreditos > 0 ? t.muted : t.red }}>⚡ {saldoCreditos} escaneo{saldoCreditos === 1 ? "" : "s"}</span>}
           </button>
         )}
       </div>
@@ -4623,6 +4626,57 @@ export default function App() {
   const [prevScreen, setPrevScreen] = useState(null);
   const [listTab, setListTab] = useState("products");
   const [toast, setToast] = useState("");
+  // Negocio (5.1) y créditos (5.2): la config viene del servidor; el saldo vive en
+  // el teléfono y se reconcilia con el servidor cuando hay señal (gana el servidor).
+  const [negocio, setNegocio] = useState(NEGOCIO_POR_DEFECTO);
+  const [creditos, setCreditos] = useState(null); // { saldo, pendientes, devueltos }
+  const creditosRef = useRef(null);
+  const guardarCreditos = async (estado) => {
+    creditosRef.current = estado; setCreditos(estado);
+    await dbSaveSettings({ creditos: estado });
+  };
+  const sincronizarCreditos = async () => {
+    const e = creditosRef.current;
+    if (!e || !supabase || !navigator.onLine || !auth.user) return;
+    try {
+      let saldoServidor;
+      if (e.pendientes.length) {
+        const { data, error } = await supabase.rpc('consumir_creditos', { uuids: e.pendientes });
+        if (error) throw error;
+        saldoServidor = data;
+        await guardarCreditos(reconciliar(creditosRef.current, { informados: e.pendientes, saldoServidor }));
+      }
+      for (const u of e.devueltos) {
+        const { data, error } = await supabase.rpc('devolver_credito', { uuid_producto: u });
+        if (error) throw error;
+        saldoServidor = data;
+        await guardarCreditos(reconciliar(creditosRef.current, { devueltos: [u], saldoServidor }));
+      }
+      if (saldoServidor === undefined) {
+        const { data } = await supabase.from('creditos').select('saldo').eq('user_id', auth.user.id).maybeSingle();
+        if (data && Number.isInteger(data.saldo)) await guardarCreditos(reconciliar(creditosRef.current, { saldoServidor: data.saldo }));
+      }
+    } catch (err) {
+      console.warn('[créditos] no se pudo reconciliar:', err?.message || err);
+    }
+  };
+  const descontarAlCerrarStand = async (uuids) => {
+    if (!creditosRef.current) return;
+    await guardarCreditos(descontarStand(creditosRef.current, uuids));
+    sincronizarCreditos();
+  };
+  const devolverAlBorrar = async (uuid) => {
+    const e = creditosRef.current;
+    if (!e || !uuid) return;
+    const fueInformado = !e.pendientes.includes(uuid);
+    await guardarCreditos(devolverProducto(e, uuid, fueInformado));
+    sincronizarCreditos();
+  };
+  useEffect(() => {
+    const onOnline = () => sincronizarCreditos();
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [auth.user]);
   // Deshacer al borrar (U7): la pantalla borra al instante, la base espera 5 s.
   const [undo, setUndo] = useState(null); // { mensaje } mientras hay algo para deshacer
   const papeleraRef = useRef(null);
@@ -4710,6 +4764,14 @@ export default function App() {
       const st = await reloadAll();
       setIsDark(st.theme !== "light");
       setReady(true);
+      // Config del negocio y saldo (5.1, 5.2), sin bloquear el arranque.
+      cargarNegocio(supabase, { get: getSettings, save: dbSaveSettings }).then(async (n) => {
+        setNegocio(n);
+        const previo = (await getSettings()).creditos;
+        if (previo && Array.isArray(previo.pendientes)) { creditosRef.current = previo; setCreditos(previo); }
+        else { await guardarCreditos(estadoInicial(n.trial)); }
+        sincronizarCreditos();
+      }).catch(err => console.warn('[negocio] no se pudo cargar:', err?.message || err));
       // Resume team sync if previously connected
       if (st.roomId) {
         syncEngine.resumeTeam(st.roomId).catch(console.warn);
@@ -4988,6 +5050,9 @@ export default function App() {
           await dbUpdateProduct(item.id, cambios);
           createdIds.push(item.id);
         }
+        // Cerrar el stand descuenta 1 por producto; las tarjetas no descuentan (5.2).
+        const uuidsStand = createdIds.map(id => products.find(p => p.id === id)?.uuid).filter(Boolean);
+        if (uuidsStand.length) await descontarAlCerrarStand(uuidsStand);
         // Background: upload card photo
         if (data.cardPhoto && supplierId && navigator.onLine) {
           uploadPhoto(data.cardPhoto, 'cards').then(result => {
@@ -5131,6 +5196,7 @@ export default function App() {
   // Captura rápida (4.3): cada disparo crea el producto en la base al toque.
   const crearProductoDesdeCaptura = async (photos) => {
     const registro = {
+      uuid: crypto.randomUUID(),
       name: "", description: null, supplierCompany: null, supplierId: null,
       districtId: activeDistrictId, photos, photoUrls: null,
       thumb: await miniaturaDe(photos[0]),
@@ -5144,8 +5210,10 @@ export default function App() {
     return id;
   };
   const borrarProductoDesdeCaptura = async (id) => {
+    const uuid = products.find(p => p.id === id)?.uuid;
     await dbDeleteProduct(id);
     setProducts(prev => prev.filter(p => p.id !== id));
+    if (uuid) devolverAlBorrar(uuid);
   };
 
   const handleUpdateProduct = async (id, changes) => {
@@ -5339,7 +5407,7 @@ export default function App() {
         <ProductList products={products} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} activeDistrict={activeDistrict} settings={settings}
           onNavigate={navigate} onSwitchDistrict={switchDistrict} onDeleteProduct={handleDeleteProduct} onBatchDelete={handleBatchDelete} onBatchUpdate={handleBatchUpdate} onDeleteSupplier={handleDeleteSupplier}
           t={t} isDark={isDark} onToggleTheme={toggleTheme}
-          activeTab={listTab} onTabChange={setListTab} queueCount={queueCount} scrollPositionRef={scrollPositionRef} />
+          activeTab={listTab} onTabChange={setListTab} queueCount={queueCount} scrollPositionRef={scrollPositionRef} saldoCreditos={creditos ? saldoVisible(creditos) : null} />
       )}
       {(screen === "capture" || screen === "capture-supplier") && (
         <CaptureFlow suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings}
