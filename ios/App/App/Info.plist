@@ -25,13 +25,15 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>FairScan usa la cámara para fotografiar productos y tarjetas de proveedores en la feria.</string>
+	<string>FairScan usa la cámara para fotografiar productos y tarjetas de proveedores en la feria y armar tu catálogo.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>FairScan usa el micrófono para grabar notas de voz sobre un stand.</string>
+	<string>FairScan usa el micrófono para que puedas dictar notas sobre un producto o proveedor. El audio se transcribe a texto y no se guarda.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>FairScan convierte tus notas de voz en texto usando el reconocimiento de voz de tu dispositivo.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>FairScan guarda en tu fototeca las fotos que capturás, si vos lo pedís.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>FairScan accede a tu fototeca para elegir fotos de productos o tarjetas ya tomadas.</string>
+	<string>FairScan accede a tu fototeca para que puedas agregar fotos ya tomadas a un producto o proveedor.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
