@@ -3,6 +3,7 @@ import { PRESETS } from "./lib/presets.js";
 import useGrabadora from "./hooks/useGrabadora.js";
 import { cargarNegocio, NEGOCIO_POR_DEFECTO } from "./lib/negocio.js";
 import { estadoInicial, descontarStand, devolverProducto, reconciliar, saldoVisible } from "./lib/creditos.js";
+import { conEncabezadosDeDia, soloDeHoy, resumenDelDia } from "./lib/porDia.js";
 
 // ═══════════════════════════════════════════
 // THEME
@@ -398,6 +399,13 @@ const EsqueletoCatalogo = ({ t }) => {
     </div>
   );
 };
+
+/** Encabezado pegajoso de día en el catálogo (7.1): "Hoy · 47", "Ayer · 112". */
+const DiaHeader = ({ etiqueta, n, grid, t }) => (
+  <div style={{ position:"sticky", top:0, zIndex:2, gridColumn: grid ? "1 / -1" : undefined, background:t.bg, padding: grid ? "10px 6px 6px" : "8px 4px 6px", fontSize:11, fontWeight:800, color:t.muted, textTransform:"uppercase", letterSpacing:"0.06em" }}>
+    {etiqueta} · {n}
+  </div>
+);
 
 const Empty = ({ icon, title, sub, t }) => (
   <div style={{ textAlign:"center", padding:"60px 20px" }}>
@@ -2946,9 +2954,9 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
 // ═══════════════════════════════════════════
 // EXPORT
 // ═══════════════════════════════════════════
-function ExportScreen({ products, suppliers, districts, onBack, onExported, onUpdateProduct, onUpdateSupplier, t }) {
+function ExportScreen({ products, suppliers, districts, onBack, onExported, onUpdateProduct, onUpdateSupplier, t, initialDateFilter = "all" }) {
   const [scope, setScope] = useState("all");
-  const [dateFilter, setDateFilter] = useState("all"); // "all" | "today"
+  const [dateFilter, setDateFilter] = useState(initialDateFilter || "all"); // "all" | "today"
   const [format, setFormat] = useState("zip");
   const [includeSuppliers, setIncludeSuppliers] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -3724,6 +3732,8 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
   const [filterViability, setFilterViability] = useState("all");
   const [sortBy, setSortBy] = useState("recent");
   const [filterPrice, setFilterPrice] = useState("all"); // #14: Price range filter
+  // 7.1: "Hoy" por defecto si hoy se capturó algo; a un toque de ver todo.
+  const [soloHoy, setSoloHoy] = useState(() => soloDeHoy(products).length > 0);
   const [dd, setDd] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
   const [viewMode, setViewMode] = useState("gallery"); // "list" | "gallery"
@@ -3771,6 +3781,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
     if (filterViability !== "all") r = r.filter(p => (p.viability || "none") === filterViability);
     if (filterMaterial !== "all") r = r.filter(p => p.material?.includes(filterMaterial));
     // #14: Price range filter
+    if (soloHoy) r = soloDeHoy(r);
     if (filterPrice === "sin") {
       // Los que faltan: un producto sin precio no sirve en la planilla (4.8).
       r = r.filter(p => isNaN(parseFloat(p.price)));
@@ -3784,7 +3795,8 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
       });
     }
     return r;
-  }, [search, filterCat, filterViability, filterMaterial, filterPrice, districtProducts]);
+  }, [search, filterCat, filterViability, filterMaterial, filterPrice, districtProducts, soloHoy]);
+  const resumenHoy = useMemo(() => resumenDelDia(districtProducts), [districtProducts]);
 
   const filtered = useMemo(() => {
     if (sortBy === "price_low") return [...filteredOnly].sort((a,b) => (parseFloat(a.price)||0) - (parseFloat(b.price)||0));
@@ -3880,8 +3892,26 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
           <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={sel(sortBy!=="recent", t.purple)}>
             <option value="recent">🕐 Recientes</option><option value="price_low">💲 Menor $</option><option value="price_high">💲 Mayor $</option><option value="rating">⭐ Rating</option>
           </select>
+          <button onClick={() => setSoloHoy(v => !v)} title="Solo lo de hoy o todo el viaje" style={sel(soloHoy, t.accent)}>{soloHoy ? "📅 Hoy" : "📅 Todo"}</button>
           <div style={{ padding:"6px 8px", borderRadius:20, background:t.surface, fontSize:10, fontWeight:600, color:t.muted, flexShrink:0 }}>{filtered.length}/{products.length}</div>
         </div>
+        {/* 7.2: resumen del día, el cierre que la app no tenía */}
+        {view === "products" && !search && !selectMode && resumenHoy.productos > 0 && (
+          <div style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:14, padding:"10px 12px", marginBottom:10 }}>
+            <p style={{ fontSize:12, fontWeight:700, color:t.text, margin:0 }}>
+              Hoy: {resumenHoy.proveedores} proveedor{resumenHoy.proveedores === 1 ? "" : "es"}, {resumenHoy.productos} producto{resumenHoy.productos === 1 ? "" : "s"}
+              {resumenHoy.promedioUsd !== null ? `, USD ${resumenHoy.promedioUsd} promedio` : ""}
+              {resumenHoy.sinPrecio > 0 ? ` · ${resumenHoy.sinPrecio} sin precio` : ""}
+            </p>
+            {saldoCreditos !== null && saldoCreditos <= 20 && <p style={{ fontSize:11, color: saldoCreditos > 0 ? t.muted : t.red, margin:"4px 0 0" }}>Te quedan {saldoCreditos} escaneos.</p>}
+            <div style={{ display:"flex", gap:8, marginTop:8 }}>
+              {resumenHoy.sinPrecio > 0 && (
+                <button onClick={() => { setSoloHoy(true); setFilterPrice("sin"); }} style={{ flex:1, padding:"8px 10px", borderRadius:10, border:`1px solid ${t.red}40`, background:t.redSoft, color:t.red, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Completar {resumenHoy.sinPrecio} sin precio</button>
+              )}
+              <button onClick={() => onNavigate("export", { dateFilter: "today" })} style={{ flex:1, padding:"8px 10px", borderRadius:10, border:"none", background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Exportar el día</button>
+            </div>
+          </div>
+        )}
         {/* AI processing status bar */}
         {(aiPending > 0 || aiSyncing) && (
           <button onClick={() => aiSyncNow()} disabled={aiSyncing} style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 0", marginTop:6, background:"none", border:"none", cursor:aiSyncing?"default":"pointer", width:"100%" }}>
@@ -3944,7 +3974,9 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
           {!selectMode && filtered.length > 1 && (
             <button onClick={() => setSelectMode(true)} style={{ width:"100%", padding:"6px", borderRadius:8, border:`1px dashed ${t.border}`, background:"transparent", color:t.dim, fontSize:11, cursor:"pointer", marginBottom:6 }}>☑ Seleccionar varios</button>
           )}
-          {filtered.map((p, i) => {
+          {conEncabezadosDeDia(filtered).map((it, i) => {
+            if (it.tipo === "dia") return <DiaHeader key={it.clave} etiqueta={it.etiqueta} n={it.n} t={t} />;
+            const p = it.p;
             const dist = districts.find(d => d.id === p.districtId);
             const isSelected = selected.has(p.id);
             return selectMode ? (
@@ -4011,7 +4043,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
             </div>
           )}
           <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:3 }}>
-            {filtered.map((p, i) => (
+            {conEncabezadosDeDia(filtered).map((it, i) => it.tipo === "dia" ? <DiaHeader key={it.clave} etiqueta={it.etiqueta} n={it.n} grid t={t} /> : (() => { const p = it.p; return (
               <button key={p.id} onClick={() => onNavigate("detail", p)} style={{
                 background:t.card, border:"none", borderRadius:0, overflow:"hidden", cursor:"pointer", textAlign:"left", padding:0,
                 position:"relative", aspectRatio:"1",
@@ -4030,7 +4062,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
                 {!p.ai_processed && <div style={{ position:"absolute", top:4, right:4, width:8, height:8, borderRadius:4, background:"#ff9800", boxShadow:"0 0 4px #ff980080" }} />}{estadoIA(p) === "fallo" && <div title="IA sin resultado" style={{ position:"absolute", top:4, right:4, width:8, height:8, borderRadius:4, background:"#f44336" }} />}
                 {p.photos?.length > 1 && <div style={{ position:"absolute", top:4, left:4, padding:"2px 5px", borderRadius:6, background:"rgba(0,0,0,0.5)", fontSize:9, color:"#fff", fontWeight:700 }}>{p.photos.length}</div>}
               </button>
-            ))}
+            ); })())}
           </div>
         </div>
       )}
@@ -5247,7 +5279,7 @@ export default function App() {
       {screen === "export" && (
         <ExportScreen products={products} suppliers={suppliers} districts={districts}
           onBack={() => navigate("list")} onExported={msg => { navigate("list"); showToast(msg); }}
-          onUpdateProduct={handleUpdateProduct} onUpdateSupplier={handleUpdateSupplier} t={t} />
+          onUpdateProduct={handleUpdateProduct} onUpdateSupplier={handleUpdateSupplier} t={t} initialDateFilter={screenData?.dateFilter} />
       )}
     </div>
   );
