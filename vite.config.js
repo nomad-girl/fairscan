@@ -69,23 +69,8 @@ export default defineConfig(({ mode }) => {
                 expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 30 },
               },
             },
-            // Google Fonts
-            {
-              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'google-fonts-cache',
-                expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
-              },
-            },
-            {
-              urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'gstatic-fonts-cache',
-                expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
-              },
-            },
+            // (Las reglas para Google Fonts se fueron: DM Sans viaja dentro del
+            // paquete desde la pieza 1.13 y entra en la precache como woff2.)
           ],
         },
       }),
