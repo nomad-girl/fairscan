@@ -1,5 +1,5 @@
 {
-  "appId": "app.fairscan",
+  "appId": "com.builddigitalthings.fairscan",
   "appName": "FairScan",
   "webDir": "dist",
   "server": {

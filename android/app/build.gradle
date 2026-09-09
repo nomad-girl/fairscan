@@ -4,7 +4,7 @@ android {
     namespace = "app.fairscan"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "app.fairscan"
+        applicationId "com.builddigitalthings.fairscan"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
