@@ -55,9 +55,16 @@ async function faseCopiar(c, hastaMs) {
   const pendientes = []; // { tabla, fila, viejas }
   for (const tabla of ["products", "suppliers"]) {
     const col = tabla === "products" ? "photo_urls" : "card_photo_url";
-    const { data: filas, error } = await c.db.from(tabla).select(`id, room_id, ${col}`).is("deleted_at", null).not(col, "is", null).limit(3000); // todas: solo ids y direcciones, pesa poco
-    if (error) throw error;
-    for (const fila of filas || []) {
+    // PostgREST devuelve como máximo 1000 filas por consulta aunque se pida más:
+    // se pagina hasta agotar (son solo ids y direcciones, pesa poco).
+    const filas = [];
+    for (let desde = 0; ; desde += 1000) {
+      const { data, error } = await c.db.from(tabla).select(`id, room_id, ${col}`).is("deleted_at", null).not(col, "is", null).order("id").range(desde, desde + 999);
+      if (error) throw error;
+      filas.push(...(data || []));
+      if (!data || data.length < 1000) break;
+    }
+    for (const fila of filas) {
       const viejas = fotosViejas(fila, tabla);
       if (viejas.length) pendientes.push({ tabla, fila, viejas });
     }
@@ -110,11 +117,16 @@ async function faseCopiar(c, hastaMs) {
   return { copiadas, registros, errores, terminado: idx >= pendientes.length && errores === 0 };
 }
 
+async function enParalelo(items, n, fn) {
+  let i = 0;
+  await Promise.all(Array.from({ length: n }, async () => { while (i < items.length) await fn(items[i++]); }));
+}
+
 async function faseVerificar(c, hastaMs) {
-  const { data: filas } = await c.db.from("migracion_fotos").select("vieja_key, nueva_key").is("verificada_at", null).is("error", null).limit(100);
+  const { data: filas } = await c.db.from("migracion_fotos").select("vieja_key, nueva_key").is("verificada_at", null).is("error", null).limit(200);
   let ok = 0, faltan = 0;
-  for (const f of filas || []) {
-    if (Date.now() > hastaMs) break;
+  await enParalelo(filas || [], 10, async (f) => {
+    if (Date.now() > hastaMs) return;
     try {
       await c.s3.send(new HeadObjectCommand({ Bucket: c.bucket, Key: f.nueva_key }));
       await c.db.from("migracion_fotos").update({ verificada_at: new Date().toISOString() }).eq("vieja_key", f.vieja_key);
@@ -123,16 +135,16 @@ async function faseVerificar(c, hastaMs) {
       faltan++;
       await c.db.from("migracion_fotos").update({ error: "no está en R2 tras copiar" }).eq("vieja_key", f.vieja_key);
     }
-  }
+  });
   return { verificadas: ok, faltan, pendientes: (filas || []).length - ok - faltan };
 }
 
 async function faseBorrar(c, hastaMs) {
   const limite = new Date(Date.now() - ESPERA_BORRADO_H * 3600 * 1000).toISOString();
-  const { data: filas } = await c.db.from("migracion_fotos").select("vieja_key").not("verificada_at", "is", null).is("borrada_at", null).is("error", null).lt("copiada_at", limite).limit(100);
+  const { data: filas } = await c.db.from("migracion_fotos").select("vieja_key").not("verificada_at", "is", null).is("borrada_at", null).is("error", null).lt("copiada_at", limite).limit(200);
   let borradas = 0;
-  for (const f of filas || []) {
-    if (Date.now() > hastaMs) break;
+  await enParalelo(filas || [], 10, async (f) => {
+    if (Date.now() > hastaMs) return;
     try {
       await c.s3.send(new DeleteObjectCommand({ Bucket: c.bucket, Key: f.vieja_key }));
       await c.db.from("migracion_fotos").update({ borrada_at: new Date().toISOString() }).eq("vieja_key", f.vieja_key);
@@ -140,7 +152,7 @@ async function faseBorrar(c, hastaMs) {
     } catch (err) {
       await c.db.from("migracion_fotos").update({ error: "no se pudo borrar: " + String(err.message || err).slice(0, 150) }).eq("vieja_key", f.vieja_key);
     }
-  }
+  });
   return { borradas, quedanParaBorrar: (filas || []).length - borradas };
 }
 
