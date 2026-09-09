@@ -23,7 +23,7 @@ const { buildPhotoKey } = require("./_shared/photoKey");
 const { keyDeUrl, extDeKey, carpetaPorEquipo, fotosViejas, copySource } = require("./_shared/migracionFotos");
 
 const PRESUPUESTO_MS = 8000;      // el límite de la función es 10 s
-const FOTOS_POR_TANDA = 40;
+const FOTOS_POR_TANDA = 60;
 const ESPERA_BORRADO_H = 6;
 
 function clientes() {
@@ -46,46 +46,68 @@ function clientes() {
 async function faseCopiar(c, hastaMs) {
   const { data: miembros } = await c.db.from("team_members").select("team_id, user_id, role, created_at").order("created_at");
   const carpeta = carpetaPorEquipo(miembros || []);
-  let copiadas = 0, registros = 0, errores = 0;
+  // Lo ya copiado en tandas anteriores, de una sola vez (la base está lejos: cada
+  // consulta cuesta ~300 ms; no se puede preguntar foto por foto).
+  const { data: previas } = await c.db.from("migracion_fotos").select("vieja_key, nueva_key").is("error", null);
+  const yaCopiada = new Map((previas || []).map(r => [r.vieja_key, r.nueva_key]));
 
+  let copiadas = 0, registros = 0, errores = 0;
+  const pendientes = []; // { tabla, fila, viejas }
   for (const tabla of ["products", "suppliers"]) {
     const col = tabla === "products" ? "photo_urls" : "card_photo_url";
     const { data: filas, error } = await c.db.from(tabla).select(`id, room_id, ${col}`).is("deleted_at", null).not(col, "is", null).limit(400);
     if (error) throw error;
     for (const fila of filas || []) {
-      if (Date.now() > hastaMs || copiadas >= FOTOS_POR_TANDA) return { copiadas, registros, errores, terminado: false };
       const viejas = fotosViejas(fila, tabla);
-      if (!viejas.length) continue;
-      const nuevas = tabla === "products" ? [...fila.photo_urls] : [fila.card_photo_url];
-      let completo = true;
-      for (const { i, url } of viejas) {
-        const viejaKey = keyDeUrl(url);
-        if (!viejaKey) { completo = false; errores++; continue; }
-        // ¿Ya se copió en una tanda anterior?
-        const { data: previa } = await c.db.from("migracion_fotos").select("nueva_key").eq("vieja_key", viejaKey).maybeSingle();
-        let nuevaKey = previa?.nueva_key;
-        if (!nuevaKey) {
-          nuevaKey = buildPhotoKey(tabla === "products" ? "products" : "cards", carpeta(fila.room_id), extDeKey(viejaKey));
-          try {
-            await c.s3.send(new CopyObjectCommand({ Bucket: c.bucket, CopySource: copySource(c.bucket, viejaKey), Key: nuevaKey }));
-            await c.db.from("migracion_fotos").insert({ vieja_key: viejaKey, nueva_key: nuevaKey, tabla, registro_id: fila.id });
-            copiadas++;
-          } catch (err) {
-            errores++; completo = false;
-            await c.db.from("migracion_fotos").upsert({ vieja_key: viejaKey, nueva_key: nuevaKey, tabla, registro_id: fila.id, error: String(err.message || err).slice(0, 200) }, { onConflict: "vieja_key" });
-            continue;
-          }
-        }
-        nuevas[i] = `${c.publico}/${nuevaKey}`;
-      }
-      if (completo) {
-        const cambios = tabla === "products" ? { photo_urls: nuevas } : { card_photo_url: nuevas[0] };
-        const { error: e2 } = await c.db.from(tabla).update({ ...cambios, updated_at: new Date().toISOString() }).eq("id", fila.id);
-        if (e2) errores++; else registros++;
-      }
+      if (viejas.length) pendientes.push({ tabla, fila, viejas });
     }
   }
-  return { copiadas, registros, errores, terminado: true };
+  if (!pendientes.length) return { copiadas, registros, errores, terminado: true };
+
+  // Un registro por vez en orden, pero sus fotos en paralelo; y varios registros
+  // a la vez (concurrencia acotada) hasta agotar el presupuesto de tiempo.
+  const CONCURRENCIA = 6;
+  let idx = 0, fotosEnTanda = 0;
+  const procesar = async ({ tabla, fila, viejas }) => {
+    const nuevas = tabla === "products" ? [...fila.photo_urls] : [fila.card_photo_url];
+    const aInsertar = [];
+    const resultados = await Promise.all(viejas.map(async ({ i, url }) => {
+      const viejaKey = keyDeUrl(url);
+      if (!viejaKey) return { i, ok: false };
+      let nuevaKey = yaCopiada.get(viejaKey);
+      if (!nuevaKey) {
+        nuevaKey = buildPhotoKey(tabla === "products" ? "products" : "cards", carpeta(fila.room_id), extDeKey(viejaKey));
+        try {
+          await c.s3.send(new CopyObjectCommand({ Bucket: c.bucket, CopySource: copySource(c.bucket, viejaKey), Key: nuevaKey }));
+          aInsertar.push({ vieja_key: viejaKey, nueva_key: nuevaKey, tabla, registro_id: fila.id });
+          yaCopiada.set(viejaKey, nuevaKey);
+          copiadas++;
+        } catch (err) {
+          aInsertar.push({ vieja_key: viejaKey, nueva_key: nuevaKey, tabla, registro_id: fila.id, error: String(err.message || err).slice(0, 200) });
+          return { i, ok: false };
+        }
+      }
+      return { i, ok: true, nueva: `${c.publico}/${nuevaKey}` };
+    }));
+    if (aInsertar.length) await c.db.from("migracion_fotos").upsert(aInsertar, { onConflict: "vieja_key" });
+    const completo = resultados.every(r => r.ok);
+    for (const r of resultados) if (r.ok) nuevas[r.i] = r.nueva;
+    if (completo) {
+      const cambios = tabla === "products" ? { photo_urls: nuevas } : { card_photo_url: nuevas[0] };
+      const { error: e2 } = await c.db.from(tabla).update({ ...cambios, updated_at: new Date().toISOString() }).eq("id", fila.id);
+      if (e2) errores++; else registros++;
+    } else {
+      errores++;
+    }
+  };
+  await Promise.all(Array.from({ length: CONCURRENCIA }, async () => {
+    while (idx < pendientes.length && Date.now() < hastaMs && fotosEnTanda < FOTOS_POR_TANDA) {
+      const p = pendientes[idx++];
+      fotosEnTanda += p.viejas.length;
+      await procesar(p);
+    }
+  }));
+  return { copiadas, registros, errores, terminado: idx >= pendientes.length && errores === 0 };
 }
 
 async function faseVerificar(c, hastaMs) {

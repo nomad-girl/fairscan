@@ -98,6 +98,7 @@ import { serializarAudio, urlDeAudio, esPunteroMuerto, sinAudio } from './lib/au
 import { crearPapelera } from './lib/deshacer.js';
 import { estadoIA, patchReintentoIA, explicarFalloIA } from './lib/aiEstado.js';
 import { debeLimpiarBaseLocal } from './lib/cuentaLocal.js';
+import { leerBorrador, guardarBorrador, borrarBorrador, describirBorrador, ESPERA_BORRADOR_MS } from './lib/borradorCaptura.js';
 import { supabase } from './lib/supabase.js';
 
 // El catálogo se muestra del más nuevo al más viejo (mismo orden que la base).
@@ -1860,6 +1861,35 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   const [cameraError, setCameraError] = useState(null); // { ...explicarErrorDeCamara(), modo }
   const [flashVisible, setFlashVisible] = useState(false);
   const [lastCapture, setLastCapture] = useState(null);
+  // Borrador del stand en curso (2.6): se guarda en la base local mientras se
+  // trabaja y se ofrece retomar al volver. Se borra cuando el stand se guarda.
+  const [borrador, setBorrador] = useState(null);   // el que se ofrece retomar
+  const borradorListoRef = useRef(false);            // no autoguardar hasta decidir
+  useEffect(() => {
+    leerBorrador().then(b => { if (b) setBorrador(b); else borradorListoRef.current = true; });
+  }, []);
+  useEffect(() => {
+    if (!borradorListoRef.current || saving) return;
+    const id = setTimeout(() => guardarBorrador({
+      items, cardPhoto, cardData, linkedSupplierId, supplierName, supplierContact, supplierPhone, supplierEmail,
+      supplierWechat, supplierWhatsapp, supplierWhatsappLink, supplierWechatLink, supplierWebsite, supplierAddress,
+      supplierProducts, supplierNotes,
+    }), ESPERA_BORRADOR_MS);
+    return () => clearTimeout(id);
+  }, [items, cardPhoto, cardData, linkedSupplierId, supplierName, supplierContact, supplierPhone, supplierEmail,
+      supplierWechat, supplierWhatsapp, supplierWhatsappLink, supplierWechatLink, supplierWebsite, supplierAddress,
+      supplierProducts, supplierNotes, saving]);
+  const retomarBorrador = () => {
+    const b = borrador;
+    setItems(b.items || []); setCardPhoto(b.cardPhoto || null); setCardData(b.cardData || null);
+    setLinkedSupplierId(b.linkedSupplierId || null); setSupplierName(b.supplierName || ""); setSupplierContact(b.supplierContact || "");
+    setSupplierPhone(b.supplierPhone || ""); setSupplierEmail(b.supplierEmail || ""); setSupplierWechat(b.supplierWechat || "");
+    setSupplierWhatsapp(b.supplierWhatsapp || ""); setSupplierWhatsappLink(b.supplierWhatsappLink || ""); setSupplierWechatLink(b.supplierWechatLink || "");
+    setSupplierWebsite(b.supplierWebsite || ""); setSupplierAddress(b.supplierAddress || ""); setSupplierProducts(b.supplierProducts || "");
+    setSupplierNotes(b.supplierNotes || "");
+    setBorrador(null); borradorListoRef.current = true;
+  };
+  const descartarBorrador = () => { borrarBorrador(); setBorrador(null); borradorListoRef.current = true; };
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const cardGalleryRef = useRef(null);
@@ -2062,6 +2092,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
         productItems: items,
       });
       if (ok === false) throw new Error("el guardado devolvió error");
+      await borrarBorrador(); // el stand ya está en la base: el borrador sobra
       // Si salió bien, la pantalla se cierra desde afuera.
     } catch (err) {
       // El botón vuelve y dice qué pasó: nada de quedarse en "Guardando..." para siempre (N11).
@@ -2148,6 +2179,18 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
       <Header title="Captura rápida" subtitle="Tarjeta + fotos de productos" onBack={onClose} t={t} />
+      {borrador && (() => { const d = describirBorrador(borrador); return (
+        <div role="alertdialog" style={{ position:"fixed", inset:0, zIndex:200, background:"rgba(0,0,0,0.55)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+          <div style={{ width:"100%", maxWidth:520, background:t.bg, borderRadius:"20px 20px 0 0", padding:"20px 20px calc(env(safe-area-inset-bottom, 0px) + 20px)", boxShadow:"0 -8px 40px rgba(0,0,0,0.3)" }}>
+            <p style={{ fontSize:17, fontWeight:800, color:t.text, margin:"0 0 8px" }}>Tenés un stand sin guardar</p>
+            <p style={{ fontSize:14, color:t.muted, margin:"0 0 16px", lineHeight:1.5 }}>Quedó {d.que}, {d.hace}. La app se cerró antes de tocar Guardar.</p>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              <button onClick={retomarBorrador} style={{ padding:"12px 14px", borderRadius:12, border:"none", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit", background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff" }}>Retomar el stand</button>
+              <button onClick={descartarBorrador} style={{ padding:"12px 14px", borderRadius:12, border:"none", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit", background:"none", color:t.muted }}>Descartar</button>
+            </div>
+          </div>
+        </div>
+      ); })()}
       <PermisoAviso info={cameraError} t={t}
         onClose={() => setCameraError(null)}
         onRetry={() => openCamera(cameraError.modo)}

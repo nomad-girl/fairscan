@@ -4,9 +4,9 @@
   functions = "netlify/functions"
 
 # Pieza 2.7b · migración de fotos viejas a nombres inadivinables. Corre sola cada
-# 2 minutos en tandas cortas. SE SACA cuando la migración termine (ver ClickUp 2.7b).
+# minuto en tandas cortas. SE SACA cuando la migración termine (ver ClickUp 2.7b).
 [functions."migrar-fotos-viejas"]
-  schedule = "*/2 * * * *"
+  schedule = "* * * * *"
 
 [[redirects]]
   from = "/api/process-image"
