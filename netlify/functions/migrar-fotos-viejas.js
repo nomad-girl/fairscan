@@ -55,7 +55,7 @@ async function faseCopiar(c, hastaMs) {
   const pendientes = []; // { tabla, fila, viejas }
   for (const tabla of ["products", "suppliers"]) {
     const col = tabla === "products" ? "photo_urls" : "card_photo_url";
-    const { data: filas, error } = await c.db.from(tabla).select(`id, room_id, ${col}`).is("deleted_at", null).not(col, "is", null).limit(400);
+    const { data: filas, error } = await c.db.from(tabla).select(`id, room_id, ${col}`).is("deleted_at", null).not(col, "is", null).limit(3000); // todas: solo ids y direcciones, pesa poco
     if (error) throw error;
     for (const fila of filas || []) {
       const viejas = fotosViejas(fila, tabla);

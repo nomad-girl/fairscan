@@ -99,6 +99,7 @@ import { crearPapelera } from './lib/deshacer.js';
 import { estadoIA, patchReintentoIA, explicarFalloIA } from './lib/aiEstado.js';
 import { debeLimpiarBaseLocal } from './lib/cuentaLocal.js';
 import { leerBorrador, guardarBorrador, borrarBorrador, describirBorrador, ESPERA_BORRADOR_MS } from './lib/borradorCaptura.js';
+import { elegirMiniatura, miniaturaDe, generarMiniaturasFaltantes } from './lib/miniaturas.js';
 import { supabase } from './lib/supabase.js';
 
 // El catálogo se muestra del más nuevo al más viejo (mismo orden que la base).
@@ -1587,7 +1588,7 @@ function Calculator({ product, settings, onBack, onSave, t }) {
 
         {/* Product summary */}
         <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:t.card, borderRadius:14, border:`1px solid ${t.border}`, marginBottom:16 }}>
-          {product.photos?.[0] ? <img src={product.photos[0]} alt="" style={{ width:44, height:44, borderRadius:10, objectFit:"cover" }} /> : <div style={{ width:44, height:44, borderRadius:10, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>📷</div>}
+          {product.photos?.[0] ? <img src={elegirMiniatura(product)} alt="" style={{ width:44, height:44, borderRadius:10, objectFit:"cover" }} /> : <div style={{ width:44, height:44, borderRadius:10, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18 }}>📷</div>}
           <div style={{ flex:1 }}>
             <p style={{ fontSize:13, fontWeight:700, color:t.text, margin:0 }}>{product.name || "Producto"}</p>
             <p style={{ fontSize:11, color:t.muted, margin:"2px 0 0" }}>{product.supplierCompany || "—"}</p>
@@ -3948,7 +3949,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
                 </div>
                 {p.photos?.[0] ? (
                   <div style={{ width:40, height:40, borderRadius:8, overflow:"hidden", flexShrink:0, border:`1px solid ${t.border}` }}>
-                    <img src={p.photos[0]} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                    <img src={elegirMiniatura(p)} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
                   </div>
                 ) : (
                   <div style={{ width:40, height:40, borderRadius:8, flexShrink:0, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", border:`1px solid ${t.border}`, fontSize:14 }}>📷</div>
@@ -3969,7 +3970,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
               }}>
                 {p.photos?.[0] ? (
                   <div style={{ width:50, height:50, borderRadius:10, overflow:"hidden", flexShrink:0, border:`1px solid ${t.border}` }}>
-                    <img src={p.photos[0]} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                    <img src={elegirMiniatura(p)} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
                   </div>
                 ) : (
                   <div style={{ width:50, height:50, borderRadius:10, flexShrink:0, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", border:`1px solid ${t.border}`, fontSize:18 }}>📷</div>
@@ -4007,7 +4008,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
                 animation:`fadeIn 0.2s ease ${Math.min(i*0.015, 0.3)}s both`, position:"relative", aspectRatio:"1",
               }}>
                 {p.photos?.[0] ? (
-                  <img src={p.photos[0]} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                  <img src={elegirMiniatura(p)} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
                 ) : (
                   <div style={{ width:"100%", height:"100%", background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>📷</div>
                 )}
@@ -4056,7 +4057,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
                         cursor:"pointer", padding:0, position:"relative", background:t.surface,
                       }}>
                         {p.photos?.[0] ? (
-                          <img src={p.photos[0]} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                          <img src={elegirMiniatura(p)} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
                         ) : (
                           <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, background:t.surface }}>📷</div>
                         )}
@@ -4262,7 +4263,7 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onDelete, onNavi
                     animation:`fadeIn 0.2s ease ${Math.min(i*0.015, 0.3)}s both`, position:"relative", aspectRatio:"1",
                   }}>
                     {p.photos?.[0] ? (
-                      <img src={p.photos[0]} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                      <img src={elegirMiniatura(p)} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
                     ) : (
                       <div style={{ width:"100%", height:"100%", background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>📷</div>
                     )}
@@ -4480,6 +4481,18 @@ export default function App() {
       sync.connectTeam(teamsHook.teams[0].id).catch(console.warn);
     }
   }, [ready, auth.user, teamsHook.loading, teamsHook.teams.length, sync.teamId]);
+
+  // Miniaturas para los productos que no las tienen (3.1): de a pocas, en
+  // segundo plano, directo en la base local (no viajan a la nube ni disparan sync).
+  const miniaturasEnCursoRef = useRef(false);
+  useEffect(() => {
+    if (!ready || miniaturasEnCursoRef.current) return;
+    miniaturasEnCursoRef.current = true;
+    generarMiniaturasFaltantes(products, async (id, thumb) => {
+      await db.products.update(id, { thumb });
+      setProducts(prev => prev.map(p => p.id === id ? { ...p, thumb } : p));
+    }).finally(() => { miniaturasEnCursoRef.current = false; });
+  }, [ready, products.length]);
 
   // Refresh React state when AI sync updates Dexie
   useEffect(() => {
@@ -4720,6 +4733,7 @@ export default function App() {
             description: null, supplierCompany: data.supplierName || null,
             supplierId, districtId: activeDistrictId,
             photos: itemPhotos, photoUrls: null,
+            thumb: await miniaturaDe(itemPhotos[0]),
             price: item.price || null, moq: null,
             audioURL: null, audioTranscript: null, rating: 0,
             category: null, material: [], notes: item.notes || null,
@@ -4843,6 +4857,7 @@ export default function App() {
         districtId: activeDistrictId,
         photos: data.photos,
         photoUrls: null,
+        thumb: await miniaturaDe(data.photos?.[0]),
         price: data.price || aiPrice || null,
         moq: data.moq || aiMoq || null,
         // Se guarda el audio real (bytes), no la dirección temporal blob: (N3).
