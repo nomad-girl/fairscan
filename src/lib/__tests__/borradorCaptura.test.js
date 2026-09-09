@@ -11,6 +11,7 @@ const fakeStore = () => {
 describe('tieneContenido', () => {
   it('vale la pena conservar si hay productos, tarjeta o nombre de proveedor', () => {
     expect(tieneContenido({ items: [{}] })).toBe(true);
+    expect(tieneContenido({ itemIds: [12] })).toBe(true);
     expect(tieneContenido({ items: [], cardPhoto: 'data:...' })).toBe(true);
     expect(tieneContenido({ items: [], supplierName: 'Shenzhen' })).toBe(true);
     expect(tieneContenido({ items: [], supplierName: '  ' })).toBe(false);
@@ -23,6 +24,7 @@ describe('describirBorrador', () => {
     const ahora = 10 * 60000;
     expect(describirBorrador({ items: [{}, {}, {}], supplierName: 'Shenzhen Glass', savedAt: 0 }, ahora)).toEqual({ que: '3 productos y la tarjeta de Shenzhen Glass', hace: 'hace 10 min' });
     expect(describirBorrador({ items: [{}], cardPhoto: 'x', savedAt: ahora }, ahora)).toEqual({ que: '1 producto y la tarjeta del proveedor', hace: 'recién' });
+    expect(describirBorrador({ itemIds: [1, 2], savedAt: ahora }, ahora).que).toBe('2 productos');
     expect(describirBorrador({ items: [{}], savedAt: ahora - 3 * 3600000 }, ahora).hace).toBe('hace 3 h');
   });
 });

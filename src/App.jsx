@@ -1859,7 +1859,7 @@ function DistrictsScreen({ districts, activeDistrictId, products, onActivate, on
 // ═══════════════════════════════════════════
 // QUICK CAPTURE — Single-page supplier card + product photos
 // ═══════════════════════════════════════════
-function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave, onClose, t, isDark, initialSupplier = null }) {
+function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave, onClose, t, isDark, initialSupplier = null, products = [], onProductoNuevo, onProductoCambio, onProductoBorrar }) {
   const [cardPhoto, setCardPhoto] = useState(null);
   const [cardData, setCardData] = useState(null);
   const [cardProcessing, setCardProcessing] = useState(false);
@@ -1896,7 +1896,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   useEffect(() => {
     if (!borradorListoRef.current || saving) return;
     const id = setTimeout(() => guardarBorrador({
-      items, cardPhoto, cardData, linkedSupplierId, supplierName, supplierContact, supplierPhone, supplierEmail,
+      itemIds: items.map(it => it.id), cardPhoto, cardData, linkedSupplierId, supplierName, supplierContact, supplierPhone, supplierEmail,
       supplierWechat, supplierWhatsapp, supplierWhatsappLink, supplierWechatLink, supplierWebsite, supplierAddress,
       supplierProducts, supplierNotes,
     }), ESPERA_BORRADOR_MS);
@@ -1906,7 +1906,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
       supplierProducts, supplierNotes, saving]);
   const retomarBorrador = () => {
     const b = borrador;
-    setItems(b.items || []); setCardPhoto(b.cardPhoto || null); setCardData(b.cardData || null);
+    setItems(b.itemIds ? itemsDesdeIds(b.itemIds) : (b.items || [])); setCardPhoto(b.cardPhoto || null); setCardData(b.cardData || null);
     setLinkedSupplierId(b.linkedSupplierId || null); setSupplierName(b.supplierName || ""); setSupplierContact(b.supplierContact || "");
     setSupplierPhone(b.supplierPhone || ""); setSupplierEmail(b.supplierEmail || ""); setSupplierWechat(b.supplierWechat || "");
     setSupplierWhatsapp(b.supplierWhatsapp || ""); setSupplierWhatsappLink(b.supplierWhatsappLink || ""); setSupplierWechatLink(b.supplierWechatLink || "");
@@ -1967,6 +1967,25 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     return canvas.toDataURL("image/jpeg", 0.8);
   };
 
+  // ─── El stand es un grupo de productos ya guardados (4.3) ───
+  const crearItem = async (photos) => {
+    const id = await onProductoNuevo?.(photos);
+    if (id == null) return;
+    setItems(prev => [{ id, photos, price: "", notes: "" }, ...prev]);
+  };
+  const agregarFotoAItem = (id, photo) => {
+    setItems(prev => prev.map(it => {
+      if (it.id !== id) return it;
+      const photos = [...it.photos, photo];
+      onProductoCambio?.(id, { photos });
+      return { ...it, photos };
+    }));
+  };
+  const guardarCampoItem = (id, campo, valor) => onProductoCambio?.(id, { [campo]: valor || null });
+  const borrarItem = (id) => { setItems(prev => prev.filter(it => it.id !== id)); onProductoBorrar?.(id); };
+  const itemsDesdeIds = (ids) => (ids || []).map(id => products.find(p => p.id === id)).filter(Boolean)
+    .map(p => ({ id: p.id, photos: p.photos || [], price: p.price || "", notes: p.notes || "" }));
+
   const handleCameraShutter = async () => {
     const photo = captureFrame();
     if (!photo) return;
@@ -1980,13 +1999,14 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
       processCardPhoto(photo);
     } else if (cameraMode === "product") {
       if (addPhotoToItemId) {
-        // Add photo to existing item
-        setItems(prev => prev.map(it => it.id === addPhotoToItemId ? { ...it, photos: [...it.photos, photo] } : it));
+        // Foto adicional a un producto que ya existe en la base
+        agregarFotoAItem(addPhotoToItemId, photo);
         setAddPhotoToItemId(null);
         closeCamera();
       } else {
-        // Create new item with photos array
-        setItems(prev => [{ id: crypto.randomUUID(), photos: [photo], price: "", notes: "" }, ...prev]);
+        // Cada disparo crea el producto en la base al instante (4.3): si la app
+        // muere antes de cerrar el stand, el producto ya está.
+        crearItem([photo]);
       }
       setLastCapture(photo);
       setTimeout(() => setLastCapture(null), 800);
@@ -2068,7 +2088,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     e.target.value = "";
     try {
       const photo = await resizeImage(file);
-      setItems(prev => [{ id: crypto.randomUUID(), photos: [photo], price: "", notes: "" }, ...prev]);
+      await crearItem([photo]);
     } catch (err) { console.warn("Product photo error:", err); }
   };
 
@@ -2078,7 +2098,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     e.target.value = "";
     try {
       const photo = await resizeImage(file);
-      setItems(prev => prev.map(it => it.id === addPhotoToItemId ? { ...it, photos: [...it.photos, photo] } : it));
+      agregarFotoAItem(addPhotoToItemId, photo);
       setAddPhotoToItemId(null);
     } catch (err) { console.warn("Add photo error:", err); }
   };
@@ -2115,6 +2135,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
         supplierWebsite, supplierAddress, supplierProducts, supplierNotes,
         cardPhoto, cardData,
         productItems: items,
+        productIds: items.map(it => it.id),
       });
       if (ok === false) throw new Error("el guardado devolvió error");
       await borrarBorrador(); // el stand ya está en la base: el borrador sobra
@@ -2340,16 +2361,18 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
               <div style={{ flex:1, position:"relative" }}>
                 <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:t.muted, fontSize:16, fontWeight:700, pointerEvents:"none" }}>$</span>
                 <input inputMode="decimal" placeholder="Precio" value={item.price}
+                  onBlur={e => guardarCampoItem(item.id, "price", e.target.value.trim())}
                   onChange={e => { const v = e.target.value.replace(/[^0-9.,]/g,"").replace(",","."); setItems(prev => prev.map(it => it.id === item.id ? { ...it, price: v } : it)); }}
                   style={{ ...inputStyle, paddingLeft:28 }} />
               </div>
-              <button onClick={() => setItems(prev => prev.filter(it => it.id !== item.id))} style={{
+              <button onClick={() => borrarItem(item.id)} style={{
                 width:32, height:32, borderRadius:8, border:`1px solid ${t.border}`, background:t.surface,
                 color:t.muted, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center",
               }}>✕</button>
             </div>
             <input placeholder="Nota: ej. precio x6, caja de 4..."
               value={item.notes || ""}
+              onBlur={e => guardarCampoItem(item.id, "notes", e.target.value.trim())}
               onChange={e => setItems(prev => prev.map(it => it.id === item.id ? { ...it, notes: e.target.value } : it))}
               style={{ ...inputStyle, fontSize:12, marginTop:6, padding:"8px 12px", color:t.dim }} />
           </div>
@@ -4756,49 +4779,14 @@ export default function App() {
             sessionPhotos.push({ data: ph, filename: fn });
           }
         }
+        // Los productos ya existen en la base desde cada disparo (4.3). Cerrar el
+        // stand es asignarles el proveedor y dejar el precio y las notas como quedaron.
+        // La IA y la subida de fotos las hace la cola de fondo (aiPendiente / uploadPending).
         for (const item of (data.productItems || [])) {
-          const itemPhotos = item.photos || (item.photo ? [item.photo] : []);
-          if (itemPhotos.length === 0) continue;
-          const productId = await addProduct({
-            name: `Producto de ${data.supplierName || 'proveedor'}`,
-            description: null, supplierCompany: data.supplierName || null,
-            supplierId, districtId: activeDistrictId,
-            photos: itemPhotos, photoUrls: null,
-            thumb: await miniaturaDe(itemPhotos[0]),
-            price: item.price || null, moq: null,
-            audioURL: null, audioTranscript: null, rating: 0,
-            category: null, material: [], notes: item.notes || null,
-            viability: null, costTotal: null, costData: null, targetPrice: null,
-            ai_processed: false, ai_last_synced: null, createdAt: Date.now(),
-          });
-          createdIds.push(productId);
-          // Background: AI processes first product photo
-          processImage(itemPhotos[0], { categories: settings.categories, materials: settings.materials })
-            .then(async (result) => {
-              const updates = {};
-              if (result.name) updates.name = result.name;
-              if (result.description) updates.description = result.description;
-              if (result.category) updates.category = result.category;
-              if (result.materials?.length) updates.material = result.materials;
-              // Auto-fill price if detected by AI and not set manually
-              if (result.price) {
-                const current = await db.products.get(productId);
-                if (current && !current.price) {
-                  updates.price = String(result.price).replace(/[^0-9.]/g, '');
-                  if (result.priceUnit) {
-                    updates.notes = (current.notes ? current.notes + '. ' : '') + `Precio detectado: ${result.price} ${result.priceUnit}`;
-                  }
-                }
-              }
-              updates.ai_processed = true;
-              updates.ai_last_synced = new Date();
-              await dbUpdateProduct(productId, updates);
-              setProducts(prev => prev.map(p => p.id === productId ? { ...p, ...updates } : p));
-            }).catch(err => console.warn("AI process failed:", err));
-          // Background: upload photos to R2
-          if (navigator.onLine) {
-            uploadPhotosToCloud(productId, itemPhotos, data.supplierName).catch(console.warn);
-          }
+          if (item.id == null) continue;
+          const cambios = { supplierId, supplierCompany: data.supplierName || null, price: item.price || null, notes: item.notes || null };
+          await dbUpdateProduct(item.id, cambios);
+          createdIds.push(item.id);
         }
         // Background: upload card photo
         if (data.cardPhoto && supplierId && navigator.onLine) {
@@ -4811,7 +4799,7 @@ export default function App() {
         }
         await reloadAll();
         navigate("list");
-        showToast(`✓ ${createdIds.length} producto${createdIds.length !== 1 ? "s" : ""} guardado${createdIds.length !== 1 ? "s" : ""}`);
+        showToast(`✓ Stand cerrado: ${createdIds.length} producto${createdIds.length !== 1 ? "s" : ""}`);
         // Show share dialog so user can save photos to Camera Roll
         if (sessionPhotos.length > 0) {
           setTimeout(() => setPhotosToShare(sessionPhotos), 600);
@@ -4938,6 +4926,26 @@ export default function App() {
       showToast(data.supplierOnly ? "❌ Error guardando proveedor" : "❌ Error guardando producto");
       return false;
     }
+  };
+
+  // Captura rápida (4.3): cada disparo crea el producto en la base al toque.
+  const crearProductoDesdeCaptura = async (photos) => {
+    const registro = {
+      name: "", description: null, supplierCompany: null, supplierId: null,
+      districtId: activeDistrictId, photos, photoUrls: null,
+      thumb: await miniaturaDe(photos[0]),
+      price: null, moq: null, audioURL: null, audioTranscript: null, rating: 0,
+      category: null, material: [], notes: null,
+      viability: null, costTotal: null, costData: null, targetPrice: null,
+      ai_processed: false, ai_last_synced: null, createdAt: Date.now(),
+    };
+    const id = await addProduct({ ...registro });
+    setProducts(prev => [{ ...registro, id, photos }, ...prev]);
+    return id;
+  };
+  const borrarProductoDesdeCaptura = async (id) => {
+    await dbDeleteProduct(id);
+    setProducts(prev => prev.filter(p => p.id !== id));
   };
 
   const handleUpdateProduct = async (id, changes) => {
@@ -5140,7 +5148,8 @@ export default function App() {
           initialStep={screen === "capture-supplier" ? 2 : 0} supplierOnly={screen === "capture-supplier"} />
       )}
       {screen === "quick-capture" && (
-        <QuickCapture suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings}
+        <QuickCapture suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings} products={products}
+          onProductoNuevo={crearProductoDesdeCaptura} onProductoCambio={handleUpdateProduct} onProductoBorrar={borrarProductoDesdeCaptura}
           onSave={handleCaptureSave} onClose={() => navigate("list")} t={t} isDark={isDark}
           initialSupplier={screenData?.fromSupplierId != null ? suppliers.find(s => s.id === screenData.fromSupplierId) || null : null} />
       )}
