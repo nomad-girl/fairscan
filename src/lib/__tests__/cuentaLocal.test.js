@@ -20,6 +20,10 @@ describe('debeLimpiarBaseLocal', () => {
   it('sin señal y sin usuaria anotada, no se puede saber: no se limpia (mejor conservar)', () => {
     expect(debeLimpiarBaseLocal({ lastUserId: undefined, userId: 'prueba', roomId: 'melange', teamIds: null }).limpiar).toBe(false);
   });
+  it('venir de una sesión sin cuenta (anónima) → no se limpia: lo capturado se muda a la cuenta', () => {
+    expect(debeLimpiarBaseLocal({ lastUserId: 'anon-1', lastUserAnonima: true, userId: 'nati', roomId: 'equipo-anon', teamIds: ['melange'] }))
+      .toEqual({ limpiar: false, motivo: 'venia-de-anonima' });
+  });
   it('primera vez en el teléfono (sin equipo recordado) → nada que limpiar', () => {
     expect(debeLimpiarBaseLocal({ lastUserId: undefined, userId: 'x', roomId: null, teamIds: [] }).limpiar).toBe(false);
   });

@@ -16,13 +16,17 @@
 /**
  * @param {object} a
  * @param {string|null|undefined} a.lastUserId  quién usó esta base por última vez
+ * @param {boolean} [a.lastUserAnonima]         si esa usuaria era una sesión sin cuenta
  * @param {string} a.userId                     quién está entrando
  * @param {string|null|undefined} a.roomId      equipo recordado en la base local
  * @param {string[]|null} a.teamIds             equipos de la que entra; null = no se pudo consultar (sin señal)
  * @returns {{ limpiar: boolean, motivo: string|null }}
  */
-export function debeLimpiarBaseLocal({ lastUserId, userId, roomId, teamIds }) {
+export function debeLimpiarBaseLocal({ lastUserId, lastUserAnonima = false, userId, roomId, teamIds }) {
   if (!userId) return { limpiar: false, motivo: null };
+  // Lo capturado sin cuenta (sesión anónima, 4.2) no se tira: al entrar con una
+  // cuenta real, la sincronización lo muda al equipo de esa cuenta.
+  if (lastUserId && lastUserId !== userId && lastUserAnonima) return { limpiar: false, motivo: 'venia-de-anonima' };
   if (lastUserId && lastUserId !== userId) return { limpiar: true, motivo: 'otra-usuaria' };
   if (roomId && Array.isArray(teamIds) && !teamIds.includes(roomId)) return { limpiar: true, motivo: 'equipo-ajeno' };
   return { limpiar: false, motivo: null };

@@ -44,6 +44,29 @@ export async function signUp(email, password, displayName, teamName, marketingOp
   return data;
 }
 
+/**
+ * Capturar sin cuenta (4.2): la identidad es una sesión anónima de Supabase, que
+ * después se convierte en cuenta real conservando el mismo usuario y sus datos.
+ * Si el panel de Supabase no tiene habilitados los ingresos anónimos, falla y la
+ * app muestra el login de siempre.
+ */
+export async function signInAnonymously() {
+  if (!supabase) throw new Error('Supabase no configurado');
+  const { data, error } = await supabase.auth.signInAnonymously();
+  if (error) throw error;
+  return data;
+}
+
+/** Convierte la sesión anónima en cuenta real: mismo usuario, ahora con mail y contraseña. */
+export async function convertirCuenta(email, password, displayName, teamName, marketingOptIn = false) {
+  if (!supabase) throw new Error('Supabase no configurado');
+  const data = { display_name: displayName, team_name: teamName };
+  if (marketingOptIn) data.marketing_opt_in = 'true';
+  const { data: res, error } = await supabase.auth.updateUser({ email, password, data });
+  if (error) throw error;
+  return res;
+}
+
 export async function signOut() {
   if (!supabase) return;
   const { error } = await supabase.auth.signOut();

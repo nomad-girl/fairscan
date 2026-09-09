@@ -1,7 +1,12 @@
 import { useState } from 'react';
 
-export default function LoginScreen({ t, onAuth }) {
-  const [mode, setMode] = useState('login'); // 'login' | 'register'
+/**
+ * `convertir`: la usuaria ya está adentro con una sesión anónima (4.2) y quiere
+ * ponerle mail y contraseña. Mismo formulario de registro, pero la cuenta no se
+ * crea: se completa la que ya tiene, y el catálogo queda donde está.
+ */
+export default function LoginScreen({ t, onAuth, convertir = false, onCancel }) {
+  const [mode, setMode] = useState(convertir ? 'register' : 'login'); // 'login' | 'register'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -23,7 +28,10 @@ export default function LoginScreen({ t, onAuth }) {
       if (mode === 'login') {
         await onAuth.signIn(email, password);
       } else {
-        const result = await onAuth.signUp(email, password, displayName || email.split('@')[0], teamName, marketingOptIn);
+        const result = convertir
+          ? await onAuth.convertir(email, password, displayName || email.split('@')[0], teamName, marketingOptIn)
+          : await onAuth.signUp(email, password, displayName || email.split('@')[0], teamName, marketingOptIn);
+        if (convertir) { onCancel?.(); setLoading(false); return; }
         // If email confirmation is required, show message
         if (result?.user && !result.session) {
           setSuccess('Revisá tu email para confirmar la cuenta');
@@ -72,7 +80,7 @@ export default function LoginScreen({ t, onAuth }) {
           <span style={{ fontSize: 48 }}>📸</span>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: t.text, margin: '8px 0 4px' }}>FairScan</h1>
           <p style={{ fontSize: 13, color: t.muted, margin: 0 }}>
-            {mode === 'login' ? 'Iniciá sesión para continuar' : 'Creá tu cuenta'}
+            {mode === 'login' ? 'Iniciá sesión para continuar' : convertir ? 'Creá tu cuenta para no perder tu catálogo' : 'Creá tu cuenta'}
           </p>
         </div>
 
@@ -214,6 +222,11 @@ export default function LoginScreen({ t, onAuth }) {
           </div>
         )}
 
+        {convertir && (
+          <p style={{ textAlign: 'center', marginTop: 16, fontSize: 13, color: t.muted }}>
+            Lo que capturaste queda en esta cuenta. <button onClick={onCancel} style={{ background: 'none', border: 'none', color: t.accent, fontSize: 13, fontWeight: 700, cursor: 'pointer', padding: 0 }}>Ahora no</button>
+          </p>
+        )}
         {/* Toggle mode */}
         <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: t.muted }}>
           {mode === 'login' ? '¿No tenés cuenta? ' : '¿Ya tenés cuenta? '}

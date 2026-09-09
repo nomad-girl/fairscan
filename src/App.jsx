@@ -2396,7 +2396,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
 // ═══════════════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════════════
-function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers, districts, onReload, teams, activeTeam, teamMembers, isAdmin, fetchMembers, inviteMember, onSwitchTeam, userEmail, userId, onSignOut, onGoExport, onAccountDeleted }) {
+function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers, districts, onReload, teams, activeTeam, teamMembers, isAdmin, fetchMembers, inviteMember, onSwitchTeam, userEmail, userId, esAnonima = false, auth, onSignOut, onGoExport, onAccountDeleted }) {
   const handleSwitchTeam = async (teamId) => {
     if (onSwitchTeam) await onSwitchTeam(teamId);
   };
@@ -2641,6 +2641,16 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
           <button onClick={() => updateLoc(p=>({...p, minMargin:Math.min(200, (p.minMargin||40)+5)}))} style={{ width:52, height:52, borderRadius:16, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:22, cursor:"pointer" }}>+</button>
         </div>
         <p style={{ fontSize:11, color:t.dim, textAlign:"center", fontStyle:"italic" }}>Los cambios se guardan automáticamente</p>
+      </div>
+    </div>
+  );
+
+  // ─── SUB-SCREEN: Crear cuenta (desde una sesión sin cuenta, 4.2) ───
+  if (subScreen === "crear-cuenta") return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
+      <Header title="Crear cuenta" onBack={() => setSubScreen(null)} t={t} />
+      <div style={{ flex:1, overflow:"auto" }}>
+        <LoginScreen t={t} onAuth={auth} convertir onCancel={() => setSubScreen(null)} />
       </div>
     </div>
   );
@@ -3022,6 +3032,13 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
               </span>
             </button>
           )}
+          {esAnonima ? (
+            <div style={{ background:t.accentSoft, border:`1px solid ${t.accent}40`, borderRadius:14, padding:14 }}>
+              <p style={{ fontSize:13, fontWeight:700, color:t.text, margin:"0 0 4px" }}>Estás usando FairScan sin cuenta</p>
+              <p style={{ fontSize:12, color:t.muted, margin:"0 0 10px", lineHeight:1.5 }}>Lo que capturás queda en este teléfono. Con una cuenta lo tenés en la nube, en otros dispositivos y compartido con tu equipo.</p>
+              <button onClick={() => setSubScreen("crear-cuenta")} style={{ width:"100%", padding:"12px", borderRadius:12, border:"none", background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>Crear mi cuenta</button>
+            </div>
+          ) : (
           <button onClick={onSignOut} style={{
             width: '100%', padding: '12px', borderRadius: 12,
             border: `1px solid ${t.red}40`, background: t.redSoft,
@@ -3029,17 +3046,18 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
           }}>
             Cerrar sesión
           </button>
+          )}
 
           {/* Requisito de App Store: se tiene que poder borrar la cuenta desde
               adentro de la app. Discreto a propósito, pero no escondido. */}
-          <button onClick={openDeleteAccount} style={{
+          {!esAnonima && <button onClick={openDeleteAccount} style={{
             width: '100%', padding: '12px', borderRadius: 12, marginTop: 10,
             border: 'none', background: 'transparent',
             color: t.dim, fontSize: 12, fontWeight: 600, cursor: 'pointer',
             textDecoration: 'underline', textUnderlineOffset: 3,
           }}>
             Borrar mi cuenta
-          </button>
+          </button>}
 
           {/* Legales (pieza 10.0). Direcciones absolutas a propósito: en la app
               nativa no hay "sitio", así que un link relativo no llevaría a ningún lado. */}
@@ -4498,7 +4516,7 @@ export default function App() {
           if (data) teamIds = data.map(m => m.team_id);
         } catch { /* sin señal: se decide con lo que hay */ }
       }
-      const { limpiar, motivo } = debeLimpiarBaseLocal({ lastUserId: previa.lastUserId, userId: auth.user.id, roomId: previa.roomId, teamIds });
+      const { limpiar, motivo } = debeLimpiarBaseLocal({ lastUserId: previa.lastUserId, lastUserAnonima: !!previa.lastUserAnonima, userId: auth.user.id, roomId: previa.roomId, teamIds });
       if (limpiar) {
         console.warn(`[cuenta] Base local de otra cuenta (${motivo}): se limpia antes de arrancar`);
         try { await syncEngine.disconnectTeam?.(); } catch { /* no estaba conectado */ }
@@ -4506,7 +4524,10 @@ export default function App() {
         await db.open();
         await initDB();
       }
-      await dbSaveSettings({ lastUserId: auth.user.id });
+      await dbSaveSettings({ lastUserId: auth.user.id, lastUserAnonima: !!auth.user.is_anonymous });
+      // Si venía de una sesión anónima y ahora es otra usuaria, el equipo recordado
+      // ya no vale: se conecta al suyo y lo local se muda al sincronizar.
+      if (motivo === 'venia-de-anonima' && previa.roomId) await dbSaveSettings({ roomId: null, roomCode: null });
 
       // Que el sistema no borre la base local para liberar espacio (iOS lo hace
       // sin avisar). No bloquea el arranque; el resultado queda en la consola.
@@ -5179,7 +5200,7 @@ export default function App() {
           products={products} suppliers={suppliers} districts={districts} onReload={reloadAll}
           teams={teamsHook.teams} activeTeam={teamsHook.teams.find(tm => tm.id === sync.teamId)} teamMembers={teamsHook.teamMembers}
           isAdmin={teamsHook.isAdmin} fetchMembers={teamsHook.fetchMembers} inviteMember={teamsHook.inviteMember}
-          onSwitchTeam={handleSwitchTeam} userEmail={auth.user?.email} userId={auth.user?.id} onSignOut={auth.signOut}
+          onSwitchTeam={handleSwitchTeam} userEmail={auth.user?.email} esAnonima={auth.esAnonima} auth={auth} userId={auth.user?.id} onSignOut={auth.signOut}
           onGoExport={() => navigate("export")} onAccountDeleted={handleAccountDeleted} />
       )}
       {screen === "export" && (
