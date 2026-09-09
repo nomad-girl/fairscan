@@ -92,6 +92,36 @@ async function deletePhotos(keys) {
 // ─── Qué va a pasar ──────────────────────────────────────────────────
 
 /**
+ * A quién le queda el equipo cuando se va la dueña: primero otro admin, y si no
+ * hay, el miembro más antiguo. Es UNA sola función a propósito: la vista previa
+ * le dice a la usuaria "la administración pasa a X" y el borrado real tiene que
+ * hacer exactamente eso, no otra cosa.
+ */
+function elegirHeredero(otrosMiembros) {
+  const candidatos = [...(otrosMiembros || [])].sort((a, b) => {
+    if (a.role !== b.role) return a.role === "admin" ? -1 : 1;
+    return new Date(a.created_at || 0) - new Date(b.created_at || 0);
+  });
+  return candidatos[0] || null;
+}
+
+/**
+ * Cómo se llama una persona para mostrarlo en pantalla: su nombre si lo cargó,
+ * si no su mail. Si no se puede saber (perfil sin datos, o la consulta falla),
+ * devuelve null y la pantalla simplemente no dice a quién pasa.
+ */
+async function nombreDePerfil(db, userId) {
+  try {
+    const { data } = await db.from("profiles")
+      .select("id, email, display_name").eq("id", userId).maybeSingle();
+    const nombre = String(data?.display_name || data?.email || "").trim();
+    return nombre || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Arma el plan sin tocar nada. Es la única fuente de la regla: la vista previa y
  * el borrado real usan exactamente esto, así que no pueden decir cosas distintas.
  */
@@ -123,14 +153,27 @@ async function buildPlan(db, userId) {
       return count || 0;
     };
 
+    const soyLaDuena = equipo?.created_by === userId;
+
+    // Solo importa si se va y era la dueña: ahí alguien tiene que quedar a cargo.
+    let heredero = null;
+    if (!sola && soyLaDuena) {
+      const elegido = elegirHeredero(otros);
+      if (elegido) {
+        const nombre = await nombreDePerfil(db, elegido.user_id);
+        heredero = { userId: elegido.user_id, nombre };
+      }
+    }
+
     plan.push({
       teamId: m.team_id,
       nombre: equipo?.name || "Mi Equipo",
       rol: m.role,
-      soyLaDuena: equipo?.created_by === userId,
+      soyLaDuena,
       sola,
       accion: sola ? "borrar" : "salir",
       otrosMiembros: otros,
+      heredero,
       conteos: {
         ferias: await contar("districts"),
         proveedores: await contar("suppliers"),
@@ -150,6 +193,9 @@ function resumen(plan) {
       accion: p.accion,
       soyLaDuena: p.soyLaDuena,
       conteos: p.conteos,
+      // A quién pasa la administración (solo si se va y era la dueña). Sin nombre
+      // conocido va null: la app no muestra la línea antes que mostrar algo raro.
+      heredero: p.heredero?.nombre ? { nombre: p.heredero.nombre } : null,
     })),
     seBorraCatalogo: aBorrar.length > 0,
     totales: {
@@ -194,11 +240,7 @@ async function salirDelEquipo(db, plan, userId) {
   // no hay, el más antiguo. Ese miembro queda como admin para que el equipo no
   // se quede sin nadie que pueda administrarlo.
   if (plan.soyLaDuena) {
-    const candidatos = [...plan.otrosMiembros].sort((a, b) => {
-      if (a.role !== b.role) return a.role === "admin" ? -1 : 1;
-      return new Date(a.created_at || 0) - new Date(b.created_at || 0);
-    });
-    const heredero = candidatos[0];
+    const heredero = elegirHeredero(plan.otrosMiembros);
     if (heredero) {
       await db.from("teams").update({ created_by: heredero.user_id }).eq("id", plan.teamId);
       if (heredero.role !== "admin") {
@@ -295,4 +337,4 @@ exports.handler = async (event) => {
 };
 
 // Se exportan para poder testearlos sin levantar la función entera.
-exports._internals = { keyFromUrl, buildPlan, resumen, salirDelEquipo };
+exports._internals = { keyFromUrl, buildPlan, resumen, salirDelEquipo, elegirHeredero };

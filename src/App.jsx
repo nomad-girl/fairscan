@@ -2339,7 +2339,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
   };
   // Borrar cuenta: aviso con lo que se pierde → confirmación escrita → borrado
   const [delPreview, setDelPreview] = useState(null);
-  const [delStage, setDelStage] = useState("aviso"); // "aviso" | "confirmar"
+  const [delStage, setDelStage] = useState("aviso"); // "aviso" | "confirmar" | "listo"
   const [delEmail, setDelEmail] = useState("");
   const [delError, setDelError] = useState(null);
   const [delBusy, setDelBusy] = useState(false);
@@ -2358,6 +2358,11 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
     setDelBusy(true); setDelError(null);
     try {
       await deleteAccount(delEmail.trim());
+      // Ya está borrada. Se muestra la despedida un momento antes de limpiar el
+      // teléfono y recargar: si se recargara al instante, la usuaria nunca vería
+      // la confirmación de que efectivamente pasó.
+      setDelStage("listo");
+      await new Promise((r) => setTimeout(r, 2000));
       // La cuenta ya no existe: pase lo que pase, esta app no puede seguir como estaba.
       if (onAccountDeleted) await onAccountDeleted();
       else window.location.reload();
@@ -2737,12 +2742,45 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
 
   // ─── BORRAR CUENTA ───
   // Nada se borra sin pasar por acá: primero se dice qué se pierde y se ofrece
-  // salida (exportar o backup), y recién después una confirmación escrita.
+  // salida (exportar o copia de seguridad), y recién después una confirmación
+  // escrita. Los textos son los definitivos de `Legales/textos-permisos-y-stores.md`
+  // (sección 2): van palabra por palabra, no se retocan acá.
   if (subScreen === "delete-account") {
     const p = delPreview;
-    const totales = p?.totales;
-    const hayCatalogo = p?.seBorraCatalogo && (totales?.proveedores > 0 || totales?.productos > 0);
+    const equipos = p?.equipos || [];
+    // Si en algún equipo está sola, hay un catálogo que se pierde: ahí se ofrece
+    // llevárselo antes. Si no, solo se va de los equipos y el catálogo queda.
+    const hayBorrado = equipos.some((e) => e.accion === "borrar");
     const emailOk = delEmail.trim().toLowerCase() === String(userEmail || "").toLowerCase();
+    const B = ({ children }) => <strong style={{ color:t.text }}>{children}</strong>;
+
+    const btnPrimario = {
+      width:"100%", padding:"14px 12px", borderRadius:14, border:`1.5px solid ${t.accent}`,
+      background:t.accentSoft, color:t.accent, fontSize:14, fontWeight:700, cursor:"pointer",
+    };
+    const btnSecundario = {
+      width:"100%", padding:"12px", borderRadius:12, border:`1px solid ${t.border}`,
+      background:t.card, color:t.text, fontSize:13, fontWeight:700, cursor:"pointer",
+    };
+    const btnContinuar = (secundario) => ({
+      width:"100%", padding: secundario ? "12px" : "14px 12px", borderRadius: secundario ? 12 : 14,
+      border: secundario ? `1px solid ${t.red}40` : "none",
+      background: secundario ? "transparent" : t.red, color: secundario ? t.red : "#fff",
+      fontSize: secundario ? 13 : 14, fontWeight: secundario ? 600 : 800, cursor:"pointer",
+    });
+
+    // ── Pantalla final: ya no hay cuenta. Se ve 2 segundos y la app se reinicia. ──
+    if (delStage === "listo") {
+      return (
+        <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
+          <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 32px" }}>
+            <p style={{ fontSize:17, fontWeight:700, color:t.text, textAlign:"center", lineHeight:1.5, margin:0 }}>
+              Tu cuenta fue borrada. Gracias por haber usado FairScan.
+            </p>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
@@ -2760,58 +2798,61 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
 
           {p && delStage === "aviso" && (
             <>
-              <div style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:16, padding:16, marginBottom:16 }}>
-                {hayCatalogo ? (
-                  <>
-                    <p style={{ fontSize:15, fontWeight:800, color:t.text, margin:"0 0 10px", lineHeight:1.4 }}>
-                      Sos la única usuaria activa de esta organización.
-                    </p>
-                    <p style={{ fontSize:13, color:t.dim, margin:0, lineHeight:1.6 }}>
-                      Si borrás tu cuenta se borrará también el catálogo
-                      {" "}(<strong style={{ color:t.text }}>{totales.proveedores} proveedores, {totales.productos} productos</strong>
-                      {totales.ferias > 0 ? ` en ${totales.ferias} feria${totales.ferias !== 1 ? "s" : ""}` : ""}),
-                      {" "}junto con todas las fotos. <strong style={{ color:t.text }}>Esto no se puede deshacer.</strong>
-                    </p>
-                    <p style={{ fontSize:13, color:t.text, margin:"12px 0 0", fontWeight:700 }}>
-                      ¿Querés exportarlo o hacer un backup antes?
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p style={{ fontSize:15, fontWeight:800, color:t.text, margin:"0 0 10px", lineHeight:1.4 }}>
-                      Se va a borrar tu cuenta.
-                    </p>
-                    <p style={{ fontSize:13, color:t.dim, margin:0, lineHeight:1.6 }}>
-                      {p.equiposQueQuedan?.length > 0 ? (
-                        <>Hay más gente en {p.equiposQueQuedan.length === 1 ? "tu organización" : "tus organizaciones"}
-                        {" "}(<strong style={{ color:t.text }}>{p.equiposQueQuedan.join(", ")}</strong>), así que el catálogo
-                        {" "}<strong style={{ color:t.text }}>no se borra</strong>: también es de ellos. Vos dejás de tener acceso.</>
-                      ) : (
-                        <>No hay catálogo asociado a tu cuenta.</>
+              {/* Un bloque por equipo, cada uno con su caso. */}
+              {equipos.map((e, i) => (
+                <div key={i} style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:16, padding:16, marginBottom:12 }}>
+                  {e.accion === "borrar" ? (
+                    <>
+                      <p style={{ fontSize:14, color:t.text, margin:0, lineHeight:1.6 }}>
+                        Sos la única persona en el equipo <B>{e.nombre}</B>. Si borrás tu cuenta se borra también
+                        el catálogo: <B>{e.conteos?.proveedores ?? 0} proveedores y {e.conteos?.productos ?? 0} productos</B>,
+                        con sus fotos en la nube. Esto no se puede deshacer.
+                      </p>
+                      <p style={{ fontSize:14, color:t.text, margin:"12px 0 0", fontWeight:700, lineHeight:1.6 }}>
+                        ¿Querés llevarte tu catálogo antes?
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p style={{ fontSize:14, color:t.text, margin:0, lineHeight:1.6 }}>
+                        Tu cuenta se va a borrar. El catálogo de <B>{e.nombre}</B> queda para las demás integrantes
+                        ({e.conteos?.proveedores ?? 0} proveedores, {e.conteos?.productos ?? 0} productos).
+                        Lo que se elimina es tu perfil y tu acceso.
+                      </p>
+                      {e.soyLaDuena && e.heredero?.nombre && (
+                        <p style={{ fontSize:14, color:t.text, margin:"12px 0 0", lineHeight:1.6 }}>
+                          La administración del equipo pasa a <B>{e.heredero.nombre}</B>.
+                        </p>
                       )}
-                      {" "}<strong style={{ color:t.text }}>Esto no se puede deshacer.</strong>
-                    </p>
-                  </>
-                )}
-              </div>
+                    </>
+                  )}
+                </div>
+              ))}
 
-              {hayCatalogo && (
-                <div style={{ display:"flex", gap:8, marginBottom:16 }}>
-                  <button onClick={() => onGoExport?.()} style={{
-                    flex:1, padding:"14px 12px", borderRadius:14, border:`1.5px solid ${t.accent}`,
-                    background:t.accentSoft, color:t.accent, fontSize:13, fontWeight:700, cursor:"pointer",
-                  }}>📊 Exportar catálogo</button>
-                  <button onClick={() => setSubScreen("backup")} style={{
-                    flex:1, padding:"14px 12px", borderRadius:14, border:`1.5px solid ${t.blue}`,
-                    background:t.blueSoft, color:t.blue, fontSize:13, fontWeight:700, cursor:"pointer",
-                  }}>💾 Hacer backup</button>
+              {equipos.length === 0 && (
+                <div style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:16, padding:16, marginBottom:12 }}>
+                  <p style={{ fontSize:14, color:t.text, margin:0, lineHeight:1.6 }}>
+                    Tu cuenta se va a borrar. No hay ningún catálogo asociado: lo que se elimina es tu perfil y tu acceso.
+                  </p>
                 </div>
               )}
 
-              <button onClick={() => { setDelStage("confirmar"); setDelError(null); }} style={{
-                width:"100%", padding:"12px", borderRadius:12, border:`1px solid ${t.red}40`,
-                background:"transparent", color:t.red, fontSize:13, fontWeight:600, cursor:"pointer",
-              }}>Continuar con el borrado</button>
+              {hayBorrado ? (
+                <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:4 }}>
+                  <button onClick={() => onGoExport?.()} style={btnPrimario}>Exportar catálogo</button>
+                  <button onClick={() => setSubScreen("backup")} style={btnPrimario}>Hacer copia de seguridad</button>
+                  <button onClick={() => { setDelStage("confirmar"); setDelError(null); }} style={{ ...btnContinuar(true), marginTop:4 }}>
+                    Continuar con el borrado
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:4 }}>
+                  <button onClick={() => { setDelStage("confirmar"); setDelError(null); }} style={btnContinuar(false)}>
+                    Continuar con el borrado
+                  </button>
+                  <button onClick={() => setSubScreen(null)} style={btnSecundario}>Cancelar</button>
+                </div>
+              )}
 
               <p style={{ fontSize:11, color:t.dim, textAlign:"center", margin:"12px 0 0" }}>
                 Todavía no se borró nada. Podés volver atrás.
@@ -2822,10 +2863,8 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
           {p && delStage === "confirmar" && (
             <>
               <div style={{ background:t.redSoft, border:`1.5px solid ${t.red}40`, borderRadius:16, padding:16, marginBottom:16 }}>
-                <p style={{ fontSize:14, fontWeight:800, color:t.red, margin:"0 0 8px" }}>Última confirmación</p>
-                <p style={{ fontSize:13, color:t.text, margin:0, lineHeight:1.6 }}>
-                  Escribí <strong>{userEmail}</strong> para confirmar que querés borrar tu cuenta
-                  {hayCatalogo ? " y todo el catálogo" : ""}.
+                <p style={{ fontSize:14, color:t.text, margin:0, lineHeight:1.6 }}>
+                  Para confirmar, escribí el mail de tu cuenta.
                 </p>
               </div>
 
@@ -2840,12 +2879,14 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
                 background: emailOk && !delBusy ? t.red : t.surface,
                 color: emailOk && !delBusy ? "#fff" : t.dim,
                 fontSize:15, fontWeight:800, cursor: emailOk && !delBusy ? "pointer" : "default",
-              }}>{delBusy ? "⏳ Borrando..." : "Borrar mi cuenta para siempre"}</button>
+              }}>{delBusy ? "⏳ Borrando..." : "Borrar mi cuenta definitivamente"}</button>
 
-              <button onClick={() => { setDelStage("aviso"); setDelEmail(""); setDelError(null); }} disabled={delBusy} style={{
-                width:"100%", padding:"12px", borderRadius:12, marginTop:10, border:`1px solid ${t.border}`,
-                background:t.card, color:t.text, fontSize:13, fontWeight:700, cursor:"pointer",
-              }}>Cancelar</button>
+              <p style={{ fontSize:11, color:t.dim, textAlign:"center", margin:"12px 0 0", lineHeight:1.5 }}>
+                Los escaneos comprados y no usados se pierden. Las compras se rigen por las políticas de reembolso de App Store / Google Play.
+              </p>
+
+              <button onClick={() => { setDelStage("aviso"); setDelEmail(""); setDelError(null); }} disabled={delBusy}
+                style={{ ...btnSecundario, marginTop:12 }}>Cancelar</button>
             </>
           )}
         </div>

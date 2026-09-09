@@ -11,7 +11,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { handler, _internals } from '../delete-account.js';
 
-const { keyFromUrl, buildPlan, resumen, salirDelEquipo } = _internals;
+const { keyFromUrl, buildPlan, resumen, salirDelEquipo, elegirHeredero } = _internals;
 
 /**
  * Imitación mínima del cliente de Supabase: encadena como el de verdad y
@@ -67,12 +67,20 @@ describe('keyFromUrl', () => {
 });
 
 describe('el plan', () => {
+  // Perfiles conocidos: mamá cargó su nombre, la tía solo tiene mail, y "fantasma"
+  // existe como miembro pero no tiene perfil.
+  const perfiles = {
+    mama: { id: 'mama', email: 'mama@x.com', display_name: 'Mamá' },
+    tia: { id: 'tia', email: 'tia@x.com', display_name: null },
+  };
+
   const armar = (miembros, createdBy = 'yo') => makeDb((c) => {
     if (c.table === 'team_members' && c.op === 'select' && c.filters.user_id === 'yo') {
       return { data: [{ team_id: 'T1', role: 'admin' }] };
     }
     if (c.table === 'team_members' && c.op === 'select') return { data: miembros };
     if (c.table === 'teams') return { data: { id: 'T1', name: 'Mi Equipo', created_by: createdBy } };
+    if (c.table === 'profiles') return { data: perfiles[c.filters.id] || null };
     if (c.op === 'select' && c.opts?.head) {
       return { count: { districts: 2, suppliers: 30, products: 150 }[c.table] };
     }
@@ -102,6 +110,52 @@ describe('el plan', () => {
     expect(ajeno[0].soyLaDuena).toBe(false);
   });
 
+  it('si se va y era la dueña, dice a quién pasa la administración (por nombre)', async () => {
+    const plan = await buildPlan(armar([
+      { user_id: 'yo', role: 'admin', created_at: '2026-01-01' },
+      { user_id: 'mama', role: 'member', created_at: '2026-02-01' },
+    ]), 'yo');
+    expect(plan[0].heredero).toEqual({ userId: 'mama', nombre: 'Mamá' });
+  });
+
+  it('si el perfil no tiene nombre, usa el mail', async () => {
+    const plan = await buildPlan(armar([
+      { user_id: 'yo', role: 'admin', created_at: '2026-01-01' },
+      { user_id: 'tia', role: 'member', created_at: '2026-02-01' },
+    ]), 'yo');
+    expect(plan[0].heredero).toEqual({ userId: 'tia', nombre: 'tia@x.com' });
+  });
+
+  it('elige al heredero con la misma regla que el borrado real (otro admin primero)', async () => {
+    const plan = await buildPlan(armar([
+      { user_id: 'yo', role: 'admin', created_at: '2026-01-01' },
+      { user_id: 'tia', role: 'member', created_at: '2026-02-01' },
+      { user_id: 'mama', role: 'admin', created_at: '2026-06-01' },
+    ]), 'yo');
+    expect(plan[0].heredero.userId).toBe('mama');
+    expect(elegirHeredero(plan[0].otrosMiembros).user_id).toBe('mama');
+  });
+
+  it('si no se puede saber el nombre, el heredero queda sin nombre', async () => {
+    const plan = await buildPlan(armar([
+      { user_id: 'yo', role: 'admin', created_at: '2026-01-01' },
+      { user_id: 'fantasma', role: 'member', created_at: '2026-02-01' },
+    ]), 'yo');
+    expect(plan[0].heredero).toEqual({ userId: 'fantasma', nombre: null });
+  });
+
+  it('si no era la dueña, o está sola, no hay heredero ni consulta a perfiles', async () => {
+    const ajena = armar([
+      { user_id: 'yo', role: 'member' },
+      { user_id: 'mama', role: 'admin' },
+    ], 'mama');
+    const sola = armar([{ user_id: 'yo', role: 'admin' }]);
+    expect((await buildPlan(ajena, 'yo'))[0].heredero).toBeNull();
+    expect((await buildPlan(sola, 'yo'))[0].heredero).toBeNull();
+    expect(ajena.calls.find((c) => c.table === 'profiles')).toBeUndefined();
+    expect(sola.calls.find((c) => c.table === 'profiles')).toBeUndefined();
+  });
+
   it('no cuenta lo que ya estaba borrado', async () => {
     const db = armar([{ user_id: 'yo', role: 'admin' }]);
     await buildPlan(db, 'yo');
@@ -121,6 +175,22 @@ describe('el resumen que ve la usuaria', () => {
     expect(r.totales).toEqual({ ferias: 1, proveedores: 30, productos: 150 });
     expect(r.seBorraCatalogo).toBe(true);
     expect(r.equiposQueQuedan).toEqual(['Con mamá']);
+  });
+
+  it('expone a quién pasa la administración, y solo si tiene nombre', () => {
+    const r = resumen([
+      { nombre: 'Con mamá', accion: 'salir', soyLaDuena: true, conteos: { ferias: 1, proveedores: 2, productos: 3 },
+        heredero: { userId: 'mama', nombre: 'Mamá' } },
+      { nombre: 'Sin datos', accion: 'salir', soyLaDuena: true, conteos: { ferias: 1, proveedores: 2, productos: 3 },
+        heredero: { userId: 'fantasma', nombre: null } },
+      { nombre: 'Sola', accion: 'borrar', soyLaDuena: true, conteos: { ferias: 1, proveedores: 2, productos: 3 } },
+    ]);
+    expect(r.equipos[0].heredero).toEqual({ nombre: 'Mamá' });
+    // Sin nombre no se manda nada: la app no muestra la línea.
+    expect(r.equipos[1].heredero).toBeNull();
+    expect(r.equipos[2].heredero).toBeNull();
+    // Y nunca se filtra el id de otra persona a la pantalla.
+    expect(JSON.stringify(r)).not.toContain('userId');
   });
 
   it('sin equipos propios, no se borra ningún catálogo', () => {
