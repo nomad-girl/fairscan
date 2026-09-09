@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
+import { PRESETS } from "./lib/presets.js";
 
 // ═══════════════════════════════════════════
 // THEME
@@ -8,12 +9,6 @@ const T = {
   light: { bg:"#F8FAFC",card:"#FFFFFF",accent:"#FF6B35",accentSoft:"#FF6B3515",green:"#16A34A",greenSoft:"#16A34A12",yellow:"#D97706",blue:"#2563EB",blueSoft:"#2563EB12",purple:"#9333EA",purpleSoft:"#9333EA12",red:"#DC2626",redSoft:"#DC262612",text:"#0F172A",muted:"#64748B",dim:"#94A3B8",border:"#E2E8F0",surface:"#F1F5F9" },
 };
 
-const PRESETS = {
-  vajilla: { name:"Vajilla / Cristalería", icon:"🍽", categories:["Vajilla","Cristalería","Té / Café","Cubiertos","Deco / Hogar"], materials:["Porcelana","Bone China","Vidrio","Borosilicato","Cristal","Cerámica","Melamina","Acero Inox"], packagingTypes:["Standard","Gift box","Premium / Display","Bulk","Color box"], variantTypes:["Individual","Set x2","Set x4","Set x6","Set x12","Variante color","Variante tamaño"] },
-  electronica: { name:"Electrónica", icon:"📱", categories:["Cargadores","Audio","Cables","Power banks","Accesorios"], materials:["ABS","Policarbonato","Aluminio","Silicona","Metal"], packagingTypes:["Blister","Color box","White box","Gift box"], variantTypes:["Individual","Kit / Combo","Variante color","Variante capacidad"] },
-  textil: { name:"Textil", icon:"👕", categories:["Remeras","Pantalones","Camperas","Deportivo","Accesorios"], materials:["Algodón","Poliéster","Nylon","Spandex","Lino","Denim"], packagingTypes:["Bolsa OPP","Caja cartón","Bolsa ziplock","Percha + bolsa"], variantTypes:["Talle S-XL","Talle único","Variante color","Pack x3","Pack x6"] },
-  general: { name:"General", icon:"📦", categories:["Cat 1","Cat 2","Cat 3"], materials:["Mat 1","Mat 2"], packagingTypes:["Standard","Premium","Bulk"], variantTypes:["Individual","Set / Pack","Variante color","Variante tamaño"] },
-};
 
 // ═══════════════════════════════════════════
 // NCM DATABASE (sample - expandable)
@@ -4525,6 +4520,12 @@ export default function App() {
         await initDB();
       }
       await dbSaveSettings({ lastUserId: auth.user.id, lastUserAnonima: !!auth.user.is_anonymous });
+      // El rubro elegido al crear la cuenta define las etiquetas (4.7). Se aplica una
+      // vez por cuenta; después manda lo que la usuaria cambie en Configuración.
+      const rubro = auth.user.user_metadata?.rubro;
+      if (rubro && PRESETS[rubro] && previa.rubroAplicado !== rubro) {
+        await dbSaveSettings({ preset: rubro, ...PRESETS[rubro], rubroAplicado: rubro });
+      }
       // Si venía de una sesión anónima y ahora es otra usuaria, el equipo recordado
       // ya no vale: se conecta al suyo y lo local se muda al sincronizar.
       if (motivo === 'venia-de-anonima' && previa.roomId) await dbSaveSettings({ roomId: null, roomCode: null });

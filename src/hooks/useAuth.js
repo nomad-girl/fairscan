@@ -33,12 +33,12 @@ export default function useAuth() {
     return signIn(email, password);
   }, []);
 
-  const handleSignUp = useCallback(async (email, password, displayName, teamName, marketingOptIn = false) => {
-    return signUp(email, password, displayName, teamName, marketingOptIn);
+  const handleSignUp = useCallback(async (email, password, displayName, teamName, marketingOptIn = false, rubro = null) => {
+    return signUp(email, password, displayName, teamName, marketingOptIn, rubro);
   }, []);
 
-  const handleConvertir = useCallback(async (email, password, displayName, teamName, marketingOptIn = false) => {
-    return convertirCuenta(email, password, displayName, teamName, marketingOptIn);
+  const handleConvertir = useCallback(async (email, password, displayName, teamName, marketingOptIn = false, rubro = null) => {
+    return convertirCuenta(email, password, displayName, teamName, marketingOptIn, rubro);
   }, []);
 
   const handleSignOut = useCallback(async () => {

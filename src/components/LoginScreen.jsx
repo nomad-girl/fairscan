@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { listaDeRubros, RUBRO_POR_DEFECTO } from '../lib/presets.js';
 
 /**
  * `convertir`: la usuaria ya está adentro con una sesión anónima (4.2) y quiere
@@ -17,6 +18,8 @@ export default function LoginScreen({ t, onAuth, convertir = false, onCancel }) 
   const [showPassword, setShowPassword] = useState(false);
   // Novedades por mail: desmarcada por defecto (decisión legal 08/09).
   const [marketingOptIn, setMarketingOptIn] = useState(false);
+  // Rubro: se pregunta una sola vez, acá, y define las etiquetas que va a ver (4.7).
+  const [rubro, setRubro] = useState(RUBRO_POR_DEFECTO);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -29,8 +32,8 @@ export default function LoginScreen({ t, onAuth, convertir = false, onCancel }) 
         await onAuth.signIn(email, password);
       } else {
         const result = convertir
-          ? await onAuth.convertir(email, password, displayName || email.split('@')[0], teamName, marketingOptIn)
-          : await onAuth.signUp(email, password, displayName || email.split('@')[0], teamName, marketingOptIn);
+          ? await onAuth.convertir(email, password, displayName || email.split('@')[0], teamName, marketingOptIn, rubro)
+          : await onAuth.signUp(email, password, displayName || email.split('@')[0], teamName, marketingOptIn, rubro);
         if (convertir) { onCancel?.(); setLoading(false); return; }
         // If email confirmation is required, show message
         if (result?.user && !result.session) {
@@ -103,6 +106,22 @@ export default function LoginScreen({ t, onAuth, convertir = false, onCancel }) 
                 onChange={e => setTeamName(e.target.value)}
                 style={inputStyle}
               />
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: t.muted, margin: '4px 0 8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>¿Qué comprás?</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {listaDeRubros().map(r => (
+                    <button key={r.clave} type="button" onClick={() => setRubro(r.clave)} style={{
+                      display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
+                      background: rubro === r.clave ? `${t.accent}22` : t.surface,
+                      border: `1.5px solid ${rubro === r.clave ? t.accent : t.border}`,
+                      color: rubro === r.clave ? t.accent : t.text, fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+                    }}>
+                      <span style={{ fontSize: 18 }}>{r.icono}</span><span>{r.nombre}</span>
+                    </button>
+                  ))}
+                </div>
+                <p style={{ fontSize: 11, color: t.muted, margin: '6px 0 0' }}>Define las categorías y materiales que vas a ver. Se puede cambiar después en Configuración.</p>
+              </div>
             </>
           )}
           <input

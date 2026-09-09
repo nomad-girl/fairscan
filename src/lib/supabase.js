@@ -31,10 +31,11 @@ export async function signIn(email, password) {
 // Solo si la usuaria la marcó viaja el metadato `marketing_opt_in: 'true'`; el
 // trigger de alta en Supabase lo convierte en `profiles.marketing_opt_in_at` con la
 // hora actual, que es la prueba de CUÁNDO se dio el consentimiento (Ley 25.326).
-export async function signUp(email, password, displayName, teamName, marketingOptIn = false) {
+export async function signUp(email, password, displayName, teamName, marketingOptIn = false, rubro = null) {
   if (!supabase) throw new Error('Supabase no configurado');
   const meta = { display_name: displayName, team_name: teamName };
   if (marketingOptIn) meta.marketing_opt_in = 'true';
+  if (rubro) meta.rubro = rubro; // 4.7: el rubro viaja con la cuenta y la app aplica sus etiquetas
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -58,10 +59,11 @@ export async function signInAnonymously() {
 }
 
 /** Convierte la sesión anónima en cuenta real: mismo usuario, ahora con mail y contraseña. */
-export async function convertirCuenta(email, password, displayName, teamName, marketingOptIn = false) {
+export async function convertirCuenta(email, password, displayName, teamName, marketingOptIn = false, rubro = null) {
   if (!supabase) throw new Error('Supabase no configurado');
   const data = { display_name: displayName, team_name: teamName };
   if (marketingOptIn) data.marketing_opt_in = 'true';
+  if (rubro) data.rubro = rubro;
   const { data: res, error } = await supabase.auth.updateUser({ email, password, data });
   if (error) throw error;
   return res;
