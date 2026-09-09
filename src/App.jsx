@@ -3227,9 +3227,10 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
     return hasLocal && !hasCloud;
   }).reduce((n, p) => n + (p.photos || []).filter(x => x && typeof x === 'string' && (x.startsWith('data:') || x.startsWith('blob:'))).length, 0);
 
-  const syncPhotosToCloud = async () => {
+  const syncPhotosToCloud = async (opts = {}) => {
     setSyncing(true);
     let done = 0;
+    const subidas = new Map(); // productId → photoUrls nuevas (para usarlas en el mismo export)
     const toSync = scopeProducts.filter(p => {
       const hasLocal = (p.photos || []).some(x => x && typeof x === 'string' && (x.startsWith('data:') || x.startsWith('blob:')));
       const hasCloud = (p.photoUrls || []).some(Boolean);
@@ -3246,6 +3247,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       }
       if (urls.some(Boolean)) {
         await onUpdateProduct(product.id, { photoUrls: urls });
+        subidas.set(product.id, urls);
       }
     }
     // Also sync supplier cards
@@ -3258,7 +3260,15 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
     }
     setSyncing(false);
     setSyncProgress("");
-    onExported(`☁️ ${done} fotos subidas a la nube`);
+    if (!opts.silent) onExported(`☁️ ${done} fotos subidas a la nube`);
+    return subidas;
+  };
+
+  // Dirección web de la primera foto (para la fórmula =IMAGE de 6.1).
+  const primeraUrl = (p, subidas) => {
+    const urls = subidas?.get(p.id) || p.photoUrls || [];
+    return urls.find(u => typeof u === 'string' && u.startsWith('http'))
+      || (p.photos || []).find(x => typeof x === 'string' && x.startsWith('http')) || null;
   };
 
   const generateCSV = () => {
@@ -3319,7 +3329,20 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
 
   const generateExcel = async () => {
     setExporting(true);
+    let subidas = new Map();
     try {
+      // 6.2: con fórmulas =IMAGE, sin dirección web no hay foto en la celda. Se
+      // sube lo que falta antes de generar; sin señal, se avisa y esas fotos van
+      // pegadas encima de la celda como antes.
+      if (photosNotUploaded > 0) {
+        if (navigator.onLine) {
+          setExportProgress(`Subiendo ${totalPhotosToSync} fotos a la nube...`);
+          try { subidas = await syncPhotosToCloud({ silent: true }); } catch (e) { console.warn("Subida previa al export falló:", e?.message); }
+        } else {
+          setExportProgress(`Sin señal: ${photosNotUploaded} productos van con la foto pegada, no en la celda`);
+          await new Promise(r => setTimeout(r, 1500));
+        }
+      }
       setExportProgress("Cargando Excel...");
       const ExcelJS = (await import('exceljs')).default;
       const wb = new ExcelJS.Workbook();
@@ -3348,7 +3371,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       }
 
       // Header row
-      const headers = ["Foto","Nombre","Proveedor","Tarjeta","Contacto","Precio USD","MOQ","Categoría","Material","Rating","Viabilidad","Notas","Feria","Fecha"];
+      const headers = ["Foto","Nombre","Proveedor","Tarjeta","Contacto","Precio USD","MOQ","Categoría","Material","Rating","Viabilidad","Notas","Feria","Fecha","Foto (link)","Tarjeta (link)"];
       const headerRow = ws.addRow(headers);
       headerRow.font = { bold: true, size: 11 };
       headerRow.alignment = { vertical: 'middle' };
@@ -3366,17 +3389,24 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       ws.getColumn(12).width = 30; // Notas
       ws.getColumn(13).width = 16; // Feria
       ws.getColumn(14).width = 12; // Fecha
+      ws.getColumn(15).width = 40; // Foto (link): respaldo para Excel viejo y para mandar por WhatsApp
+      ws.getColumn(16).width = 40; // Tarjeta (link)
 
       let done = 0;
       for (const p of deduped) {
         const sup = suppliers.find(s => s.id === p.supplierId) || (p.supplierCompany ? suppliers.find(s => s.company === p.supplierCompany) : null);
         const dist = districts.find(d => d.id === p.districtId);
         const rowIndex = ws.rowCount + 1;
+        // 6.1: la foto ADENTRO de la celda, como fórmula =IMAGE(url). Es contenido de
+        // celda: se copia, se pega, se ordena y se filtra con la fila (Google Sheets y
+        // Excel 365). Sin dirección web, va pegada encima como antes.
+        const fotoUrl = primeraUrl(p, subidas);
+        const tarjetaUrl = sup?.cardPhotoUrl || null;
         const row = ws.addRow([
-          "", // Foto placeholder
+          fotoUrl ? { formula: `IMAGE("${fotoUrl}")` } : "",
           p.name || "",
           sup?.company || p.supplierCompany || "",
-          "", // Tarjeta placeholder
+          tarjetaUrl ? { formula: `IMAGE("${tarjetaUrl}")` } : "",
           sup?.contact || "",
           p.price || "",
           p.moq || "",
@@ -3387,14 +3417,16 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
           (p.notes || "").replace(/\n/g, " "),
           dist?.name || "",
           p.createdAt ? new Date(p.createdAt).toLocaleDateString("es-AR") : "",
+          fotoUrl || "",
+          tarjetaUrl || "",
         ]);
         row.height = 65;
         row.alignment = { vertical: 'middle', wrapText: true };
 
-        // Embed first product photo (col A)
+        // Sin dirección web: la foto pegada encima de la celda (respaldo sin señal)
         const allPhotoSrcs = getProductPhotoSources(p);
         const photoSrc = allPhotoSrcs[0] || null;
-        if (photoSrc) {
+        if (photoSrc && !fotoUrl) {
           try {
             const base64Data = await getImageBase64(photoSrc);
             if (base64Data) {
@@ -3407,8 +3439,8 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
           } catch (e) { console.warn("Error embebiendo foto:", e); }
         }
 
-        // Embed supplier card photo (col D = index 3)
-        if (sup) {
+        // Tarjeta pegada encima solo si no hay dirección web
+        if (sup && !tarjetaUrl) {
           const cacheKey = sup.id || sup.company;
           const cardBase64 = cardCache.get(cacheKey);
           if (cardBase64) {
@@ -3432,7 +3464,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       // Supplier sheet
       if (includeSuppliers) {
         const ws2 = wb.addWorksheet('Proveedores');
-        const sHeaders = ["Tarjeta","Empresa","Contacto","Teléfono","WeChat","WhatsApp","Email","Website","Feria","Productos","Rating"];
+        const sHeaders = ["Tarjeta","Empresa","Contacto","Teléfono","WeChat","WhatsApp","Email","Website","Feria","Productos","Rating","Tarjeta (link)"];
         const sHeaderRow = ws2.addRow(sHeaders);
         sHeaderRow.font = { bold: true, size: 11 };
         sHeaderRow.alignment = { vertical: 'middle' };
@@ -3447,6 +3479,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
         ws2.getColumn(9).width = 16;
         ws2.getColumn(10).width = 8;
         ws2.getColumn(11).width = 8;
+        ws2.getColumn(12).width = 40;
 
         const supIds = [...new Set(scopeProducts.map(p => p.supplierId).filter(Boolean))];
         const companyNames = [...new Set(scopeProducts.filter(p => !p.supplierId && p.supplierCompany).map(p => p.supplierCompany))];
@@ -3462,17 +3495,19 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
           const dist = districts.find(d => d.id === s.districtId);
           const avg = prods.length > 0 ? (prods.reduce((a, p) => a + (p.rating || 0), 0) / prods.length).toFixed(1) : "";
           const rowIndex = ws2.rowCount + 1;
+          const tarjetaUrl = s.cardPhotoUrl || null;
           const row = ws2.addRow([
-            "", s.company || "", s.contact || "", s.phone || "",
+            tarjetaUrl ? { formula: `IMAGE("${tarjetaUrl}")` } : "", s.company || "", s.contact || "", s.phone || "",
             s.wechat || "", s.whatsapp || "", s.email || "",
             s.website || "", dist?.name || "", prods.length, avg,
+            tarjetaUrl || "",
           ]);
           row.height = 65;
           row.alignment = { vertical: 'middle', wrapText: true };
 
-          // Embed card photo (reuse from cache)
+          // Sin dirección web: tarjeta pegada encima (respaldo)
           const cacheKey = s.id || s.company;
-          const cardBase64 = cardCache.get(cacheKey) || await getImageBase64(s.cardPhoto || s.cardPhotoUrl);
+          const cardBase64 = tarjetaUrl ? null : (cardCache.get(cacheKey) || await getImageBase64(s.cardPhoto || s.cardPhotoUrl));
           if (cardBase64) {
             try {
               const imgId = wb.addImage({ base64: cardBase64, extension: 'jpeg' });
