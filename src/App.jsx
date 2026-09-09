@@ -3520,6 +3520,36 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
         }
       }
 
+      // 6.3: hoja "Catálogo visual" con las fotos pegadas encima de la celda. Acá el
+      // sticker es lo correcto: esta hoja es para mirar e imprimir, no para copiar.
+      {
+        const ws3 = wb.addWorksheet('Catálogo visual');
+        const vHeaders = ["Foto", "Nombre", "Proveedor", "Precio USD", "MOQ", "Categoría", "Notas"];
+        const vHeaderRow = ws3.addRow(vHeaders);
+        vHeaderRow.font = { bold: true, size: 11 };
+        [22, 30, 22, 12, 10, 16, 36].forEach((w, i) => { ws3.getColumn(i + 1).width = w; });
+        let v = 0;
+        for (const p of deduped) {
+          const sup = suppliers.find(s => s.id === p.supplierId) || (p.supplierCompany ? suppliers.find(s => s.company === p.supplierCompany) : null);
+          const rowIndex = ws3.rowCount + 1;
+          const row = ws3.addRow(["", p.name || "", sup?.company || p.supplierCompany || "", p.price || "", p.moq || "", p.category || "", (p.notes || "").replace(/\n/g, " ")]);
+          row.height = 110;
+          row.alignment = { vertical: 'middle', wrapText: true };
+          const src = getProductPhotoSources(p)[0] || null;
+          if (src) {
+            try {
+              const b64 = await getImageBase64(src);
+              if (b64) {
+                const imgId = wb.addImage({ base64: b64, extension: 'jpeg' });
+                ws3.addImage(imgId, { tl: { col: 0.1, row: rowIndex - 1 + 0.08 }, ext: { width: 140, height: 140 } });
+              }
+            } catch (e) { console.warn("Error en catálogo visual:", e?.message); }
+          }
+          v++;
+          if (v % 5 === 0) { setExportProgress(`Catálogo visual... ${v}/${deduped.length}`); await new Promise(r => setTimeout(r, 0)); }
+        }
+      }
+
       setExportProgress("Generando archivo...");
       const buffer = await wb.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
