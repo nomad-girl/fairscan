@@ -1,5 +1,6 @@
 import Dexie from 'dexie';
 import { fotosSinSubir, tarjetaSinSubir } from './lib/fotosPendientes.js';
+import { productoParaUI, productoParaGuardar, proveedorParaUI, proveedorParaGuardar, liberarObjectUrls, tieneFotosEnTexto, esDataUrl, paraGuardar } from './lib/fotosBinario.js';
 
 const db = new Dexie('FairScanDB');
 
@@ -175,10 +176,11 @@ export async function deleteDistrict(id) {
 
 // ─── Suppliers ───
 export async function getSuppliers() {
-  return db.suppliers.toArray();
+  return (await db.suppliers.toArray()).map(proveedorParaUI);
 }
 
 export async function addSupplier(s) {
+  Object.assign(s, proveedorParaGuardar(s));
   s.uuid = s.uuid || crypto.randomUUID();
   s.updatedAt = Date.now();
   s.cardUploadPending = tarjetaSinSubir(s) ? 1 : 0;
@@ -191,6 +193,7 @@ export async function addSupplier(s) {
 }
 
 export async function updateSupplier(id, changes) {
+  Object.assign(changes, proveedorParaGuardar(changes));
   changes.updatedAt = Date.now();
   conBanderaIA(changes);
   await db.suppliers.update(id, changes);
@@ -216,10 +219,40 @@ export async function deleteSupplier(id) {
 
 // ─── Products ───
 export async function getProducts() {
-  return db.products.orderBy('createdAt').reverse().toArray();
+  // Las fotos salen de la base como bytes y llegan a la pantalla como blob: (3.2).
+  return (await db.products.orderBy('createdAt').reverse().toArray()).map(productoParaUI);
+}
+
+/**
+ * Pasa a bytes las fotos que quedaron guardadas como texto (base de antes de 3.2),
+ * de a pocas y con pausas: se corre en segundo plano al abrir, una sola vez.
+ */
+export async function convertirFotosABinario({ tanda = 8, pausaMs = 80 } = {}) {
+  const st = await getSettings();
+  if (st.fotosBinarioListo) return 0;
+  let convertidos = 0;
+  const ids = await db.products.toCollection().primaryKeys();
+  for (let i = 0; i < ids.length; i += tanda) {
+    const filas = await db.products.bulkGet(ids.slice(i, i + tanda));
+    for (const f of filas) {
+      if (f && tieneFotosEnTexto(f)) { await db.products.update(f.id, { photos: f.photos.map(paraGuardar) }); convertidos++; }
+    }
+    await new Promise(r => setTimeout(r, pausaMs));
+  }
+  const sids = await db.suppliers.toCollection().primaryKeys();
+  for (let i = 0; i < sids.length; i += tanda) {
+    const filas = await db.suppliers.bulkGet(sids.slice(i, i + tanda));
+    for (const f of filas) {
+      if (f && esDataUrl(f.cardPhoto)) { await db.suppliers.update(f.id, { cardPhoto: paraGuardar(f.cardPhoto) }); convertidos++; }
+    }
+    await new Promise(r => setTimeout(r, pausaMs));
+  }
+  await saveSettings({ fotosBinarioListo: true });
+  return convertidos;
 }
 
 export async function addProduct(p) {
+  Object.assign(p, productoParaGuardar(p));
   p.uuid = p.uuid || crypto.randomUUID();
   p.updatedAt = Date.now();
   p.uploadPending = fotosSinSubir(p).length ? 1 : 0;
@@ -232,6 +265,7 @@ export async function addProduct(p) {
 }
 
 export async function updateProduct(id, changes) {
+  Object.assign(changes, productoParaGuardar(changes));
   changes.updatedAt = Date.now();
   conBanderaIA(changes);
   await db.products.update(id, changes);
@@ -245,6 +279,7 @@ export async function updateProduct(id, changes) {
 export async function deleteProduct(id) {
   const record = await db.products.get(id);
   await db.products.delete(id);
+  liberarObjectUrls(`p:${id}:`);
   if (_syncEngine?.roomId && record?.uuid) {
     _syncEngine.pushDelete('products', record.uuid).catch(console.warn);
   }

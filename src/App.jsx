@@ -79,7 +79,7 @@ function calcImportCost(fobPrice, ncm, freightPct = 12, insurancePct = 1.5) {
     ],
   };
 }
-import db, { initDB, getSettings, saveSettings as dbSaveSettings, getDistricts, addDistrict, updateDistrict as dbUpdateDistrict, getSuppliers, addSupplier, updateSupplier as dbUpdateSupplier, deleteSupplier as dbDeleteSupplier, getProducts, addProduct, updateProduct as dbUpdateProduct, deleteProduct as dbDeleteProduct, deleteDistrict as dbDeleteDistrict, setSyncEngine, getSyncQueue } from './db';
+import db, { initDB, convertirFotosABinario, getSettings, saveSettings as dbSaveSettings, getDistricts, addDistrict, updateDistrict as dbUpdateDistrict, getSuppliers, addSupplier, updateSupplier as dbUpdateSupplier, deleteSupplier as dbDeleteSupplier, getProducts, addProduct, updateProduct as dbUpdateProduct, deleteProduct as dbDeleteProduct, deleteDistrict as dbDeleteDistrict, setSyncEngine, getSyncQueue } from './db';
 import { processImage, processAudio, processCard, urlToBase64, uploadPhoto, proxyImage, apiUrl, deleteAccountPreview, deleteAccount } from './api/client';
 import useSync from './hooks/useSync';
 import useAuth from './hooks/useAuth';
@@ -94,12 +94,13 @@ import { requestPersistentStorage } from './lib/platform.js';
 import { createAutosave } from './lib/autosave.js';
 import { groupBySupplier } from './lib/supplierGroups.js';
 import { explicarErrorDeCamara, explicarErrorDeMicrofono, abrirAjustesDeLaApp } from './lib/permisos.js';
-import { serializarAudio, urlDeAudio, esPunteroMuerto, sinAudio } from './lib/audioNotes.js';
+import { serializarAudio, urlDeAudio, esPunteroMuerto } from './lib/audioNotes.js';
 import { crearPapelera } from './lib/deshacer.js';
 import { estadoIA, patchReintentoIA, explicarFalloIA } from './lib/aiEstado.js';
 import { debeLimpiarBaseLocal } from './lib/cuentaLocal.js';
 import { leerBorrador, guardarBorrador, borrarBorrador, describirBorrador, ESPERA_BORRADOR_MS } from './lib/borradorCaptura.js';
 import { elegirMiniatura, miniaturaDe, generarMiniaturasFaltantes } from './lib/miniaturas.js';
+import { aDataUrl, sinDerivados } from './lib/fotosBinario.js';
 import { supabase } from './lib/supabase.js';
 
 // El catálogo se muestra del más nuevo al más viejo (mismo orden que la base).
@@ -2636,7 +2637,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
               settings: { ...loc },
               districts: districts || [],
               suppliers: (suppliers || []).map(s => { const { cardPhoto, ...rest } = s; return rest; }),
-              products: (products || []).map(p => { const { photos, ...rest } = sinAudio(p); return { ...rest, photoCount: p.photos?.length || 0, tieneNotaDeVoz: !!p.audio }; }),
+              products: (products || []).map(p => { const { photos, ...rest } = sinDerivados(p); return { ...rest, photoCount: p.photos?.length || 0, tieneNotaDeVoz: !!p.audio }; }),
             };
             const blob = new Blob([JSON.stringify(backup, null, 2)], { type:'application/json' });
             const res = await saveFile(blob, `fairscan-backup-${new Date().toISOString().slice(0,10)}.json`, { title: 'FairScan · Backup' });
@@ -3057,7 +3058,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
   const getProductPhotoSources = (p) => {
     const sources = [];
     for (const photo of (p.photos || [])) {
-      if (photo && typeof photo === 'string' && photo.startsWith('data:')) sources.push(photo);
+      if (photo && typeof photo === 'string' && (photo.startsWith('data:') || photo.startsWith('blob:'))) sources.push(photo);
     }
     for (const photo of (p.photos || [])) {
       if (photo && typeof photo === 'string' && photo.startsWith('http') && !sources.includes(photo)) sources.push(photo);
@@ -3086,21 +3087,21 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
 
   const hasCloudPhotos = scopeProducts.some(p => (p.photoUrls || []).some(Boolean) || (p.photos || []).some(x => x && typeof x === 'string' && x.startsWith('http')));
   const photosNotUploaded = scopeProducts.filter(p => {
-    const hasLocal = (p.photos || []).some(x => x && typeof x === 'string' && x.startsWith('data:'));
+    const hasLocal = (p.photos || []).some(x => x && typeof x === 'string' && (x.startsWith('data:') || x.startsWith('blob:')));
     const hasCloud = (p.photoUrls || []).some(Boolean);
     return hasLocal && !hasCloud;
   }).length;
   const totalPhotosToSync = scopeProducts.filter(p => {
-    const hasLocal = (p.photos || []).some(x => x && typeof x === 'string' && x.startsWith('data:'));
+    const hasLocal = (p.photos || []).some(x => x && typeof x === 'string' && (x.startsWith('data:') || x.startsWith('blob:')));
     const hasCloud = (p.photoUrls || []).some(Boolean);
     return hasLocal && !hasCloud;
-  }).reduce((n, p) => n + (p.photos || []).filter(x => x && typeof x === 'string' && x.startsWith('data:')).length, 0);
+  }).reduce((n, p) => n + (p.photos || []).filter(x => x && typeof x === 'string' && (x.startsWith('data:') || x.startsWith('blob:'))).length, 0);
 
   const syncPhotosToCloud = async () => {
     setSyncing(true);
     let done = 0;
     const toSync = scopeProducts.filter(p => {
-      const hasLocal = (p.photos || []).some(x => x && typeof x === 'string' && x.startsWith('data:'));
+      const hasLocal = (p.photos || []).some(x => x && typeof x === 'string' && (x.startsWith('data:') || x.startsWith('blob:')));
       const hasCloud = (p.photoUrls || []).some(Boolean);
       return hasLocal && !hasCloud;
     });
@@ -3108,7 +3109,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       const sup = suppliers.find(s => s.id === product.supplierId);
       const urls = [];
       for (let i = 0; i < product.photos.length; i++) {
-        const result = await uploadPhoto(product.photos[i], 'products');
+        const result = await uploadPhoto(await aDataUrl(product.photos[i]), 'products');
         urls.push(result?.url || null);
         done++;
         setSyncProgress(`☁️ ${done}/${totalPhotosToSync}`);
@@ -3121,7 +3122,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
     for (const id of uniqueSupIds) {
       const s = suppliers.find(s => s.id === id);
       if (s?.cardPhoto && !s.cardPhotoUrl) {
-        const result = await uploadPhoto(s.cardPhoto, 'cards');
+        const result = await uploadPhoto(await aDataUrl(s.cardPhoto), 'cards');
         if (result?.url) await onUpdateSupplier(s.id, { cardPhotoUrl: result.url }, true);
       }
     }
@@ -3173,6 +3174,9 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
     try {
       if (src.startsWith('data:')) {
         return src.split(',')[1];
+      } else if (src.startsWith('blob:')) {
+        const d = await aDataUrl(src);
+        return d ? d.split(',')[1] : null;
       } else if (src.startsWith('http')) {
         const dataUrl = await proxyImage(src);
         return dataUrl ? dataUrl.split(',')[1] : null;
@@ -3425,8 +3429,8 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
             const photo = photoSources[i];
             if (!photo || typeof photo !== 'string') continue;
             let bytes;
-            if (photo.startsWith('data:')) {
-              bytes = dataURLtoUint8Array(photo);
+            if (photo.startsWith('data:') || photo.startsWith('blob:')) {
+              bytes = dataURLtoUint8Array(await aDataUrl(photo));
             } else if (photo.startsWith('http')) {
               // Photo is a cloud URL — download via server proxy (bypasses CORS)
               const dataUrl = await proxyImage(photo);
@@ -3464,8 +3468,8 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
                 const dataUrl = await proxyImage(cardSrc);
                 if (!dataUrl) throw new Error('Proxy download failed');
                 bytes = dataURLtoUint8Array(dataUrl);
-              } else if (cardSrc.startsWith('data:')) {
-                bytes = dataURLtoUint8Array(cardSrc);
+              } else if (cardSrc.startsWith('data:') || cardSrc.startsWith('blob:')) {
+                bytes = dataURLtoUint8Array(await aDataUrl(cardSrc));
               } else {
                 continue;
               }
@@ -4514,7 +4518,11 @@ export default function App() {
     generarMiniaturasFaltantes(products, async (id, thumb) => {
       await db.products.update(id, { thumb });
       setProducts(prev => prev.map(p => p.id === id ? { ...p, thumb } : p));
-    }).finally(() => { miniaturasEnCursoRef.current = false; });
+    })
+      // Después, las fotos que quedaron como texto pasan a bytes (3.2), una sola vez.
+      .then(() => convertirFotosABinario())
+      .then(n => { if (n) console.log(`[fotos] ${n} registros pasados a binario`); })
+      .finally(() => { miniaturasEnCursoRef.current = false; });
   }, [ready, products.length]);
 
   // Refresh React state when AI sync updates Dexie
@@ -4557,7 +4565,7 @@ export default function App() {
     for (let i = 0; i < photos.length; i++) {
       // Skip if already a URL (already uploaded)
       if (photos[i]?.startsWith('http')) { urls.push(photos[i]); continue; }
-      const result = await uploadPhoto(photos[i], 'products');
+      const result = await uploadPhoto(await aDataUrl(photos[i]), 'products');
       if (result?.url) urls.push(result.url);
       else urls.push(null);
     }

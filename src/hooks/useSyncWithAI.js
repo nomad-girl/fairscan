@@ -11,14 +11,11 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import db, { updateProduct, updateSupplier } from '../db.js';
 import * as api from '../api/client.js';
-import { fotosSinSubir, esperaReintento } from '../lib/fotosPendientes.js';
+import { fotosSinSubir, esperaReintento, esFotoLocal } from '../lib/fotosPendientes.js';
+import { aDataUrl } from '../lib/fotosBinario.js';
 
-// Check if a string is base64 image data (not a URL)
-const isBase64Photo = (photo) => {
-  if (!photo || typeof photo !== 'string') return false;
-  if (photo.startsWith('http://') || photo.startsWith('https://')) return false;
-  return photo.startsWith('data:') || photo.length > 200;
-};
+// Foto que vive en este teléfono (texto, bytes o blob:), no una dirección web.
+const isBase64Photo = esFotoLocal;
 
 // Max retries before giving up on an item (marks as processed to stop retrying)
 const MAX_RETRIES = 3;
@@ -64,7 +61,7 @@ export function useSyncWithAI(settings) {
     try {
       for (const s of pendingCardSuppliers) {
         if (!navigator.onLine) break;
-        const res = await api.uploadPhoto(s.cardPhoto, 'cards');
+        const res = await api.uploadPhoto(await aDataUrl(s.cardPhoto), 'cards');
         if (res?.url) await updateSupplier(s.id, { cardPhotoUrl: res.url });
         else failed++;
       }
@@ -73,7 +70,7 @@ export function useSyncWithAI(settings) {
         const urls = [...(p.photoUrls || [])];
         let completo = true;
         for (const i of fotosSinSubir(p)) {
-          const res = await api.uploadPhoto(p.photos[i], 'products');
+          const res = await api.uploadPhoto(await aDataUrl(p.photos[i]), 'products');
           if (res?.url) urls[i] = res.url; else completo = false;
         }
         if (urls.some(Boolean)) await updateProduct(p.id, { photoUrls: urls });
@@ -142,7 +139,7 @@ export function useSyncWithAI(settings) {
 
     try {
       console.log(`[AI Sync] Processing product ${product.id} (attempt ${(product.ai_retry_count || 0) + 1})...`);
-      const result = await api.processImage(photo, {
+      const result = await api.processImage(await aDataUrl(photo), {
         categories: settings?.categories,
         materials: settings?.materials,
       });
@@ -223,7 +220,7 @@ export function useSyncWithAI(settings) {
 
     try {
       console.log(`[AI Sync] Processing supplier ${supplier.id} card (attempt ${(supplier.ai_retry_count || 0) + 1})...`);
-      const result = await api.processCard(supplier.cardPhoto);
+      const result = await api.processCard(await aDataUrl(supplier.cardPhoto));
       console.log(`[AI Sync] Proveedor ${supplier.id}: ok`);
 
       const updates = {};

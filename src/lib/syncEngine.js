@@ -1,7 +1,8 @@
 import { supabase, isSupabaseConfigured } from './supabase.js';
 import idMapper from './idMapper.js';
 import db, { addToSyncQueue, getSyncQueue, deleteSyncQueueItem, saveSettings as dbSaveSettings } from '../db.js';
-import { sinAudio } from './audioNotes.js';
+import { sinDerivados } from './fotosBinario.js';
+import { esFotoLocal } from './fotosPendientes.js';
 import { recomputeUploadFlags } from '../db.js';
 
 /**
@@ -363,8 +364,7 @@ class SyncEngine {
         // Nunca se reemplazan las fotos guardadas en el teléfono por direcciones web,
         // tenga o no tenga la nube esas direcciones: sin señal, la dirección no sirve.
         if (table === 'products') {
-          const localHasPhotos = existingLocal.photos?.length > 0 &&
-            existingLocal.photos.some(p => typeof p === 'string' && p.startsWith('data:'));
+          const localHasPhotos = existingLocal.photos?.length > 0 && existingLocal.photos.some(esFotoLocal);
           if (localHasPhotos) {
             delete localData.photos;
           }
@@ -525,7 +525,7 @@ class SyncEngine {
         districts: districts.map(d => ({ ...d, photos: undefined })),
         suppliers: suppliers.map(s => ({ ...s, cardPhoto: undefined })),
         // Sin el audio: es binario, no cabe en JSON y ya vive en la base local (ver audioNotes.js).
-        products: products.map(p => ({ ...sinAudio(p), photos: (p.photoUrls || p.photos || []).filter(u => typeof u === 'string' && u.startsWith('http')) })),
+        products: products.map(p => ({ ...sinDerivados(p), photos: (p.photoUrls || p.photos || []).filter(u => typeof u === 'string' && u.startsWith('http')) })),
       };
 
       const { error } = await supabase

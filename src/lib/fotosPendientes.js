@@ -10,9 +10,11 @@
 
 /** Una foto guardada en el teléfono (data URL o base64 pelado), no una dirección web. */
 export function esFotoLocal(x) {
-  if (!x || typeof x !== 'string') return false;
+  if (!x) return false;
+  if (typeof x === 'object') return x.data instanceof ArrayBuffer || ArrayBuffer.isView(x.data); // bytes en la base (3.2)
+  if (typeof x !== 'string') return false;
   if (x.startsWith('http://') || x.startsWith('https://')) return false;
-  return x.startsWith('data:') || x.length > 200;
+  return x.startsWith('data:') || x.startsWith('blob:') || x.length > 200;
 }
 
 /** Índices de las fotos de un producto que están en el teléfono y no en la nube. */
