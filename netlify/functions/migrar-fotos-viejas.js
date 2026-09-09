@@ -46,34 +46,24 @@ function clientes() {
 async function faseCopiar(c, hastaMs) {
   const { data: miembros } = await c.db.from("team_members").select("team_id, user_id, role, created_at").order("created_at");
   const carpeta = carpetaPorEquipo(miembros || []);
-  // Lo ya copiado en tandas anteriores, de una sola vez (la base está lejos: cada
-  // consulta cuesta ~300 ms; no se puede preguntar foto por foto).
-  const { data: previas } = await c.db.from("migracion_fotos").select("vieja_key, nueva_key").is("error", null);
-  const yaCopiada = new Map((previas || []).map(r => [r.vieja_key, r.nueva_key]));
-
+  // Solo lo que falta, filtrado en la base (vista fotos_pendientes_migracion): la
+  // base está lejos y cada consulta cuesta ~300 ms; traer todo y filtrar acá era lento.
   let copiadas = 0, registros = 0, errores = 0;
-  const pendientes = []; // { tabla, fila, viejas }
-  for (const tabla of ["products", "suppliers"]) {
-    const col = tabla === "products" ? "photo_urls" : "card_photo_url";
-    // PostgREST devuelve como máximo 1000 filas por consulta aunque se pida más:
-    // se pagina hasta agotar (son solo ids y direcciones, pesa poco).
-    const filas = [];
-    for (let desde = 0; ; desde += 1000) {
-      const { data, error } = await c.db.from(tabla).select(`id, room_id, ${col}`).is("deleted_at", null).not(col, "is", null).order("id").range(desde, desde + 999);
-      if (error) throw error;
-      filas.push(...(data || []));
-      if (!data || data.length < 1000) break;
-    }
-    for (const fila of filas) {
-      const viejas = fotosViejas(fila, tabla);
-      if (viejas.length) pendientes.push({ tabla, fila, viejas });
-    }
+  const { data: filasPend, error: ePend } = await c.db.from("fotos_pendientes_migracion").select("tabla, id, room_id, photo_urls, card_photo_url").limit(200);
+  if (ePend) throw ePend;
+  const pendientes = [];
+  for (const fila of filasPend || []) {
+    const viejas = fotosViejas(fila, fila.tabla);
+    if (viejas.length) pendientes.push({ tabla: fila.tabla, fila, viejas });
   }
   if (!pendientes.length) return { copiadas, registros, errores, terminado: true };
+  // Lo ya copiado de estos mismos registros (por si una tanda anterior se cortó a mitad).
+  const { data: previas } = await c.db.from("migracion_fotos").select("vieja_key, nueva_key").is("error", null).in("registro_id", pendientes.map(p => p.fila.id));
+  const yaCopiada = new Map((previas || []).map(r => [r.vieja_key, r.nueva_key]));
 
   // Un registro por vez en orden, pero sus fotos en paralelo; y varios registros
   // a la vez (concurrencia acotada) hasta agotar el presupuesto de tiempo.
-  const CONCURRENCIA = 6;
+  const CONCURRENCIA = 10;
   let idx = 0, fotosEnTanda = 0;
   const procesar = async ({ tabla, fila, viejas }) => {
     const nuevas = tabla === "products" ? [...fila.photo_urls] : [fila.card_photo_url];
