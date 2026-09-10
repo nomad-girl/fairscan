@@ -79,7 +79,7 @@ function calcImportCost(fobPrice, ncm, freightPct = 12, insurancePct = 1.5) {
     ],
   };
 }
-import db, { initDB, convertirFotosABinario, getSettings, saveSettings as dbSaveSettings, getDistricts, addDistrict, updateDistrict as dbUpdateDistrict, getSuppliers, addSupplier, updateSupplier as dbUpdateSupplier, deleteSupplier as dbDeleteSupplier, getProducts, addProduct, updateProduct as dbUpdateProduct, deleteProduct as dbDeleteProduct, deleteDistrict as dbDeleteDistrict, setSyncEngine, getSyncQueue } from './db';
+import db, { initDB, ajustarFeriaAutomatica, convertirFotosABinario, getSettings, saveSettings as dbSaveSettings, getDistricts, addDistrict, updateDistrict as dbUpdateDistrict, getSuppliers, addSupplier, updateSupplier as dbUpdateSupplier, deleteSupplier as dbDeleteSupplier, getProducts, addProduct, updateProduct as dbUpdateProduct, deleteProduct as dbDeleteProduct, deleteDistrict as dbDeleteDistrict, setSyncEngine, getSyncQueue } from './db';
 import { processImage, processAudio, processCard, urlToBase64, uploadPhoto, proxyImage, apiUrl, deleteAccountPreview, deleteAccount } from './api/client';
 import useSync from './hooks/useSync';
 import useAuth from './hooks/useAuth';
@@ -98,6 +98,8 @@ import { serializarAudio, urlDeAudio, esPunteroMuerto } from './lib/audioNotes.j
 import { crearPapelera } from './lib/deshacer.js';
 import { estadoIA, patchReintentoIA, explicarFalloIA } from './lib/aiEstado.js';
 import { debeLimpiarBaseLocal } from './lib/cuentaLocal.js';
+import { guardarResguardo, restaurarResguardo } from './lib/resguardoLocal.js';
+import { copiaParaRestaurar } from './lib/syncEngine';
 import { leerBorrador, guardarBorrador, borrarBorrador, describirBorrador, ESPERA_BORRADOR_MS } from './lib/borradorCaptura.js';
 import { elegirMiniatura, miniaturaDe, generarMiniaturasFaltantes } from './lib/miniaturas.js';
 import { aDataUrl, sinDerivados } from './lib/fotosBinario.js';
@@ -2050,7 +2052,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
                     setTimeout(() => setImportStatus(null), 3000);
                     return;
                   }
-                  const latest = backups[0];
+                                    const latest = copiaParaRestaurar(backups); // la más nueva con datos, no la más nueva a secas
                   const counts = latest.counts || latest.data?.counts;
                   if (confirm(`¿Restaurar backup del ${new Date(latest.created_at).toLocaleString()}?\n(${counts?.districts || '?'} ferias, ${counts?.suppliers || '?'} proveedores, ${counts?.products || '?'} productos)`)) {
                     setImportStatus("⏳ Restaurando...");
@@ -4014,7 +4016,8 @@ export default function App() {
   const activeDistrict = districts.find(d => d.id === activeDistrictId);
 
   // Reload all data from Dexie
-  const reloadAll = async () => {
+    const reloadAll = async () => {
+    await ajustarFeriaAutomatica().catch(() => false); // la feria creada sola no tapa el catálogo real
     const [d, s, p, st] = await Promise.all([getDistricts(), getSuppliers(), getProducts(), getSettings()]);
     setDistricts(d); setSuppliers(s); setProducts(p); setSettings(st);
     return st;
@@ -4044,12 +4047,27 @@ export default function App() {
         } catch { /* sin señal: se decide con lo que hay */ }
       }
       const { limpiar, motivo } = debeLimpiarBaseLocal({ lastUserId: previa.lastUserId, lastUserAnonima: !!previa.lastUserAnonima, userId: auth.user.id, roomId: previa.roomId, teamIds });
-      if (limpiar) {
+            if (limpiar) {
         console.warn(`[cuenta] Base local de otra cuenta (${motivo}): se limpia antes de arrancar`);
+        // Nunca sin resguardo (10/09: 495 productos sin subir se fueron con la limpieza).
+        // 1) copia a la nube del equipo anterior, si se puede; 2) copia local a nombre
+        // de la cuenta anterior, obligatoria: si falla, la base NO se limpia.
+        if (previa.roomId) await syncEngine.copiaAntesDeLimpiar(previa.roomId).catch(() => false);
+        let resguardada = false;
+        try { await guardarResguardo(db, previa.lastUserId || `equipo:${previa.roomId || 'sin-equipo'}`); resguardada = true; }
+        catch (e) { console.warn('[cuenta] No se pudo resguardar la base local; no se limpia:', e?.message || e); }
         try { await syncEngine.disconnectTeam?.(); } catch { /* no estaba conectado */ }
-        await db.delete();
-        await db.open();
-        await initDB();
+        if (resguardada) {
+          await db.delete();
+          await db.open();
+          // Si esta cuenta había dejado un resguardo en este teléfono, vuelve tal cual.
+          const devueltos = await restaurarResguardo(db, auth.user.id).catch(() => 0);
+          if (devueltos) console.log(`[cuenta] Resguardo local devuelto: ${devueltos} productos`);
+          await initDB();
+        }
+      } else {
+        const devueltos = await restaurarResguardo(db, auth.user.id).catch(() => 0);
+        if (devueltos) { console.log(`[cuenta] Resguardo local devuelto: ${devueltos} productos`); await initDB(); }
       }
       await dbSaveSettings({ lastUserId: auth.user.id, lastUserAnonima: !!auth.user.is_anonymous });
       // El rubro elegido al crear la cuenta define las etiquetas (4.7). Se aplica una

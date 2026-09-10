@@ -1,5 +1,6 @@
 import Dexie from 'dexie';
 import { fotosSinSubir, tarjetaSinSubir } from './lib/fotosPendientes.js';
+import { decidirFeriaActiva } from './lib/feriaAutomatica.js';
 import { productoParaUI, productoParaGuardar, proveedorParaUI, proveedorParaGuardar, liberarObjectUrls, tieneFotosEnTexto, esDataUrl, paraGuardar } from './lib/fotosBinario.js';
 
 const db = new Dexie('FairScanDB');
@@ -119,6 +120,7 @@ export async function initDB() {
       ...feriaPorDefecto(),
       uuid: crypto.randomUUID(),
       updatedAt: Date.now(),
+      autoCreada: 1, // no sube a la nube hasta tener algo adentro (ver feriaAutomatica.js)
     });
     await db.settings.put({ key: 'main', ...DEFAULT_SETTINGS, activeDistrictId: id });
     return;
@@ -128,6 +130,24 @@ export async function initDB() {
     const first = await db.districts.toCollection().first();
     await db.settings.put({ key: 'main', ...DEFAULT_SETTINGS, activeDistrictId: first?.id || null });
   }
+}
+
+/**
+ * Después de cargar o sincronizar: si la feria activa es la automática y sigue
+ * vacía pero ya hay ferias reales, se descarta y la activa pasa a la más reciente.
+ * También cubre una activa que ya no existe. Devuelve true si cambió algo.
+ */
+export async function ajustarFeriaAutomatica() {
+  const st = await db.settings.get('main');
+  if (!st) return false;
+  const [districts, products, suppliers] = await Promise.all([
+    db.districts.toArray(), db.products.toArray(), db.suppliers.toArray(),
+  ]);
+  const r = decidirFeriaActiva({ districts, products, suppliers, activeDistrictId: st.activeDistrictId });
+  if (!r) return false;
+  if (r.borrarId != null) await db.districts.delete(r.borrarId); // local: nunca subió
+  await db.settings.put({ ...st, activeDistrictId: r.activarId, key: 'main' });
+  return true;
 }
 
 // ─── Settings ───

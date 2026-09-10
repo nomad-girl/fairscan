@@ -232,3 +232,33 @@ describe('SyncEngine: supplier conflict resolution preserves card data', () => {
     expect(record.cardPhotoUrl).toBe('https://r2.dev/cards/newco.jpg');
   });
 });
+
+describe('Copias de seguridad: qué se borra y cuál se restaura (10/09)', async () => {
+  const { copiasParaBorrar, copiaParaRestaurar } = await import('../syncEngine.js');
+  const dia = 24 * 60 * 60 * 1000;
+  const ahora = Date.parse('2026-09-10T12:00:00Z');
+  const copia = (id, hace) => ({ id, created_at: new Date(ahora - hace).toISOString() });
+
+  it('no borra nada de los últimos 7 días aunque haya más de 24', () => {
+    const copias = Array.from({ length: 40 }, (_, i) => copia(`c${i}`, i * 3600 * 1000)); // una por hora, 40 h
+    expect(copiasParaBorrar(copias, { ahora })).toEqual([]);
+  });
+  it('borra solo lo que está fuera de las 24 más nuevas Y tiene más de 7 días', () => {
+    const copias = [...Array.from({ length: 30 }, (_, i) => copia(`n${i}`, i * dia / 24)), copia('vieja', 8 * dia), copia('viejisima', 30 * dia)];
+    expect(copiasParaBorrar(copias, { ahora }).sort()).toEqual(['vieja', 'viejisima']);
+  });
+  it('con menos de 24 copias no borra ni las viejas', () => {
+    expect(copiasParaBorrar([copia('a', 40 * dia), copia('b', 1)], { ahora })).toEqual([]);
+  });
+  it('para restaurar elige la más nueva con datos, no la vacía más nueva', () => {
+    const copias = [
+      { id: 'vacia', counts: { products: 0, suppliers: 98, districts: 6 } },
+      { id: 'vacia2', counts: { products: 0, suppliers: 0 } },
+      { id: 'buena', counts: { products: 495, suppliers: 233 } },
+    ];
+    expect(copiaParaRestaurar([copias[1], copias[2]]).id).toBe('buena');
+    expect(copiaParaRestaurar(copias).id).toBe('vacia'); // 98 proveedores también son datos
+    expect(copiaParaRestaurar([copias[1]]).id).toBe('vacia2'); // si todas están vacías, la más nueva
+    expect(copiaParaRestaurar([])).toBeNull();
+  });
+});

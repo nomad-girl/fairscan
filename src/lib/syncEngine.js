@@ -4,6 +4,8 @@ import db, { addToSyncQueue, getSyncQueue, deleteSyncQueueItem, saveSettings as 
 import { sinDerivados } from './fotosBinario.js';
 import { esFotoLocal } from './fotosPendientes.js';
 import { recomputeUploadFlags } from '../db.js';
+import { traerTodo } from './paginado.js';
+import { feriaAutomaticaVacia } from './feriaAutomatica.js';
 
 /**
  * SyncEngine: Handles push/pull/realtime sync between local Dexie and Supabase.
@@ -135,8 +137,9 @@ class SyncEngine {
   // ─── Push (Local → Cloud) ───
 
   /** Push a single record to Supabase */
-  async pushRecord(table, localRecord) {
+    async pushRecord(table, localRecord) {
     if (!this.roomId) return;
+    await this._subirFeriaAutomaticaSiHaceFalta(table, localRecord);
 
     const cloudRecord = idMapper.toCloud(table, localRecord, this.roomId);
 
@@ -169,6 +172,20 @@ class SyncEngine {
         payload: cloudRecord,
       });
     }
+  }
+
+    /**
+   * La feria creada sola (autoCreada) no se sube vacía. Cuando llega el primer
+   * producto o proveedor que la usa, se sube primero (clave foránea) y se le
+   * saca la marca para no repetirlo.
+   */
+  async _subirFeriaAutomaticaSiHaceFalta(table, localRecord) {
+    if (table !== 'products' && table !== 'suppliers') return;
+    if (localRecord?.districtId == null) return;
+    const feria = await db.table('districts').get(localRecord.districtId);
+    if (!feria?.autoCreada) return;
+    await db.table('districts').update(feria.id, { autoCreada: 0 });
+    await this.pushRecord('districts', { ...feria, autoCreada: 0 });
   }
 
   /** Push a soft delete to Supabase */
@@ -215,21 +232,28 @@ class SyncEngine {
       for (const table of ['districts', 'suppliers', 'products']) {
         // First, get existing cloud UUIDs for this room to avoid re-pushing
         // records we just pulled (which would overwrite their device_id)
-        let cloudIds = new Set();
+                let cloudIds = new Set();
         try {
-          const { data: existing } = await supabase
+          const { data: existing } = await traerTodo((desde, hasta) => supabase
             .from(table)
             .select('id')
-            .eq('room_id', this.roomId);
+            .eq('room_id', this.roomId)
+            .order('created_at', { ascending: true })
+            .range(desde, hasta));
           cloudIds = new Set((existing || []).map(r => r.id));
         } catch (err) {
           console.warn(`⚠️ Could not fetch existing ${table} IDs:`, err);
         }
 
         const records = await db.table(table).toArray();
+        const contenido = table === 'districts'
+          ? { products: await db.table('products').toArray(), suppliers: await db.table('suppliers').toArray() }
+          : null;
         let pushed = 0;
         for (const record of records) {
           if (!record.uuid) continue;
+          // La feria creada sola no ensucia el equipo mientras esté vacía.
+          if (contenido && feriaAutomaticaVacia(record, contenido)) continue;
           // Skip records already in the cloud (pulled from other devices)
           if (cloudIds.has(record.uuid)) continue;
           const cloudRecord = idMapper.toCloud(table, record, this.roomId);
@@ -263,12 +287,15 @@ class SyncEngine {
     const errors = [];
 
     try {
-      for (const table of ['districts', 'suppliers', 'products']) {
-        const { data, error } = await supabase
+            for (const table of ['districts', 'suppliers', 'products']) {
+        // De a 1.000: PostgREST corta ahí en silencio (10/09: un equipo con 1.137 productos).
+        const { data, error } = await traerTodo((desde, hasta) => supabase
           .from(table)
           .select('*')
           .eq('room_id', this.roomId)
-          .is('deleted_at', null);
+          .is('deleted_at', null)
+          .order('created_at', { ascending: true })
+          .range(desde, hasta));
 
         if (error) {
           console.warn(`⚠️ Pull failed for ${table}:`, error);
@@ -311,13 +338,15 @@ class SyncEngine {
     let anyChanges = false;
 
     try {
-      for (const table of ['districts', 'suppliers', 'products']) {
-        const { data, error } = await supabase
+            for (const table of ['districts', 'suppliers', 'products']) {
+        const { data, error } = await traerTodo((desde, hasta) => supabase
           .from(table)
           .select('*')
           .eq('room_id', this.roomId)
           .is('deleted_at', null)
-          .gt('updated_at', sinceISO);
+          .gt('updated_at', sinceISO)
+          .order('updated_at', { ascending: true })
+          .range(desde, hasta));
 
         if (error) {
           console.warn(`⚠️ Delta pull failed for ${table}:`, error);
@@ -507,7 +536,7 @@ class SyncEngine {
   }
 
   /** Create a cloud backup snapshot */
-  async createBackup() {
+    async createBackup({ motivo = 'automatica' } = {}) {
     if (!this.roomId || !this.isOnline || !isSupabaseConfigured()) return;
 
     try {
@@ -517,9 +546,10 @@ class SyncEngine {
         db.table('products').toArray(),
       ]);
 
-      const snapshot = {
+            const snapshot = {
         version: 1,
         deviceId: this.deviceId,
+        motivo,
         timestamp: new Date().toISOString(),
         counts: { districts: districts.length, suppliers: suppliers.length, products: products.length },
         districts: districts.map(d => ({ ...d, photos: undefined })),
@@ -543,16 +573,16 @@ class SyncEngine {
       }
 
       // Cleanup: keep only last 24 backups for this room (~24 hours of history)
+            // Limpieza: se conservan las 24 más nuevas Y todo lo de los últimos 7 días.
+      // (10/09: la copia que salvó 495 productos estaba a horas de ser borrada por
+      // copias vacías más nuevas.)
       const { data: old } = await supabase
         .from('backups')
         .select('id, created_at')
         .eq('room_id', this.roomId)
         .order('created_at', { ascending: false });
-
-      if (old && old.length > 24) {
-        const toDelete = old.slice(24).map(b => b.id);
-        await supabase.from('backups').delete().in('id', toDelete);
-      }
+      const toDelete = copiasParaBorrar(old || []);
+      if (toDelete.length) await supabase.from('backups').delete().in('id', toDelete);
 
       this._lastBackupAt = Date.now();
       console.log(`💾 Backup cloud guardado (${districts.length}D, ${suppliers.length}S, ${products.length}P)`);
@@ -569,11 +599,24 @@ class SyncEngine {
       .from('backups')
       .select('id, device_id, created_at, data->counts, data->timestamp')
       .eq('room_id', this.roomId)
-      .order('created_at', { ascending: false })
-      .limit(5);
+            .order('created_at', { ascending: false })
+      .limit(40);
 
     if (error) return [];
     return data || [];
+  }
+
+  /**
+   * Copia de seguridad a la nube del equipo `roomId` con lo que hay en el teléfono,
+   * aunque el motor no esté conectado (se usa antes de limpiar la base, 2.12).
+   */
+  async copiaAntesDeLimpiar(roomId) {
+    if (!roomId) return false;
+    const previo = this.roomId;
+    this.roomId = roomId;
+    try { await this.createBackup({ motivo: 'antes-de-limpiar' }); return true; }
+    catch { return false; }
+    finally { this.roomId = previo; }
   }
 
   /** Restore from a cloud backup */
@@ -647,3 +690,17 @@ class SyncEngine {
 // Singleton
 const syncEngine = new SyncEngine();
 export default syncEngine;
+
+/** Qué copias borrar: las que no están entre las 24 más nuevas y además tienen más de 7 días. */
+export function copiasParaBorrar(copias, { conservar = 24, dias = 7, ahora = Date.now() } = {}) {
+  const orden = [...copias].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const limite = ahora - dias * 24 * 60 * 60 * 1000;
+  return orden.slice(conservar).filter(b => new Date(b.created_at).getTime() < limite).map(b => b.id);
+}
+
+/** La copia que conviene restaurar: la más nueva que tenga algo adentro. */
+export function copiaParaRestaurar(copias) {
+  if (!copias?.length) return null;
+  const conDatos = copias.find(b => { const c = b.counts || b.data?.counts; return (c?.products || 0) + (c?.suppliers || 0) > 0; });
+  return conDatos || copias[0];
+}
