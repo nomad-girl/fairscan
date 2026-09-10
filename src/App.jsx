@@ -3873,6 +3873,9 @@ export default function App() {
   const [prevScreen, setPrevScreen] = useState(null);
   const [listTab, setListTab] = useState("products");
   const [toast, setToast] = useState("");
+  // ─── Auth ─── (arriba de todo: los efectos de créditos lo leen en su lista de dependencias;
+  // más abajo, el bundle de producción rompía al arrancar con "Cannot access before initialization")
+  const auth = useAuth();
   // Negocio (5.1) y créditos (5.2): la config viene del servidor; el saldo vive en
   // el teléfono y se reconcilia con el servidor cuando hay señal (gana el servidor).
   const [negocio, setNegocio] = useState(NEGOCIO_POR_DEFECTO);
@@ -3952,6 +3955,10 @@ export default function App() {
     if (veredicto.mostrarPaywall) setPaywall({ bloqueados: veredicto.bloquear });
     sincronizarCreditos();
   };
+  // `ready` se declara acá porque los efectos de abajo lo leen: si quedara más abajo,
+  // el bundle de producción rompe al arrancar ("Cannot access before initialization").
+  const [ready, setReady] = useState(false);
+
   // Con señal y paywall pendiente (se usaron los de emergencia sin señal): se muestra al abrir.
   useEffect(() => {
     const e = creditos;
@@ -3988,7 +3995,6 @@ export default function App() {
     window.addEventListener("pagehide", confirmar);
     return () => { document.removeEventListener("visibilitychange", onHide); window.removeEventListener("pagehide", confirmar); };
   }, []);
-  const [ready, setReady] = useState(false);
   const [isDark, setIsDark] = useState(true);
   // #10: Supplier dedup prompt state
   const [dedupPrompt, setDedupPrompt] = useState(null); // { similar, data, resolve }
@@ -3999,8 +4005,6 @@ export default function App() {
   // Scroll position preservation for list views
   const scrollPositionRef = useRef({ products: 0, suppliers: 0 });
 
-  // ─── Auth ───
-  const auth = useAuth();
   const t = isDark ? T.dark : T.light;
 
   // ─── Teams ───
