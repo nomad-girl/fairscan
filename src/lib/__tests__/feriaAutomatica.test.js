@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { feriaAutomaticaVacia, feriaMasReciente, decidirFeriaActiva } from '../feriaAutomatica.js';
+import { feriaAutomaticaVacia, feriaMasReciente, decidirFeriaActiva, pareceAutomatica } from '../feriaAutomatica.js';
 
 const auto = { id: 9, name: 'Feria 10 de sept de 2026', autoCreada: 1, updatedAt: 5000 };
 const yiwu = { id: 1, name: 'Yiwu', updatedAt: 100 };
@@ -53,5 +53,23 @@ describe('decidirFeriaActiva: lo que pasó el 10/09 (495 productos bajados y cat
   });
   it('sin ferias no hay nada que hacer', () => {
     expect(decidirFeriaActiva({ districts: [], products: [], activeDistrictId: null })).toBeNull();
+  });
+});
+
+describe('ferias automáticas del código viejo (sin marca, solo por el nombre)', () => {
+  const vieja = { id: 5, name: 'Feria 10 de sept de 2026', updatedAt: 9999 }; // la creó el código de ayer
+  it('reconoce el nombre que pone la app, no otros', () => {
+    expect(pareceAutomatica(vieja)).toBe(true);
+    expect(pareceAutomatica({ name: 'Feria 3 de ene. de 2027' })).toBe(true);
+    expect(pareceAutomatica({ name: 'Feria de Cantón' })).toBe(false);
+    expect(pareceAutomatica({ name: 'Yiwu' })).toBe(false);
+    expect(pareceAutomatica(null)).toBe(false);
+  });
+  it('si está activa y vacía y hay ferias reales, se desactiva pero NO se borra (puede estar en la nube)', () => {
+    const r = decidirFeriaActiva({ districts: [vieja, yiwu], products: [{ districtId: 1, createdAt: 3 }], activeDistrictId: 5 });
+    expect(r).toEqual({ activarId: 1 });
+  });
+  it('no se sube al equipo mientras esté vacía', () => {
+    expect(feriaAutomaticaVacia(vieja, { products: [], suppliers: [] })).toBe(true);
   });
 });

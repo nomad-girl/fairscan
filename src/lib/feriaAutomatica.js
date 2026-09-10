@@ -15,9 +15,17 @@
  *  · Si la activa apunta a una feria que ya no existe, se elige igual.
  */
 
+/** Nombre que le pone la app a la feria creada sola: "Feria 10 de sept de 2026". */
+const NOMBRE_AUTOMATICO = /^Feria \d{1,2} de [a-záéíóú]+\.? de \d{4}$/i;
+
+/** ¿Parece creada sola? Por la marca, o por el nombre si es de antes de la marca (código viejo). */
+export function pareceAutomatica(feria) {
+  return !!feria && (!!feria.autoCreada || NOMBRE_AUTOMATICO.test((feria.name || '').trim()));
+}
+
 /** ¿Esta feria automática todavía no tiene nada adentro? */
 export function feriaAutomaticaVacia(feria, { products = [], suppliers = [] } = {}) {
-  if (!feria?.autoCreada) return false;
+  if (!pareceAutomatica(feria)) return false;
   return !products.some(p => p.districtId === feria.id) && !suppliers.some(s => s.districtId === feria.id);
 }
 
@@ -47,6 +55,8 @@ export function decidirFeriaActiva({ districts, products = [], suppliers = [], a
   const elegida = feriaMasReciente(otras.length ? otras : districts, products);
   if (!elegida) return null;
   const r = { activarId: elegida.id };
-  if (activa) r.borrarId = activa.id;                   // automática vacía y hay reales: se descarta
+  // Automática vacía y hay reales: se descarta. Solo si tiene la marca (nunca subió);
+  // la de nombre automático sin marca puede estar en la nube, así que solo se desactiva.
+  if (activa?.autoCreada) r.borrarId = activa.id;
   return r;
 }
