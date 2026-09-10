@@ -419,6 +419,9 @@ class SyncEngine {
     } else {
       // New record from another device - insert locally
       const localData = idMapper.toLocal(table, cloudRecord);
+      // Lo que baja de la nube ya pasó por la IA donde se capturó: si no, cada teléfono
+      // nuevo re-marcaba y re-subía todo el catálogo (10/09: 495 productos, 20 minutos).
+      if (table === 'products' || table === 'suppliers') localData.ai_processed = true;
       const localId = await db.table(table).add(localData);
       if (table === 'products' || table === 'suppliers') await recomputeUploadFlags(table, localId);
       idMapper.register(table, localId, cloudRecord.id);

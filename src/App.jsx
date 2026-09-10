@@ -843,8 +843,8 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
                     width:"100%", background:t.card, borderRadius:12, padding:"10px 12px", border:`1px solid ${t.border}`,
                     cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:10,
                   }}>
-                    {supplier.cardPhoto ? (
-                      <img src={supplier.cardPhoto} alt="" style={{ width:40, height:40, borderRadius:10, objectFit:"cover", border:`1px solid ${t.border}` }} />
+                    {(supplier.cardPhoto || supplier.cardPhotoUrl) ? (
+                      <img src={supplier.cardPhoto || supplier.cardPhotoUrl} alt="" style={{ width:40, height:40, borderRadius:10, objectFit:"cover", border:`1px solid ${t.border}` }} />
                     ) : (
                       <div style={{ width:40, height:40, borderRadius:10, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, border:`1px solid ${t.border}` }}>🏭</div>
                     )}
@@ -1384,7 +1384,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     setSupplierWebsite(s.website || "");
     setSupplierAddress(s.address || "");
     setSupplierNotes(s.notes || "");
-    if (s.cardPhoto) setCardPhoto(s.cardPhoto);
+    if (s.cardPhoto || s.cardPhotoUrl) setCardPhoto(s.cardPhoto || s.cardPhotoUrl); // la tarjeta bajada de la nube también se ve
   };
   // Si se llegó desde la ficha de un proveedor, los productos nacen vinculados (bug 1).
   useEffect(() => { if (initialSupplier) linkSupplier(initialSupplier); }, []);
@@ -3753,10 +3753,10 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onDelete, onNavi
         </div>
 
         {/* Card photo */}
-        {supplier.cardPhoto && (
+        {(supplier.cardPhoto || supplier.cardPhotoUrl) && (
           <div style={{ marginBottom:16 }}>
             <p style={{ fontSize:10, fontWeight:700, color:t.muted, marginBottom:6, textTransform:"uppercase" }}>📇 Tarjeta</p>
-            <img src={supplier.cardPhoto} alt="Tarjeta" style={{ width:"100%", borderRadius:14, border:`1px solid ${t.border}` }} />
+            <img src={supplier.cardPhoto || supplier.cardPhotoUrl} alt="Tarjeta" style={{ width:"100%", borderRadius:14, border:`1px solid ${t.border}` }} />
           </div>
         )}
 
