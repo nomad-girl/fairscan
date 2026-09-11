@@ -62,6 +62,9 @@ class SyncEngine {
       lastSyncAt: this.lastSyncAt,
       lastError: this.lastError || null,
       lastPullCounts: this.lastPullCounts || null,
+      // Qué se está bajando ahora mismo, para poder decírselo a la usuaria:
+      // un catálogo vacío mientras baja parece pérdida de datos (Nati, 11/09).
+      bajando: this.bajando || null,
     };
   }
 
@@ -303,9 +306,15 @@ class SyncEngine {
           continue;
         }
 
+        const total = (data || []).length;
         for (const cloudRecord of (data || [])) {
           await this._applyCloudRecord(table, cloudRecord);
           counts[table]++;
+          // Avisar de a poco: mueve el número sin inundar de renders.
+          if (counts[table] % 25 === 0 || counts[table] === total) {
+            this.bajando = { tabla: table, hechos: counts[table], total };
+            this._notify();
+          }
         }
       }
 
@@ -317,11 +326,13 @@ class SyncEngine {
 
       this.lastSyncAt = Date.now();
       this.lastPullCounts = counts;
+      this.bajando = null;
       if (this._reloadCallback) await this._reloadCallback();
     } catch (err) {
       this.lastError = `Error de sync: ${err.message}`;
       console.warn('⚠️ pullAll error:', err);
     } finally {
+      this.bajando = null;
       this.isSyncing = false;
       this._notify();
     }

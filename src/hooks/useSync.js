@@ -69,6 +69,7 @@ export default function useSync(reloadAll) {
     lastSyncAt: syncState.lastSyncAt,
     lastError: syncState.lastError,
     lastPullCounts: syncState.lastPullCounts,
+    bajando: syncState.bajando,   // { tabla, hechos, total } mientras baja de la nube
     isConfigured: isSupabaseConfigured(),
     isLoading,
     error,

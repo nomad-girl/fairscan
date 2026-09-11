@@ -343,13 +343,39 @@ const Header = memo(({ title, subtitle, onBack, right, t }) => (
 ));
 
 const Toast = memo(({ msg, action, t }) => msg ? (
-  <div style={{ position:"fixed", top:"calc(env(safe-area-inset-top, 0px) + 16px)", left:"50%", transform:"translateX(-50%)", background:t.green, color:"#fff", padding:"10px 24px", borderRadius:12, fontWeight:700, fontSize:13, boxShadow:`0 8px 30px ${t.green}60`, zIndex:1000, whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:12 }} className="fade-in">
+  <div style={{ position:"fixed", top:"calc(env(safe-area-inset-top, 0px) + 16px)", left:"50%", transform:"translateX(-50%)", background:t.green, color:"#fff", padding:"10px 24px", borderRadius:12, fontWeight:700, fontSize:13, boxShadow:`0 8px 30px ${t.green}60`, zIndex:1000, maxWidth:"calc(100vw - 32px)", textAlign:"center", lineHeight:1.4, display:"flex", alignItems:"center", gap:12 }} className="fade-in">
     <span>✓ {msg}</span>
     {action && (
       <button onClick={action.onClick} style={{ background:"rgba(255,255,255,0.25)", border:"none", color:"#fff", fontWeight:800, fontSize:13, borderRadius:8, padding:"6px 12px", cursor:"pointer", fontFamily:"inherit" }}>{action.label}</button>
     )}
   </div>
 ) : null);
+
+/**
+ * Aviso de que el catálogo se está bajando de la nube.
+ *
+ * Por qué existe: al entrar en un teléfono nuevo, el catálogo aparece vacío
+ * mientras baja y parece que se perdieron los datos (Nati, 11/09: "te pegás
+ * alto cagado"). Con 1.137 productos la espera es de minutos.
+ */
+const BajandoCatalogo = memo(({ bajando, t }) => {
+  if (!bajando) return null;
+  const nombre = { products: "productos", suppliers: "proveedores", districts: "ferias" }[bajando.tabla] || "datos";
+  const pct = bajando.total ? Math.round((bajando.hechos / bajando.total) * 100) : 0;
+  return (
+    <div style={{ position:"fixed", top:"calc(env(safe-area-inset-top, 0px) + 16px)", left:"50%", transform:"translateX(-50%)",
+      width:"min(420px, calc(100vw - 32px))", background:t.card, border:`1px solid ${t.blue}55`, color:t.text,
+      padding:"12px 16px", borderRadius:14, boxShadow:"0 8px 30px rgba(0,0,0,0.35)", zIndex:1001 }} className="fade-in">
+      <p style={{ margin:0, fontSize:13, fontWeight:700 }}>☁️ Bajando tu catálogo…</p>
+      <p style={{ margin:"2px 0 8px", fontSize:12, color:t.muted }}>
+        {bajando.hechos} de {bajando.total} {nombre}. No cierres la app; nada se perdió.
+      </p>
+      <div style={{ height:4, borderRadius:4, background:t.border, overflow:"hidden" }}>
+        <div style={{ height:"100%", width:`${pct}%`, background:t.blue, transition:"width .3s" }} />
+      </div>
+    </div>
+  );
+});
 
 /**
  * Aviso de permiso (cámara o micrófono) con salida clara: qué pasó, cómo se
@@ -1626,42 +1652,56 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
           onChange={e => setSupplierNotes(e.target.value)}
           style={{ ...inputStyle, fontSize:13, marginBottom:12 }} />
 
-        {/* Nota de voz del stand (4.6): lo que no entra en un campo */}
+        {/* Dictado del stand (4.6, redefinido por Nati el 11/09): lo que se dice queda escrito.
+            El texto es el protagonista y se puede corregir a mano; el audio queda de respaldo. */}
         <div style={{ background:t.card, borderRadius:14, padding:"10px 14px", marginBottom:12, border:`1px solid ${t.border}` }}>
-          {!nota.audioURL ? (
-            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-              <button onClick={nota.grabando ? nota.parar : nota.empezar} style={{
-                width:44, height:44, borderRadius:22, border:"none", flexShrink:0,
-                background: nota.grabando ? t.red : `linear-gradient(135deg, ${t.accent}, #FF8F35)`,
-                color:"#fff", fontSize:18, cursor:"pointer", boxShadow: nota.grabando ? `0 0 0 4px ${t.redSoft}` : "none",
-                display:"flex", alignItems:"center", justifyContent:"center" }}>{nota.grabando ? "⏹" : "🎙"}</button>
-              <div style={{ flex:1 }}>
-                {nota.grabando ? (
-                  <>
-                    <p style={{ fontSize:13, fontWeight:700, color:t.red, margin:0 }}>Grabando... {Math.floor(nota.segundos/60)}:{String(nota.segundos%60).padStart(2,"0")}</p>
-                    {nota.transcripcion && <p style={{ fontSize:11, color:t.text, margin:"4px 0 0", fontStyle:"italic" }}>"{nota.transcripcion}"</p>}
-                  </>
-                ) : (
-                  <>
-                    <p style={{ fontSize:12, color: nota.micError ? t.text : t.muted, fontWeight: nota.micError ? 700 : 400, margin:0 }}>{nota.micError ? nota.micError.titulo : "Nota de voz del stand (se transcribe)"}</p>
-                    {nota.micError && (
-                      <>
-                        <p style={{ fontSize:11, color:t.muted, margin:"4px 0 0", lineHeight:1.4 }}>{nota.micError.texto}</p>
-                        {nota.micError.puedeAbrirAjustes && <button onClick={() => abrirAjustesDeLaApp()} style={{ marginTop:6, padding:"6px 10px", borderRadius:8, border:"none", background:t.accentSoft, color:t.accent, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>⚙️ Abrir ajustes</button>}
-                      </>
-                    )}
-                  </>
-                )}
-              </div>
+          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+            <button onClick={nota.grabando ? nota.parar : nota.empezar} disabled={nota.sinDictado && !!nota.micError} style={{
+              width:44, height:44, borderRadius:22, border:"none", flexShrink:0,
+              background: nota.grabando ? t.red : `linear-gradient(135deg, ${t.accent}, #FF8F35)`,
+              color:"#fff", fontSize:18, cursor:"pointer", boxShadow: nota.grabando ? `0 0 0 4px ${t.redSoft}` : "none",
+              display:"flex", alignItems:"center", justifyContent:"center" }}>{nota.grabando ? "⏹" : "🎙"}</button>
+            <div style={{ flex:1, minWidth:0 }}>
+              {nota.grabando ? (
+                <p style={{ fontSize:13, fontWeight:700, color:t.red, margin:0 }}>
+                  Escuchando… {Math.floor(nota.segundos/60)}:{String(nota.segundos%60).padStart(2,"0")}
+                </p>
+              ) : nota.micError ? (
+                <>
+                  <p style={{ fontSize:12, color:t.text, fontWeight:700, margin:0 }}>{nota.micError.titulo}</p>
+                  <p style={{ fontSize:11, color:t.muted, margin:"4px 0 0", lineHeight:1.4 }}>{nota.micError.texto}</p>
+                  {nota.micError.puedeAbrirAjustes && <button onClick={() => abrirAjustesDeLaApp()} style={{ marginTop:6, padding:"6px 10px", borderRadius:8, border:"none", background:t.accentSoft, color:t.accent, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>⚙️ Abrir ajustes</button>}
+                </>
+              ) : (
+                <p style={{ fontSize:12, color: nota.dictadoError ? t.red : t.muted, margin:0, fontWeight: nota.dictadoError ? 700 : 400 }}>
+                  {nota.dictadoError
+                    ? `${nota.dictadoError}. Escribí la nota a mano abajo.`
+                    : nota.sinDictado ? "Dictado: este teléfono no lo tiene; podés escribir la nota abajo" : "Dictá la nota del stand y queda escrita"}
+                </p>
+              )}
             </div>
-          ) : (
-            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <span style={{ fontSize:16 }}>🎙</span>
-              <audio src={nota.audioURL} controls style={{ flex:1, height:28 }} />
-              <button onClick={nota.descartar} style={{ background:t.redSoft, border:"none", borderRadius:10, width:36, height:36, color:t.red, fontSize:12, cursor:"pointer", flexShrink:0 }}>✕</button>
-            </div>
+            {(nota.transcripcion || nota.audioURL) && !nota.grabando && (
+              <button onClick={nota.descartar} title="Borrar la nota" style={{ background:t.redSoft, border:"none", borderRadius:10, width:36, height:36, color:t.red, fontSize:12, cursor:"pointer", flexShrink:0 }}>✕</button>
+            )}
+          </div>
+
+          {/* El texto: se ve mientras se dicta y se puede corregir después. */}
+          {(nota.grabando || nota.transcripcion || nota.sinDictado) && (
+            <textarea
+              value={nota.transcripcion}
+              onChange={e => nota.editarTranscripcion(e.target.value)}
+              placeholder={nota.grabando ? "Hablá: lo que digas aparece acá…" : "Nota del stand"}
+              rows={3}
+              style={{ ...inputStyle, marginTop:10, marginBottom:0, fontSize:13, lineHeight:1.5, resize:"vertical", minHeight:64 }} />
           )}
-          {nota.audioURL && nota.transcripcion && <p style={{ fontSize:11, color:t.text, margin:"6px 0 0", fontStyle:"italic" }}>📝 "{nota.transcripcion}"</p>}
+
+          {/* El audio queda de respaldo, por si el dictado entendió mal. */}
+          {nota.audioURL && !nota.grabando && (
+            <details style={{ marginTop:8 }}>
+              <summary style={{ fontSize:11, color:t.muted, cursor:"pointer" }}>Escuchar el audio original</summary>
+              <audio src={nota.audioURL} controls style={{ width:"100%", height:28, marginTop:6 }} />
+            </details>
+          )}
         </div>
 
         {/* === SECTION 2: PRODUCTS === */}
@@ -3149,7 +3189,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
 // ═══════════════════════════════════════════
 // PRODUCT LIST (main screen)
 // ═══════════════════════════════════════════
-function ProductList({ products, suppliers, districts, activeDistrictId, activeDistrict, settings, onNavigate, onSwitchDistrict, onDeleteProduct, onBatchDelete, onBatchUpdate, onDeleteSupplier, t, isDark, onToggleTheme, activeTab, onTabChange, queueCount, scrollPositionRef, saldoCreditos = null, aiSync }) {
+function ProductList({ products, suppliers, districts, activeDistrictId, activeDistrict, settings, bajando = null, onNavigate, onSwitchDistrict, onDeleteProduct, onBatchDelete, onBatchUpdate, onDeleteSupplier, t, isDark, onToggleTheme, activeTab, onTabChange, queueCount, scrollPositionRef, saldoCreditos = null, aiSync }) {
   const { isSyncing: aiSyncing, pendingCount: aiPending, processedCount: aiProcessed, totalCount: aiTotal, syncNow: aiSyncNow, error: aiError, photosPending } = aiSync;
   const [search, setSearch] = useState("");
   const view = activeTab || "products";
@@ -3391,7 +3431,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
         <div ref={productsScrollRef} onScroll={e => { if (scrollPositionRef?.current) scrollPositionRef.current.products = e.target.scrollTop; }} style={{ flex:1, overflow:"auto", padding:"8px 16px 100px" }}>
           {filtered.length === 0 && (
             <>
-              <Empty icon={products.length===0?"📸":"🔍"} title={products.length===0?"Empezá a escanear":"Sin resultados"} sub={products.length===0?"Tocá + para capturar tu primer producto":null} t={t} />
+              <Empty icon={products.length===0?(bajando?"☁️":"📸"):"🔍"} title={products.length===0?(bajando?"Bajando tu catálogo…":"Empezá a escanear"):"Sin resultados"} sub={products.length===0?(bajando?"Tus productos están en la nube y están llegando.":"Tocá + para capturar tu primer producto"):null} t={t} />
               {products.length > 0 && filterDistrict !== "all" && (
                 <button onClick={() => setFilterDistrict("all")} style={{ display:"block", margin:"0 auto", padding:"10px 20px", borderRadius:12, border:`1px solid ${t.accent}40`, background:t.accent+"10", color:t.accent, fontSize:13, fontWeight:600, cursor:"pointer" }}>
                   Ver todas las ferias ({products.length} productos)
@@ -3467,7 +3507,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
         <div ref={productsScrollRef} onScroll={e => { if (scrollPositionRef?.current) scrollPositionRef.current.products = e.target.scrollTop; }} style={{ flex:1, overflow:"auto", padding:"4px 4px 100px" }}>
           {filtered.length === 0 && (
             <div style={{ padding:"0 12px" }}>
-              <Empty icon={products.length===0?"📸":"🔍"} title={products.length===0?"Empezá a escanear":"Sin resultados"} sub={products.length===0?"Tocá + para capturar tu primer producto":null} t={t} />
+              <Empty icon={products.length===0?(bajando?"☁️":"📸"):"🔍"} title={products.length===0?(bajando?"Bajando tu catálogo…":"Empezá a escanear"):"Sin resultados"} sub={products.length===0?(bajando?"Tus productos están en la nube y están llegando.":"Tocá + para capturar tu primer producto"):null} t={t} />
             </div>
           )}
           <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:3 }}>
@@ -4610,6 +4650,7 @@ export default function App() {
           </div>
         </div>
       )}
+      <BajandoCatalogo bajando={sync.bajando} t={t} />
       <Toast msg={undo ? undo.mensaje : toast} t={t}
         action={undo ? { label: "Deshacer", onClick: () => { papeleraRef.current.deshacer(); showToast("Restaurado"); } } : null} />
       {/* #10: Supplier dedup prompt */}
@@ -4659,7 +4700,7 @@ export default function App() {
       )}
 
       {screen === "list" && (
-        <ProductList products={products} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} activeDistrict={activeDistrict} settings={settings}
+        <ProductList products={products} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} activeDistrict={activeDistrict} settings={settings} bajando={sync.bajando}
           onNavigate={navigate} onSwitchDistrict={switchDistrict} onDeleteProduct={handleDeleteProduct} onBatchDelete={handleBatchDelete} onBatchUpdate={handleBatchUpdate} onDeleteSupplier={handleDeleteSupplier}
           t={t} isDark={isDark} onToggleTheme={toggleTheme}
           activeTab={listTab} onTabChange={setListTab} queueCount={queueCount} scrollPositionRef={scrollPositionRef} saldoCreditos={creditos ? saldoVisible(creditos) : null} aiSync={aiSync} />
