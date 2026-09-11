@@ -29,6 +29,11 @@ android {
                 storePassword keystoreProps['storePassword']
                 keyAlias keystoreProps['keyAlias']
                 keyPassword keystoreProps['keyPassword']
+                // Firma explícita. Con minSdk 24, el plugin apaga v1 a propósito:
+                // v2 alcanza desde Android 7, así que esto no cambia nada hoy y
+                // queda escrito para no volver a sospechar de la firma.
+                enableV1Signing true
+                enableV2Signing true
             }
         }
     }
