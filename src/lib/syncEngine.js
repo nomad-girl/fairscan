@@ -234,8 +234,26 @@ class SyncEngine {
     let reparados = 0;
     for (const p of await db.table('products').toArray()) {
       if (!p.uuid || !rotos.has(p.uuid)) continue;
-      if (p.supplierId == null && p.districtId == null) continue;  // en el teléfono tampoco hay vínculo
-      await this.pushRecord('products', p);
+      if (p.supplierId == null && p.districtId == null) continue;   // en el teléfono tampoco hay vínculo
+      await this._asegurarMapeoDeReferencias('products', p);
+      const parche = {};
+      const feria = p.districtId != null ? idMapper.getUuid('districts', p.districtId) : null;
+      const prov  = p.supplierId != null ? idMapper.getUuid('suppliers', p.supplierId) : null;
+      if (feria) parche.district_id = feria;
+      if (prov)  parche.supplier_id = prov;
+      if (!Object.keys(parche).length) continue;
+
+      // El proveedor y la feria tienen que existir arriba antes de apuntarles.
+      for (const [tabla, id] of [['districts', p.districtId], ['suppliers', p.supplierId]]) {
+        if (id == null) continue;
+        const referido = await db.table(tabla).get(id);
+        if (referido?.uuid) await this.pushRecord(tabla, referido);
+      }
+
+      // Solo el vínculo: no se reescribe el resto del producto, así una edición
+      // de otra persona en la nube no se pisa por reparar esto.
+      const { error: errParche } = await supabase.from('products').update(parche).eq('id', p.uuid);
+      if (errParche) { console.warn('⚠️ No se pudo reparar el vínculo de un producto:', errParche.message); continue; }
       reparados++;
     }
     if (reparados) console.log(`🔗 Vínculos reparados desde el teléfono: ${reparados}`);
