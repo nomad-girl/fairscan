@@ -81,13 +81,16 @@ class SyncEngine {
     await dbSaveSettings({ roomId: this.roomId, roomCode: null });
 
     // Build ID mapper from local data
-    await idMapper.buildFromLocal();
+    await idMapper.buildFromLocal(db);
 
     // Pull all data from cloud
     await this.pullAll();
 
     // Push any local-only data
     await this._pushAllLocal();
+
+    // Lo que quedó con el vínculo roto en la nube se repara desde el teléfono.
+    await this.reconciliarVinculos().catch(err => console.warn('⚠️ reconciliar:', err?.message || err));
 
     // Subscribe to realtime
     this._subscribeRealtime();
@@ -116,7 +119,7 @@ class SyncEngine {
 
     this.roomId = teamId;
 
-    await idMapper.buildFromLocal();
+    await idMapper.buildFromLocal(db);
 
     // Delta sync — only pull changes since last sync, not everything
     if (this.isOnline) {
@@ -127,6 +130,9 @@ class SyncEngine {
           await this.pullAll();
         }
         await this.flushQueue();
+        // Reanudar es el camino de todos los arranques: acá también se repara lo
+        // que quedó roto o sin subir (antes solo pasaba al conectar un equipo).
+        await this.reconciliarVinculos();
       } catch (err) {
         console.warn('⚠️ Error resuming sync:', err);
       }
@@ -143,6 +149,7 @@ class SyncEngine {
     async pushRecord(table, localRecord) {
     if (!this.roomId) return;
     await this._subirFeriaAutomaticaSiHaceFalta(table, localRecord);
+    await this._asegurarMapeoDeReferencias(table, localRecord);
 
     const cloudRecord = idMapper.toCloud(table, localRecord, this.roomId);
 
@@ -178,6 +185,64 @@ class SyncEngine {
   }
 
     /**
+   * Antes de subir, garantizar que el mapa sabe traducir las referencias de este
+   * registro (su feria y su proveedor) al identificador que usa la nube.
+   *
+   * Por qué existe (14/09/2026): el mapa solo se armaba al arrancar la app, así
+   * que un proveedor creado en la misma sesión no estaba, y el producto subía
+   * apuntando a la nada. Medido en producción: 174 productos sin proveedor en la
+   * nube, de los cuales 162 no se pueden reparar desde el servidor porque la
+   * tarjeta se escanea al final del stand y el producto no guarda el nombre de
+   * la empresa. Se resuelve leyendo el registro referenciado de la base local.
+   */
+  async _asegurarMapeoDeReferencias(table, localRecord) {
+    const refs = table === 'products'
+      ? [['districts', localRecord?.districtId], ['suppliers', localRecord?.supplierId]]
+      : table === 'suppliers'
+        ? [['districts', localRecord?.districtId]]
+        : [];
+    for (const [tabla, id] of refs) {
+      if (id == null || idMapper.getUuid(tabla, id)) continue;
+      const referido = await db.table(tabla).get(id);
+      if (referido?.uuid) idMapper.register(tabla, id, referido.uuid);
+    }
+  }
+
+  /**
+   * Vuelve a subir los productos cuyo vínculo al proveedor o a la feria está
+   * bien en el teléfono y roto en la nube.
+   *
+   * Es la única forma de recuperar los 162 productos huérfanos del 14/09: el
+   * servidor no puede repararlos solo. De paso levanta cualquier mochila vieja
+   * que haya quedado sin subir, que es lo que le pasó a un usuario el 10/09.
+   * Devuelve cuántos se repararon.
+   */
+  async reconciliarVinculos() {
+    if (!this.roomId || !this.isOnline || !isSupabaseConfigured()) return 0;
+    const { data, error } = await traerTodo((desde, hasta) => supabase
+      .from('products')
+      .select('id')
+      .eq('room_id', this.roomId)
+      .is('deleted_at', null)
+      .or('supplier_id.is.null,district_id.is.null')
+      .order('created_at', { ascending: true })
+      .range(desde, hasta));
+    if (error) { console.warn('⚠️ No se pudo reconciliar vínculos:', error.message); return 0; }
+    const rotos = new Set((data || []).map(r => r.id));
+    if (!rotos.size) return 0;
+
+    let reparados = 0;
+    for (const p of await db.table('products').toArray()) {
+      if (!p.uuid || !rotos.has(p.uuid)) continue;
+      if (p.supplierId == null && p.districtId == null) continue;  // en el teléfono tampoco hay vínculo
+      await this.pushRecord('products', p);
+      reparados++;
+    }
+    if (reparados) console.log(`🔗 Vínculos reparados desde el teléfono: ${reparados}`);
+    return reparados;
+  }
+
+  /**
    * La feria creada sola (autoCreada) no se sube vacía. Cuando llega el primer
    * producto o proveedor que la usa, se sube primero (clave foránea) y se le
    * saca la marca para no repetirlo.
@@ -257,6 +322,7 @@ class SyncEngine {
           if (!record.uuid) continue;
           // La feria creada sola no ensucia el equipo mientras esté vacía.
           if (contenido && feriaAutomaticaVacia(record, contenido)) continue;
+          await this._asegurarMapeoDeReferencias(table, record);
           // Skip records already in the cloud (pulled from other devices)
           if (cloudIds.has(record.uuid)) continue;
           const cloudRecord = idMapper.toCloud(table, record, this.roomId);

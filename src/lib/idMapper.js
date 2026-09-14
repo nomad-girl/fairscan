@@ -1,4 +1,5 @@
-import db from '../db.js';
+// Sin importar la base: db.js ahora registra acá los ids que crea, y dos archivos
+// que se importan entre sí se rompen al arrancar. La base se pasa como parámetro.
 
 /**
  * IdMapper: Bidirectional mapping between Dexie local IDs (integers) and Supabase UUIDs.
@@ -14,7 +15,8 @@ class IdMapper {
   }
 
   /** Build the mapping from all local Dexie records */
-  async buildFromLocal() {
+  async buildFromLocal(db) {
+    if (!db) return;
     for (const table of ['districts', 'suppliers', 'products']) {
       const records = await db.table(table).toArray();
       this.cache[table] = {};

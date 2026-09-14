@@ -1,6 +1,7 @@
 import Dexie from 'dexie';
 import { fotosSinSubir, tarjetaSinSubir } from './lib/fotosPendientes.js';
 import { decidirFeriaActiva } from './lib/feriaAutomatica.js';
+import idMapper from './lib/idMapper.js';
 import { productoParaUI, productoParaGuardar, proveedorParaUI, proveedorParaGuardar, liberarObjectUrls, tieneFotosEnTexto, esDataUrl, paraGuardar } from './lib/fotosBinario.js';
 
 const db = new Dexie('FairScanDB');
@@ -170,6 +171,9 @@ export async function addDistrict(d) {
   d.uuid = d.uuid || crypto.randomUUID();
   d.updatedAt = Date.now();
   const id = await db.districts.add(d);
+  // El mapa local↔nube se llena acá y no solo al arrancar: un registro creado en
+  // la misma sesión tiene que poder traducirse ya (ver syncEngine, 14/09/2026).
+  if (d.uuid) idMapper.register('districts', id, d.uuid);
   // Push to cloud if in a room
   if (_syncEngine?.roomId) {
     _syncEngine.pushRecord('districts', { ...d, id }).catch(console.warn);
@@ -206,6 +210,9 @@ export async function addSupplier(s) {
   s.cardUploadPending = tarjetaSinSubir(s) ? 1 : 0;
   s.aiPendiente = s.ai_processed ? 0 : 1;
   const id = await db.suppliers.add(s);
+  // El mapa local↔nube se llena acá y no solo al arrancar: un registro creado en
+  // la misma sesión tiene que poder traducirse ya (ver syncEngine, 14/09/2026).
+  if (s.uuid) idMapper.register('suppliers', id, s.uuid);
   if (_syncEngine?.roomId) {
     _syncEngine.pushRecord('suppliers', { ...s, id }).catch(console.warn);
   }
@@ -278,6 +285,9 @@ export async function addProduct(p) {
   p.uploadPending = fotosSinSubir(p).length ? 1 : 0;
   p.aiPendiente = p.ai_processed ? 0 : 1;
   const id = await db.products.add(p);
+  // El mapa local↔nube se llena acá y no solo al arrancar: un registro creado en
+  // la misma sesión tiene que poder traducirse ya (ver syncEngine, 14/09/2026).
+  if (p.uuid) idMapper.register('products', id, p.uuid);
   if (_syncEngine?.roomId) {
     _syncEngine.pushRecord('products', { ...p, id }).catch(console.warn);
   }
