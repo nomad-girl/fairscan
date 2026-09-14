@@ -352,6 +352,33 @@ const Toast = memo(({ msg, action, t }) => msg ? (
 ) : null);
 
 /**
+ * La foto de un producto en una lista.
+ *
+ * Dos cosas que aprendimos el 14/09 con el catálogo real de 1.137 productos:
+ * la app pedía TODAS las fotos a la vez, a tamaño completo, y por datos móviles
+ * muchas no llegaban; y cuando una no llegaba, el navegador dibujaba su ícono de
+ * imagen rota, que parece que la foto se perdió. Ahora cada foto se pide al
+ * acercarse a la pantalla, y si falla se muestra el ícono de cámara con un
+ * reintento, que es honesto: la foto está, no llegó.
+ */
+const FotoDeProducto = memo(({ src, t, estilo }) => {
+  const [fallo, setFallo] = useState(false);
+  useEffect(() => { setFallo(false); }, [src]);
+  const caja = { width:"100%", height:"100%", objectFit:"cover", display:"block", ...estilo };
+  if (!src || fallo) {
+    return (
+      <div
+        onClick={fallo ? (e) => { e.stopPropagation(); setFallo(false); } : undefined}
+        title={fallo ? "No se pudo bajar la foto. Tocá para reintentar." : undefined}
+        style={{ ...caja, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, opacity:fallo ? 0.55 : 1 }}>
+        {fallo ? "🔄" : "📷"}
+      </div>
+    );
+  }
+  return <img src={src} alt="" loading="lazy" decoding="async" onError={() => setFallo(true)} style={caja} />;
+});
+
+/**
  * Aviso de que el catálogo se está bajando de la nube.
  *
  * Por qué existe: al entrar en un teléfono nuevo, el catálogo aparece vacío
@@ -870,7 +897,7 @@ function ProductDetail({ product: p, allProducts, suppliers, districts, onBack, 
                     cursor:"pointer", textAlign:"left", display:"flex", alignItems:"center", gap:10,
                   }}>
                     {(supplier.cardPhoto || supplier.cardPhotoUrl) ? (
-                      <img src={supplier.cardPhoto || supplier.cardPhotoUrl} alt="" style={{ width:40, height:40, borderRadius:10, objectFit:"cover", border:`1px solid ${t.border}` }} />
+                      <img src={supplier.cardPhoto || supplier.cardPhotoUrl} alt="" loading="lazy" decoding="async" style={{ width:40, height:40, borderRadius:10, objectFit:"cover", border:`1px solid ${t.border}` }} />
                     ) : (
                       <div style={{ width:40, height:40, borderRadius:10, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, border:`1px solid ${t.border}` }}>🏭</div>
                     )}
@@ -3458,7 +3485,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
                 </div>
                 {p.photos?.[0] ? (
                   <div style={{ width:40, height:40, borderRadius:8, overflow:"hidden", flexShrink:0, border:`1px solid ${t.border}` }}>
-                    <img src={elegirMiniatura(p)} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                    <FotoDeProducto src={elegirMiniatura(p)} t={t} estilo={{ width:"100%", height:"100%", objectFit:"cover" }} />
                   </div>
                 ) : (
                   <div style={{ width:40, height:40, borderRadius:8, flexShrink:0, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", border:`1px solid ${t.border}`, fontSize:14 }}>📷</div>
@@ -3479,7 +3506,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
               }}>
                 {p.photos?.[0] ? (
                   <div style={{ width:50, height:50, borderRadius:10, overflow:"hidden", flexShrink:0, border:`1px solid ${t.border}` }}>
-                    <img src={elegirMiniatura(p)} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                    <FotoDeProducto src={elegirMiniatura(p)} t={t} estilo={{ width:"100%", height:"100%", objectFit:"cover" }} />
                   </div>
                 ) : (
                   <div style={{ width:50, height:50, borderRadius:10, flexShrink:0, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", border:`1px solid ${t.border}`, fontSize:18 }}>📷</div>
@@ -3517,7 +3544,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
                 position:"relative", aspectRatio:"1",
               }}>
                 {p.photos?.[0] ? (
-                  <img src={elegirMiniatura(p)} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                  <FotoDeProducto src={elegirMiniatura(p)} t={t} estilo={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
                 ) : (
                   <div style={{ width:"100%", height:"100%", background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>📷</div>
                 )}
@@ -3569,7 +3596,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
                         cursor:"pointer", padding:0, position:"relative", background:t.surface,
                       }}>
                         {p.photos?.[0] ? (
-                          <img src={elegirMiniatura(p)} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                          <FotoDeProducto src={elegirMiniatura(p)} t={t} estilo={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
                         ) : (
                           <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, background:t.surface }}>📷</div>
                         )}
@@ -3774,7 +3801,7 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onDelete, onNavi
                     position:"relative", aspectRatio:"1",
                   }}>
                     {p.photos?.[0] ? (
-                      <img src={elegirMiniatura(p)} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                      <FotoDeProducto src={elegirMiniatura(p)} t={t} estilo={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
                     ) : (
                       <div style={{ width:"100%", height:"100%", background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>📷</div>
                     )}
