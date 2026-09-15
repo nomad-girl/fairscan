@@ -102,7 +102,7 @@ import { guardarResguardo, restaurarResguardo, borrarResguardos, claveDeEquipo }
 import { copiaParaRestaurar } from './lib/syncEngine';
 import { leerBorrador, guardarBorrador, borrarBorrador, describirBorrador, ESPERA_BORRADOR_MS } from './lib/borradorCaptura.js';
 import { elegirMiniatura, miniaturaDe, generarMiniaturasFaltantes } from './lib/miniaturas.js';
-import { aDataUrl, sinDerivados } from './lib/fotosBinario.js';
+import { aDataUrl, sinDerivados, tipoDeFoto, productoParaUI } from './lib/fotosBinario.js';
 import { supabase } from './lib/supabase.js';
 
 // El catálogo se muestra del más nuevo al más viejo (mismo orden que la base).
@@ -361,22 +361,83 @@ const Toast = memo(({ msg, action, t }) => msg ? (
  * acercarse a la pantalla, y si falla se muestra el ícono de cámara con un
  * reintento, que es honesto: la foto está, no llegó.
  */
-const FotoDeProducto = memo(({ src, t, estilo }) => {
-  const [fallo, setFallo] = useState(false);
-  useEffect(() => { setFallo(false); }, [src]);
+const FotoDeProducto = memo(({ src, respaldo = null, t, estilo }) => {
+  // Si la copia local no carga (una dirección temporal vencida, un archivo que no
+  // llegó), se intenta la copia de la nube antes de darse por vencida (15/09).
+  const [intento, setIntento] = useState(0);   // 0 = src, 1 = respaldo, 2 = fallo
+  useEffect(() => { setIntento(0); }, [src, respaldo]);
   const caja = { width:"100%", height:"100%", objectFit:"cover", display:"block", ...estilo };
-  if (!src || fallo) {
+  const actual = intento === 0 ? src : intento === 1 ? respaldo : null;
+  const fallo = intento >= 2 || (intento === 1 && !respaldo);
+  if (!actual || fallo) {
     return (
       <div
-        onClick={fallo ? (e) => { e.stopPropagation(); setFallo(false); } : undefined}
+        onClick={fallo ? (e) => { e.stopPropagation(); setIntento(0); } : undefined}
         title={fallo ? "No se pudo bajar la foto. Tocá para reintentar." : undefined}
         style={{ ...caja, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, opacity:fallo ? 0.55 : 1 }}>
         {fallo ? "🔄" : "📷"}
       </div>
     );
   }
-  return <img src={src} alt="" loading="lazy" decoding="async" onError={() => setFallo(true)} style={caja} />;
+  return <img src={actual} alt="" loading="lazy" decoding="async" onError={() => setIntento(i => i + 1)} style={caja} />;
 });
+
+
+/**
+ * Diagnóstico de fotos (15/09/2026). Nati ve muchas fotos que no cargan en su
+ * iPhone y desde acá no podemos mirar su base. Esta tarjeta lee la base local
+ * tal cual está, dice de qué tipo es cada foto guardada, e intenta cargarlas
+ * una por una contando cuáles fallan por tipo. Con una captura de esto se sabe
+ * qué pasa sin adivinar.
+ */
+function DiagnosticoFotos({ t }) {
+  const [estado, setEstado] = useState(null);
+  const correr = async () => {
+    setEstado({ corriendo: true });
+    const crudos = await db.products.toArray();
+    const tipos = {}; const thumbs = {};
+    for (const p of crudos) {
+      const k = tipoDeFoto(p.photos?.[0]); tipos[k] = (tipos[k] || 0) + 1;
+      const kt = tipoDeFoto(p.thumb); thumbs[kt] = (thumbs[kt] || 0) + 1;
+    }
+    // Probar cargar lo que la lista realmente muestra, en los primeros 150.
+    const fallosPorTipo = {}; let probadas = 0; let fallidas = 0; const ejemplos = [];
+    for (const p of crudos.slice(0, 150)) {
+      const ui = productoParaUI(p);
+      const src = elegirMiniatura(ui);
+      if (!src) continue;
+      probadas++;
+      const ok = await new Promise(res => { const i = new Image(); i.onload = () => res(true); i.onerror = () => res(false); i.src = src; });
+      if (!ok) {
+        fallidas++;
+        const clase = `${p.thumb ? 'thumb:' + tipoDeFoto(p.thumb) : 'foto:' + tipoDeFoto(p.photos?.[0])}`;
+        fallosPorTipo[clase] = (fallosPorTipo[clase] || 0) + 1;
+        if (ejemplos.length < 3) ejemplos.push(`${(p.name || '?').slice(0, 18)} · ${clase} · ${String(src).slice(0, 28)}…`);
+      }
+    }
+    setEstado({ total: crudos.length, tipos, thumbs, probadas, fallidas, fallosPorTipo, ejemplos });
+  };
+  const fila = (obj) => Object.entries(obj || {}).map(([k, v]) => `${k}: ${v}`).join(' · ') || '—';
+  return (
+    <div style={{ background:t.card, borderRadius:14, padding:"12px 14px", marginTop:12, border:`1px solid ${t.border}` }}>
+      <p style={{ fontSize:13, fontWeight:700, color:t.text, margin:"0 0 6px" }}>🔍 Diagnóstico de fotos</p>
+      <p style={{ fontSize:11, color:t.muted, margin:"0 0 8px" }}>Para soporte: dice qué tiene guardado este teléfono y qué fotos no cargan. No cambia nada.</p>
+      <button onClick={correr} disabled={!!estado?.corriendo} style={{ padding:"8px 12px", borderRadius:10, border:"none", background:t.accentSoft, color:t.accent, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+        {estado?.corriendo ? "Probando…" : "Probar las fotos"}
+      </button>
+      {estado && !estado.corriendo && (
+        <div style={{ fontSize:11, color:t.text, marginTop:10, lineHeight:1.6, wordBreak:"break-all" }}>
+          <div>Productos: <b>{estado.total}</b></div>
+          <div>Fotos guardadas como: {fila(estado.tipos)}</div>
+          <div>Miniaturas como: {fila(estado.thumbs)}</div>
+          <div>Probadas: <b>{estado.probadas}</b> · Fallan: <b style={{ color:t.red }}>{estado.fallidas}</b></div>
+          <div>Fallan por tipo: {fila(estado.fallosPorTipo)}</div>
+          {estado.ejemplos.map((e, i) => <div key={i} style={{ color:t.muted }}>{e}</div>)}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * Aviso de que el catálogo se está bajando de la nube.
@@ -2095,6 +2156,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
             <div style={{ height:1, background:t.border, margin:"20px 0" }} />
             <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>☁️ Backup automático en la nube</p>
             <p style={{ fontSize:11, color:t.dim, marginBottom:12 }}>Se guarda una copia de seguridad en la nube cada 1 hora automáticamente mientras estés conectado a un equipo.</p>
+            <DiagnosticoFotos t={t} />
             <div style={{ display:"flex", gap:8, marginBottom:12 }}>
               <button onClick={async () => {
                 setImportStatus("⏳ Guardando backup en la nube...");
@@ -3485,7 +3547,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
                 </div>
                 {p.photos?.[0] ? (
                   <div style={{ width:40, height:40, borderRadius:8, overflow:"hidden", flexShrink:0, border:`1px solid ${t.border}` }}>
-                    <FotoDeProducto src={elegirMiniatura(p)} t={t} estilo={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                    <FotoDeProducto src={elegirMiniatura(p)} respaldo={p.photoUrls?.[0] || null} t={t} estilo={{ width:"100%", height:"100%", objectFit:"cover" }} />
                   </div>
                 ) : (
                   <div style={{ width:40, height:40, borderRadius:8, flexShrink:0, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", border:`1px solid ${t.border}`, fontSize:14 }}>📷</div>
@@ -3506,7 +3568,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
               }}>
                 {p.photos?.[0] ? (
                   <div style={{ width:50, height:50, borderRadius:10, overflow:"hidden", flexShrink:0, border:`1px solid ${t.border}` }}>
-                    <FotoDeProducto src={elegirMiniatura(p)} t={t} estilo={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                    <FotoDeProducto src={elegirMiniatura(p)} respaldo={p.photoUrls?.[0] || null} t={t} estilo={{ width:"100%", height:"100%", objectFit:"cover" }} />
                   </div>
                 ) : (
                   <div style={{ width:50, height:50, borderRadius:10, flexShrink:0, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", border:`1px solid ${t.border}`, fontSize:18 }}>📷</div>
@@ -3544,7 +3606,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
                 position:"relative", aspectRatio:"1",
               }}>
                 {p.photos?.[0] ? (
-                  <FotoDeProducto src={elegirMiniatura(p)} t={t} estilo={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                  <FotoDeProducto src={elegirMiniatura(p)} respaldo={p.photoUrls?.[0] || null} t={t} estilo={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
                 ) : (
                   <div style={{ width:"100%", height:"100%", background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>📷</div>
                 )}
@@ -3596,7 +3658,7 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
                         cursor:"pointer", padding:0, position:"relative", background:t.surface,
                       }}>
                         {p.photos?.[0] ? (
-                          <FotoDeProducto src={elegirMiniatura(p)} t={t} estilo={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                          <FotoDeProducto src={elegirMiniatura(p)} respaldo={p.photoUrls?.[0] || null} t={t} estilo={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
                         ) : (
                           <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, background:t.surface }}>📷</div>
                         )}
@@ -3801,7 +3863,7 @@ function SupplierDetail({ supplier, products, onBack, onUpdate, onDelete, onNavi
                     position:"relative", aspectRatio:"1",
                   }}>
                     {p.photos?.[0] ? (
-                      <FotoDeProducto src={elegirMiniatura(p)} t={t} estilo={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                      <FotoDeProducto src={elegirMiniatura(p)} respaldo={p.photoUrls?.[0] || null} t={t} estilo={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
                     ) : (
                       <div style={{ width:"100%", height:"100%", background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28 }}>📷</div>
                     )}

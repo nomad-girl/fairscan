@@ -69,3 +69,16 @@ describe('sinDerivados', () => {
     expect(sinDerivados({ id: 1, thumb: 't', audio: {}, name: 'x' })).toEqual({ id: 1, name: 'x' });
   });
 });
+
+describe('tipoDeFoto (diagnóstico del 15/09)', async () => {
+  const { tipoDeFoto } = await import('../fotosBinario.js');
+  it('clasifica cada clase de cosa que puede estar guardada como foto', () => {
+    expect(tipoDeFoto(null)).toBe('vacio');
+    expect(tipoDeFoto('')).toBe('vacio');
+    expect(tipoDeFoto({ data: new Uint8Array([1]), type: 'image/jpeg' })).toBe('bytes');
+    expect(tipoDeFoto('data:image/jpeg;base64,AAA')).toBe('data');
+    expect(tipoDeFoto('blob:https://fairscan.app/abc')).toBe('blob');
+    expect(tipoDeFoto('https://pub-x.r2.dev/products/a/b.jpg')).toBe('http');
+    expect(tipoDeFoto(42)).toBe('otro');
+  });
+});

@@ -77,6 +77,17 @@ export async function aDataUrl(src) {
   return null;
 }
 
+/** Qué clase de cosa hay guardada como foto (para diagnóstico y para elegir respaldo). */
+export function tipoDeFoto(x) {
+  if (x == null || x === '') return 'vacio';
+  if (esBinaria(x)) return 'bytes';
+  if (typeof x !== 'string') return 'otro';
+  if (x.startsWith('data:')) return 'data';
+  if (x.startsWith('blob:')) return 'blob';
+  if (x.startsWith('http')) return 'http';
+  return 'otro';
+}
+
 export const paraUI = (foto, clave) => (esBinaria(foto) ? binarioAObjectUrl(foto, clave) : foto);
 export const paraGuardar = (foto) => (esDataUrl(foto) ? dataUrlABinario(foto) || foto : foto);
 
