@@ -8,8 +8,9 @@
  * aparte de las fotos. Además cuenta los objetos del bucket (inventario).
  *
  * Cuándo corre: una vez por semana, programada en netlify.toml (nunca cada
- * minuto: regla del 09/09). También a mano con `Authorization: Bearer
- * <RESPALDO_SECRET>`, para verificar o para un respaldo previo a una reparación.
+ * minuto: regla del 09/09). Netlify no deja llamar por HTTP a una función
+ * programada (403), así que el disparo manual con `Authorization: Bearer
+ * <RESPALDO_SECRET>` entra por `respaldo-ahora`, que reutiliza este handler.
  *
  * Ojo con el bucket: sirve las fotos en público. Por eso la clave del archivo
  * lleva un token aleatorio y el único índice está en `respaldo.volcados`, una
