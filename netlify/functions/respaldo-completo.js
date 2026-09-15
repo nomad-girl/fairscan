@@ -57,6 +57,16 @@ exports.handler = async (event) => {
 
   const inicio = Date.now();
   try {
+    // 0. Freno: la llamada programada no lleva firma, así que cualquiera podría
+    // imitarla y hacernos escribir volcados sin parar. En modo programado, si ya
+    // hay uno de las últimas 6 horas, no se hace otro. El manual (con secreto) sí.
+    if (modo === "programado") {
+      const { data: ultimo } = await db.from("respaldo_volcados").select("fecha").order("fecha", { ascending: false }).limit(1).maybeSingle();
+      if (ultimo && Date.now() - new Date(ultimo.fecha).getTime() < 6 * 60 * 60 * 1000) {
+        return { statusCode: 200, body: JSON.stringify({ ok: true, omitido: "ya hay un volcado de las últimas 6 horas" }) };
+      }
+    }
+
     // 1. Todas las tablas, de a 1.000 (PostgREST corta ahí en silencio).
     const porTabla = {};
     for (const t of TABLAS) {
