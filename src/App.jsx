@@ -362,13 +362,28 @@ const Toast = memo(({ msg, action, t }) => msg ? (
  * reintento, que es honesto: la foto está, no llegó.
  */
 const FotoDeProducto = memo(({ src, respaldo = null, t, estilo }) => {
-  // Si la copia local no carga (una dirección temporal vencida, un archivo que no
-  // llegó), se intenta la copia de la nube antes de darse por vencida (15/09).
-  const [intento, setIntento] = useState(0);   // 0 = src, 1 = respaldo, 2 = fallo
-  useEffect(() => { setIntento(0); }, [src, respaldo]);
+  // Tres intentos antes de darse por vencida (15/09): la copia local; la
+  // dirección de la nube; y esa misma foto pedida a través de nuestro servidor.
+  // El tercero existe porque el iPhone de Nati no lograba bajar NADA del dominio
+  // pub-….r2.dev (149 de 149 fallaban, medido con el diagnóstico) mientras el
+  // servidor las entregaba bien: algo entre ese teléfono y ese dominio las
+  // bloquea. Pasarlas por fairscan.app las destraba, a costo de una función por
+  // foto, así que es solo el último recurso.
+  const [intento, setIntento] = useState(0);   // 0 = src, 1 = respaldo, 2 = por nuestro servidor, 3 = fallo
+  const [porProxy, setPorProxy] = useState(null);
+  useEffect(() => { setIntento(0); setPorProxy(null); }, [src, respaldo]);
+  useEffect(() => {
+    if (intento !== 2 || !respaldo || porProxy) return;
+    let vivo = true;
+    proxyImage(respaldo).then(d => { if (!vivo) return; if (d) setPorProxy(d); else setIntento(3); }).catch(() => { if (vivo) setIntento(3); });
+    return () => { vivo = false; };
+  }, [intento, respaldo, porProxy]);
   const caja = { width:"100%", height:"100%", objectFit:"cover", display:"block", ...estilo };
-  const actual = intento === 0 ? src : intento === 1 ? respaldo : null;
-  const fallo = intento >= 2 || (intento === 1 && !respaldo);
+  const actual = intento === 0 ? src : intento === 1 ? respaldo : intento === 2 ? porProxy : null;
+  const fallo = intento >= 3 || (intento >= 1 && !respaldo);
+  if (intento === 2 && !porProxy && !fallo) {
+    return <div style={{ ...caja, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, opacity:0.6 }}>⏳</div>;
+  }
   if (!actual || fallo) {
     return (
       <div
@@ -379,7 +394,7 @@ const FotoDeProducto = memo(({ src, respaldo = null, t, estilo }) => {
       </div>
     );
   }
-  return <img src={actual} alt="" loading="lazy" decoding="async" onError={() => setIntento(i => i + 1)} style={caja} />;
+  return <img src={actual} alt="" loading="lazy" decoding="async" onError={() => setIntento(i => (i === 2 ? 3 : i + 1))} style={caja} />;
 });
 
 
