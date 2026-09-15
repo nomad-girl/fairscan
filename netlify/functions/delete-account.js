@@ -23,6 +23,7 @@
 const { createClient } = require("@supabase/supabase-js");
 const { S3Client, DeleteObjectsCommand } = require("@aws-sdk/client-s3");
 const { guard } = require("./_shared/guard");
+const { traerTodo } = require("./_shared/paginado");
 
 // ─── Clientes ────────────────────────────────────────────────────────
 
@@ -211,10 +212,14 @@ function resumen(plan) {
 
 async function borrarEquipo(db, teamId) {
   // 1. Juntar las fotos antes de borrar las filas que las nombran.
+  // De a 1.000: PostgREST corta ahí en silencio, y en un equipo grande las fotos
+  // a partir de la 1.001 quedaban para siempre en el bucket (hallazgo 11, 13/09).
   const claves = [];
-  const { data: productos } = await db.from("products").select("photo_urls").eq("room_id", teamId);
+  const { data: productos } = await traerTodo((desde, hasta) =>
+    db.from("products").select("photo_urls").eq("room_id", teamId).order("created_at", { ascending: true }).range(desde, hasta));
   for (const p of productos || []) for (const u of p.photo_urls || []) claves.push(keyFromUrl(u));
-  const { data: proveedores } = await db.from("suppliers").select("card_photo_url").eq("room_id", teamId);
+  const { data: proveedores } = await traerTodo((desde, hasta) =>
+    db.from("suppliers").select("card_photo_url").eq("room_id", teamId).order("created_at", { ascending: true }).range(desde, hasta));
   for (const s of proveedores || []) claves.push(keyFromUrl(s.card_photo_url));
 
   const fotos = await deletePhotos(claves);

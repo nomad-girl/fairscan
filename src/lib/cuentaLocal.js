@@ -11,6 +11,11 @@
  *   · el equipo recordado no es ninguno de los equipos de la que entra
  *     (cubre las bases que quedaron de antes de esta regla, sin usuaria anotada).
  * Si es la misma usuaria, no se toca nada: lo no sincronizado no se pierde.
+ *
+ * Lo que agregó el análisis del 13/09 (hallazgo 3): una sesión SIN cuenta que
+ * entra después de que una cuenta real cerró sesión NO es "otra usuaria". Si se
+ * la trataba como tal, cerrar sesión y volver a abrir vaciaba el teléfono. La
+ * sesión anónima nunca limpia: no tiene catálogo propio que proteger.
  */
 
 /**
@@ -18,12 +23,16 @@
  * @param {string|null|undefined} a.lastUserId  quién usó esta base por última vez
  * @param {boolean} [a.lastUserAnonima]         si esa usuaria era una sesión sin cuenta
  * @param {string} a.userId                     quién está entrando
+ * @param {boolean} [a.userAnonima]             si la que entra es una sesión sin cuenta
  * @param {string|null|undefined} a.roomId      equipo recordado en la base local
  * @param {string[]|null} a.teamIds             equipos de la que entra; null = no se pudo consultar (sin señal)
  * @returns {{ limpiar: boolean, motivo: string|null }}
  */
-export function debeLimpiarBaseLocal({ lastUserId, lastUserAnonima = false, userId, roomId, teamIds }) {
+export function debeLimpiarBaseLocal({ lastUserId, lastUserAnonima = false, userId, userAnonima = false, roomId, teamIds }) {
   if (!userId) return { limpiar: false, motivo: null };
+  // Una sesión sin cuenta no borra nada: no es "otra usuaria", es nadie todavía.
+  // (Cerrar sesión y volver a abrir pasaba por acá y vaciaba el teléfono.)
+  if (userAnonima) return { limpiar: false, motivo: 'entra-anonima' };
   // Lo capturado sin cuenta (sesión anónima, 4.2) no se tira: al entrar con una
   // cuenta real, la sincronización lo muda al equipo de esa cuenta.
   if (lastUserId && lastUserId !== userId && lastUserAnonima) return { limpiar: false, motivo: 'venia-de-anonima' };

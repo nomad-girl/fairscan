@@ -98,7 +98,7 @@ import { serializarAudio, urlDeAudio, esPunteroMuerto } from './lib/audioNotes.j
 import { crearPapelera } from './lib/deshacer.js';
 import { estadoIA, patchReintentoIA, explicarFalloIA } from './lib/aiEstado.js';
 import { debeLimpiarBaseLocal } from './lib/cuentaLocal.js';
-import { guardarResguardo, restaurarResguardo } from './lib/resguardoLocal.js';
+import { guardarResguardo, restaurarResguardo, borrarResguardos, claveDeEquipo } from './lib/resguardoLocal.js';
 import { copiaParaRestaurar } from './lib/syncEngine';
 import { leerBorrador, guardarBorrador, borrarBorrador, describirBorrador, ESPERA_BORRADOR_MS } from './lib/borradorCaptura.js';
 import { elegirMiniatura, miniaturaDe, generarMiniaturasFaltantes } from './lib/miniaturas.js';
@@ -4113,7 +4113,7 @@ export default function App() {
           if (data) teamIds = data.map(m => m.team_id);
         } catch { /* sin señal: se decide con lo que hay */ }
       }
-      const { limpiar, motivo } = debeLimpiarBaseLocal({ lastUserId: previa.lastUserId, lastUserAnonima: !!previa.lastUserAnonima, userId: auth.user.id, roomId: previa.roomId, teamIds });
+      const { limpiar, motivo } = debeLimpiarBaseLocal({ lastUserId: previa.lastUserId, lastUserAnonima: !!previa.lastUserAnonima, userId: auth.user.id, userAnonima: !!auth.user.is_anonymous, roomId: previa.roomId, teamIds });
             if (limpiar) {
         console.warn(`[cuenta] Base local de otra cuenta (${motivo}): se limpia antes de arrancar`);
         // Nunca sin resguardo (10/09: 495 productos sin subir se fueron con la limpieza).
@@ -4121,19 +4121,23 @@ export default function App() {
         // de la cuenta anterior, obligatoria: si falla, la base NO se limpia.
         if (previa.roomId) await syncEngine.copiaAntesDeLimpiar(previa.roomId).catch(() => false);
         let resguardada = false;
-        try { await guardarResguardo(db, previa.lastUserId || `equipo:${previa.roomId || 'sin-equipo'}`); resguardada = true; }
+        try { await guardarResguardo(db, previa.lastUserId || claveDeEquipo(previa.roomId)); resguardada = true; }
         catch (e) { console.warn('[cuenta] No se pudo resguardar la base local; no se limpia:', e?.message || e); }
         try { await syncEngine.disconnectTeam?.(); } catch { /* no estaba conectado */ }
         if (resguardada) {
           await db.delete();
           await db.open();
           // Si esta cuenta había dejado un resguardo en este teléfono, vuelve tal cual.
-          const devueltos = await restaurarResguardo(db, auth.user.id).catch(() => 0);
+          const devueltos = await restaurarResguardo(db, auth.user.id, { roomIds: teamIds || [] })
+            .catch(e => { console.warn('[cuenta] No se pudo devolver el resguardo (queda guardado):', e?.message || e); return 0; });
           if (devueltos) console.log(`[cuenta] Resguardo local devuelto: ${devueltos} productos`);
           await initDB();
         }
       } else {
-        const devueltos = await restaurarResguardo(db, auth.user.id).catch(() => 0);
+        // En cualquier arranque: si hay un resguardo de esta cuenta (o de alguno de sus
+        // equipos), se devuelve. Con la base ocupada se fusiona, nunca se descarta.
+        const devueltos = await restaurarResguardo(db, auth.user.id, { roomIds: teamIds || [] })
+          .catch(e => { console.warn('[cuenta] No se pudo devolver el resguardo (queda guardado):', e?.message || e); return 0; });
         if (devueltos) { console.log(`[cuenta] Resguardo local devuelto: ${devueltos} productos`); await initDB(); }
       }
       await dbSaveSettings({ lastUserId: auth.user.id, lastUserAnonima: !!auth.user.is_anonymous });
@@ -4581,6 +4585,8 @@ export default function App() {
   const handleAccountDeleted = async () => {
     try { await syncEngine.disconnectTeam?.(); } catch { /* da igual, ya no existe */ }
     try { await db.delete(); } catch (e) { console.warn("No se pudo borrar la base local:", e); }
+    // El resguardo local también: "no queda nada de ella en este teléfono" tiene que ser verdad (hallazgo 11).
+    try { await borrarResguardos(); } catch (e) { console.warn("No se pudo borrar el resguardo local:", e); }
     try { localStorage.clear(); } catch { /* modo privado */ }
     try { await auth.signOut(); } catch { /* la sesión ya no vale */ }
     window.location.reload();

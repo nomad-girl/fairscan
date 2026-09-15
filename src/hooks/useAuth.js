@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { signIn, signUp, signOut, onAuthStateChange, getSession, signInAnonymously, convertirCuenta } from '../lib/supabase.js';
 
+const CLAVE_CIERRE = 'fairscan_cerro_sesion';
+const recordarCierreDeSesion = () => { try { localStorage.setItem(CLAVE_CIERRE, '1'); } catch { /* modo privado */ } };
+const olvidarCierreDeSesion = () => { try { localStorage.removeItem(CLAVE_CIERRE); } catch { /* modo privado */ } };
+export const cerroSesionAProposito = () => { try { return localStorage.getItem(CLAVE_CIERRE) === '1'; } catch { return false; } };
+
 export default function useAuth() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -11,7 +16,10 @@ export default function useAuth() {
       let u = data.session?.user ?? null;
       // Sin sesión: se entra con una sesión anónima (4.2). Si el panel no lo
       // permite o no hay señal, queda null y aparece el login.
-      if (!u) {
+      // Pero NO después de que una cuenta real cerró sesión a propósito: en ese
+      // caso corresponde el login, no una sesión nueva sin cuenta (hallazgo 3:
+      // esa sesión anónima contaba como "otra usuaria" y vaciaba el teléfono).
+      if (!u && !cerroSesionAProposito()) {
         try { u = (await signInAnonymously()).user ?? null; } catch { u = null; }
       }
       setUser(u);
@@ -30,11 +38,15 @@ export default function useAuth() {
   }, []);
 
   const handleSignIn = useCallback(async (email, password) => {
-    return signIn(email, password);
+    const r = await signIn(email, password);
+    olvidarCierreDeSesion();
+    return r;
   }, []);
 
   const handleSignUp = useCallback(async (email, password, displayName, teamName, marketingOptIn = false, rubro = null) => {
-    return signUp(email, password, displayName, teamName, marketingOptIn, rubro);
+    const r = await signUp(email, password, displayName, teamName, marketingOptIn, rubro);
+    olvidarCierreDeSesion();
+    return r;
   }, []);
 
   const handleConvertir = useCallback(async (email, password, displayName, teamName, marketingOptIn = false, rubro = null) => {
@@ -42,6 +54,7 @@ export default function useAuth() {
   }, []);
 
   const handleSignOut = useCallback(async () => {
+    recordarCierreDeSesion();
     await signOut();
     setUser(null);
   }, []);

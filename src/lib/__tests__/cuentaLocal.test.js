@@ -28,3 +28,16 @@ describe('debeLimpiarBaseLocal', () => {
     expect(debeLimpiarBaseLocal({ lastUserId: undefined, userId: 'x', roomId: null, teamIds: [] }).limpiar).toBe(false);
   });
 });
+
+describe('hallazgo 3: cerrar sesión no vacía el teléfono', () => {
+  it('una sesión sin cuenta que entra después de una real NO limpia', () => {
+    expect(debeLimpiarBaseLocal({ lastUserId: 'u-real', userId: 'u-anon', userAnonima: true, roomId: 'r1', teamIds: [] }))
+      .toEqual({ limpiar: false, motivo: 'entra-anonima' });
+  });
+  it('la anónima tampoco limpia por equipo ajeno', () => {
+    expect(debeLimpiarBaseLocal({ lastUserId: null, userId: 'u-anon', userAnonima: true, roomId: 'r1', teamIds: ['otro'] }).limpiar).toBe(false);
+  });
+  it('una cuenta real distinta sigue limpiando (2.12 no se pierde)', () => {
+    expect(debeLimpiarBaseLocal({ lastUserId: 'u-real', userId: 'u-otra', userAnonima: false, roomId: 'r1', teamIds: ['r1'] }).limpiar).toBe(true);
+  });
+});
