@@ -4228,6 +4228,9 @@ export default function App() {
       // ya no vale: se conecta al suyo y lo local se muda al sincronizar.
       if (motivo === 'venia-de-anonima' && previa.roomId) await dbSaveSettings({ roomId: null, roomCode: null });
 
+      // El caché de fotos del service worker se llenaba en iPhone y hacía fallar
+      // cada foto (15/09). Ya no se usa: se vacía una vez para liberar el espacio.
+      if (typeof caches !== 'undefined') caches.delete('product-photos-cache').catch(() => {});
       // Que el sistema no borre la base local para liberar espacio (iOS lo hace
       // sin avisar). No bloquea el arranque; el resultado queda en la consola.
       requestPersistentStorage().then(r => console.log(`[storage] persistente: ${r}`));

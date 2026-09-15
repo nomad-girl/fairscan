@@ -60,14 +60,17 @@ export default defineConfig(({ mode }) => {
               urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
               handler: 'NetworkOnly',
             },
-            // R2 / Cloudflare photo URLs - cache with network fallback
+            // Fotos en R2: NUNCA por el caché del service worker (15/09/2026).
+            // Antes era CacheFirst con 500 entradas y en el iPhone de Nati fallaban
+            // 149 de 149 fotos mientras la misma dirección abierta a mano cargaba.
+            // Causa: una foto de otro dominio llega como respuesta "opaca" y el
+            // navegador la anota en la cuota del caché como ~7 MB aunque pese 160 KB;
+            // en iOS la cuota se llena a las pocas decenas y desde ahí cada pedido
+            // de foto falla en vez de pasar de largo. El caché HTTP normal del
+            // navegador ya las guarda solo, sin ese castigo.
             {
               urlPattern: /^https:\/\/.*\.(r2\.dev|cloudflare).*\.(jpg|jpeg|png|webp)/i,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'product-photos-cache',
-                expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 30 },
-              },
+              handler: 'NetworkOnly',
             },
             // (Las reglas para Google Fonts se fueron: DM Sans viaja dentro del
             // paquete desde la pieza 1.13 y entra en la precache como woff2.)
