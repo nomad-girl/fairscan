@@ -3,6 +3,11 @@
   publish = "dist"
   functions = "netlify/functions"
 
+# Volcado completo de la base a R2, una vez por semana (lunes 06:00 UTC). Nunca
+# cada minuto (regla del 09/09). El índice de volcados está en respaldo.volcados.
+[functions."respaldo-completo"]
+  schedule = "0 6 * * 1"
+
 [[redirects]]
   from = "/api/process-image"
   to = "/.netlify/functions/process-image"
