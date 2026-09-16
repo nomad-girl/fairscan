@@ -62,15 +62,15 @@ describe("Visor", () => {
 });
 
 describe("CerrarStand", () => {
-  const proveedor = { name: "Yiwu Sunrise", contact: "Lily Chen", phone: "", email: "", wechat: "sunrise_lily", whatsapp: "", website: "", address: "", products: "", notes: "", interes: null };
-  it("muestra la tarjeta, los campos con dato y 'Agregar ›' en los vacíos, el interés en tres palabras y Listo", () => {
+  const proveedor = { name: "Yiwu Sunrise", contact: "Lily Chen", phone: "", email: "", wechat: "sunrise_lily", whatsapp: "", website: "", address: "", products: "", notes: "", favorito: false };
+  it("muestra la tarjeta, los campos con dato y 'Agregar ›' en los vacíos, el favorito y Listo", () => {
     const onListo = vi.fn(), onCambiar = vi.fn();
     con(<CerrarStand itemsCount={2} items={[{ id: 1, photos: [FOTO], price: "0.85" }, { id: 2, photos: [FOTO, FOTO] }]} cardPhoto={FOTO} proveedor={proveedor} onCambiarProveedor={onCambiar} onListo={onListo} />);
     expect(screen.getByText("2 productos · la tarjeta va al final")).toBeTruthy();
     expect(screen.getByText("Yiwu Sunrise")).toBeTruthy();
     expect(screen.getAllByText("Agregar ›").length).toBeGreaterThan(3);
-    fireEvent.click(screen.getByText("Me interesa"));
-    expect(onCambiar).toHaveBeenCalledWith({ interes: "si" });
+    fireEvent.click(screen.getByRole("button", { name: "Marcar como favorito" }));
+    expect(onCambiar).toHaveBeenCalledWith({ favorito: true });
     fireEvent.click(screen.getByText("Listo"));
     expect(onListo).toHaveBeenCalled();
   });

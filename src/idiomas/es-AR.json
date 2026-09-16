@@ -90,10 +90,6 @@
     "web": "Web",
     "direccion": "Dirección",
     "queVende": "Qué vende",
-    "interes": "Interés",
-    "meInteresa": "Me interesa",
-    "talVez": "Tal vez",
-    "no": "No",
     "comentarios": "Comentarios",
     "comentariosPista": "Pide 30 % de seña, habla inglés…",
     "proveedorConocido": "Proveedor ya cargado",
@@ -114,6 +110,9 @@
     "standSinGuardar": "Tenés un stand sin guardar",
     "quedoHace": "Quedó {{que}}, {{hace}}. La app se cerró antes de cerrar el stand.",
     "retomar": "Retomar",
-    "descartar": "Descartar"
+    "descartar": "Descartar",
+    "favorito": "Favorito",
+    "marcarFavorito": "Marcar como favorito",
+    "quitarFavorito": "Quitar de favoritos"
   }
 }

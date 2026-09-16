@@ -9,12 +9,12 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Bloque, Campo, Segmentado, Chip, FilaDeChips, Icono, Esqueleto } from "../componentes/index.js";
+import { Boton, Bloque, Campo, Chip, FilaDeChips, Icono, Esqueleto } from "../componentes/index.js";
 
 export function CerrarStand({
   soloProveedor = false, itemsCount = 0, items = [],
   cardPhoto = null, cardProcessing = false, onSacarTarjeta, onTarjetaDeGaleria, onQuitarTarjeta,
-  proveedor, onCambiarProveedor, // { name, contact, phone, email, wechat, whatsapp, website, address, products, notes, interes }
+  proveedor, onCambiarProveedor, // { name, contact, phone, email, wechat, whatsapp, website, address, products, notes, favorito }
   vinculado = null, ultimoProveedor = null, proveedoresFiltrados = [], consulta = "", onConsulta, onVincular, onDesvincular,
   nota, // useGrabadora
   onAgregarProducto, onProductoDeGaleria, onSacarProducto, onFotoAProducto,
@@ -110,11 +110,12 @@ export function CerrarStand({
           <Campo etiqueta={t("cerrarStand.queVende")} valor={proveedor.products} onChange={cambiar("products")} />
         </Bloque>
 
-        {/* Lo que se sabe justo acá: interés y comentarios */}
-        <Bloque titulo={t("cerrarStand.interes")}>
-          <div style={{ padding: "6px 0 10px" }}>
-            <Segmentado etiqueta={t("cerrarStand.interes")} valor={proveedor.interes || null} onChange={cambiar("interes")}
-              opciones={[{ valor: "si", texto: t("cerrarStand.meInteresa") }, { valor: "tal-vez", texto: t("cerrarStand.talVez") }, { valor: "no", texto: t("cerrarStand.no") }]} />
+        {/* Lo que se sabe justo acá: si te interesó, y comentarios (decisión de Nati, 16/09: favorito en producto y proveedor, nada más) */}
+        <Bloque>
+          <div style={{ padding: "10px 0 6px" }}>
+            <Chip activo={!!proveedor.favorito} onClick={() => cambiar("favorito")(!proveedor.favorito)} etiqueta={proveedor.favorito ? t("cerrarStand.quitarFavorito") : t("cerrarStand.marcarFavorito")}>
+              <Icono nombre="favorito" tamano={16} color={proveedor.favorito ? paleta.accentTexto : paleta.dim} />{t("cerrarStand.favorito")}
+            </Chip>
           </div>
           <Campo etiqueta={t("cerrarStand.comentarios")} valor={proveedor.notes} onChange={cambiar("notes")} multilinea placeholder={t("cerrarStand.comentariosPista")} />
         </Bloque>

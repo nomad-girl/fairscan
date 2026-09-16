@@ -1225,7 +1225,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   const [supplierProducts, setSupplierProducts] = useState("");
   const [supplierNotes, setSupplierNotes] = useState("");
   const [linkedSupplierId, setLinkedSupplierId] = useState(null);
-  const [supplierInteres, setSupplierInteres] = useState(null); // "si" | "tal-vez" | "no" (hoja Cerrar stand, 16/09)
+  const [supplierFavorito, setSupplierFavorito] = useState(false); // favorito en proveedor y producto, nada más (decisión de Nati, 16/09)
   const [items, setItems] = useState([]);
   // "+ ángulo": unos segundos después de cada disparo, la próxima foto se suma al último producto (recorrido, pantalla 2).
   const [anguloDisponible, setAnguloDisponible] = useState(false);
@@ -1552,7 +1552,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
         supplierName: supplierName.trim(),
         supplierContact, supplierPhone, supplierEmail,
         supplierWechat, supplierWhatsapp, supplierWhatsappLink, supplierWechatLink,
-        supplierWebsite, supplierAddress, supplierProducts, supplierNotes, supplierInteres,
+        supplierWebsite, supplierAddress, supplierProducts, supplierNotes, supplierFavorito,
         cardPhoto, cardData,
         productItems: items,
         productIds: items.map(it => it.id),
@@ -1610,8 +1610,8 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   }
 
   // === La hoja Cerrar stand (pantallas/CerrarStand.jsx) ===
-  const proveedor = { name: supplierName, contact: supplierContact, phone: supplierPhone, email: supplierEmail, wechat: supplierWechat, whatsapp: supplierWhatsapp, website: supplierWebsite, address: supplierAddress, products: supplierProducts, notes: supplierNotes, interes: supplierInteres };
-  const setters = { name: setSupplierName, contact: setSupplierContact, phone: setSupplierPhone, email: setSupplierEmail, wechat: setSupplierWechat, whatsapp: setSupplierWhatsapp, website: setSupplierWebsite, address: setSupplierAddress, products: setSupplierProducts, notes: setSupplierNotes, interes: setSupplierInteres };
+  const proveedor = { name: supplierName, contact: supplierContact, phone: supplierPhone, email: supplierEmail, wechat: supplierWechat, whatsapp: supplierWhatsapp, website: supplierWebsite, address: supplierAddress, products: supplierProducts, notes: supplierNotes, favorito: supplierFavorito };
+  const setters = { name: setSupplierName, contact: setSupplierContact, phone: setSupplierPhone, email: setSupplierEmail, wechat: setSupplierWechat, whatsapp: setSupplierWhatsapp, website: setSupplierWebsite, address: setSupplierAddress, products: setSupplierProducts, notes: setSupplierNotes, favorito: setSupplierFavorito };
   const cambiarProveedor = (parche) => { for (const [k, v] of Object.entries(parche)) setters[k]?.(v); };
   return (
     <>
@@ -4237,11 +4237,11 @@ export default function App() {
         }
       }
 
-      // Interés del proveedor (hoja Cerrar stand, 16/09): tres palabras que se guardan
-      // en el puntaje existente (5 · 3 · 1) hasta que Nati decida el campo definitivo.
-      if (supplierId && data.supplierInteres) {
-        const rating = { si: 5, "tal-vez": 3, no: 1 }[data.supplierInteres];
-        if (rating) { await dbUpdateSupplier(supplierId, { rating }); setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, rating } : s)); }
+      // Favorito del proveedor (decisión de Nati, 16/09): se guarda en el puntaje
+      // existente como 5 hasta que exista el campo propio junto con el favorito de producto.
+      if (supplierId && data.supplierFavorito) {
+        await dbUpdateSupplier(supplierId, { rating: 5 });
+        setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, rating: 5 } : s));
       }
       // === SUPPLIER ONLY: just save supplier and go to detail ===
       if (data.supplierOnly) {
