@@ -20,8 +20,12 @@ describe('capa 04 · un solo modo, abrir es capturar', () => {
   });
   it('la app abre en la captura y el stand se cierra con la tarjeta al final', () => {
     expect(app.includes('useState("capture"); // abrir es capturar (4.1)')).toBe(true);
-    expect(app.includes('Cerrar stand')).toBe(true);
-    expect(app.includes('🗂 Catálogo')).toBe(true);
+    // Desde el 16/09 el visor y la hoja Cerrar stand viven en pantallas/ y sus textos en el archivo de idioma.
+    expect(app.includes("from './pantallas/Visor.jsx'")).toBe(true);
+    expect(app.includes("from './pantallas/CerrarStand.jsx'")).toBe(true);
+    const idioma = JSON.parse(fs.readFileSync(path.join(raiz, 'src/idiomas/es-AR.json'), 'utf8'));
+    expect(idioma.visor.cerrarStand).toBe('Cerrar stand');
+    expect(idioma.visor.catalogo).toBe('Catálogo');
     expect(app.includes('function Bienvenida(')).toBe(true);
   });
   it('el paywall usa la frase decidida y tiene "Después" y "Restaurar compras"', () => {
