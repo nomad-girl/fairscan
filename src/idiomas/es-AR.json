@@ -1,0 +1,45 @@
+{
+  "comun": {
+    "listo": "Listo",
+    "cancelar": "Cancelar",
+    "cerrar": "Cerrar",
+    "volver": "Volver",
+    "guardar": "Guardar",
+    "guardado": "Guardado",
+    "editar": "Editar",
+    "borrar": "Borrar",
+    "deshacer": "Deshacer",
+    "reintentar": "Reintentar",
+    "masTarde": "Más tarde",
+    "agregar": "Agregar",
+    "buscar": "Buscar",
+    "opcional": "opcional",
+    "cargando": "Cargando…",
+    "sinSenal": "Sin señal: se envía cuando vuelva"
+  },
+  "cantidades": {
+    "productos_one": "{{count}} producto",
+    "productos_other": "{{count}} productos",
+    "proveedores_one": "{{count}} proveedor",
+    "proveedores_other": "{{count}} proveedores",
+    "fotos_one": "{{count}} foto",
+    "fotos_other": "{{count}} fotos",
+    "escaneos_one": "{{count}} escaneo",
+    "escaneos_other": "{{count}} escaneos"
+  },
+  "componentes": {
+    "hoja": {
+      "cerrar": "Cerrar",
+      "agarradera": "Deslizá hacia abajo para cerrar"
+    },
+    "campo": {
+      "vacio": "Agregar ›"
+    },
+    "esqueleto": {
+      "cargando": "Cargando"
+    },
+    "aviso": {
+      "cerrar": "Cerrar aviso"
+    }
+  }
+}
