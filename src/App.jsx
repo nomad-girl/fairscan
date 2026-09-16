@@ -94,6 +94,7 @@ import { requestPersistentStorage } from './lib/platform.js';
 import { createAutosave } from './lib/autosave.js';
 import { groupBySupplier } from './lib/supplierGroups.js';
 import { explicarErrorDeCamara, explicarErrorDeMicrofono, abrirAjustesDeLaApp } from './lib/permisos.js';
+import { palabrasDeBusqueda, coincideBusqueda } from './lib/busqueda.js';
 import { serializarAudio, urlDeAudio, esPunteroMuerto } from './lib/audioNotes.js';
 import { crearPapelera } from './lib/deshacer.js';
 import { estadoIA, patchReintentoIA, explicarFalloIA } from './lib/aiEstado.js';
@@ -1553,7 +1554,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   const lastSupplier = recentSuppliers[0] || null;
   const filteredSuppliers = supplierQuery.trim()
-    ? suppliers.filter(s => (s.company||"").toLowerCase().includes(supplierQuery.toLowerCase()))
+    ? suppliers.filter(s => coincideBusqueda([s.company, s.contact], supplierQuery))
     : recentSuppliers;
 
   const inputStyle = { width:"100%", padding:"10px 14px", borderRadius:12, fontSize:16, border:`1.5px solid ${t.border}`, background:t.card, color:t.text, outline:"none", fontFamily:"inherit" };
@@ -3343,11 +3344,9 @@ function ProductList({ products, suppliers, districts, activeDistrictId, activeD
   const filteredOnly = useMemo(() => {
     let r = districtProducts;
     if (search.trim()) {
-      const words = search.toLowerCase().split(/\s+/);
-      r = r.filter(p => {
-        const s = [p.name, p.category, p.supplierCompany, p.notes, ...(p.material||[])].filter(Boolean).join(" ").toLowerCase();
-        return words.every(w => s.includes(w));
-      });
+      // Sin tildes ni mayúsculas (pedido de Lucas, 16/09): "ceramica" encuentra "Cerámica".
+      const palabras = palabrasDeBusqueda(search);
+      r = r.filter(p => coincideBusqueda([p.name, p.category, p.supplierCompany, p.notes, ...(p.material||[])], palabras));
     }
     if (filterCat !== "all") r = r.filter(p => p.category === filterCat);
     if (filterViability !== "all") r = r.filter(p => (p.viability || "none") === filterViability);
