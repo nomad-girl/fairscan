@@ -1351,13 +1351,15 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     return id;
   };
   // Precio al toque (4.8): después de disparar, un teclado grande sobre el visor
-  // durante un segundo y medio. Si se toca, se queda hasta confirmar; si no, se va.
+  // durante tres segundos (Nati, 16/09: al segundo y medio "se va demasiado rápido").
+  // Si se toca, se queda hasta confirmar; si no, se va.
+  const PRECIO_RAPIDO_MS = 3000;
   const [precioRapido, setPrecioRapido] = useState(null); // { id, valor }
   const precioTimerRef = useRef(null);
   const ofrecerPrecio = (id) => {
     clearTimeout(precioTimerRef.current);
     setPrecioRapido({ id, valor: "" });
-    precioTimerRef.current = setTimeout(() => setPrecioRapido(p => (p && !p.valor ? null : p)), 1500);
+    precioTimerRef.current = setTimeout(() => setPrecioRapido(p => (p && !p.valor ? null : p)), PRECIO_RAPIDO_MS);
   };
   const tocarPrecio = (tecla) => {
     clearTimeout(precioTimerRef.current);
