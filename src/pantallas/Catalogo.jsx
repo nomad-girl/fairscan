@@ -74,8 +74,8 @@ export function Catalogo({
   // Función, no componente: un componente definido adentro del render es un tipo nuevo cada vez y React
   // desmonta y vuelve a montar la imagen (Nati, 16/09: "las fotos titilan").
   const miniatura = (p, estilo) => {
-    const src = elegirMiniatura(p);
-    if (!src && !p.photoUrls?.[0]) return <div style={{ width: "100%", height: "100%", background: paleta.surface, display: "grid", placeItems: "center", ...estilo }}><Icono nombre="foto" tamano={20} color={paleta.dim} /></div>;
+    const src = elegirMiniatura(p) || respaldoDe(p); // copia local, o la dirección de la nube (17/09)
+    if (!src) return <div style={{ width: "100%", height: "100%", background: paleta.surface, display: "grid", placeItems: "center", ...estilo }}><Icono nombre="foto" tamano={20} color={paleta.dim} /></div>;
     return Foto ? <Foto src={src} respaldo={respaldoDe(p)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block", ...estilo }} /> : <img src={src || respaldoDe(p)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", ...estilo }} />;
   };
 
@@ -247,7 +247,7 @@ export function Catalogo({
             )}
             {proveedoresBuscados.map(s => (
               <Fila key={s.id} onClick={() => onNavigate?.("supplier", s)} flecha
-                miniatura={(s.cardPhoto || s.cardPhotoUrl) ? <img src={s.cardPhoto || s.cardPhotoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <Iniciales texto={s.company} />}
+                miniatura={(s.cardPhoto || s.cardPhotoUrl) ? (Foto ? <Foto src={s.cardPhoto || s.cardPhotoUrl} respaldo={s.cardPhotoUrl || null} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <img src={s.cardPhoto || s.cardPhotoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <Iniciales texto={s.company} />}
                 titulo={<>{s.favorito ? <><Icono nombre="favorito" tamano={13} color={paleta.accentTexto} /> </> : null}{s.company || `#${s.id}`}</>}
                 subtitulo={`${s.contact ? s.contact + " · " : ""}${t("catalogo.productos", { count: productosPorProveedor.get(s.id) || 0 })}`} />
             ))}

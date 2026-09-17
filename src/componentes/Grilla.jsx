@@ -40,9 +40,9 @@ export function CarruselDeFotos({ fotos = [], respaldos = [], Foto, tLegacy, onT
     <div style={{ position: "relative", aspectRatio: relacion, width: "100%", background: paleta.surface }}>
       {/* La proporción va en el marco y la fila deslizable lo llena: en Safari, aspect-ratio en los hijos de la fila se aplastaba */}
       <div ref={ref} onScroll={onScroll} style={{ position: "absolute", inset: 0, display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}>
-        {(fotos.length ? fotos : [null]).map((f, k) => (
+        {(fotos.length ? fotos : respaldos.length ? respaldos : [null]).map((f, k) => (
           <button key={k} type="button" onClick={onTocar} aria-label={etiqueta} style={{ width: "100%", height: "100%", flexShrink: 0, scrollSnapAlign: "start", border: "none", padding: 0, background: paleta.surface, cursor: onTocar ? "pointer" : "default", WebkitTapHighlightColor: "transparent" }}>
-            {f || respaldos[k] ? dibujar(f, k) : <span style={{ display: "grid", placeItems: "center", width: "100%", height: "100%" }}><Icono nombre="foto" tamano={28} color={paleta.dim} /></span>}
+            {f || respaldos[k] ? dibujar(f || respaldos[k], k) : <span style={{ display: "grid", placeItems: "center", width: "100%", height: "100%" }}><Icono nombre="foto" tamano={28} color={paleta.dim} /></span>}
           </button>
         ))}
       </div>

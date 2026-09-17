@@ -65,7 +65,7 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
 
   // Funciones de dibujo, no componentes: un componente definido adentro del render se desmonta en cada cambio (las fotos titilaban).
   const miniatura = (p, estilo) => {
-    const src = elegirMiniatura(p);
+    const src = elegirMiniatura(p) || respaldoDe(p); // copia local, o la dirección de la nube (17/09)
     return Foto ? <Foto src={src} respaldo={respaldoDe(p)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block", ...estilo }} /> : <img src={src || respaldoDe(p)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", ...estilo }} />;
   };
   const tarjeta = (contenido) => (

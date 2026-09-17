@@ -304,9 +304,11 @@ const FotoDeProducto = memo(({ src, respaldo = null, t, estilo }) => {
   // servidor las entregaba bien: algo entre ese teléfono y ese dominio las
   // bloquea. Pasarlas por fairscan.app las destraba, a costo de una función por
   // foto, así que es solo el último recurso.
-  const [intento, setIntento] = useState(0);   // 0 = src, 1 = respaldo, 2 = por nuestro servidor, 3 = fallo
+  // 17/09: si no hay copia local (src vacío) pero sí dirección de la nube, se arranca por la nube; antes el
+  // componente se quedaba en el 📷 sin intentar nada, y "muchísimos productos" no cargaban en el iPhone de Nati.
+  const [intento, setIntento] = useState(src ? 0 : respaldo ? 1 : 0);   // 0 = src, 1 = respaldo, 2 = por nuestro servidor, 3 = fallo
   const [porProxy, setPorProxy] = useState(null);
-  useEffect(() => { setIntento(0); setPorProxy(null); }, [src, respaldo]);
+  useEffect(() => { setIntento(src ? 0 : respaldo ? 1 : 0); setPorProxy(null); }, [src, respaldo]);
   useEffect(() => {
     if (intento !== 2 || !respaldo || porProxy) return;
     let vivo = true;

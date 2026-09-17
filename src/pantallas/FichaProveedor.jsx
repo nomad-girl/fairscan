@@ -53,8 +53,8 @@ export function FichaProveedor({ supplier: s, products = [], pedidos = [], distr
   const sinDato = campos.filter(([k]) => !s[k]);
 
   const miniatura = (p) => {
-    const src = elegirMiniatura(p);
-    if (!src && !p.photoUrls?.[0]) return <div style={{ width: "100%", height: "100%", background: paleta.surface, display: "grid", placeItems: "center" }}><Icono nombre="foto" tamano={20} color={paleta.dim} /></div>;
+    const src = elegirMiniatura(p) || respaldoDe(p); // copia local, o la dirección de la nube (17/09)
+    if (!src) return <div style={{ width: "100%", height: "100%", background: paleta.surface, display: "grid", placeItems: "center" }}><Icono nombre="foto" tamano={20} color={paleta.dim} /></div>;
     return Foto ? <Foto src={src} respaldo={respaldoDe(p)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <img src={src || respaldoDe(p)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />;
   };
   const seccion = (txt) => <h3 style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: paleta.dim, margin: "4px 2px 8px" }}>{txt}</h3>;

@@ -56,9 +56,9 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
   // Funciones, no componentes: definidos adentro del render serían un tipo nuevo por render y React los
   // desmontaría (la imagen titila, el campo de cantidad pierde el foco al escribir).
   const miniatura = (p, tamano = alturas.miniatura) => {
-    const src = elegirMiniatura(p);
+    const src = elegirMiniatura(p) || respaldoDe(p); // copia local, o la dirección de la nube (17/09)
     const caja = { width: tamano, height: tamano, borderRadius: radios.chico, overflow: "hidden", flexShrink: 0, background: paleta.surface, border: `1px solid ${paleta.border}` };
-    if (!src && !p.photoUrls?.[0]) return <div style={{ ...caja, display: "grid", placeItems: "center" }}><Icono nombre="foto" tamano={16} color={paleta.dim} /></div>;
+    if (!src) return <div style={{ ...caja, display: "grid", placeItems: "center" }}><Icono nombre="foto" tamano={16} color={paleta.dim} /></div>;
     return <div style={caja}>{Foto ? <Foto src={src} respaldo={respaldoDe(p)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <img src={src || respaldoDe(p)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />}</div>;
   };
 

@@ -31,7 +31,7 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
   const idx = allProducts.findIndex(x => x.id === p.id);
   const prev = idx > 0 ? allProducts[idx - 1] : null;
   const next = idx >= 0 && idx < allProducts.length - 1 ? allProducts[idx + 1] : null;
-  const fotos = p.photos || [];
+  const fotos = p.photos?.length ? p.photos : (p.photoUrls || []); // sin copia local, las de la nube (17/09)
 
   const audioSrc = useMemo(() => urlDeAudio(p.audio) || (esPunteroMuerto(p.audioURL) ? null : p.audioURL || null), [p.audio, p.audioURL]);
   useEffect(() => () => { if (audioSrc?.startsWith("blob:")) URL.revokeObjectURL(audioSrc); }, [audioSrc]);
