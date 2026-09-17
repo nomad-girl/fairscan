@@ -85,7 +85,12 @@
     "listo": "Listo",
     "cerrarTeclado": "Cerrar",
     "volverAPrecio": "Precio",
-    "otrosDatos": "Otros datos"
+    "otrosDatos": "Otros datos",
+    "aCuantoEstaba": "¿A cuánto estaba?",
+    "delUltimoProducto": "El último producto que sacaste",
+    "guardarYSeguir": "Guardar",
+    "cerrarSinDatos": "Cerrar sin cargar nada",
+    "campoPiezasCorto": "Piezas/caja"
   },
   "cerrarStand": {
     "titulo": "Cerrar stand",
@@ -210,7 +215,16 @@
     "repetidosSub_other": "Sacadas con {{count}} minutos de diferencia",
     "sonDistintos": "Son distintos",
     "juntar": "Juntar en uno",
-    "juntarPista": "Queda un solo producto con las fotos de los dos. Se puede deshacer."
+    "juntarPista": "Queda un solo producto con las fotos de los dos. Se puede deshacer.",
+    "elegirJuego": "¿Qué querés revisar?",
+    "juegoRepetidos": "Repetidos probables",
+    "juegoPrecio": "Falta el precio",
+    "juegoProveedor": "Falta el proveedor",
+    "juegoFavoritos": "Mis favoritos de hoy",
+    "pares_one": "{{count}} par",
+    "pares_other": "{{count}} pares",
+    "nadaPendiente": "Nada pendiente",
+    "eliminar": "Eliminar producto"
   },
   "ficha": {
     "producto": "Producto",

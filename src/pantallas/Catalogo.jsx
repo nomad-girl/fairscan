@@ -71,11 +71,26 @@ export function Catalogo({
   const abrir = (p) => onNavigate?.("detail", p);
   const nombreFeria = feria === "todas" ? t("catalogo.todasLasFerias") : `${activeDistrict?.emoji || ""} ${activeDistrict?.name || ""}`.trim();
 
-  const Miniatura = ({ p, estilo }) => {
+  // Función, no componente: un componente definido adentro del render es un tipo nuevo cada vez y React
+  // desmonta y vuelve a montar la imagen (Nati, 16/09: "las fotos titilan").
+  const miniatura = (p, estilo) => {
     const src = elegirMiniatura(p);
     if (!src && !p.photoUrls?.[0]) return <div style={{ width: "100%", height: "100%", background: paleta.surface, display: "grid", placeItems: "center", ...estilo }}><Icono nombre="foto" tamano={20} color={paleta.dim} /></div>;
     return Foto ? <Foto src={src} respaldo={p.photoUrls?.[0] || null} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block", ...estilo }} /> : <img src={src || p.photoUrls?.[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", ...estilo }} />;
   };
+
+  const celda = (p) => { const sinNombre = !p.name && !p.ai_processed; return (
+    <button key={p.id} type="button" onClick={() => abrir(p)} style={{ position: "relative", aspectRatio: "1", borderRadius: radios.chico, overflow: "hidden", border: `1px solid ${paleta.border}`, background: paleta.card, padding: 0, cursor: "pointer", textAlign: "left" }}>
+                      {miniatura(p)}
+                      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "18px 6px 5px", background: "linear-gradient(transparent, rgba(10,14,23,0.7))", color: "#F1F5F9" }}>
+                        {sinNombre ? <Esqueleto ancho="70%" alto={10} estilo={{ background: "rgba(241,245,249,0.5)" }} /> : <p style={{ fontSize: 12, fontWeight: 600, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name || t("catalogo.procesandoNombre")}</p>}
+                        {p.price && <span style={{ fontSize: 12, fontWeight: 700, color: "#86EFAC", fontVariantNumeric: "tabular-nums" }}>USD {p.price}</span>}
+                      </div>
+                      {p.favorito && <span style={{ position: "absolute", top: 5, right: 5, width: 22, height: 22, borderRadius: 6, background: "rgba(10,14,23,0.6)", display: "grid", placeItems: "center" }}><Icono nombre="favorito" tamano={13} color="#FDBA74" /></span>}
+                      {estadoIA(p) === "fallo" && <span style={{ position: "absolute", top: 5, left: 5, width: 22, height: 22, borderRadius: 6, background: "rgba(220,38,38,0.85)", display: "grid", placeItems: "center" }}><Icono nombre="error" tamano={13} color="#fff" /></span>}
+                      {(p.photos?.length || 0) > 1 && <span style={{ position: "absolute", top: 5, left: 5, background: "rgba(10,14,23,0.6)", color: "#F1F5F9", borderRadius: 6, padding: "1px 6px", fontSize: 11, fontWeight: 600 }}>{p.photos.length}</span>}
+                    </button>
+  ); };
 
   const seccion = (txt) => <h3 style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: paleta.dim, margin: "8px 2px 2px" }}>{txt}</h3>;
 
@@ -113,7 +128,8 @@ export function Catalogo({
                 {hayQueRevisar
                   ? <Boton variante="principal" ancho="total" onClick={onRevisarDia}>{t("catalogo.revisarElDia")} · {t("catalogo.revisarMinutos", { count: Math.max(1, Math.ceil((resumen.sinPrecio + deHoy.filter(p => !p.supplierId).length + 2) / 3)) })}</Boton>
                   : <Boton variante="secundario" ancho="total" icono="listo" deshabilitado>{t("catalogo.todoRevisado")}</Boton>}
-                <Boton variante="fantasma" ancho="total" onClick={() => { onPestana?.("todo"); setFiltro("todos"); }}>{t("catalogo.verLosDeHoy", { count: deHoy.length })}</Boton>
+                {/* El feed del día (Nati, 16/09: "todos quieren ver su feed del día"): las fotos, sin tocar nada */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>{deHoy.map(p => celda(p))}</div>
               </>
             ) : (
               <>
@@ -124,7 +140,7 @@ export function Catalogo({
                   return (
                     <div style={{ background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, boxShadow: paleta.sombraTarjeta, overflow: "hidden" }}>
                       <div style={{ padding: "10px 14px 0", ...texto("pie"), color: paleta.dim }}>{t("catalogo.deHace", { feria: dist?.name || "—", tiempo: haceCuanto(redescubierto.createdAt).replace(/^hace /, "") })}</div>
-                      <button type="button" onClick={() => abrir(redescubierto)} style={{ display: "block", width: "100%", aspectRatio: "4/3", border: "none", padding: 0, margin: "8px 0 0", background: paleta.surface, cursor: "pointer" }}><Miniatura p={redescubierto} /></button>
+                      <button type="button" onClick={() => abrir(redescubierto)} style={{ display: "block", width: "100%", aspectRatio: "4/3", border: "none", padding: 0, margin: "8px 0 0", background: paleta.surface, cursor: "pointer" }}>{miniatura(redescubierto)}</button>
                       <div style={{ padding: "10px 14px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
                         <p style={{ ...texto("cuerpo", { fontWeight: 600 }), margin: 0 }}>{redescubierto.name}</p>
                         <p style={{ ...texto("pie"), color: paleta.muted, margin: 0 }}><Icono nombre="favorito" tamano={13} color={paleta.accentTexto} /> {sup?.company || redescubierto.supplierCompany || "—"}{redescubierto.price ? ` · USD ${redescubierto.price}` : ""} · {t("catalogo.nuncaLoPediste")}</p>
@@ -183,18 +199,7 @@ export function Catalogo({
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
                 {conEncabezadosDeDia(filtrados).map(it => it.tipo === "dia"
                   ? <div key={it.clave} style={{ gridColumn: "1 / -1" }}>{seccion(`${it.etiqueta} · ${it.n}`)}</div>
-                  : (() => { const p = it.p; const sinNombre = !p.name && !p.ai_processed; return (
-                    <button key={p.id} type="button" onClick={() => abrir(p)} style={{ position: "relative", aspectRatio: "4/3", borderRadius: radios.chico, overflow: "hidden", border: `1px solid ${paleta.border}`, background: paleta.card, padding: 0, cursor: "pointer", textAlign: "left" }}>
-                      <Miniatura p={p} />
-                      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "18px 6px 5px", background: "linear-gradient(transparent, rgba(10,14,23,0.7))", color: "#F1F5F9" }}>
-                        {sinNombre ? <Esqueleto ancho="70%" alto={10} estilo={{ background: "rgba(241,245,249,0.5)" }} /> : <p style={{ fontSize: 12, fontWeight: 600, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name || t("catalogo.procesandoNombre")}</p>}
-                        {p.price && <span style={{ fontSize: 12, fontWeight: 700, color: "#86EFAC", fontVariantNumeric: "tabular-nums" }}>USD {p.price}</span>}
-                      </div>
-                      {p.favorito && <span style={{ position: "absolute", top: 5, right: 5, width: 22, height: 22, borderRadius: 6, background: "rgba(10,14,23,0.6)", display: "grid", placeItems: "center" }}><Icono nombre="favorito" tamano={13} color="#FDBA74" /></span>}
-                      {estadoIA(p) === "fallo" && <span style={{ position: "absolute", top: 5, left: 5, width: 22, height: 22, borderRadius: 6, background: "rgba(220,38,38,0.85)", display: "grid", placeItems: "center" }}><Icono nombre="error" tamano={13} color="#fff" /></span>}
-                      {(p.photos?.length || 0) > 1 && <span style={{ position: "absolute", top: 5, left: 5, background: "rgba(10,14,23,0.6)", color: "#F1F5F9", borderRadius: 6, padding: "1px 6px", fontSize: 11, fontWeight: 600 }}>{p.photos.length}</span>}
-                    </button>
-                  ); })())}
+                  : celda(it.p))}
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: espacios.entreFilas }}>
@@ -202,7 +207,7 @@ export function Catalogo({
                   ? <div key={it.clave}>{seccion(`${it.etiqueta} · ${it.n}`)}</div>
                   : (() => { const p = it.p; const sup = suppliers.find(s => s.id === p.supplierId); const sinNombre = !p.name && !p.ai_processed; return (
                     <Fila key={p.id} onClick={() => abrir(p)}
-                      miniatura={<Miniatura p={p} />}
+                      miniatura={miniatura(p)}
                       titulo={sinNombre ? <Esqueleto ancho={140} alto={12} /> : (p.name || t("catalogo.procesandoNombre"))}
                       subtitulo={<>{p.favorito && <Icono nombre="favorito" tamano={12} color={paleta.accentTexto} />} {sup?.company || p.supplierCompany || "—"}</>}
                       derecha={p.price ? <Precio detalle={p.moq ? `MOQ ${p.moq}` : undefined}>USD {p.price}</Precio> : null} />

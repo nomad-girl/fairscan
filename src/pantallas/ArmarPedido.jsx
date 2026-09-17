@@ -53,14 +53,16 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
   };
   const enviar = (via) => { setMandando(false); onEnviar?.(via); };
 
-  const Miniatura = ({ p, tamano = alturas.miniatura }) => {
+  // Funciones, no componentes: definidos adentro del render serían un tipo nuevo por render y React los
+  // desmontaría (la imagen titila, el campo de cantidad pierde el foco al escribir).
+  const miniatura = (p, tamano = alturas.miniatura) => {
     const src = elegirMiniatura(p);
-    const caja = { width: tamano, height: Math.round(tamano * 0.75), borderRadius: radios.chico, overflow: "hidden", flexShrink: 0, background: paleta.surface, border: `1px solid ${paleta.border}` };
+    const caja = { width: tamano, height: tamano, borderRadius: radios.chico, overflow: "hidden", flexShrink: 0, background: paleta.surface, border: `1px solid ${paleta.border}` };
     if (!src && !p.photoUrls?.[0]) return <div style={{ ...caja, display: "grid", placeItems: "center" }}><Icono nombre="foto" tamano={16} color={paleta.dim} /></div>;
     return <div style={caja}>{Foto ? <Foto src={src} respaldo={p.photoUrls?.[0] || null} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <img src={src || p.photoUrls?.[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />}</div>;
   };
 
-  const Contador = ({ p, cant, foco }) => (
+  const contador = (p, cant, foco) => (
     <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
       <button type="button" onClick={() => sumar(p, -1)} disabled={cant <= 0} aria-label={`${t("pedido.menos")} ${p.name || ""}`.trim()} style={{ width: alturas.tocable, height: alturas.tocable, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, color: cant > 0 ? paleta.text : paleta.dim, cursor: cant > 0 ? "pointer" : "default", display: "grid", placeItems: "center", WebkitTapHighlightColor: "transparent" }}><Icono nombre="menos" tamano={18} color={cant > 0 ? paleta.text : paleta.dim} /></button>
       <input ref={foco ? refPrimero : undefined} type="text" inputMode="numeric" value={cant || ""} placeholder="0" onChange={e => cambiar(p.id, e.target.value.replace(/[^0-9]/g, ""))} onFocus={e => e.target.select()} aria-label={`${t("pedido.cantidad")} ${p.name || ""}`.trim()}
@@ -80,7 +82,7 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
     l.total != null ? dinero(l.total) : null,
   ].filter(Boolean).join(" · ");
 
-  const Totales = () => (
+  const totales = () => (
     <div style={{ background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, padding: "10px 14px", boxShadow: paleta.sombraTarjeta }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
         {[[t("pedido.bultos"), tot.bultos ? fNumero(tot.bultos) : "—"], [t("pedido.unidades"), tot.unidades ? fNumero(tot.unidades) : "—"], [t("pedido.cbm"), tot.cbm ? fNumero(tot.cbm, { maximumFractionDigits: 2 }) : "—"], [t("pedido.total"), tot.total ? dinero(tot.total) : "—"]].map(([k, v], i) => (
@@ -94,7 +96,7 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
     </div>
   );
 
-  const Comentarios = () => (
+  const comentarios = () => (
     <Bloque titulo={t("pedido.comentarios")}>
       <Campo etiqueta={t("pedido.comentarios")} valor={pedido?.comentarios} placeholder={t("pedido.comentariosPista")} multilinea onChange={v => onGuardar?.({ comentarios: v || "", estado: "en_curso" })} />
     </Bloque>
@@ -126,12 +128,12 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
                   const cant = cantidadDe(pedido, p.id); const l = lineaDePedido(p, cant);
                   return (
                     <div key={p.id} role="row" style={{ display: "grid", gridTemplateColumns: "64px minmax(160px, 1fr) 90px 90px 90px 160px 90px 90px 110px", gap: 8, alignItems: "center", padding: "8px 12px", borderBottom: `1px solid ${paleta.border}`, background: cant > 0 ? paleta.accentSoft : "transparent", ...texto("cuerpo", { fontWeight: 400 }), fontVariantNumeric: "tabular-nums" }}>
-                      <button type="button" onClick={() => onNavigateProduct?.(p)} aria-label={t("pedido.verProducto")} style={{ padding: 0, border: "none", background: "none", cursor: "pointer" }}><Miniatura p={p} tamano={56} /></button>
+                      <button type="button" onClick={() => onNavigateProduct?.(p)} aria-label={t("pedido.verProducto")} style={{ padding: 0, border: "none", background: "none", cursor: "pointer" }}>{miniatura(p, 56)}</button>
                       <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 500 }}>{p.favorito ? <><Icono nombre="favorito" tamano={12} color={paleta.accentTexto} /> </> : null}{p.name || t("pedido.sinNombre")}</span>
                       <span>{p.price ? `${moneda} ${p.price}` : "—"}</span>
                       <span>{l.porCaja ? fNumero(l.piezas) : "—"}</span>
                       <span>{p.cbmPorCaja ? fNumero(p.cbmPorCaja, { maximumFractionDigits: 3 }) : "—"}</span>
-                      <Contador p={p} cant={cant} foco={p.id === primero} />
+                      {contador(p, cant, p.id === primero)}
                       <span>{cant ? fNumero(l.unidades) : "—"}</span>
                       <span>{l.cbm != null ? fNumero(l.cbm, { maximumFractionDigits: 3 }) : "—"}</span>
                       <span style={{ color: l.total ? paleta.green : paleta.dim, fontWeight: 600 }}>{l.total ? dinero(l.total) : "—"}</span>
@@ -142,8 +144,8 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
               {suyos.length === 0 && <p style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted, padding: 16, margin: 0 }}>{t("pedido.sinProductos")}</p>}
             </div>
             <div style={{ flex: 1, minWidth: 280, position: "sticky", top: 0, display: "flex", flexDirection: "column", gap: espacios.entreFilas }}>
-              <Totales />
-              <Comentarios />
+              {totales()}
+              {comentarios()}
               {botonMandar}
               <Boton variante="secundario" ancho="total" icono="excel" deshabilitado={tot.vacio} onClick={() => onEnviar?.("excel")}>{t("pedido.descargarExcel")}</Boton>
             </div>
@@ -153,25 +155,25 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
         /* Teléfono: totales, filas con más y menos, comentarios, y el botón fijo abajo */
         <>
           <div style={{ flex: 1, overflowY: "auto", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", padding: `0 ${espacios.margenLateral}px 16px`, display: "flex", flexDirection: "column", gap: espacios.entreFilas }}>
-            <Totales />
+            {totales()}
             {suyos.length === 0 && <p style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted, margin: 0 }}>{t("pedido.sinProductos")}</p>}
             {suyos.map(p => {
               const cant = cantidadDe(pedido, p.id); const l = lineaDePedido(p, cant);
               return (
                 <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: paleta.card, border: `1px solid ${cant > 0 ? paleta.accent : paleta.border}`, borderRadius: radios.grande, boxShadow: paleta.sombraTarjeta }}>
                   <button type="button" onClick={() => onNavigateProduct?.(p)} aria-label={t("pedido.verProducto")} style={{ padding: 0, border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0, textAlign: "left", fontFamily: "inherit", color: paleta.text }}>
-                    <Miniatura p={p} />
+                    {miniatura(p)}
                     <span style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ ...texto("cuerpo"), display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.favorito ? <><Icono nombre="favorito" tamano={12} color={paleta.accentTexto} /> </> : null}{p.name || t("pedido.sinNombre")}</span>
                       <span style={{ ...texto("pie"), color: paleta.muted, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{descripcion(p, l)}</span>
                       {cant > 0 && <span style={{ ...texto("pie", { fontWeight: 600 }), color: paleta.green, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontVariantNumeric: "tabular-nums" }}>{cuentas(l)}</span>}
                     </span>
                   </button>
-                  <Contador p={p} cant={cant} foco={p.id === primero} />
+                  {contador(p, cant, p.id === primero)}
                 </div>
               );
             })}
-            <Comentarios />
+            {comentarios()}
           </div>
           <div style={{ padding: `10px ${espacios.margenLateral}px calc(env(safe-area-inset-bottom, 0px) + 10px)`, borderTop: `1px solid ${paleta.border}`, background: paleta.bg }}>
             {botonMandar}

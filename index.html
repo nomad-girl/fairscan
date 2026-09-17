@@ -57,5 +57,24 @@
     <style>@keyframes loadSlide{0%{left:-60%}100%{left:100%}}</style>
   </div>
   <script type="module" src="/src/main.jsx"></script>
-</body>
+    <script>
+      // Autocuración (17/09): el 09/09 quedó una versión rota guardada en algunos teléfonos, y un
+      // teléfono que no se abrió en días puede arrancar con ella. Si a los 8 s la app no dibujó
+      // nada, se dan de baja los service workers, se vacían los cachés y se recarga una sola vez.
+      (function autocuracion() {
+        try {
+          if (sessionStorage.getItem('fs-autocuracion')) return;
+          setTimeout(function () {
+            var root = document.getElementById('root');
+            if (root && root.childElementCount > 0) return;
+            sessionStorage.setItem('fs-autocuracion', '1');
+            var limpiar = Promise.resolve();
+            if (navigator.serviceWorker) limpiar = navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); });
+            limpiar.then(function () { return window.caches ? caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }) : null; })
+              .catch(function () {}).then(function () { location.reload(); });
+          }, 8000);
+        } catch (e) {}
+      })();
+    </script>
+  </body>
 </html>

@@ -101,6 +101,7 @@ import { Catalogo } from './pantallas/Catalogo.jsx';
 import { RevisarDia } from './pantallas/RevisarDia.jsx';
 import { FichaProducto } from './pantallas/FichaProducto.jsx';
 import { FichaProveedor } from './pantallas/FichaProveedor.jsx';
+import { useSistema } from './sistema/SistemaProvider.jsx';
 import { ArmarPedido } from './pantallas/ArmarPedido.jsx';
 import { Pedidos } from './pantallas/Pedidos.jsx';
 import { pedidoDeProveedor, pedidoNuevo, textoProforma, nombreDeArchivo } from './lib/pedidos.js';
@@ -2727,7 +2728,9 @@ export default function App() {
     window.addEventListener("pagehide", confirmar);
     return () => { document.removeEventListener("visibilitychange", onHide); window.removeEventListener("pagehide", confirmar); };
   }, []);
-  const [isDark, setIsDark] = useState(true);
+  const [isDark, setIsDark] = useState(false); // claro por defecto (decisión de Nati, 15/09)
+  const { setModo } = useSistema();
+  useEffect(() => { setModo?.(isDark ? "oscuro" : "claro"); }, [isDark, setModo]);
   // #10: Supplier dedup prompt state
   const [dedupPrompt, setDedupPrompt] = useState(null); // { similar, data, resolve }
   // #13: Offline queue count
@@ -2823,7 +2826,7 @@ export default function App() {
       // Wire sync engine into db.js CRUD hooks
       setSyncEngine(syncEngine);
       const st = await reloadAll();
-      setIsDark(st.theme !== "light");
+      setIsDark(st.theme === "dark");
       setReady(true);
       // Config del negocio y saldo (5.1, 5.2), sin bloquear el arranque.
       // Compras (5.4): el SDK de la tienda se configura con el id de la usuaria; en la web no hace nada.
@@ -3477,6 +3480,7 @@ export default function App() {
       {screen === "detail" && screenData && (
         <FichaProducto key={screenData.id} product={products.find(p => p.id === screenData.id) || screenData} allProducts={products} suppliers={suppliers} districts={districts}
           settings={settings} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"}
+          Foto={FotoDeProducto} tLegacy={t}
           onBack={goBack} onUpdate={(id, changes) => { handleUpdateProduct(id, changes); }} onAddPhoto={agregarFotoAProducto} onDelete={handleDeleteProduct}
           onNavigateSupplier={s => navigate("supplier", s)} onNavigateProduct={p => { setScreenData(p); }}
           onPedir={(p) => abrirPedido(suppliers.find(x => x.id === p.supplierId), p.id)} />
@@ -3486,6 +3490,7 @@ export default function App() {
           feria={activeDistrict ? `${activeDistrict.emoji || ""} ${activeDistrict.name}`.trim() : null} esAnonima={!!auth.esAnonima} pendientesSync={queueCount}
           Foto={FotoDeProducto} t={t} onActualizarProducto={handleUpdateProduct}
           onJuntar={(a, b) => { const { cambios } = juntar(a, b); handleUpdateProduct(a.id, cambios); handleDeleteProduct(b.id); }}
+          onEliminar={(p) => handleDeleteProduct(p.id)}
           onCerrar={() => navigate("list")} onCrearCuenta={() => navigate("settings")} onVerLosDeHoy={() => { setListTab("todo"); navigate("list"); }} />
       )}
       {screen === "supplier" && screenData && (

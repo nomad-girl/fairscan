@@ -14,8 +14,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     {/* El sistema visual (tokens, paleta, movimiento) para los componentes nuevos.
         Las pantallas viejas siguen con su tema propio hasta que se migren una por una;
-        el modo se conecta al interruptor de la app cuando migre el catálogo. */}
-    <SistemaProvider modo="oscuro">
+        Claro por defecto (decisión de Nati, 15/09); la app lo cambia con setModo desde su interruptor. */}
+    <SistemaProvider modo="claro">
       <App />
     </SistemaProvider>
   </React.StrictMode>

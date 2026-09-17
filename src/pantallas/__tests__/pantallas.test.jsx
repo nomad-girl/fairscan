@@ -61,10 +61,10 @@ describe("Visor", () => {
     expect(onCampo).toHaveBeenCalledWith("moq");
     fireEvent.click(screen.getByRole("button", { name: "Marcar como favorito" }));
     expect(onFavorito).toHaveBeenCalled();
-    fireEvent.click(screen.getByText("Listo"));
+    expect(screen.getByText("¿A cuánto estaba?")).toBeTruthy(); // dice qué pide
+    fireEvent.click(screen.getByText("Guardar")); // hay un precio cargado: el botón grande guarda y cierra
     expect(onConfirmar).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole("button", { name: "Cerrar" })); // la equis también cierra guardando
-    expect(onConfirmar).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("button", { name: "Cerrar" })).toBeNull(); // sin equis
   });
   it("en MOQ aparece la base por producto / caja / pedido y los datos cargados se ven con tilde", () => {
     const onMoqBase = vi.fn();
@@ -72,9 +72,20 @@ describe("Visor", () => {
     expect(screen.getByRole("radio", { name: "por caja", checked: true })).toBeTruthy();
     fireEvent.click(screen.getByRole("radio", { name: "por pedido" }));
     expect(onMoqBase).toHaveBeenCalledWith("pedido");
-    expect(screen.getByRole("tab", { name: "✓ Precio 0.85" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "✓ Precio" })).toBeTruthy(); // lo cargado se ve con tilde
+    expect(screen.getByRole("tab", { name: "MOQ", selected: true })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Quitar de favoritos" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Precio" })).toBeTruthy(); // volver al precio
+  });
+});
+
+describe("Visor · teclado vacío", () => {
+  it("sin nada cargado el botón grande dice que cierra, y es lo último de la tarjeta", () => {
+    const onConfirmar = vi.fn();
+    con(<Visor videoRef={{ current: null }} datos={{ id: 1, campo: "price", valores: {}, moqBase: null, favorito: false, tocado: false }} onConfirmarPrecio={onConfirmar} />);
+    const boton = screen.getByText("Cerrar sin cargar nada");
+    expect(boton.closest("[role=dialog]").lastElementChild).toBe(boton.closest("button"));
+    fireEvent.click(boton);
+    expect(onConfirmar).toHaveBeenCalled();
   });
 });
 

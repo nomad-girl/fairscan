@@ -13,8 +13,11 @@ function movimientoReducidoDelSistema() {
   try { return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches; } catch { return false; }
 }
 
-export function SistemaProvider({ modo = "claro", children }) {
+export function SistemaProvider({ modo: modoInicial = "claro", children }) {
   const [reducido, setReducido] = useState(movimientoReducidoDelSistema);
+  // El modo lo cambia la app (interruptor en Configuración) con setModo; el prop es solo el arranque.
+  const [modo, setModo] = useState(modoInicial);
+  useEffect(() => { setModo(modoInicial); }, [modoInicial]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
@@ -34,6 +37,7 @@ export function SistemaProvider({ modo = "claro", children }) {
 
   const valor = useMemo(() => ({
     modo,
+    setModo,
     esOscuro: modo === "oscuro",
     paleta: PALETAS[modo] || PALETAS.claro,
     /** El objeto `t` que esperan las pantallas viejas. */
@@ -61,6 +65,6 @@ export function useSistema() {
   return {
     modo: "claro", esOscuro: false, paleta: PALETAS.claro, t: paletaCompatible("claro"),
     escala: ESCALA, alturas: ALTURAS, espacios: ESPACIOS, radios: RADIOS, movimiento: MOVIMIENTO, curvas: CURVAS, capas: CAPAS,
-    reducido: false, texto: estiloTexto, duracion: (ms) => ms,
+    reducido: false, texto: estiloTexto, duracion: (ms) => ms, setModo: () => {},
   };
 }

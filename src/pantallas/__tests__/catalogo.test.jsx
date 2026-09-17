@@ -69,11 +69,13 @@ describe("Catálogo", () => {
 
 describe("Revisar el día", () => {
   const deHoy = products.filter(p => p.createdAt > hoy - 86400000);
-  it("arranca por lo que falta: precio (con teclado) y proveedor (con chips); Saltar pesa igual que Listo", () => {
+  it("abre en el menú de juegos con los números; el precio se carga con teclado y el proveedor con chips", () => {
     const onActualizar = vi.fn();
     con(<RevisarDia productosDeHoy={deHoy} suppliers={suppliers} onActualizarProducto={onActualizar} />);
+    expect(screen.getByText("¿Qué querés revisar?")).toBeTruthy();
+    fireEvent.click(screen.getByText("Falta el precio"));
     expect(screen.getByText("¿A cuánto estaba?")).toBeTruthy();
-    expect(screen.getByText("1 de 4")).toBeTruthy();
+    expect(screen.getByText("1 de 1")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "4" }));
     fireEvent.click(screen.getByRole("button", { name: "," }));
     fireEvent.click(screen.getByRole("button", { name: "8" }));
@@ -81,35 +83,42 @@ describe("Revisar el día", () => {
     expect(saltar.closest("button").style.minHeight).toBe(listo.closest("button").style.minHeight);
     fireEvent.click(listo);
     expect(onActualizar).toHaveBeenCalledWith(2, { price: "4.8" });
+    expect(screen.getByText("¿Qué querés revisar?")).toBeTruthy(); // vuelve al menú
+    fireEvent.click(screen.getByText("Falta el proveedor"));
     expect(screen.getByText("¿De qué proveedor era?")).toBeTruthy();
     fireEvent.click(screen.getByText("Yiwu Sunrise"));
     expect(onActualizar).toHaveBeenCalledWith(3, { supplierId: 10, supplierCompany: "Yiwu Sunrise" });
   });
-  it("los repetidos probables van primero, de a pares; Juntar avisa y Son distintos no", () => {
+  it("saltar no guarda nada; favoritos y cierre; la cuenta se pide solo a quien no la tiene; eliminar siempre a mano", () => {
+    const onActualizar = vi.fn(), onCrearCuenta = vi.fn(), onEliminar = vi.fn();
+    con(<RevisarDia productosDeHoy={deHoy} suppliers={suppliers} esAnonima onActualizarProducto={onActualizar} onCrearCuenta={onCrearCuenta} onEliminar={onEliminar} />);
+    fireEvent.click(screen.getByText("Falta el precio"));
+    fireEvent.click(screen.getByText("Saltar"));
+    expect(onActualizar).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText("Falta el proveedor"));
+    fireEvent.click(screen.getByRole("button", { name: /Eliminar producto/ }));
+    expect(onEliminar).toHaveBeenCalledWith(deHoy.find(p => p.id === 3));
+    fireEvent.click(screen.getByText("Mis favoritos de hoy"));
+    expect(screen.getByText("Tus favoritos de hoy")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Taza de cerámica blanca" }));
+    expect(onActualizar).toHaveBeenCalledWith(1, { favorito: 0 });
+    fireEvent.click(screen.getByText("Cerrar el día"));
+    expect(screen.getByText("Día cerrado")).toBeTruthy();
+    fireEvent.click(screen.getByText("Crear cuenta"));
+    expect(onCrearCuenta).toHaveBeenCalled();
+  });
+  it("los repetidos probables son un juego aparte; Juntar avisa y vuelve al menú", () => {
     const onJuntar = vi.fn();
     const par = [
       { id: 21, name: "Taza de cerámica blanca", category: "Vajilla", price: "0.85", supplierId: 10, createdAt: hoy - 50000, photos: [FOTO], ai_processed: true },
       { id: 22, name: "Taza cerámica blanca lisa", category: "Vajilla", price: "0.85", supplierId: 10, createdAt: hoy - 20000, photos: [FOTO], ai_processed: true },
     ];
     con(<RevisarDia productosDeHoy={[...deHoy, ...par]} suppliers={suppliers} onJuntar={onJuntar} />);
+    expect(screen.getByText("1 par")).toBeTruthy();
+    fireEvent.click(screen.getByText("Repetidos probables"));
     expect(screen.getByText("¿Son el mismo producto?")).toBeTruthy();
-    expect(screen.getByText("1 de 5")).toBeTruthy();
     fireEvent.click(screen.getByText("Juntar en uno"));
     expect(onJuntar).toHaveBeenCalledWith(par[0], par[1]);
-    expect(screen.getByText("¿A cuánto estaba?")).toBeTruthy();
-  });
-  it("saltar no guarda nada y llega a favoritos y al cierre; la cuenta se pide solo a quien no la tiene", () => {
-    const onActualizar = vi.fn(), onCrearCuenta = vi.fn();
-    con(<RevisarDia productosDeHoy={deHoy} suppliers={suppliers} esAnonima onActualizarProducto={onActualizar} onCrearCuenta={onCrearCuenta} />);
-    fireEvent.click(screen.getByText("Saltar"));
-    fireEvent.click(screen.getByText("Saltar"));
-    expect(onActualizar).not.toHaveBeenCalled();
-    expect(screen.getByText("Tus favoritos de hoy")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Auriculares vincha" }));
-    expect(onActualizar).toHaveBeenCalledWith(3, { favorito: 1 });
-    fireEvent.click(screen.getByText("Cerrar el día"));
-    expect(screen.getByText("Día cerrado")).toBeTruthy();
-    fireEvent.click(screen.getByText("Crear cuenta"));
-    expect(onCrearCuenta).toHaveBeenCalled();
+    expect(screen.getByText("¿Qué querés revisar?")).toBeTruthy();
   });
 });

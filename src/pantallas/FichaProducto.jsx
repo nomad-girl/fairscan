@@ -9,12 +9,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Bloque, Campo, Chip, FilaDeChips, Segmentado, Fila, Icono, Hoja, Esqueleto } from "../componentes/index.js";
+import { Boton, Bloque, Campo, Segmentado, Fila, Icono, Hoja, Esqueleto } from "../componentes/index.js";
 import { estadoIA, patchReintentoIA, explicarFalloIA } from "../lib/aiEstado.js";
 import { urlDeAudio, esPunteroMuerto } from "../lib/audioNotes.js";
 import { haceCuanto } from "../idiomas/formato.js";
 
-export function FichaProducto({ product: p, allProducts = [], suppliers = [], districts = [], settings, moneda = "USD", onBack, onUpdate, onAddPhoto, onDelete, onNavigateSupplier, onNavigateProduct, onPedir }) {
+export function FichaProducto({ product: p, allProducts = [], suppliers = [], districts = [], settings, moneda = "USD", Foto, tLegacy, onBack, onUpdate, onAddPhoto, onDelete, onNavigateSupplier, onNavigateProduct, onPedir }) {
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
   const [foto, setFoto] = useState(0);
@@ -33,8 +33,6 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
   const next = idx >= 0 && idx < allProducts.length - 1 ? allProducts[idx + 1] : null;
   const fotos = p.photos || [];
   const hayBulto = p.piezasPorCaja != null || p.cbmPorCaja != null;
-  const categorias = useMemo(() => [...new Set([...(settings?.categories || []), ...allProducts.map(x => x.category).filter(Boolean), p.category].filter(Boolean))], [settings, allProducts, p.category]);
-  const materiales = useMemo(() => [...new Set([...(settings?.materials || []), ...(p.material || [])])], [settings, p.material]);
 
   const audioSrc = useMemo(() => urlDeAudio(p.audio) || (esPunteroMuerto(p.audioURL) ? null : p.audioURL || null), [p.audio, p.audioURL]);
   useEffect(() => () => { if (audioSrc?.startsWith("blob:")) URL.revokeObjectURL(audioSrc); }, [audioSrc]);
@@ -86,7 +84,7 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
         <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={{ position: "relative", borderRadius: radios.grande, overflow: "hidden", background: paleta.surface, border: `1px solid ${paleta.border}` }}>
           {fotos.length > 0 ? (
             <div ref={scrollRef} onScroll={e => setFoto(Math.round(e.target.scrollLeft / e.target.offsetWidth))} style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}>
-              {fotos.map((ph, i) => <div key={i} style={{ width: "100%", aspectRatio: "4/3", flexShrink: 0, scrollSnapAlign: "start" }}><img src={ph} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /></div>)}
+              {fotos.map((ph, i) => <div key={i} style={{ width: "100%", aspectRatio: "4/3", flexShrink: 0, scrollSnapAlign: "start" }}>{Foto ? <Foto src={ph} respaldo={p.photoUrls?.[i] || p.photoUrls?.[0] || null} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <img src={ph} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />}</div>)}
             </div>
           ) : (
             <div style={{ aspectRatio: "4/3", display: "grid", placeItems: "center" }}><Icono nombre="foto" tamano={32} color={paleta.dim} /></div>
@@ -123,6 +121,23 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
           {district && <span style={{ ...texto("pie"), color: paleta.dim, textAlign: "right" }}>{district.emoji} {district.name}<br />{t("ficha.capturado", { cuando: haceCuanto(p.createdAt) })}</span>}
         </div>
 
+        {/* Proveedor */}
+        <section>
+          <h3 style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: paleta.dim, margin: "4px 2px 8px" }}>{t("ficha.proveedor")}</h3>
+          {supplier ? (
+            <Fila onClick={() => onNavigateSupplier?.(supplier)} flecha
+              miniatura={(supplier.cardPhoto || supplier.cardPhotoUrl) ? <img src={supplier.cardPhoto || supplier.cardPhotoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <Icono nombre="proveedor" tamano={20} color={paleta.dim} />}
+              titulo={<>{supplier.favorito ? <><Icono nombre="favorito" tamano={13} color={paleta.accentTexto} /> </> : null}{supplier.company || `#${supplier.id}`}</>}
+              subtitulo={supplier.contact || supplier.boothNumber || ""} />
+          ) : (
+            <Boton variante="secundario" ancho="total" icono="proveedor" onClick={() => setEligiendoProveedor(true)}>{t("ficha.asignarProveedor")}</Boton>
+          )}
+          {supplier && <div style={{ display: "flex", gap: 8, marginTop: 8 }}><Boton variante="fantasma" onClick={() => setEligiendoProveedor(true)}>{t("ficha.cambiarProveedor")}</Boton><Boton variante="fantasma" onClick={() => cambiarProveedor(null)}>{t("ficha.quitarProveedor")}</Boton></div>}
+        </section>
+
+        {/* Pedir este producto: abre el pedido de su proveedor con este arriba (decisión 4, 16/09) */}
+        {onPedir && <Boton variante="secundario" ancho="total" icono="pedido" onClick={() => (supplier ? onPedir(p) : setEligiendoProveedor(true))}>{t("ficha.pedir")}</Boton>}
+
         {/* Los datos, editables tocando */}
         <Bloque>
           <Campo etiqueta={t("ficha.nombre")} valor={p.name} onChange={v => { if (v) guardar({ name: v }); }} />
@@ -147,31 +162,6 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
             <span>{t("ficha.datosDelBulto")}</span><span>{t("componentes.campo.vacio")}</span>
           </button>
         )}
-
-        {/* Categoría y materiales */}
-        {(categorias.length > 0 || materiales.length > 0) && (
-          <Bloque>
-            {categorias.length > 0 && <><h4 style={{ ...texto("pie"), color: paleta.dim, margin: "10px 0 6px", fontWeight: 600 }}>{t("ficha.categoria")}</h4><FilaDeChips estilo={{ flexWrap: "wrap", overflow: "visible", paddingBottom: 8 }}>{categorias.map(c => <Chip key={c} activo={p.category === c} onClick={() => guardar({ category: p.category === c ? null : c })}>{c}</Chip>)}</FilaDeChips></>}
-            {materiales.length > 0 && <><h4 style={{ ...texto("pie"), color: paleta.dim, margin: "6px 0 6px", fontWeight: 600 }}>{t("ficha.materiales")}</h4><FilaDeChips estilo={{ flexWrap: "wrap", overflow: "visible", paddingBottom: 10 }}>{materiales.map(m => { const on = (p.material || []).includes(m); return <Chip key={m} activo={on} onClick={() => guardar({ material: on ? (p.material || []).filter(x => x !== m) : [...(p.material || []), m] })}>{m}</Chip>; })}</FilaDeChips></>}
-          </Bloque>
-        )}
-
-        {/* Proveedor */}
-        <section>
-          <h3 style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: paleta.dim, margin: "4px 2px 8px" }}>{t("ficha.proveedor")}</h3>
-          {supplier ? (
-            <Fila onClick={() => onNavigateSupplier?.(supplier)} flecha
-              miniatura={(supplier.cardPhoto || supplier.cardPhotoUrl) ? <img src={supplier.cardPhoto || supplier.cardPhotoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <Icono nombre="proveedor" tamano={20} color={paleta.dim} />}
-              titulo={<>{supplier.favorito ? <><Icono nombre="favorito" tamano={13} color={paleta.accentTexto} /> </> : null}{supplier.company || `#${supplier.id}`}</>}
-              subtitulo={supplier.contact || supplier.boothNumber || ""} />
-          ) : (
-            <Boton variante="secundario" ancho="total" icono="proveedor" onClick={() => setEligiendoProveedor(true)}>{t("ficha.asignarProveedor")}</Boton>
-          )}
-          {supplier && <div style={{ display: "flex", gap: 8, marginTop: 8 }}><Boton variante="fantasma" onClick={() => setEligiendoProveedor(true)}>{t("ficha.cambiarProveedor")}</Boton><Boton variante="fantasma" onClick={() => cambiarProveedor(null)}>{t("ficha.quitarProveedor")}</Boton></div>}
-        </section>
-
-        {/* Pedir este producto: abre el pedido de su proveedor con este arriba (decisión 4, 16/09) */}
-        {supplier && onPedir && <Boton variante="secundario" ancho="total" icono="pedido" onClick={() => onPedir(p)}>{t("ficha.pedir")}</Boton>}
 
         {/* La IA no pudo */}
         {estadoIA(p) === "fallo" && (

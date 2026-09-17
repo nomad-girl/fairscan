@@ -226,31 +226,38 @@ class SyncEngine {
     if (!this.roomId || !this.isOnline || !isSupabaseConfigured()) return 0;
     const { data, error } = await traerTodo((desde, hasta) => supabase
       .from('products')
-      .select('id')
+      .select('id, supplier_id, district_id')
       .eq('room_id', this.roomId)
       .is('deleted_at', null)
       .or('supplier_id.is.null,district_id.is.null')
       .order('created_at', { ascending: true })
       .range(desde, hasta));
     if (error) { console.warn('⚠️ No se pudo reconciliar vínculos:', error.message); return 0; }
-    const rotos = new Set((data || []).map(r => r.id));
+    const rotos = new Map((data || []).map(r => [r.id, r]));
     if (!rotos.size) return 0;
 
+    // 17/09: esto corría en cada arranque y, para ~160 productos que el teléfono no puede reparar
+    // (les falta el proveedor también acá), volvía a subir la feria y a parchar el producto cada
+    // vez: casi mil pedidos al servidor en 15 minutos. Ahora solo se parcha lo que de verdad
+    // cambia, y cada feria o proveedor referido se sube una sola vez por corrida.
+    const yaSubidos = new Set();
     let reparados = 0;
     for (const p of await db.table('products').toArray()) {
       if (!p.uuid || !rotos.has(p.uuid)) continue;
       if (p.supplierId == null && p.districtId == null) continue;   // en el teléfono tampoco hay vínculo
       await this._asegurarMapeoDeReferencias('products', p);
+      const nube = rotos.get(p.uuid);
       const parche = {};
       const feria = p.districtId != null ? idMapper.getUuid('districts', p.districtId) : null;
       const prov  = p.supplierId != null ? idMapper.getUuid('suppliers', p.supplierId) : null;
-      if (feria) parche.district_id = feria;
-      if (prov)  parche.supplier_id = prov;
+      if (feria && !nube.district_id) parche.district_id = feria;
+      if (prov && !nube.supplier_id)  parche.supplier_id = prov;
       if (!Object.keys(parche).length) continue;
 
-      // El proveedor y la feria tienen que existir arriba antes de apuntarles.
-      for (const [tabla, id] of [['districts', p.districtId], ['suppliers', p.supplierId]]) {
-        if (id == null) continue;
+      // El proveedor y la feria tienen que existir arriba antes de apuntarles (una vez por corrida).
+      for (const [tabla, id] of [['districts', parche.district_id ? p.districtId : null], ['suppliers', parche.supplier_id ? p.supplierId : null]]) {
+        if (id == null || yaSubidos.has(`${tabla}:${id}`)) continue;
+        yaSubidos.add(`${tabla}:${id}`);
         const referido = await db.table(tabla).get(id);
         if (referido?.uuid) await this.pushRecord(tabla, referido);
       }

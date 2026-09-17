@@ -49,7 +49,7 @@ export function FichaProveedor({ supplier: s, products = [], pedidos = [], distr
   const conDato = campos.filter(([k]) => s[k]);
   const sinDato = campos.filter(([k]) => !s[k]);
 
-  const Miniatura = ({ p }) => {
+  const miniatura = (p) => {
     const src = elegirMiniatura(p);
     if (!src && !p.photoUrls?.[0]) return <div style={{ width: "100%", height: "100%", background: paleta.surface, display: "grid", placeItems: "center" }}><Icono nombre="foto" tamano={20} color={paleta.dim} /></div>;
     return Foto ? <Foto src={src} respaldo={p.photoUrls?.[0] || null} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <img src={src || p.photoUrls?.[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />;
@@ -97,8 +97,8 @@ export function FichaProveedor({ supplier: s, products = [], pedidos = [], distr
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
               {suyos.map(p => (
-                <button key={p.id} type="button" onClick={() => onNavigateProduct?.(p)} aria-label={p.name || t("pedido.sinNombre")} style={{ position: "relative", aspectRatio: "4/3", borderRadius: radios.medio, overflow: "hidden", border: `1px solid ${paleta.border}`, background: paleta.surface, padding: 0, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
-                  <Miniatura p={p} />
+                <button key={p.id} type="button" onClick={() => onNavigateProduct?.(p)} aria-label={p.name || t("pedido.sinNombre")} style={{ position: "relative", aspectRatio: "1", borderRadius: radios.medio, overflow: "hidden", border: `1px solid ${paleta.border}`, background: paleta.surface, padding: 0, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
+                  {miniatura(p)}
                   {p.favorito ? <span style={{ position: "absolute", top: 5, right: 5, width: 22, height: 22, borderRadius: 6, background: "rgba(10,14,23,0.6)", display: "grid", placeItems: "center" }}><Icono nombre="favorito" tamano={13} color="#FFB48A" /></span> : null}
                   <span style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "14px 6px 5px", background: "linear-gradient(transparent, rgba(10,14,23,0.75))", color: "#fff", textAlign: "left" }}>
                     <span style={{ display: "block", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name || "…"}</span>
