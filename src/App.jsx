@@ -2517,7 +2517,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       }
 
       // Header row
-      const headers = ["Foto","Nombre","Proveedor","Tarjeta","Contacto","Precio USD","MOQ","Categoría","Material","Rating","Viabilidad","Notas","Feria","Fecha","Foto (link)","Tarjeta (link)"];
+      const headers = ["Foto","Nombre","Proveedor","Tarjeta","Contacto","Precio USD","MOQ","Categoría","Material","Rating","Viabilidad","Notas","Feria","Fecha","Foto (link)","Tarjeta (link)","MOQ base","Piezas por caja","CBM por caja","Favorito"];
       const headerRow = ws.addRow(headers);
       headerRow.font = { bold: true, size: 11 };
       headerRow.alignment = { vertical: 'middle' };
@@ -2537,6 +2537,10 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       ws.getColumn(14).width = 12; // Fecha
       ws.getColumn(15).width = 40; // Foto (link): respaldo para Excel viejo y para mandar por WhatsApp
       ws.getColumn(16).width = 40; // Tarjeta (link)
+      ws.getColumn(17).width = 12; // MOQ base
+      ws.getColumn(18).width = 14; // Piezas por caja
+      ws.getColumn(19).width = 12; // CBM por caja
+      ws.getColumn(20).width = 9;  // Favorito
 
       let done = 0;
       for (const p of deduped) {
@@ -2565,6 +2569,11 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
           p.createdAt ? new Date(p.createdAt).toLocaleDateString("es-AR") : "",
           fotoUrl || "",
           tarjetaUrl || "",
+          // Datos de compra (16/09): lo que pidió Lucas para armar el pedido desde la planilla.
+          p.moqBase === "caja" ? "por caja" : p.moqBase === "pedido" ? "por pedido" : p.moqBase === "producto" ? "por producto" : "",
+          p.piezasPorCaja ?? "",
+          p.cbmPorCaja ?? "",
+          p.favorito ? "★" : "",
         ]);
         row.height = 65;
         row.alignment = { vertical: 'middle', wrapText: true };
