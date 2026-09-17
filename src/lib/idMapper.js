@@ -11,14 +11,15 @@
 class IdMapper {
   constructor() {
     // { table: { localId: uuid, uuid: localId } }
-    this.cache = { districts: {}, suppliers: {}, products: {} };
+    this.cache = { districts: {}, suppliers: {}, products: {}, orders: {} };
   }
 
   /** Build the mapping from all local Dexie records */
   async buildFromLocal(db) {
     if (!db) return;
-    for (const table of ['districts', 'suppliers', 'products']) {
-      const records = await db.table(table).toArray();
+    for (const table of ['districts', 'suppliers', 'products', 'orders']) {
+      let records;
+      try { records = await db.table(table).toArray(); } catch { continue; } // una base vieja sin la tabla
       this.cache[table] = {};
       records.forEach(r => {
         if (r.uuid) {
@@ -89,6 +90,19 @@ class IdMapper {
       cloud.favorite = !!localRecord.favorito; // decisión 1 (16/09): favorito en proveedor
     }
 
+    if (table === 'orders') {
+      // Pedido (16/09): los ítems viajan con el uuid del producto; lo que todavía no
+      // tiene uuid (producto sin subir) no viaja, y vuelve a subir con el próximo cambio.
+      cloud.supplier_id = localRecord.supplierId ? this.getUuid('suppliers', localRecord.supplierId) : null;
+      cloud.district_id = localRecord.districtId ? this.getUuid('districts', localRecord.districtId) : null;
+      cloud.status = localRecord.estado || 'en_curso';
+      cloud.comments = localRecord.comentarios || null;
+      cloud.items = (localRecord.items || [])
+        .map(i => ({ product_id: this.getUuid('products', i.productId), quantity: i.cantidad }))
+        .filter(i => i.product_id && i.quantity > 0);
+      cloud.sent_at = localRecord.enviadoEl ? new Date(localRecord.enviadoEl).toISOString() : null;
+    }
+
     if (table === 'products') {
       cloud.district_id = localRecord.districtId ? this.getUuid('districts', localRecord.districtId) : null;
       cloud.supplier_id = localRecord.supplierId ? this.getUuid('suppliers', localRecord.supplierId) : null;
@@ -154,6 +168,17 @@ class IdMapper {
       local.boothNumber = cloudRecord.booth_number || null;
       local.rating = cloudRecord.rating || 0;
       local.favorito = cloudRecord.favorite ? 1 : 0;
+    }
+
+    if (table === 'orders') {
+      local.supplierId = cloudRecord.supplier_id ? this.getLocalId('suppliers', cloudRecord.supplier_id) : null;
+      local.districtId = cloudRecord.district_id ? this.getLocalId('districts', cloudRecord.district_id) : null;
+      local.estado = cloudRecord.status || 'en_curso';
+      local.comentarios = cloudRecord.comments || "";
+      local.items = (cloudRecord.items || [])
+        .map(i => ({ productId: this.getLocalId('products', i.product_id), cantidad: Number(i.quantity) || 0 }))
+        .filter(i => i.productId != null && i.cantidad > 0);
+      local.enviadoEl = cloudRecord.sent_at ? new Date(cloudRecord.sent_at).getTime() : null;
     }
 
     if (table === 'products') {

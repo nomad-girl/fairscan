@@ -26,7 +26,7 @@
  */
 import Dexie from 'dexie';
 
-const TABLAS = ['districts', 'suppliers', 'products', 'settings', '_syncQueue'];
+const TABLAS = ['districts', 'suppliers', 'products', 'orders', 'settings', '_syncQueue'];
 const NOMBRE_BASE = 'fairscan_resguardo';
 
 let resguardo = null;

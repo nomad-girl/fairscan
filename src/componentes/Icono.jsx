@@ -7,6 +7,7 @@ import React from "react";
 import {
   ArrowLeft, X, Search, Settings, Trash2, Camera, Image, Plus, Share, Upload, RotateCw, Cloud, CloudOff, Users,
   Check, AlertTriangle, Pencil, ChevronRight, Star, Store, Tent, MoreHorizontal, Download, FileSpreadsheet, Minus,
+  ClipboardList, MessageCircle, Phone, Mail, Copy, Contact, Globe, MapPin, Mic, ChevronLeft, ChevronDown,
 } from "lucide-react";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 
@@ -16,6 +17,7 @@ const ICONOS = {
   compartir: Share, exportar: Upload, reintentar: RotateCw, nube: Cloud, sinNube: CloudOff, equipo: Users, listo: Check,
   error: AlertTriangle, editar: Pencil, siguiente: ChevronRight, favorito: Star, proveedor: Store, feria: Tent, opciones: MoreHorizontal,
   descargar: Download, excel: FileSpreadsheet,
+  pedido: ClipboardList, mensaje: MessageCircle, telefono: Phone, correo: Mail, copiar: Copy, tarjeta: Contact, web: Globe, direccion: MapPin, voz: Mic, anterior: ChevronLeft, abajo: ChevronDown,
 };
 
 export const NOMBRES_DE_ICONOS = Object.keys(ICONOS);

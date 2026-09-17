@@ -7,6 +7,9 @@ import { recomputeUploadFlags } from '../db.js';
 import { traerTodo } from './paginado.js';
 import { feriaAutomaticaVacia } from './feriaAutomatica.js';
 
+// Las tablas que viajan a la nube, en orden de dependencia (el pedido apunta a proveedor, feria y productos).
+const TABLAS_SYNC = ['districts', 'suppliers', 'products', 'orders'];
+
 /**
  * SyncEngine: Handles push/pull/realtime sync between local Dexie and Supabase.
  *
@@ -200,7 +203,9 @@ class SyncEngine {
       ? [['districts', localRecord?.districtId], ['suppliers', localRecord?.supplierId]]
       : table === 'suppliers'
         ? [['districts', localRecord?.districtId]]
-        : [];
+        : table === 'orders'
+          ? [['districts', localRecord?.districtId], ['suppliers', localRecord?.supplierId], ...(localRecord?.items || []).map(i => ['products', i.productId])]
+          : [];
     for (const [tabla, id] of refs) {
       if (id == null || idMapper.getUuid(tabla, id)) continue;
       const referido = await db.table(tabla).get(id);
@@ -315,7 +320,7 @@ class SyncEngine {
 
     try {
       // Push in order: districts → suppliers → products (FK dependencies)
-      for (const table of ['districts', 'suppliers', 'products']) {
+      for (const table of TABLAS_SYNC) {
         // First, get existing cloud UUIDs for this room to avoid re-pushing
         // records we just pulled (which would overwrite their device_id)
                 let cloudIds = new Set();
@@ -370,11 +375,11 @@ class SyncEngine {
     this.lastError = null;
     this._notify();
 
-    const counts = { districts: 0, suppliers: 0, products: 0 };
+    const counts = { districts: 0, suppliers: 0, products: 0, orders: 0 };
     const errors = [];
 
     try {
-            for (const table of ['districts', 'suppliers', 'products']) {
+            for (const table of TABLAS_SYNC) {
         // De a 1.000: PostgREST corta ahí en silencio (10/09: un equipo con 1.137 productos).
         const { data, error } = await traerTodo((desde, hasta) => supabase
           .from(table)
@@ -433,7 +438,7 @@ class SyncEngine {
     let anyChanges = false;
 
     try {
-            for (const table of ['districts', 'suppliers', 'products']) {
+            for (const table of TABLAS_SYNC) {
         const { data, error } = await traerTodo((desde, hasta) => supabase
           .from(table)
           .select('*')
@@ -583,6 +588,10 @@ class SyncEngine {
         { event: '*', schema: 'public', table: 'products', filter: `room_id=eq.${this.roomId}` },
         (payload) => this._handleRealtime('products', payload)
       )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'orders', filter: `room_id=eq.${this.roomId}` },
+        (payload) => this._handleRealtime('orders', payload)
+      )
       .subscribe((status) => {
         console.log(`📡 Realtime ${status}`);
       });
@@ -638,10 +647,11 @@ class SyncEngine {
     if (!this.roomId || !this.isOnline || !isSupabaseConfigured()) return;
 
     try {
-      const [districts, suppliers, products] = await Promise.all([
+      const [districts, suppliers, products, orders] = await Promise.all([
         db.table('districts').toArray(),
         db.table('suppliers').toArray(),
         db.table('products').toArray(),
+        db.table('orders').toArray().catch(() => []),
       ]);
 
             const snapshot = {
@@ -654,6 +664,7 @@ class SyncEngine {
         suppliers: suppliers.map(s => ({ ...s, cardPhoto: undefined, audio: undefined })),
         // Sin el audio: es binario, no cabe en JSON y ya vive en la base local (ver audioNotes.js).
         products: products.map(p => ({ ...sinDerivados(p), photos: (p.photoUrls || p.photos || []).filter(u => typeof u === 'string' && u.startsWith('http')) })),
+        orders,
       };
 
       const { error } = await supabase

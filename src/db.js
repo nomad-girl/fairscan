@@ -66,6 +66,17 @@ db.version(4).stores({
   tx.table('suppliers').toCollection().modify(s => { s.aiPendiente = s.ai_processed ? 0 : 1; }),
 ]));
 
+// Version 5: pedidos (decisión 4 del 16/09, idea de Nati): un pedido por proveedor,
+// con sus ítems adentro ({ productId, cantidad }). El catálogo es feria; el pedido es casa.
+db.version(5).stores({
+  districts: '++id, name, uuid, roomId',
+  suppliers: '++id, districtId, company, ai_processed, uuid, roomId, cardUploadPending, aiPendiente',
+  products:  '++id, supplierId, districtId, name, category, createdAt, ai_processed, uuid, roomId, uploadPending, aiPendiente',
+  orders:    '++id, supplierId, districtId, estado, uuid, updatedAt',
+  settings:  'key',
+  _syncQueue: '++id, table, uuid, action, timestamp',
+});
+
 /** La bandera "falta IA" siempre sale de ai_processed: un solo lugar. */
 function conBanderaIA(changes) {
   if (changes && 'ai_processed' in changes) changes.aiPendiente = changes.ai_processed ? 0 : 1;
@@ -316,6 +327,37 @@ export async function deleteProduct(id) {
 }
 
 // ─── Sync Queue (offline operations) ───
+// ─── Pedidos (orders) ───
+export async function getOrders() {
+  return db.orders.toArray();
+}
+export async function addOrder(o) {
+  o.uuid = o.uuid || crypto.randomUUID();
+  o.createdAt = o.createdAt || Date.now();
+  o.updatedAt = Date.now();
+  const id = await db.orders.add(o);
+  idMapper.register('orders', id, o.uuid);
+  if (_syncEngine?.roomId) {
+    _syncEngine.pushRecord('orders', { ...o, id }).catch(console.warn);
+  }
+  return id;
+}
+export async function updateOrder(id, changes) {
+  changes.updatedAt = Date.now();
+  await db.orders.update(id, changes);
+  if (_syncEngine?.roomId) {
+    const record = await db.orders.get(id);
+    if (record) _syncEngine.pushRecord('orders', record).catch(console.warn);
+  }
+}
+export async function deleteOrder(id) {
+  const record = await db.orders.get(id);
+  await db.orders.delete(id);
+  if (_syncEngine?.roomId && record?.uuid) {
+    _syncEngine.pushDelete('orders', record.uuid).catch(console.warn);
+  }
+}
+
 export async function addToSyncQueue(entry) {
   return db.table('_syncQueue').add(entry);
 }

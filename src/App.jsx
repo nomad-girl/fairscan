@@ -79,7 +79,7 @@ function calcImportCost(fobPrice, ncm, freightPct = 12, insurancePct = 1.5) {
     ],
   };
 }
-import db, { initDB, ajustarFeriaAutomatica, convertirFotosABinario, getSettings, saveSettings as dbSaveSettings, getDistricts, addDistrict, updateDistrict as dbUpdateDistrict, getSuppliers, addSupplier, updateSupplier as dbUpdateSupplier, deleteSupplier as dbDeleteSupplier, getProducts, addProduct, updateProduct as dbUpdateProduct, deleteProduct as dbDeleteProduct, deleteDistrict as dbDeleteDistrict, setSyncEngine, getSyncQueue } from './db';
+import db, { initDB, ajustarFeriaAutomatica, convertirFotosABinario, getSettings, saveSettings as dbSaveSettings, getDistricts, addDistrict, updateDistrict as dbUpdateDistrict, getSuppliers, addSupplier, updateSupplier as dbUpdateSupplier, deleteSupplier as dbDeleteSupplier, getProducts, addProduct, updateProduct as dbUpdateProduct, deleteProduct as dbDeleteProduct, deleteDistrict as dbDeleteDistrict, setSyncEngine, getSyncQueue, getOrders, addOrder, updateOrder, deleteOrder } from './db';
 import { processImage, processAudio, processCard, urlToBase64, uploadPhoto, proxyImage, apiUrl, deleteAccountPreview, deleteAccount } from './api/client';
 import useSync from './hooks/useSync';
 import useAuth from './hooks/useAuth';
@@ -100,6 +100,15 @@ import { CerrarStand } from './pantallas/CerrarStand.jsx';
 import { Catalogo } from './pantallas/Catalogo.jsx';
 import { RevisarDia } from './pantallas/RevisarDia.jsx';
 import { FichaProducto } from './pantallas/FichaProducto.jsx';
+import { FichaProveedor } from './pantallas/FichaProveedor.jsx';
+import { ArmarPedido } from './pantallas/ArmarPedido.jsx';
+import { Pedidos } from './pantallas/Pedidos.jsx';
+import { pedidoDeProveedor, pedidoNuevo, textoProforma, nombreDeArchivo } from './lib/pedidos.js';
+import { excelDeProforma, excelDeFeria } from './lib/proformaExcel.js';
+import { numero as fNumero } from './idiomas/formato.js';
+import i18n from 'i18next';
+// Los textos por clave, para lo que vive en App y todavía usa `t` como paleta de colores.
+const tx = (clave, opciones) => i18n.t(clave, opciones);
 import { vibrarObturador } from './sistema/vibrar.js';
 import { serializarAudio, urlDeAudio, esPunteroMuerto } from './lib/audioNotes.js';
 import { crearPapelera } from './lib/deshacer.js';
@@ -3822,6 +3831,7 @@ export default function App() {
   const [districts, setDistricts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [products, setProducts] = useState([]);
+  const [orders, setOrders] = useState([]); // pedidos: uno por proveedor (decisión 4, 16/09)
   const [settings, setSettings] = useState(DEFAULT_SETTINGS_FALLBACK);
   const [screen, setScreen] = useState("capture"); // abrir es capturar (4.1)
   const [standKey, setStandKey] = useState(0);     // cada stand cerrado arranca una captura nueva
@@ -3972,8 +3982,8 @@ export default function App() {
   // Reload all data from Dexie
     const reloadAll = async () => {
     await ajustarFeriaAutomatica().catch(() => false); // la feria creada sola no tapa el catálogo real
-    const [d, s, p, st] = await Promise.all([getDistricts(), getSuppliers(), getProducts(), getSettings()]);
-    setDistricts(d); setSuppliers(s); setProducts(p); setSettings(st);
+    const [d, s, p, st, o] = await Promise.all([getDistricts(), getSuppliers(), getProducts(), getSettings(), getOrders().catch(() => [])]);
+    setDistricts(d); setSuppliers(s); setProducts(p); setSettings(st); setOrders(o);
     return st;
   };
 
@@ -4107,6 +4117,59 @@ export default function App() {
   }, []);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
+  // ─── Pedidos (decisión 4 del 16/09): un pedido por proveedor, tres entradas ───
+  const monedaActual = CURRENCIES[settings?.currency]?.symbol || "USD";
+  const abrirPedido = async (supplier, productoId = null) => {
+    if (!supplier) return;
+    let pedido = pedidoDeProveedor(orders, supplier.id);
+    if (!pedido) {
+      const nuevo = pedidoNuevo(supplier, activeDistrictId);
+      const id = await addOrder(nuevo);
+      pedido = { ...nuevo, id };
+      setOrders(prev => [...prev, pedido]);
+    }
+    navigate("pedido", { supplierId: supplier.id, pedidoId: pedido.id, primero: productoId });
+  };
+  const handleUpdateOrder = async (id, changes) => {
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, ...changes } : o));
+    await updateOrder(id, changes);
+  };
+  const enviarProforma = async (pedido, supplier, via) => {
+    const feria = districts.find(d => d.id === pedido.districtId) || activeDistrict || null;
+    const texto = textoProforma({ pedido, proveedor: supplier, productos: products, moneda: monedaActual, feria, f: { numero: fNumero }, t: tx });
+    const copiar = () => navigator.clipboard?.writeText(texto).catch(() => {});
+    let marcarEnviado = true;
+    try {
+      if (via === "whatsapp") {
+        const num = String(supplier.whatsapp || supplier.phone || "").replace(/[^0-9]/g, "");
+        const base = supplier.whatsappLink || (num ? `https://wa.me/${num}` : "https://wa.me/");
+        window.open(`${base}${base.includes("?") ? "&" : "?"}text=${encodeURIComponent(texto)}`, "_blank", "noopener");
+      } else if (via === "wechat") {
+        await copiar(); showToast(tx("pedido.copiado"));
+        const link = supplier.wechatLink || (supplier.wechat && supplier.wechat !== "QR escaneado" ? `weixin://dl/chat?${supplier.wechat}` : null);
+        if (link) window.open(link, "_blank", "noopener");
+      } else if (via === "mail") {
+        window.location.href = `mailto:${supplier.email || ""}?subject=${encodeURIComponent(`${tx("pedido.proformaTitulo")} · ${supplier.company || ""}`)}&body=${encodeURIComponent(texto)}`;
+      } else if (via === "compartir" && navigator.share) {
+        await navigator.share({ title: `${tx("pedido.proformaTitulo")} · ${supplier.company || ""}`, text: texto });
+      } else if (via === "copiar") {
+        await copiar(); showToast(tx("pedido.copiado")); marcarEnviado = false;
+      } else if (via === "excel") {
+        const blob = await excelDeProforma({ pedido, proveedor: supplier, productos: products, moneda: monedaActual, feria, t: tx });
+        await saveFile(blob, nombreDeArchivo(supplier), { title: `FairScan · ${tx("pedido.proformaTitulo")}` });
+      }
+    } catch (err) {
+      if (err?.name === "AbortError") return; // cerró la hoja de compartir sin mandar
+      console.warn("[proforma]", err); showToast(err?.message || "No se pudo mandar"); return;
+    }
+    if (marcarEnviado) await handleUpdateOrder(pedido.id, { estado: "enviado", enviadoEl: Date.now() });
+  };
+  const descargarExcelFeria = async (districtId, feria) => {
+    const delaFeria = orders.filter(o => (o.items || []).length && (districtId == null || o.districtId === districtId));
+    const blob = await excelDeFeria({ pedidos: delaFeria, suppliers, productos: products, moneda: monedaActual, feria, t: tx });
+    const etiqueta = (feria?.name || "FairScan").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9]+/g, "-");
+    await saveFile(blob, `Pedidos_${etiqueta}_${new Date().toISOString().slice(0, 10)}.xlsx`, { title: `FairScan · ${tx("pedidos.titulo")}` });
+  };
   const navigate = (s, data) => { setPrevScreen({ screen, data: screenData }); setScreenData(data); setScreen(s); };
   const goBack = () => { if (prevScreen) { setScreen(prevScreen.screen); setScreenData(prevScreen.data); setPrevScreen(null); } else { setScreen("list"); setScreenData(null); } };
 
@@ -4649,7 +4712,8 @@ export default function App() {
         <FichaProducto key={screenData.id} product={products.find(p => p.id === screenData.id) || screenData} allProducts={products} suppliers={suppliers} districts={districts}
           settings={settings} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"}
           onBack={goBack} onUpdate={(id, changes) => { handleUpdateProduct(id, changes); }} onAddPhoto={agregarFotoAProducto} onDelete={handleDeleteProduct}
-          onNavigateSupplier={s => navigate("supplier", s)} onNavigateProduct={p => { setScreenData(p); }} />
+          onNavigateSupplier={s => navigate("supplier", s)} onNavigateProduct={p => { setScreenData(p); }}
+          onPedir={(p) => abrirPedido(suppliers.find(x => x.id === p.supplierId), p.id)} />
       )}
       {screen === "revisar" && (
         <RevisarDia productosDeHoy={soloDeHoy(activeDistrictId ? products.filter(p => p.districtId === activeDistrictId) : products)} suppliers={suppliers}
@@ -4658,11 +4722,22 @@ export default function App() {
           onCerrar={() => navigate("list")} onCrearCuenta={() => navigate("settings")} onVerLosDeHoy={() => { setListTab("todo"); navigate("list"); }} />
       )}
       {screen === "supplier" && screenData && (
-        <SupplierDetail supplier={suppliers.find(s => s.id === screenData.id) || screenData} products={products}
+        <FichaProveedor supplier={suppliers.find(s => s.id === screenData.id) || screenData} products={products} pedidos={orders} districts={districts} moneda={monedaActual} Foto={FotoDeProducto} tLegacy={t}
           onBack={goBack} onUpdate={handleUpdateSupplier} onDelete={handleDeleteSupplier}
           onAddProduct={() => navigate("capture", { fromSupplierId: screenData.id })}
-          onNavigateProduct={p => navigate("detail", p)} t={t} />
+          onNavigateProduct={p => navigate("detail", p)} onArmarPedido={(s) => abrirPedido(s)} />
       )}
+      {screen === "pedidos" && (
+        <Pedidos pedidos={orders} suppliers={suppliers} products={products} districts={districts} activeDistrictId={activeDistrictId} moneda={monedaActual}
+          onBack={goBack} onAbrirPedido={(s) => abrirPedido(s)} onDescargarExcelFeria={descargarExcelFeria} />
+      )}
+      {screen === "pedido" && screenData && (() => {
+        const supplier = suppliers.find(s => s.id === screenData.supplierId);
+        const pedido = orders.find(o => o.id === screenData.pedidoId);
+        if (!supplier || !pedido) return null;
+        return <ArmarPedido supplier={supplier} pedido={pedido} products={products} moneda={monedaActual} feria={districts.find(d => d.id === pedido.districtId) || null} Foto={FotoDeProducto} tLegacy={t} primero={screenData.primero || null}
+          onBack={goBack} onGuardar={(cambios) => handleUpdateOrder(pedido.id, cambios)} onEnviar={(via) => enviarProforma(pedido, supplier, via)} onNavigateProduct={p => navigate("detail", p)} />;
+      })()}
       {screen === "districts" && (
         <DistrictsScreen districts={districts} activeDistrictId={activeDistrictId} products={products}
           onActivate={switchDistrict} onAdd={handleAddDistrict} onUpdate={handleUpdateDistrict} onDelete={handleDeleteDistrict}

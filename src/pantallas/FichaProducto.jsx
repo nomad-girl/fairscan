@@ -14,7 +14,7 @@ import { estadoIA, patchReintentoIA, explicarFalloIA } from "../lib/aiEstado.js"
 import { urlDeAudio, esPunteroMuerto } from "../lib/audioNotes.js";
 import { haceCuanto } from "../idiomas/formato.js";
 
-export function FichaProducto({ product: p, allProducts = [], suppliers = [], districts = [], settings, moneda = "USD", onBack, onUpdate, onAddPhoto, onDelete, onNavigateSupplier, onNavigateProduct }) {
+export function FichaProducto({ product: p, allProducts = [], suppliers = [], districts = [], settings, moneda = "USD", onBack, onUpdate, onAddPhoto, onDelete, onNavigateSupplier, onNavigateProduct, onPedir }) {
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
   const [foto, setFoto] = useState(0);
@@ -169,6 +169,9 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
           )}
           {supplier && <div style={{ display: "flex", gap: 8, marginTop: 8 }}><Boton variante="fantasma" onClick={() => setEligiendoProveedor(true)}>{t("ficha.cambiarProveedor")}</Boton><Boton variante="fantasma" onClick={() => cambiarProveedor(null)}>{t("ficha.quitarProveedor")}</Boton></div>}
         </section>
+
+        {/* Pedir este producto: abre el pedido de su proveedor con este arriba (decisión 4, 16/09) */}
+        {supplier && onPedir && <Boton variante="secundario" ancho="total" icono="pedido" onClick={() => onPedir(p)}>{t("ficha.pedir")}</Boton>}
 
         {/* La IA no pudo */}
         {estadoIA(p) === "fallo" && (
