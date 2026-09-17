@@ -82,12 +82,6 @@ export function CerrarStand({
   const seccion = (txt) => <h3 style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: paleta.dim, margin: "6px 2px 8px" }}>{txt}</h3>;
 
   const resumen = modo === "resumen" && !!cardPhoto && !soloProveedor;
-  const filaLeida = (etiqueta, valor) => (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, minHeight: alturas.campo, borderBottom: `1px solid ${paleta.border}` }}>
-      <span style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted, flexShrink: 0 }}>{etiqueta}</span>
-      {cardProcessing && !valor ? <Esqueleto ancho={140} alto={14} /> : <span style={{ ...texto("cuerpo", { fontWeight: 600 }), color: valor ? paleta.text : paleta.dim, textAlign: "right", minWidth: 0, overflowWrap: "anywhere" }}>{valor || "—"}</span>}
-    </div>
-  );
 
   if (resumen) {
     return (
@@ -111,20 +105,29 @@ export function CerrarStand({
             </button>
           </div>
           {/* Lo que leyó: la empresa y el vendedor, grandes; abajo el contacto y el stand */}
-          <div style={{ padding: "2px 2px 0" }}>
-            {cardProcessing && !proveedor.name ? <Esqueleto ancho={200} alto={22} /> : <p style={{ ...texto("grande"), margin: 0, lineHeight: 1.15, color: proveedor.name ? paleta.text : paleta.dim }}>{proveedor.name || t("cerrarStand.sinNombre")}</p>}
-            {cardProcessing && !proveedor.contact ? <Esqueleto ancho={140} alto={16} estilo={{ marginTop: 6 }} /> : <p style={{ ...texto("titulo", { fontWeight: 500 }), margin: "4px 0 0", color: proveedor.contact ? paleta.text : paleta.dim }}>{proveedor.contact || t("cerrarStand.sinVendedor")}</p>}
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "2px 2px 0" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {cardProcessing && !proveedor.name ? <Esqueleto ancho={200} alto={22} /> : <p style={{ ...texto("grande"), margin: 0, lineHeight: 1.15, color: proveedor.name ? paleta.text : paleta.dim, overflowWrap: "anywhere" }}>{proveedor.name || t("cerrarStand.sinNombre")}</p>}
+              {cardProcessing && !proveedor.contact ? <Esqueleto ancho={140} alto={16} estilo={{ marginTop: 6 }} /> : <p style={{ ...texto("titulo", { fontWeight: 500 }), margin: "4px 0 0", color: proveedor.contact ? paleta.text : paleta.dim }}>{proveedor.contact || t("cerrarStand.sinVendedor")}</p>}
+            </div>
+            <button type="button" onClick={() => cambiar("favorito")(!proveedor.favorito)} aria-pressed={!!proveedor.favorito} aria-label={proveedor.favorito ? t("cerrarStand.quitarFavorito") : t("cerrarStand.marcarFavorito")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${proveedor.favorito ? paleta.accent : paleta.border}`, background: proveedor.favorito ? paleta.accentSoft : paleta.card, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}>
+              <Icono nombre="favorito" tamano={20} color={proveedor.favorito ? paleta.accentTexto : paleta.muted} />
+            </button>
           </div>
+          {/* Cada dato de contacto en su línea, sin apretar */}
           <Bloque>
-            {filaLeida(t("cerrarStand.contacto"), [proveedor.wechat ? `WeChat ${proveedor.wechat}` : null, proveedor.whatsapp ? `WhatsApp ${proveedor.whatsapp}` : null, proveedor.phone, proveedor.email].filter(Boolean).join(" · "))}
-            {(stand || cardProcessing) && filaLeida(t("cerrarStand.stand"), stand)}
+            {[["WeChat", proveedor.wechat], ["WhatsApp", proveedor.whatsapp], [t("cerrarStand.telefono"), proveedor.phone], [t("cerrarStand.email"), proveedor.email], [t("cerrarStand.web"), proveedor.website], [t("cerrarStand.stand"), stand]]
+              .filter(([, v]) => v)
+              .map(([k, v]) => (
+                <div key={k} style={{ display: "flex", flexDirection: "column", gap: 2, padding: "8px 0", borderBottom: `1px solid ${paleta.border}` }}>
+                  <span style={{ ...texto("pie"), color: paleta.muted }}>{k}</span>
+                  <span style={{ ...texto("cuerpo", { fontWeight: 600 }), overflowWrap: "anywhere" }}>{v}</span>
+                </div>
+              ))}
+            {cardProcessing && !proveedor.phone && !proveedor.wechat && !proveedor.email && <div style={{ padding: "10px 0" }}><Esqueleto ancho={180} alto={14} /></div>}
+            {!cardProcessing && !proveedor.phone && !proveedor.wechat && !proveedor.whatsapp && !proveedor.email && <p style={{ ...texto("pie"), color: paleta.dim, margin: 0, padding: "10px 0" }}>{t("cerrarStand.sinContacto")}</p>}
           </Bloque>
-          {/* Favorito, mínimo de compra, comentarios */}
-          <FilaDeChips>
-            <Chip activo={!!proveedor.favorito} onClick={() => cambiar("favorito")(!proveedor.favorito)} etiqueta={proveedor.favorito ? t("cerrarStand.quitarFavorito") : t("cerrarStand.marcarFavorito")}>
-              <Icono nombre="favorito" tamano={16} color={proveedor.favorito ? paleta.accentTexto : paleta.dim} />{t("cerrarStand.favorito")}
-            </Chip>
-          </FilaDeChips>
+          {/* Mínimo de compra, comentarios */}
           <Bloque>
             <Campo etiqueta={t("cerrarStand.minimoDeCompra")} valor={proveedor.minimoDeCompra} tipo="numero" sufijo="USD" onChange={cambiar("minimoDeCompra")} />
             <Campo etiqueta={t("cerrarStand.comentarios")} valor={proveedor.notes} onChange={cambiar("notes")} multilinea apilado placeholder={t("cerrarStand.comentariosPista")} />

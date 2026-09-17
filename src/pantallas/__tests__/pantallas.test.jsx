@@ -119,7 +119,7 @@ describe("CerrarStand", () => {
     con(<CerrarStand modo="resumen" itemsCount={1} items={[{ id: 1, photos: [FOTO] }]} cardPhoto={FOTO} proveedor={proveedor} stand="10.2 F21" onCambiarProveedor={onCambiar} onListo={onListo} onEditar={onEditar} />);
     expect(screen.getByText("Yiwu Sunrise")).toBeTruthy();
     expect(screen.getByText("Lily Chen")).toBeTruthy(); // el vendedor, grande
-    expect(screen.getByText("WeChat sunrise_lily")).toBeTruthy();
+    expect(screen.getByText("sunrise_lily")).toBeTruthy();
     expect(screen.getByText("10.2 F21")).toBeTruthy();
     expect(screen.queryByText("Agregar un dato")).toBeNull(); // nada de formulario
     fireEvent.click(screen.getByRole("button", { name: "Marcar como favorito" }));

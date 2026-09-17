@@ -154,7 +154,8 @@
     "stand": "Stand",
     "minimoDeCompra": "Mínimo de compra",
     "editar": "Editar",
-    "sinVendedor": "Sin nombre del vendedor"
+    "sinVendedor": "Sin nombre del vendedor",
+    "sinContacto": "La tarjeta no trajo contacto. Tocá Editar para cargarlo."
   },
   "catalogo": {
     "titulo": "Catálogo",
