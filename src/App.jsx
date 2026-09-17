@@ -97,6 +97,8 @@ import { explicarErrorDeCamara, explicarErrorDeMicrofono, abrirAjustesDeLaApp } 
 import { palabrasDeBusqueda, coincideBusqueda } from './lib/busqueda.js';
 import { Visor } from './pantallas/Visor.jsx';
 import { CerrarStand } from './pantallas/CerrarStand.jsx';
+import { Catalogo } from './pantallas/Catalogo.jsx';
+import { RevisarDia } from './pantallas/RevisarDia.jsx';
 import { vibrarObturador } from './sistema/vibrar.js';
 import { serializarAudio, urlDeAudio, esPunteroMuerto } from './lib/audioNotes.js';
 import { crearPapelera } from './lib/deshacer.js';
@@ -1301,6 +1303,11 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     return () => { if (streamRef.current) streamRef.current.getTracks().forEach(tr => tr.stop()); };
   }, []);
 
+  // La cámara se mantiene viva unos segundos al pasar a la hoja Cerrar stand (16/09):
+  // si se vuelve enseguida, no hay que pedir el permiso de nuevo (Safari lo pide
+  // por cada apertura) ni esperar el arranque. Si no se vuelve, se apaga sola.
+  const apagadoRef = useRef(null);
+  const CAMARA_VIVA_MS = 8000;
   const openCamera = async (mode) => {
     setCameraError(null);
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -1309,6 +1316,12 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
       return;
     }
     setCameraMode(mode);
+    clearTimeout(apagadoRef.current);
+    if (streamRef.current && streamRef.current.getTracks().some(tr => tr.readyState === "live")) {
+      // Sigue viva de hace un momento: se reusa sin volver a pedir permiso.
+      setTimeout(() => { if (videoRef.current) { videoRef.current.srcObject = streamRef.current; videoRef.current.play().catch(() => {}); } }, 50);
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 960 } }
@@ -1325,10 +1338,13 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     }
   };
 
+  const apagarCamara = () => { if (streamRef.current) { streamRef.current.getTracks().forEach(tr => tr.stop()); streamRef.current = null; } };
   const closeCamera = () => {
-    if (streamRef.current) { streamRef.current.getTracks().forEach(tr => tr.stop()); streamRef.current = null; }
     setCameraMode(null);
+    clearTimeout(apagadoRef.current);
+    apagadoRef.current = setTimeout(apagarCamara, CAMARA_VIVA_MS);
   };
+  useEffect(() => () => { clearTimeout(apagadoRef.current); apagarCamara(); }, []);
 
   const captureFrame = () => {
     const video = videoRef.current;
@@ -1615,7 +1631,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
           onDisparar={handleCameraShutter}
           onCerrarStand={closeCamera}
           onCancelar={closeCamera}
-          onCatalogo={() => { closeCamera(); onCatalogo?.(); }}
+          onCatalogo={() => { closeCamera(); apagarCamara(); onCatalogo?.(); }}
           onAgregarAngulo={() => { if (!items.length) return; anguloDesdeVisorRef.current = true; setAddPhotoToItemId(items[0].id); setAnguloDisponible(false); }}
           onBorrarFoto={(id) => borrarItem(id)}
           consejoVisible={consejoVisible} onConsejoVisto={marcarConsejoVisto}
@@ -1645,7 +1661,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
         nota={nota}
         onAgregarProducto={() => openCamera("product")} onProductoDeGaleria={() => prodGalleryRef.current?.click()}
         onSacarProducto={borrarItem} onFotoAProducto={(id) => { setAddPhotoToItemId(id); openCamera("product"); }}
-        onVolverAlVisor={() => openCamera("product")} onCatalogo={() => { closeCamera(); onCatalogo?.(); }}
+        onVolverAlVisor={() => openCamera("product")} onCatalogo={() => { closeCamera(); apagarCamara(); onCatalogo?.(); }}
         onListo={handleSave} guardando={saving} errorGuardar={saveError}
         borrador={borrador} onRetomar={retomarBorrador} onDescartar={descartarBorrador} descripcionBorrador={borrador ? describirBorrador(borrador) : null}
         avisoPermiso={<PermisoAviso info={cameraError} t={t} onClose={() => setCameraError(null)} onRetry={() => openCamera(cameraError?.modo)} alternativaLabel="Elegir de la galería" onAlternativa={() => (cameraError?.modo === "card" ? cardGalleryRef : prodGalleryRef).current?.click()} />}
@@ -3810,7 +3826,7 @@ export default function App() {
   const [standKey, setStandKey] = useState(0);     // cada stand cerrado arranca una captura nueva
   const [screenData, setScreenData] = useState(null);
   const [prevScreen, setPrevScreen] = useState(null);
-  const [listTab, setListTab] = useState("products");
+  const [listTab, setListTab] = useState("todo"); // Catálogo nuevo (16/09): hoy · todo · proveedores
   const [toast, setToast] = useState("");
   // ─── Auth ─── (arriba de todo: los efectos de créditos lo leen en su lista de dependencias;
   // más abajo, el bundle de producción rompía al arrancar con "Cannot access before initialization")
@@ -4612,10 +4628,14 @@ export default function App() {
       )}
 
       {screen === "list" && (
-        <ProductList products={products} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} activeDistrict={activeDistrict} settings={settings} bajando={sync.bajando}
-          onNavigate={navigate} onSwitchDistrict={switchDistrict} onDeleteProduct={handleDeleteProduct} onBatchDelete={handleBatchDelete} onBatchUpdate={handleBatchUpdate} onDeleteSupplier={handleDeleteSupplier}
-          t={t} isDark={isDark} onToggleTheme={toggleTheme}
-          activeTab={listTab} onTabChange={setListTab} queueCount={queueCount} scrollPositionRef={scrollPositionRef} saldoCreditos={creditos ? saldoVisible(creditos) : null} aiSync={aiSync} />
+        <Catalogo products={products} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} activeDistrict={activeDistrict} bajando={sync.bajando}
+          queueCount={queueCount} enLinea={typeof navigator === "undefined" ? true : navigator.onLine !== false}
+          Foto={FotoDeProducto} t={t}
+          onNavigate={navigate} onSwitchDistrict={switchDistrict}
+          onToggleFavorito={(p) => handleUpdateProduct(p.id, { favorito: p.favorito ? 0 : 1 })}
+          onToggleFavoritoProveedor={async (s) => { const favorito = s.favorito ? 0 : 1; await dbUpdateSupplier(s.id, { favorito }); setSuppliers(prev => prev.map(x => x.id === s.id ? { ...x, favorito } : x)); }}
+          onRevisarDia={() => navigate("revisar")}
+          pestana={listTab} onPestana={setListTab} />
       )}
       {(screen === "capture" || screen === "capture-supplier") && (
         <QuickCapture key={`${screen}-${standKey}`} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings} products={products}
@@ -4628,6 +4648,12 @@ export default function App() {
         <ProductDetail key={screenData.id} product={products.find(p => p.id === screenData.id) || screenData} allProducts={products} suppliers={suppliers} districts={districts}
           onBack={goBack} onUpdate={(id, changes) => { handleUpdateProduct(id, changes); }} onAddPhoto={agregarFotoAProducto} onDelete={handleDeleteProduct}
           onNavigateSupplier={s => navigate("supplier", s)} onNavigateProduct={p => { setScreenData(p); }} t={t} isDark={isDark} settings={settings} />
+      )}
+      {screen === "revisar" && (
+        <RevisarDia productosDeHoy={soloDeHoy(activeDistrictId ? products.filter(p => p.districtId === activeDistrictId) : products)} suppliers={suppliers}
+          feria={activeDistrict ? `${activeDistrict.emoji || ""} ${activeDistrict.name}`.trim() : null} esAnonima={!!auth.esAnonima} pendientesSync={queueCount}
+          Foto={FotoDeProducto} t={t} onActualizarProducto={handleUpdateProduct}
+          onCerrar={() => navigate("list")} onCrearCuenta={() => navigate("settings")} onVerLosDeHoy={() => { setListTab("todo"); navigate("list"); }} />
       )}
       {screen === "supplier" && screenData && (
         <SupplierDetail supplier={suppliers.find(s => s.id === screenData.id) || screenData} products={products}
