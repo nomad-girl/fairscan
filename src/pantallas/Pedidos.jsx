@@ -35,7 +35,7 @@ export function Pedidos({ pedidos = [], suppliers = [], products = [], districts
         {districts.length > 1 && (
           <FilaDeChips>
             <Chip activo={feria === "todas"} onClick={() => setFeria("todas")}>{t("pedidos.todasLasFerias")}</Chip>
-            {districts.map(d => <Chip key={d.id} activo={feria === d.id} onClick={() => setFeria(d.id)}>{`${d.emoji || ""} ${d.name}`.trim()}</Chip>)}
+            {districts.map(d => <Chip key={d.id} activo={feria === d.id} onClick={() => setFeria(d.id)}>{d.name}</Chip>)}
           </FilaDeChips>
         )}
 

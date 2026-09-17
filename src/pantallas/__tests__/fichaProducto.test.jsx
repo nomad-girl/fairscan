@@ -25,12 +25,10 @@ describe("Ficha de producto", () => {
     expect(screen.getAllByText("Yiwu Sunrise").length).toBe(2); // bajo el título y como fila
     expect(screen.getByText("2 fotos")).toBeTruthy(); // el botón "+ ángulo" muestra cuántas hay
   });
-  it("los datos del bulto son una sola línea hasta que se abren", () => {
+  it("piezas por caja y CBM se editan tocando, junto al precio", () => {
     const onUpdate = vi.fn();
     con(<FichaProducto product={base} suppliers={suppliers} districts={districts} allProducts={[base]} onUpdate={onUpdate} />);
-    expect(screen.queryByText("Piezas por caja")).toBeNull();
-    fireEvent.click(screen.getByText("Datos del bulto"));
-    expect(screen.getByText("Piezas por caja")).toBeTruthy();
+    expect(screen.getByText("CBM por caja")).toBeTruthy(); // con precio y MOQ, a la vista (Nati, 17/09)
     fireEvent.click(screen.getByRole("button", { name: /Piezas por caja/ }));
     const input = screen.getByRole("textbox");
     fireEvent.change(input, { target: { value: "48" } });

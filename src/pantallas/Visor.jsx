@@ -31,6 +31,7 @@ function Pastilla({ children, tono = "vidrio", estilo }) {
 }
 
 export function Visor({
+  datosActivos = null, // { moq, piezasPorCaja, cbmPorCaja }: false apaga la pestaña (Configuración, 17/09)
   videoRef, modo = "product", feria, itemsCount = 0, saldo = null, trial = 15, esperando = 0, estadoSync = "guardado", pendientesSync = 0,
   flash = false, ultimaCaptura = null, ultimas = [], puedeAgregarAngulo = false,
   datos = null, moneda = "USD", onTeclaPrecio, onConfirmarPrecio, onCampo, onMoqBase, onFavorito,
@@ -113,7 +114,7 @@ export function Visor({
           y ÚLTIMO el botón grande, que dice "Guardar" si hay algo o "Cerrar sin cargar nada" si no. Sin equis
           y sin temporizador: nada se va solo, nada se toca sin querer. */}
       {datos && !esTarjeta && (() => {
-        const campos = [["price", t("visor.campoPrecio")], ["moq", t("visor.campoMoq")], ["piezasPorCaja", t("visor.campoPiezasCorto")], ["cbmPorCaja", t("visor.campoCbm")]];
+        const campos = [["price", t("visor.campoPrecio")], ["moq", t("visor.campoMoq")], ["piezasPorCaja", t("visor.campoPiezasCorto")], ["cbmPorCaja", t("visor.campoCbmCorto")]].filter(([k]) => k === "price" || datosActivos?.[k] !== false);
         const etiquetaDe = Object.fromEntries(campos);
         const valorActual = datos.valores[datos.campo] || "";
         const prefijo = datos.campo === "price" ? `${moneda} ` : "";
@@ -133,7 +134,7 @@ export function Visor({
             {/* El número, grande */}
             <div style={{ fontSize: 34, fontWeight: 700, lineHeight: 1.1, fontVariantNumeric: "tabular-nums", color: valorActual ? "#22C55E" : "rgba(241,245,249,0.55)", padding: "0 2px" }}>{prefijo}{valorActual || "0"}{sufijo}</div>
             {/* Los cuatro datos, grandes, como pestañas */}
-            <div role="tablist" aria-label={t("visor.otrosDatos")} style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+            <div role="tablist" aria-label={t("visor.otrosDatos")} style={{ display: campos.length > 1 ? "grid" : "none", gridTemplateColumns: `repeat(${campos.length}, 1fr)`, gap: 6 }}>
               {campos.map(([k, etiqueta]) => {
                 const activo = k === datos.campo; const lleno = !!datos.valores[k];
                 return <button key={k} type="button" role="tab" aria-selected={activo} onClick={() => onCampo?.(k)} style={{ minHeight: alturas.tocable, padding: "0 4px", borderRadius: 12, border: `1px solid ${activo ? MARCA.naranja : "rgba(241,245,249,0.22)"}`, background: activo ? MARCA.naranja : lleno ? "rgba(34,197,94,0.20)" : "rgba(241,245,249,0.08)", color: activo ? "#fff" : lleno ? "#86EFAC" : BLANCO_SUAVE, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", WebkitTapHighlightColor: "transparent" }}>{lleno && !activo ? `✓ ${etiqueta}` : etiqueta}</button>;

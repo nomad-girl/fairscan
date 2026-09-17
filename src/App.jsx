@@ -278,7 +278,7 @@ const Header = memo(({ title, subtitle, onBack, right, t }) => (
 ));
 
 const Toast = memo(({ msg, action, t }) => msg ? (
-  <div style={{ position:"fixed", top:"calc(env(safe-area-inset-top, 0px) + 16px)", left:"50%", transform:"translateX(-50%)", background:t.green, color:"#fff", padding:"10px 24px", borderRadius:12, fontWeight:700, fontSize:13, boxShadow:`0 8px 30px ${t.green}60`, zIndex:1000, maxWidth:"calc(100vw - 32px)", textAlign:"center", lineHeight:1.4, display:"flex", alignItems:"center", gap:12 }} className="fade-in">
+  <div style={{ position:"fixed", top:"calc(env(safe-area-inset-top, 0px) + 16px)", left:16, right:16, margin:"0 auto", width:"max-content", background:t.green, color:"#fff", padding:"10px 20px", borderRadius:12, fontWeight:700, fontSize:13, boxShadow:`0 8px 30px ${t.green}60`, zIndex:1000, maxWidth:"calc(100vw - 32px)", boxSizing:"border-box", textAlign:"center", lineHeight:1.4, display:"flex", alignItems:"center", gap:12, overflowWrap:"anywhere" }} className="fade-in">
     <span>✓ {msg}</span>
     {action && (
       <button onClick={action.onClick} style={{ background:"rgba(255,255,255,0.25)", border:"none", color:"#fff", fontWeight:800, fontSize:13, borderRadius:8, padding:"6px 12px", cursor:"pointer", fontFamily:"inherit" }}>{action.label}</button>
@@ -401,8 +401,8 @@ const BajandoCatalogo = memo(({ bajando, t }) => {
   const nombre = { products: "productos", suppliers: "proveedores", districts: "ferias" }[bajando.tabla] || "datos";
   const pct = bajando.total ? Math.round((bajando.hechos / bajando.total) * 100) : 0;
   return (
-    <div style={{ position:"fixed", top:"calc(env(safe-area-inset-top, 0px) + 16px)", left:"50%", transform:"translateX(-50%)",
-      width:"min(420px, calc(100vw - 32px))", background:t.card, border:`1px solid ${t.blue}55`, color:t.text,
+    <div style={{ position:"fixed", top:"calc(env(safe-area-inset-top, 0px) + 16px)", left:16, right:16, margin:"0 auto",
+      width:"min(420px, calc(100vw - 32px))", boxSizing:"border-box", background:t.card, border:`1px solid ${t.blue}55`, color:t.text,
       padding:"12px 16px", borderRadius:14, boxShadow:"0 8px 30px rgba(0,0,0,0.35)", zIndex:1001 }} className="fade-in">
       <p style={{ margin:0, fontSize:13, fontWeight:700 }}>☁️ Bajando tu catálogo…</p>
       <p style={{ margin:"2px 0 8px", fontSize:12, color:t.muted }}>
@@ -1112,10 +1112,10 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     return (
       <>
         <Visor
-          videoRef={videoRef} modo={cameraMode} feria={activeDistrict ? `${activeDistrict.emoji || ""} ${activeDistrict.name}`.trim() : null}
+          videoRef={videoRef} modo={cameraMode} feria={activeDistrict?.name || null}
           itemsCount={items.length} saldo={saldoCreditos} esperando={esperando} estadoSync={estadoSync} pendientesSync={queueCount}
           flash={flashVisible} ultimaCaptura={lastCapture} ultimas={ultimas} puedeAgregarAngulo={anguloDisponible && items.length > 0 && !addPhotoToItemId}
-          datos={datosRapidos} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"} onTeclaPrecio={tocarPrecio} onConfirmarPrecio={confirmarPrecio} onCampo={cambiarCampoRapido} onMoqBase={cambiarMoqBase} onFavorito={alternarFavoritoRapido}
+          datos={datosRapidos} datosActivos={settings?.datosDeCompra} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"} onTeclaPrecio={tocarPrecio} onConfirmarPrecio={confirmarPrecio} onCampo={cambiarCampoRapido} onMoqBase={cambiarMoqBase} onFavorito={alternarFavoritoRapido}
           onDisparar={handleCameraShutter}
           onCerrarStand={closeCamera}
           onCancelar={closeCamera}
@@ -1364,6 +1364,21 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
               fontSize:12, fontWeight:700, cursor:"pointer", textAlign:"center",
             }}>{v.label}</button>
           ))}
+        </div>
+
+        {/* Datos de compra tras la foto (Nati, 17/09): quien no usa MOQ, piezas por caja o CBM los apaga acá y el teclado solo pide precio */}
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Datos que pide el teclado después de la foto</p>
+        <p style={{ fontSize:11, color:t.dim, margin:"0 0 8px", lineHeight:1.5 }}>El precio siempre. Los demás, apagalos si no los usás.</p>
+        <div style={{ display:"flex", gap:6, marginBottom:20 }}>
+          {[["moq", "MOQ"], ["piezasPorCaja", "Piezas por caja"], ["cbmPorCaja", "CBM"]].map(([k, etiqueta]) => {
+            const activo = loc.datosDeCompra?.[k] !== false;
+            return (
+              <button key={k} type="button" role="switch" aria-checked={activo} onClick={() => updateLoc(p => ({ ...p, datosDeCompra: { ...(p.datosDeCompra || {}), [k]: !activo } }))} style={{
+                flex:1, minHeight:44, padding:"10px 8px", borderRadius:10, border:`1.5px solid ${activo?t.accent:t.border}`,
+                background:activo?t.accentSoft:"transparent", color:activo?t.accent:t.muted, fontSize:12, fontWeight:700, cursor:"pointer", textAlign:"center", fontFamily:"inherit",
+              }}>{activo ? "✓ " : ""}{etiqueta}</button>
+            );
+          })}
         </div>
 
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>🎯 Margen mínimo para importación</p>
@@ -3252,11 +3267,11 @@ export default function App() {
 
   // Los borrados pasan por la papelera: desaparecen de la pantalla ya, y de la
   // base 5 segundos después, salvo que se toque "Deshacer".
-  const handleDeleteProduct = async (id) => {
+  const handleDeleteProduct = async (id, { quedarse = false } = {}) => {
     const borrado = products.find(p => p.id === id);
     if (!borrado) return;
     setProducts(prev => prev.filter(p => p.id !== id));
-    navigate("list");
+    if (!quedarse) navigate("list"); // desde Revisar el día se sigue con la próxima tarjeta
     await papeleraRef.current.programar({
       mensaje: "Producto eliminado",
       confirmar: () => dbDeleteProduct(id),
@@ -3487,10 +3502,10 @@ export default function App() {
       )}
       {screen === "revisar" && (
         <RevisarDia productosDeHoy={soloDeHoy(activeDistrictId ? products.filter(p => p.districtId === activeDistrictId) : products)} suppliers={suppliers}
-          feria={activeDistrict ? `${activeDistrict.emoji || ""} ${activeDistrict.name}`.trim() : null} esAnonima={!!auth.esAnonima} pendientesSync={queueCount}
+          feria={activeDistrict?.name || null} esAnonima={!!auth.esAnonima} pendientesSync={queueCount}
           Foto={FotoDeProducto} t={t} onActualizarProducto={handleUpdateProduct}
-          onJuntar={(a, b) => { const { cambios } = juntar(a, b); handleUpdateProduct(a.id, cambios); handleDeleteProduct(b.id); }}
-          onEliminar={(p) => handleDeleteProduct(p.id)}
+          onJuntar={(a, b) => { const { cambios } = juntar(a, b); handleUpdateProduct(a.id, cambios); handleDeleteProduct(b.id, { quedarse: true }); }}
+          onEliminar={(p) => handleDeleteProduct(p.id, { quedarse: true })}
           onCerrar={() => navigate("list")} onCrearCuenta={() => navigate("settings")} onVerLosDeHoy={() => { setListTab("todo"); navigate("list"); }} />
       )}
       {screen === "supplier" && screenData && (

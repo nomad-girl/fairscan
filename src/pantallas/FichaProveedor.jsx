@@ -12,6 +12,9 @@ import { urlDeAudio } from "../lib/audioNotes.js";
 import { elegirMiniatura } from "../lib/miniaturas.js";
 import { pedidoDeProveedor, productosParaPedido, totalesDePedido } from "../lib/pedidos.js";
 
+// Los datos largos van con la etiqueta arriba y el valor abajo (Nati, 17/09: "el mail se ve raro").
+const APILADOS = new Set(["email", "website", "address", "products", "wechat"]);
+
 export function FichaProveedor({ supplier: s, products = [], pedidos = [], districts = [], moneda = "USD", Foto, tLegacy, onBack, onUpdate, onDelete, onNavigateProduct, onAddProduct, onArmarPedido }) {
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios, capas } = useSistema();
@@ -55,7 +58,7 @@ export function FichaProveedor({ supplier: s, products = [], pedidos = [], distr
     return Foto ? <Foto src={src} respaldo={p.photoUrls?.[0] || null} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <img src={src || p.photoUrls?.[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />;
   };
   const seccion = (txt) => <h3 style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: paleta.dim, margin: "4px 2px 8px" }}>{txt}</h3>;
-  const subtitulo = [s.contact, s.boothNumber ? `${t("proveedor.stand")} ${s.boothNumber}` : null, feria ? `${feria.emoji || ""} ${feria.name}`.trim() : null].filter(Boolean).join(" · ");
+  const subtitulo = [s.contact, s.boothNumber ? `${t("proveedor.stand")} ${s.boothNumber}` : null, feria ? feria.name : null].filter(Boolean).join(" · ");
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit" }}>
@@ -120,9 +123,9 @@ export function FichaProveedor({ supplier: s, products = [], pedidos = [], distr
             </button>
           )}
           <Bloque>
-            {conDato.map(([k, etiqueta]) => <Campo key={k} etiqueta={etiqueta} valor={s[k]} multilinea={k === "address" || k === "products"} onChange={v => guardar({ [k]: v })} />)}
+            {conDato.map(([k, etiqueta]) => <Campo key={k} etiqueta={etiqueta} valor={s[k]} multilinea={k === "address" || k === "products"} apilado={APILADOS.has(k)} onChange={v => guardar({ [k]: v })} />)}
             {masDatos
-              ? sinDato.map(([k, etiqueta]) => <Campo key={k} etiqueta={etiqueta} valor={s[k]} multilinea={k === "address" || k === "products"} onChange={v => guardar({ [k]: v })} />)
+              ? sinDato.map(([k, etiqueta]) => <Campo key={k} etiqueta={etiqueta} valor={s[k]} multilinea={k === "address" || k === "products"} apilado={APILADOS.has(k)} onChange={v => guardar({ [k]: v })} />)
               : sinDato.length > 0 && (
                 <button type="button" onClick={() => setMasDatos(true)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", minHeight: alturas.campo, padding: 0, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", ...texto("cuerpo", { fontWeight: 400 }), color: paleta.dim }}>
                   <span>{t("proveedor.agregarDato")}</span><Icono nombre="mas" tamano={18} color={paleta.dim} />

@@ -95,8 +95,12 @@ describe("CerrarStand", () => {
     const onListo = vi.fn(), onCambiar = vi.fn();
     con(<CerrarStand itemsCount={2} items={[{ id: 1, photos: [FOTO], price: "0.85" }, { id: 2, photos: [FOTO, FOTO] }]} cardPhoto={FOTO} proveedor={proveedor} onCambiarProveedor={onCambiar} onListo={onListo} />);
     expect(screen.getByText("2 productos · la tarjeta va al final")).toBeTruthy();
-    expect(screen.getByText("Yiwu Sunrise")).toBeTruthy();
-    expect(screen.getAllByText("Agregar ›").length).toBeGreaterThan(3);
+    expect(screen.getByText("Yiwu Sunrise")).toBeTruthy(); // el nombre, grande y arriba
+    expect(screen.getByText("Lily Chen")).toBeTruthy();    // el vendedor, debajo
+    expect(screen.getByText("sunrise_lily")).toBeTruthy(); // el único dato de contacto con valor
+    expect(screen.queryByText("Web")).toBeNull();          // lo vacío no ocupa lugar…
+    fireEvent.click(screen.getByText("Agregar un dato"));  // …hasta que se pide
+    expect(screen.getByText("Web")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Marcar como favorito" }));
     expect(onCambiar).toHaveBeenCalledWith({ favorito: true });
     fireEvent.click(screen.getByText("Listo"));

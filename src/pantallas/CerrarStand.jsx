@@ -1,15 +1,43 @@
 /**
- * La hoja Cerrar stand (pantalla 6 del recorrido): tarjeta arriba con lo que
- * leyó la IA, interés del proveedor en tres palabras, comentarios, los
- * productos de este stand abajo (sacar los que no van), y Listo.
+ * La hoja Cerrar stand (pantalla 6 del recorrido), reordenada con Nati el 17/09:
+ * el nombre de la empresa grande y arriba de todo, con el vendedor debajo y la estrella;
+ * enseguida las fotos del stand ("el proveedor es su catálogo"); después la tarjeta;
+ * los datos de contacto solo si existen (el resto detrás de "Agregar un dato"); y un
+ * solo bloque de Comentarios con micrófono. Listo, siempre a mano.
  *
  * Capa visible solamente: la lógica (borrador, guardado, nota de voz, cola)
  * sigue en QuickCapture y llega por props.
  */
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { Boton, Bloque, Campo, Chip, FilaDeChips, Icono, Esqueleto } from "../componentes/index.js";
+
+// Los datos largos van con la etiqueta arriba y el valor abajo.
+const APILADOS = new Set(["email", "website", "address", "products", "wechat"]);
+
+/** Un texto grande que se edita tocándolo (el nombre de la empresa, el vendedor). Componente de módulo: no se desmonta al redibujar. */
+function TextoEditable({ valor, onChange, placeholder, estilo, etiqueta, cargando = false }) {
+  const { paleta, texto, alturas } = useSistema();
+  const [editando, setEditando] = useState(false);
+  const [borrador, setBorrador] = useState(valor || "");
+  const ref = useRef(null);
+  useEffect(() => { if (!editando) setBorrador(valor || ""); }, [valor, editando]);
+  useEffect(() => { if (editando) ref.current?.focus(); }, [editando]);
+  const confirmar = () => { setEditando(false); if ((borrador || "") !== (valor || "")) onChange?.(borrador); };
+  if (cargando && !valor) return <Esqueleto ancho={180} alto={18} />;
+  if (editando) {
+    return <input ref={ref} value={borrador} placeholder={placeholder} onChange={e => setBorrador(e.target.value)} onBlur={confirmar} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); confirmar(); } if (e.key === "Escape") { setBorrador(valor || ""); setEditando(false); } }} aria-label={etiqueta}
+      style={{ ...estilo, width: "100%", minHeight: alturas.campo, background: paleta.surface, color: paleta.text, border: `1px solid ${paleta.accent}`, borderRadius: 10, padding: "6px 10px", fontFamily: "inherit", outline: "none", boxSizing: "border-box" }} />;
+  }
+  const vacio = !valor;
+  return (
+    <button type="button" onClick={() => setEditando(true)} aria-label={`${etiqueta}: ${vacio ? placeholder : valor}`} style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", textAlign: "left", background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit", minHeight: alturas.tocable, WebkitTapHighlightColor: "transparent" }}>
+      <span style={{ ...estilo, color: vacio ? paleta.dim : paleta.text, fontWeight: vacio ? 500 : estilo?.fontWeight, minWidth: 0, overflowWrap: "anywhere" }}>{vacio ? placeholder : valor}</span>
+      {vacio && <Icono nombre="siguiente" tamano={16} color={paleta.dim} />}
+    </button>
+  );
+}
 
 export function CerrarStand({
   soloProveedor = false, itemsCount = 0, items = [],
@@ -25,20 +53,43 @@ export function CerrarStand({
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
   const [buscando, setBuscando] = useState(false);
+  const [masDatos, setMasDatos] = useState(false);
+  const grababa = useRef(false);
 
   const cambiar = (campo) => (valor) => onCambiarProveedor?.({ [campo]: valor ?? "" });
   const titulo = soloProveedor ? t("cerrarStand.tituloSoloProveedor") : t("cerrarStand.titulo");
+
+  // Un solo lugar para lo dicho y lo escrito (Nati, 17/09: "notas del stand y comentarios son redundantes"):
+  // al parar de dictar, lo dictado se agrega a los comentarios.
+  useEffect(() => {
+    if (!nota) return;
+    if (grababa.current && !nota.grabando) {
+      const dicho = (nota.transcripcion || "").trim();
+      if (dicho) { onCambiarProveedor?.({ notes: [proveedor?.notes, dicho].filter(Boolean).join("\n") }); nota.editarTranscripcion?.(""); }
+    }
+    grababa.current = !!nota.grabando;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nota?.grabando]);
+
+  const campos = [
+    ["wechat", t("cerrarStand.wechat")], ["whatsapp", t("cerrarStand.whatsapp")], ["phone", t("cerrarStand.telefono")], ["email", t("cerrarStand.email")],
+    ["website", t("cerrarStand.web")], ["address", t("cerrarStand.direccion")], ["products", t("cerrarStand.queVende")],
+  ];
+  const conDato = campos.filter(([k]) => proveedor?.[k]);
+  const sinDato = campos.filter(([k]) => !proveedor?.[k]);
+  const campo = ([k, etiqueta]) => <Campo key={k} etiqueta={etiqueta} valor={proveedor[k]} onChange={cambiar(k)} apilado={APILADOS.has(k)} multilinea={k === "address" || k === "products"} />;
+  const seccion = (txt) => <h3 style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: paleta.dim, margin: "6px 2px 8px" }}>{txt}</h3>;
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit" }}>
       {/* Barra superior */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: `calc(env(safe-area-inset-top, 0px) + 8px) ${espacios.margenLateral}px 8px`, minHeight: alturas.tocable + 16 }}>
-        <button type="button" onClick={soloProveedor ? onCatalogo : onVolverAlVisor} aria-label={t("comun.volver")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer", boxShadow: paleta.sombraTarjeta }}>
+        <button type="button" onClick={soloProveedor ? onCatalogo : onVolverAlVisor} aria-label={t("comun.volver")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer", boxShadow: paleta.sombraTarjeta, flexShrink: 0 }}>
           <Icono nombre={soloProveedor ? "cerrar" : "camara"} tamano={20} color={paleta.muted} />
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h1 style={{ ...texto("titulo"), margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{titulo}</h1>
-          {!soloProveedor && <p style={{ ...texto("pie"), color: paleta.muted, margin: 0 }}>{t("cerrarStand.subtitulo", { count: itemsCount })}</p>}
+          <p style={{ ...texto("pie", { fontWeight: 600 }), color: paleta.muted, margin: 0, letterSpacing: "0.04em", textTransform: "uppercase" }}>{titulo}</p>
+          {!soloProveedor && <p style={{ ...texto("pie"), color: paleta.dim, margin: 0 }}>{t("cerrarStand.subtitulo", { count: itemsCount })}</p>}
         </div>
         {!soloProveedor && (
           <button type="button" onClick={onCatalogo} aria-label={t("visor.catalogo")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer", boxShadow: paleta.sombraTarjeta }}>
@@ -49,27 +100,18 @@ export function CerrarStand({
 
       {avisoPermiso}
 
-      <div style={{ flex: 1, overflowY: "auto", padding: `4px ${espacios.margenLateral}px 120px`, display: "flex", flexDirection: "column", gap: espacios.entreFilas, overscrollBehavior: "contain" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: `0 ${espacios.margenLateral}px 120px`, display: "flex", flexDirection: "column", gap: espacios.entreFilas, overscrollBehavior: "contain" }}>
 
-        {/* La tarjeta */}
-        {!cardPhoto ? (
-          <div style={{ display: "flex", gap: 8 }}>
-            <Boton variante="principal" icono="camara" ancho="total" onClick={onSacarTarjeta} estilo={{ flex: 1 }}>{t("cerrarStand.sacarTarjeta")}</Boton>
-            <Boton variante="secundario" icono="foto" onClick={onTarjetaDeGaleria} etiqueta={t("cerrarStand.galeria")} estilo={{ minHeight: alturas.botonPrincipal }} />
+        {/* 1. El nombre, grande y arriba de todo; el vendedor debajo; la estrella */}
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <TextoEditable valor={proveedor.name} onChange={cambiar("name")} placeholder={t("cerrarStand.nombreEmpresa")} etiqueta={t("cerrarStand.empresa")} cargando={cardProcessing} estilo={{ ...texto("grande"), lineHeight: 1.15 }} />
+            <TextoEditable valor={proveedor.contact} onChange={cambiar("contact")} placeholder={t("cerrarStand.agregarVendedor")} etiqueta={t("cerrarStand.vendedor")} cargando={cardProcessing} estilo={{ ...texto("destacado", { fontWeight: 500 }) }} />
           </div>
-        ) : (
-          <div style={{ position: "relative", borderRadius: radios.grande, overflow: "hidden", border: `1px solid ${paleta.border}`, background: paleta.card, boxShadow: paleta.sombraTarjeta }}>
-            <img src={cardPhoto} alt={t("cerrarStand.tarjeta")} style={{ width: "100%", display: "block", maxHeight: 220, objectFit: "cover" }} />
-            {cardProcessing && (
-              <div style={{ position: "absolute", left: 12, bottom: 12, display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(10,14,23,0.8)", color: "#F1F5F9", borderRadius: 999, padding: "6px 12px", fontSize: 13 }}>
-                <Esqueleto ancho={14} alto={14} radio={7} estilo={{ background: paleta.accent }} />{t("cerrarStand.leyendo")}
-              </div>
-            )}
-            <button type="button" onClick={onQuitarTarjeta} aria-label={t("comun.borrar")} style={{ position: "absolute", top: 8, right: 8, width: alturas.tocable, height: alturas.tocable, borderRadius: radios.medio, border: "none", background: "rgba(10,14,23,0.6)", display: "grid", placeItems: "center", cursor: "pointer" }}>
-              <Icono nombre="cerrar" tamano={18} color="#F1F5F9" />
-            </button>
-          </div>
-        )}
+          <button type="button" onClick={() => cambiar("favorito")(!proveedor.favorito)} aria-pressed={!!proveedor.favorito} aria-label={proveedor.favorito ? t("cerrarStand.quitarFavorito") : t("cerrarStand.marcarFavorito")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${proveedor.favorito ? paleta.accent : paleta.border}`, background: proveedor.favorito ? paleta.accentSoft : paleta.card, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0, marginTop: 4 }}>
+            <Icono nombre="favorito" tamano={20} color={proveedor.favorito ? paleta.accentTexto : paleta.muted} />
+          </button>
+        </div>
 
         {/* Proveedor conocido: último y búsqueda */}
         {!vinculado && (ultimoProveedor || buscando) && (
@@ -97,58 +139,11 @@ export function CerrarStand({
           </div>
         )}
 
-        {/* Lo que leyó la IA, editable en el lugar */}
-        <Bloque>
-          <Campo etiqueta={t("cerrarStand.empresa")} valor={proveedor.name} onChange={cambiar("name")} />
-          <Campo etiqueta={t("cerrarStand.contacto")} valor={proveedor.contact} onChange={cambiar("contact")} />
-          <Campo etiqueta={t("cerrarStand.wechat")} valor={proveedor.wechat} onChange={cambiar("wechat")} />
-          <Campo etiqueta={t("cerrarStand.whatsapp")} valor={proveedor.whatsapp} onChange={cambiar("whatsapp")} />
-          <Campo etiqueta={t("cerrarStand.telefono")} valor={proveedor.phone} onChange={cambiar("phone")} />
-          <Campo etiqueta={t("cerrarStand.email")} valor={proveedor.email} onChange={cambiar("email")} />
-          <Campo etiqueta={t("cerrarStand.web")} valor={proveedor.website} onChange={cambiar("website")} />
-          <Campo etiqueta={t("cerrarStand.direccion")} valor={proveedor.address} onChange={cambiar("address")} />
-          <Campo etiqueta={t("cerrarStand.queVende")} valor={proveedor.products} onChange={cambiar("products")} />
-        </Bloque>
-
-        {/* Lo que se sabe justo acá: si te interesó, y comentarios (decisión de Nati, 16/09: favorito en producto y proveedor, nada más) */}
-        <Bloque>
-          <div style={{ padding: "10px 0 6px" }}>
-            <Chip activo={!!proveedor.favorito} onClick={() => cambiar("favorito")(!proveedor.favorito)} etiqueta={proveedor.favorito ? t("cerrarStand.quitarFavorito") : t("cerrarStand.marcarFavorito")}>
-              <Icono nombre="favorito" tamano={16} color={proveedor.favorito ? paleta.accentTexto : paleta.dim} />{t("cerrarStand.favorito")}
-            </Chip>
-          </div>
-          <Campo etiqueta={t("cerrarStand.comentarios")} valor={proveedor.notes} onChange={cambiar("notes")} multilinea placeholder={t("cerrarStand.comentariosPista")} />
-        </Bloque>
-
-        {/* Nota de voz del stand (4.6): se mantiene tal cual; se rediseña con la ficha del proveedor */}
-        {nota && (
-          <Bloque titulo={t("cerrarStand.notaDeVoz")}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0" }}>
-              <button type="button" onClick={nota.grabando ? nota.parar : nota.empezar} disabled={nota.sinDictado && !!nota.micError} aria-label={t("cerrarStand.notaDeVoz")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: "50%", border: "none", flexShrink: 0, background: nota.grabando ? paleta.red : paleta.accent, color: "#fff", cursor: "pointer", display: "grid", placeItems: "center", boxShadow: nota.grabando ? `0 0 0 4px ${paleta.redSoft}` : "none" }}>
-                <span style={{ width: nota.grabando ? 14 : 12, height: nota.grabando ? 14 : 18, borderRadius: nota.grabando ? 3 : 6, background: "#fff", display: "block" }} />
-              </button>
-              <div style={{ flex: 1, minWidth: 0, ...texto("pie") }}>
-                {nota.grabando
-                  ? <span style={{ color: paleta.red, fontWeight: 600 }}>{Math.floor(nota.segundos / 60)}:{String(nota.segundos % 60).padStart(2, "0")}</span>
-                  : nota.micError
-                    ? <span style={{ color: paleta.text }}>{nota.micError.titulo}</span>
-                    : <span style={{ color: nota.dictadoError ? paleta.red : paleta.muted }}>{nota.dictadoError ? nota.dictadoError : nota.sinDictado ? "Este teléfono no dicta; podés escribir la nota" : "Dictá la nota del stand y queda escrita"}</span>}
-              </div>
-              {(nota.transcripcion || nota.audioURL) && !nota.grabando && <Boton variante="fantasma" icono="borrar" onClick={nota.descartar} etiqueta={t("comun.borrar")} />}
-            </div>
-            {(nota.grabando || nota.transcripcion || nota.sinDictado) && (
-              <textarea value={nota.transcripcion} onChange={e => nota.editarTranscripcion(e.target.value)} rows={3} placeholder={nota.grabando ? "Hablá: lo que digas aparece acá…" : t("cerrarStand.notaDeVoz")}
-                style={{ ...texto("cuerpo", { fontWeight: 400 }), width: "100%", borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.surface, color: paleta.text, padding: "10px 12px", fontFamily: "inherit", resize: "none", marginBottom: 10, outline: "none" }} />
-            )}
-            {nota.audioURL && !nota.grabando && <audio src={nota.audioURL} controls style={{ width: "100%", height: 32, marginBottom: 10 }} />}
-          </Bloque>
-        )}
-
-        {/* Los productos de este stand */}
+        {/* 2. Las fotos del stand, enseguida: el proveedor es su catálogo */}
         {!soloProveedor && (
           <section>
-            <h3 style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: paleta.dim, margin: "6px 2px 10px" }}>{t("cerrarStand.productos", { count: itemsCount })}</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+            {seccion(t("cerrarStand.productos", { count: itemsCount }))}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
               {items.map(it => (
                 <div key={it.id} style={{ position: "relative", aspectRatio: "1", borderRadius: radios.medio, overflow: "hidden", background: paleta.card, border: `1px solid ${paleta.border}` }}>
                   <button type="button" onClick={() => onFotoAProducto?.(it.id)} aria-label={t("visor.masAngulo")} style={{ position: "absolute", inset: 0, border: "none", padding: 0, background: "transparent", cursor: "pointer" }}>
@@ -170,6 +165,54 @@ export function CerrarStand({
             </div>
           </section>
         )}
+
+        {/* 3. La tarjeta: de acá sale el contacto */}
+        {!cardPhoto ? (
+          <div style={{ display: "flex", gap: 8 }}>
+            <Boton variante="principal" icono="camara" ancho="total" onClick={onSacarTarjeta} estilo={{ flex: 1 }}>{t("cerrarStand.sacarTarjeta")}</Boton>
+            <Boton variante="secundario" icono="foto" onClick={onTarjetaDeGaleria} etiqueta={t("cerrarStand.galeria")} estilo={{ minHeight: alturas.botonPrincipal }} />
+          </div>
+        ) : (
+          <div style={{ position: "relative", borderRadius: radios.grande, overflow: "hidden", border: `1px solid ${paleta.border}`, background: paleta.card, boxShadow: paleta.sombraTarjeta }}>
+            <img src={cardPhoto} alt={t("cerrarStand.tarjeta")} style={{ width: "100%", display: "block", maxHeight: 200, objectFit: "cover" }} />
+            {cardProcessing && (
+              <div style={{ position: "absolute", left: 12, bottom: 12, display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(10,14,23,0.8)", color: "#F1F5F9", borderRadius: 999, padding: "6px 12px", fontSize: 13 }}>
+                <Esqueleto ancho={14} alto={14} radio={7} estilo={{ background: paleta.accent }} />{t("cerrarStand.leyendo")}
+              </div>
+            )}
+            <button type="button" onClick={onQuitarTarjeta} aria-label={t("comun.borrar")} style={{ position: "absolute", top: 8, right: 8, width: alturas.tocable, height: alturas.tocable, borderRadius: radios.medio, border: "none", background: "rgba(10,14,23,0.6)", display: "grid", placeItems: "center", cursor: "pointer" }}>
+              <Icono nombre="cerrar" tamano={18} color="#F1F5F9" />
+            </button>
+          </div>
+        )}
+
+        {/* 4. El contacto: solo lo que tiene dato; el resto, detrás de "Agregar un dato" */}
+        {(conDato.length > 0 || masDatos || sinDato.length > 0) && (
+          <Bloque>
+            {conDato.map(campo)}
+            {masDatos ? sinDato.map(campo) : sinDato.length > 0 && (
+              <button type="button" onClick={() => setMasDatos(true)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", minHeight: alturas.campo, padding: 0, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", ...texto("cuerpo", { fontWeight: 400 }), color: paleta.dim }}>
+                <span>{t("cerrarStand.agregarDato")}</span><Icono nombre="mas" tamano={18} color={paleta.dim} />
+              </button>
+            )}
+          </Bloque>
+        )}
+
+        {/* 5. Comentarios, uno solo, con micrófono */}
+        <Bloque titulo={t("cerrarStand.comentarios")}>
+          <Campo etiqueta={t("cerrarStand.comentarios")} valor={proveedor.notes} onChange={cambiar("notes")} multilinea apilado placeholder={t("cerrarStand.comentariosPista")} />
+          {nota && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0 6px" }}>
+              <Boton variante={nota.grabando ? "peligro" : "secundario"} icono={nota.grabando ? "cerrar" : "voz"} onClick={nota.grabando ? nota.parar : nota.empezar} deshabilitado={nota.sinDictado && !!nota.micError}>
+                {nota.grabando ? `${t("cerrarStand.parar")} · ${Math.floor(nota.segundos / 60)}:${String(nota.segundos % 60).padStart(2, "0")}` : t("cerrarStand.dictar")}
+              </Boton>
+              <span style={{ ...texto("pie"), color: nota.dictadoError ? paleta.red : paleta.muted, flex: 1, minWidth: 0 }}>
+                {nota.grabando ? (nota.transcripcion || t("cerrarStand.dictando")) : nota.micError ? nota.micError.titulo : nota.dictadoError ? nota.dictadoError : nota.sinDictado ? t("cerrarStand.sinDictado") : ""}
+              </span>
+            </div>
+          )}
+          {nota?.audioURL && !nota.grabando && <audio src={nota.audioURL} controls style={{ width: "100%", height: 32, margin: "0 0 10px" }} />}
+        </Bloque>
       </div>
 
       {/* Listo, siempre a mano */}

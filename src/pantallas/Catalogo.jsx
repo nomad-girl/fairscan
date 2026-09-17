@@ -69,7 +69,7 @@ export function Catalogo({
   const hayQueRevisar = deHoy.length > 0 && (resumen.sinPrecio > 0 || deHoy.some(p => !p.supplierId) || deHoy.some(p => p.favorito) || deHoy.length >= 3);
 
   const abrir = (p) => onNavigate?.("detail", p);
-  const nombreFeria = feria === "todas" ? t("catalogo.todasLasFerias") : `${activeDistrict?.emoji || ""} ${activeDistrict?.name || ""}`.trim();
+  const nombreFeria = feria === "todas" ? t("catalogo.todasLasFerias") : (activeDistrict?.name || "");
 
   // Función, no componente: un componente definido adentro del render es un tipo nuevo cada vez y React
   // desmonta y vuelve a montar la imagen (Nati, 16/09: "las fotos titilan").
@@ -247,7 +247,7 @@ export function Catalogo({
           <Fila onClick={() => { setFeria("todas"); setFeriaAbierta(false); }} seleccionada={feria === "todas"} titulo={t("catalogo.todasLasFerias")} subtitulo={t("catalogo.productos", { count: products.length })} />
           {[...districts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).map(d => (
             <Fila key={d.id} onClick={() => { onSwitchDistrict?.(d.id); setFeria("activa"); setFeriaAbierta(false); }} seleccionada={feria === "activa" && d.id === activeDistrictId}
-              miniatura={<span style={{ fontSize: 22 }}>{d.emoji || "📍"}</span>} titulo={d.name} subtitulo={`${d.location ? d.location + " · " : ""}${t("catalogo.productos", { count: products.filter(p => p.districtId === d.id).length })}`} />
+              miniatura={<Icono nombre="feria" tamano={22} color={paleta.muted} />} titulo={d.name} subtitulo={`${d.location ? d.location + " · " : ""}${t("catalogo.productos", { count: products.filter(p => p.districtId === d.id).length })}`} />
           ))}
           <Boton variante="secundario" ancho="total" onClick={() => { setFeriaAbierta(false); onNavigate?.("districts"); }}>{t("catalogo.ferias")} ›</Boton>
         </div>

@@ -90,7 +90,8 @@
     "delUltimoProducto": "El último producto que sacaste",
     "guardarYSeguir": "Guardar",
     "cerrarSinDatos": "Cerrar sin cargar nada",
-    "campoPiezasCorto": "Piezas/caja"
+    "campoPiezasCorto": "Piezas/caja",
+    "campoCbmCorto": "CBM"
   },
   "cerrarStand": {
     "titulo": "Cerrar stand",
@@ -134,7 +135,16 @@
     "descartar": "Descartar",
     "favorito": "Favorito",
     "marcarFavorito": "Marcar como favorito",
-    "quitarFavorito": "Quitar de favoritos"
+    "quitarFavorito": "Quitar de favoritos",
+    "nombreEmpresa": "Nombre de la empresa",
+    "sinNombre": "Empresa sin nombre",
+    "vendedor": "Vendedor",
+    "agregarVendedor": "Agregar el nombre del vendedor",
+    "agregarDato": "Agregar un dato",
+    "dictar": "Dictar",
+    "parar": "Parar",
+    "dictando": "Hablá: lo que digas se agrega a los comentarios",
+    "sinDictado": "Este teléfono no dicta; podés escribir"
   },
   "catalogo": {
     "titulo": "Catálogo",

@@ -8,7 +8,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 
-export function Campo({ etiqueta, valor, onChange, tipo = "texto", sufijo, placeholder, multilinea = false, soloLectura = false, estilo }) {
+export function Campo({ etiqueta, valor, onChange, tipo = "texto", sufijo, placeholder, multilinea = false, soloLectura = false, apilado = false, estilo }) {
   const { paleta, alturas, texto } = useSistema();
   const { t } = useTranslation();
   const [editando, setEditando] = useState(false);
@@ -26,7 +26,10 @@ export function Campo({ etiqueta, valor, onChange, tipo = "texto", sufijo, place
     if (nuevo !== valor) onChange?.(nuevo);
   };
 
-  const filaBase = { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, minHeight: alturas.campo, borderBottom: `1px solid ${paleta.border}`, ...estilo };
+  // Apilado (17/09, Nati: "el mail se ve raro"): etiqueta arriba y el valor abajo a todo el ancho, para mails, webs y direcciones.
+  const filaBase = apilado
+    ? { display: "flex", flexDirection: "column", alignItems: "stretch", gap: 2, padding: "8px 0", borderBottom: `1px solid ${paleta.border}`, ...estilo }
+    : { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, minHeight: alturas.campo, borderBottom: `1px solid ${paleta.border}`, ...estilo };
 
   if (!editando) {
     return (
@@ -37,7 +40,7 @@ export function Campo({ etiqueta, valor, onChange, tipo = "texto", sufijo, place
         style={{ ...filaBase, width: "100%", background: "none", border: "none", borderBottom: filaBase.borderBottom, padding: 0, textAlign: "left", cursor: soloLectura ? "default" : "pointer", fontFamily: "inherit", WebkitTapHighlightColor: "transparent" }}
       >
         <span style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted, flexShrink: 0 }}>{etiqueta}</span>
-        <span style={{ ...texto("cuerpo", { fontWeight: vacio ? 400 : 600 }), color: vacio ? paleta.dim : paleta.text, textAlign: "right", minWidth: 0, overflowWrap: "anywhere" }}>
+        <span style={{ ...texto("cuerpo", { fontWeight: vacio ? 400 : 600 }), color: vacio ? paleta.dim : paleta.text, textAlign: apilado ? "left" : "right", minWidth: 0, overflowWrap: "anywhere" }}>
           {vacio ? t("componentes.campo.vacio") : `${valor}${sufijo ? ` ${sufijo}` : ""}`}
         </span>
       </button>
@@ -49,7 +52,7 @@ export function Campo({ etiqueta, valor, onChange, tipo = "texto", sufijo, place
     onChange: e => setBorrador(e.target.value),
     onBlur: confirmar,
     onKeyDown: e => { if (e.key === "Enter" && !multilinea) { e.preventDefault(); confirmar(); } if (e.key === "Escape") { setBorrador(valor ?? ""); setEditando(false); } },
-    style: { ...texto("cuerpo"), flex: 1, minWidth: 0, textAlign: "right", background: paleta.surface, color: paleta.text, border: `1px solid ${paleta.accent}`, borderRadius: 10, padding: "8px 10px", fontFamily: "inherit", outline: "none" },
+    style: { ...texto("cuerpo"), flex: 1, minWidth: 0, textAlign: apilado ? "left" : "right", background: paleta.surface, color: paleta.text, border: `1px solid ${paleta.accent}`, borderRadius: 10, padding: "8px 10px", fontFamily: "inherit", outline: "none" },
   };
 
   return (

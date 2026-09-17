@@ -21,7 +21,6 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
   const [guardado, setGuardado] = useState(false);
   const [eligiendoProveedor, setEligiendoProveedor] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
-  const [bultoAbierto, setBultoAbierto] = useState(false);
   const scrollRef = useRef(null);
   const fileRef = useRef(null);
   const touchRef = useRef(null);
@@ -32,7 +31,6 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
   const prev = idx > 0 ? allProducts[idx - 1] : null;
   const next = idx >= 0 && idx < allProducts.length - 1 ? allProducts[idx + 1] : null;
   const fotos = p.photos || [];
-  const hayBulto = p.piezasPorCaja != null || p.cbmPorCaja != null;
 
   const audioSrc = useMemo(() => urlDeAudio(p.audio) || (esPunteroMuerto(p.audioURL) ? null : p.audioURL || null), [p.audio, p.audioURL]);
   useEffect(() => () => { if (audioSrc?.startsWith("blob:")) URL.revokeObjectURL(audioSrc); }, [audioSrc]);
@@ -118,7 +116,7 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
             <span style={{ ...texto("grande"), color: p.price ? paleta.green : paleta.dim, fontVariantNumeric: "tabular-nums" }}>{p.price ? `${moneda} ${p.price}` : "—"}</span>
             <p style={{ ...texto("pie"), color: paleta.muted, margin: "2px 0 0" }}>{[p.moq ? `MOQ ${p.moq}${p.moqBase ? " " + t(`ficha.basePor${p.moqBase[0].toUpperCase()}${p.moqBase.slice(1)}`) : ""}` : null, p.category].filter(Boolean).join(" · ")}</p>
           </div>
-          {district && <span style={{ ...texto("pie"), color: paleta.dim, textAlign: "right" }}>{district.emoji} {district.name}<br />{t("ficha.capturado", { cuando: haceCuanto(p.createdAt) })}</span>}
+          {district && <span style={{ ...texto("pie"), color: paleta.dim, textAlign: "right" }}>{district.name}<br />{t("ficha.capturado", { cuando: haceCuanto(p.createdAt) })}</span>}
         </div>
 
         {/* Proveedor */}
@@ -148,20 +146,11 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
               <Segmentado etiqueta={t("ficha.moqBase")} valor={p.moqBase || null} onChange={v => guardar({ moqBase: v })} opciones={[{ valor: "producto", texto: t("ficha.basePorProducto") }, { valor: "caja", texto: t("ficha.basePorCaja") }, { valor: "pedido", texto: t("ficha.basePorPedido") }]} />
             </div>
           )}
+          {settings?.datosDeCompra?.piezasPorCaja !== false && <Campo etiqueta={t("ficha.piezasPorCaja")} valor={p.piezasPorCaja} tipo="numero" onChange={v => guardar({ piezasPorCaja: v })} />}
+          {settings?.datosDeCompra?.cbmPorCaja !== false && <Campo etiqueta={t("ficha.cbmPorCaja")} valor={p.cbmPorCaja} tipo="numero" sufijo="CBM" onChange={v => guardar({ cbmPorCaja: v })} />}
           <Campo etiqueta={t("ficha.notas")} valor={p.notes} onChange={v => guardar({ notes: v })} multilinea />
         </Bloque>
 
-        {/* Datos del bulto: una línea hasta que se carga (decisión de Nati) */}
-        {(hayBulto || bultoAbierto) ? (
-          <Bloque titulo={t("ficha.datosDelBulto")}>
-            <Campo etiqueta={t("ficha.piezasPorCaja")} valor={p.piezasPorCaja} tipo="numero" onChange={v => guardar({ piezasPorCaja: v })} />
-            <Campo etiqueta={t("ficha.cbmPorCaja")} valor={p.cbmPorCaja} tipo="numero" sufijo="CBM" onChange={v => guardar({ cbmPorCaja: v })} />
-          </Bloque>
-        ) : (
-          <button type="button" onClick={() => setBultoAbierto(true)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", minHeight: alturas.tocable, padding: "0 14px", borderRadius: radios.grande, border: `1px dashed ${paleta.border}`, background: "transparent", color: paleta.dim, cursor: "pointer", fontFamily: "inherit", ...texto("cuerpo", { fontWeight: 400 }) }}>
-            <span>{t("ficha.datosDelBulto")}</span><span>{t("componentes.campo.vacio")}</span>
-          </button>
-        )}
 
         {/* La IA no pudo */}
         {estadoIA(p) === "fallo" && (

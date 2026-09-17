@@ -82,7 +82,16 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
     </>
   );
   const eliminar = (p) => { onEliminar?.(p); setBorrados(prev => new Set([...prev, p.id])); siguiente(); };
-  const botonEliminar = (p) => <Boton variante="fantasma" ancho="total" icono="borrar" onClick={() => eliminar(p)} etiqueta={`${t("revisar.eliminar")} ${p.name || ""}`.trim()}>{t("revisar.eliminar")}</Boton>;
+  const cabeceraProducto = (p) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ width: 88, height: 88, borderRadius: radios.medio, overflow: "hidden", background: paleta.surface, flexShrink: 0 }}>{miniatura(p)}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ ...texto("cuerpo", { fontWeight: 600 }), margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name || "—"}</p>
+        <p style={{ ...texto("pie"), color: paleta.muted, margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{suppliers.find(s => s.id === p.supplierId)?.company || p.supplierCompany || "—"} · {horaDe(p.createdAt)}</p>
+      </div>
+      <button type="button" onClick={() => eliminar(p)} aria-label={`${t("revisar.eliminar")} ${p.name || ""}`.trim()} style={{ width: alturas.tocable, height: alturas.tocable, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.surface, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}><Icono nombre="borrar" tamano={18} color={paleta.red} /></button>
+    </div>
+  );
 
   const teclas = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ",", "0", "⌫"];
   const tocar = k => setValor(v => k === "⌫" ? v.slice(0, -1) : k === "," ? (v.includes(".") ? v : (v || "0") + ".") : v.replace(".", "").length < 7 ? v + k : v);
@@ -146,15 +155,14 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
 
         {actual?.tipo === "precio" && (
           <>
-            {pregunta(t("revisar.aCuantoEstaba"), `${actual.p.name || "—"} · ${suppliers.find(s => s.id === actual.p.supplierId)?.company || actual.p.supplierCompany || "—"} · ${horaDe(actual.p.createdAt)}`)}
+            {pregunta(t("revisar.aCuantoEstaba"))}
             {tarjeta(<>
-              <div style={{ aspectRatio: "4/3", borderRadius: radios.medio, overflow: "hidden", background: paleta.surface }}>{miniatura(actual.p)}</div>
+              {cabeceraProducto(actual.p)}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "0 4px" }}><span style={{ ...texto("pie"), color: paleta.dim }}>USD</span><b style={{ ...texto("grande"), color: valor ? paleta.green : paleta.dim, fontVariantNumeric: "tabular-nums" }}>{valor || "0"}</b></div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
-                {teclas.map(k => <button key={k} type="button" onClick={() => tocar(k)} aria-label={k === "⌫" ? t("comun.borrar") : k} style={{ minHeight: alturas.tocable, borderRadius: radios.chico, border: `1px solid ${paleta.border}`, background: paleta.surface, color: paleta.text, fontSize: 20, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", WebkitTapHighlightColor: "transparent" }}>{k}</button>)}
+                {teclas.map(k => <button key={k} type="button" onClick={() => tocar(k)} aria-label={k === "⌫" ? t("comun.borrar") : k} style={{ minHeight: 42, borderRadius: radios.chico, border: `1px solid ${paleta.border}`, background: paleta.surface, color: paleta.text, fontSize: 20, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", WebkitTapHighlightColor: "transparent" }}>{k}</button>)}
               </div>
               {dosBotones({ onSaltar: siguiente, onListo: confirmarPrecio })}
-              {botonEliminar(actual.p)}
             </>)}
           </>
         )}
@@ -163,13 +171,11 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
           <>
             {pregunta(t("revisar.deQueProveedor"), t("revisar.estabaEnEseStand", { hora: horaDe(actual.p.createdAt) }))}
             {tarjeta(<>
-              <div style={{ aspectRatio: "4/3", borderRadius: radios.medio, overflow: "hidden", background: paleta.surface }}>{miniatura(actual.p)}</div>
-              <p style={{ ...texto("cuerpo", { fontWeight: 600 }), margin: 0, textAlign: "center" }}>{actual.p.name || "—"}</p>
+              {cabeceraProducto(actual.p)}
               <FilaDeChips estilo={{ flexWrap: "wrap", overflow: "visible", justifyContent: "center" }}>
                 {proveedoresDeHoy.map(s => <Chip key={s.id} onClick={() => elegirProveedor(s)}>{s.company || `#${s.id}`}</Chip>)}
               </FilaDeChips>
               {dosBotones({ onSaltar: siguiente, onListo: siguiente, listoActivo: false })}
-              {botonEliminar(actual.p)}
             </>)}
           </>
         )}
