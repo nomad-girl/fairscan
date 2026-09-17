@@ -7,7 +7,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Bloque, Campo, Icono, Hoja } from "../componentes/index.js";
+import { Boton, Bloque, Campo, Icono, Hoja, GrillaDeFotos, CeldaDeFoto } from "../componentes/index.js";
 import { urlDeAudio } from "../lib/audioNotes.js";
 import { elegirMiniatura } from "../lib/miniaturas.js";
 import { pedidoDeProveedor, productosParaPedido, totalesDePedido } from "../lib/pedidos.js";
@@ -98,18 +98,9 @@ export function FichaProveedor({ supplier: s, products = [], pedidos = [], distr
           {suyos.length === 0 ? (
             <p style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted, margin: "0 0 8px" }}>{t("proveedor.sinProductos")}</p>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
-              {suyos.map(p => (
-                <button key={p.id} type="button" onClick={() => onNavigateProduct?.(p)} aria-label={p.name || t("pedido.sinNombre")} style={{ position: "relative", aspectRatio: "1", borderRadius: radios.medio, overflow: "hidden", border: `1px solid ${paleta.border}`, background: paleta.surface, padding: 0, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
-                  {miniatura(p)}
-                  {p.favorito ? <span style={{ position: "absolute", top: 5, right: 5, width: 22, height: 22, borderRadius: 6, background: "rgba(10,14,23,0.6)", display: "grid", placeItems: "center" }}><Icono nombre="favorito" tamano={13} color="#FFB48A" /></span> : null}
-                  <span style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "14px 6px 5px", background: "linear-gradient(transparent, rgba(10,14,23,0.75))", color: "#fff", textAlign: "left" }}>
-                    <span style={{ display: "block", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name || "…"}</span>
-                    {p.price && <span style={{ fontSize: 11, fontWeight: 700, color: "#86EFAC", fontVariantNumeric: "tabular-nums" }}>{moneda} {p.price}</span>}
-                  </span>
-                </button>
-              ))}
-            </div>
+            <GrillaDeFotos>
+              {suyos.map(p => <CeldaDeFoto key={p.id} onClick={() => onNavigateProduct?.(p)} etiqueta={p.name || t("pedido.sinNombre")} favorito={!!p.favorito} fotos={p.photos?.length || 0}>{miniatura(p)}</CeldaDeFoto>)}
+            </GrillaDeFotos>
           )}
           {onAddProduct && <div style={{ marginTop: 8 }}><Boton variante="fantasma" icono="camara" onClick={onAddProduct}>{t("proveedor.agregarProducto")}</Boton></div>}
         </section>

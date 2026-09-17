@@ -10,3 +10,4 @@ export { Hoja } from "./Hoja.jsx";
 export { Aviso } from "./Aviso.jsx";
 export { Esqueleto, CSS_ESQUELETO } from "./Esqueleto.jsx";
 export { Icono, NOMBRES_DE_ICONOS } from "./Icono.jsx";
+export { GrillaDeFotos, CeldaDeFoto, CarruselDeFotos } from "./Grilla.jsx";

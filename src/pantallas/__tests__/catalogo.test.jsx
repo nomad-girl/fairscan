@@ -30,10 +30,11 @@ describe("Catálogo", () => {
     const onPestana = vi.fn();
     con(<Catalogo products={products} suppliers={suppliers} districts={districts} activeDistrictId={1} activeDistrict={districts[0]} pestana="todo" onPestana={onPestana} enLinea={false} />);
     expect(screen.getByRole("status").textContent).toContain("1 sin nombre · se completa cuando vuelva la señal");
-    expect(screen.getByText("Taza de cerámica blanca")).toBeTruthy();
+    // Grilla literal Instagram (17/09): sin texto encima; el nombre queda como etiqueta accesible de la celda
+    expect(screen.getByRole("button", { name: "Taza de cerámica blanca" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Favoritos/ }));
-    expect(screen.queryByText("Auriculares vincha")).toBeNull();
-    expect(screen.getByText("Vela vieja")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Auriculares vincha" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Vela vieja" })).toBeTruthy();
   });
   it("la búsqueda no distingue tildes y en Proveedores encuentra por contacto", () => {
     const onNavigate = vi.fn();
@@ -49,6 +50,8 @@ describe("Catálogo", () => {
     const onRevisarDia = vi.fn();
     con(<Catalogo products={products} suppliers={suppliers} districts={districts} activeDistrictId={1} activeDistrict={districts[0]} pestana="hoy" onRevisarDia={onRevisarDia} />);
     expect(screen.getByText(/3 productos · 1 proveedor/)).toBeTruthy();
+    expect(screen.getAllByRole("article").length).toBe(3); // el feed del día: una publicación por producto
+    expect(screen.getByText("Taza de cerámica blanca")).toBeTruthy(); // el nombre, como pie de la publicación
     fireEvent.click(screen.getByText(/Revisar el día/));
     expect(onRevisarDia).toHaveBeenCalled();
   });
