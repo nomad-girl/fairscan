@@ -99,6 +99,7 @@ import { Visor } from './pantallas/Visor.jsx';
 import { CerrarStand } from './pantallas/CerrarStand.jsx';
 import { Catalogo } from './pantallas/Catalogo.jsx';
 import { RevisarDia } from './pantallas/RevisarDia.jsx';
+import { FichaProducto } from './pantallas/FichaProducto.jsx';
 import { vibrarObturador } from './sistema/vibrar.js';
 import { serializarAudio, urlDeAudio, esPunteroMuerto } from './lib/audioNotes.js';
 import { crearPapelera } from './lib/deshacer.js';
@@ -1370,13 +1371,13 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   // en precio durante tres segundos; arriba están MOQ (con base), piezas por caja,
   // CBM y la estrella de favorito. Tocar cualquier cosa lo deja abierto hasta Listo.
   // Nada se precarga entre productos: cada producto tiene su caja.
-  const PRECIO_RAPIDO_MS = 3000;
+  // Nati (16/09, al probarlo): "que no se vaya": el teclado queda hasta que lo cerrás
+  // (equis, Listo) o hasta la próxima foto, que guarda lo que pusiste y abre el suyo.
   const [datosRapidos, setDatosRapidos] = useState(null); // { id, campo, valores:{price,moq,piezasPorCaja,cbmPorCaja}, moqBase, favorito, tocado }
-  const precioTimerRef = useRef(null);
+  const precioTimerRef = useRef(null); // ya no hay temporizador; queda por si vuelve
   const ofrecerPrecio = (id) => {
     clearTimeout(precioTimerRef.current);
     setDatosRapidos({ id, campo: "price", valores: {}, moqBase: null, favorito: false, tocado: false });
-    precioTimerRef.current = setTimeout(() => setDatosRapidos(d => (d && !d.tocado && !Object.values(d.valores).some(Boolean) ? null : d)), PRECIO_RAPIDO_MS);
   };
   const tocarPrecio = (tecla) => {
     clearTimeout(precioTimerRef.current);
@@ -4645,9 +4646,10 @@ export default function App() {
           initialSupplier={screenData?.fromSupplierId != null ? suppliers.find(s => s.id === screenData.fromSupplierId) || null : null} />
       )}
       {screen === "detail" && screenData && (
-        <ProductDetail key={screenData.id} product={products.find(p => p.id === screenData.id) || screenData} allProducts={products} suppliers={suppliers} districts={districts}
+        <FichaProducto key={screenData.id} product={products.find(p => p.id === screenData.id) || screenData} allProducts={products} suppliers={suppliers} districts={districts}
+          settings={settings} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"}
           onBack={goBack} onUpdate={(id, changes) => { handleUpdateProduct(id, changes); }} onAddPhoto={agregarFotoAProducto} onDelete={handleDeleteProduct}
-          onNavigateSupplier={s => navigate("supplier", s)} onNavigateProduct={p => { setScreenData(p); }} t={t} isDark={isDark} settings={settings} />
+          onNavigateSupplier={s => navigate("supplier", s)} onNavigateProduct={p => { setScreenData(p); }} />
       )}
       {screen === "revisar" && (
         <RevisarDia productosDeHoy={soloDeHoy(activeDistrictId ? products.filter(p => p.districtId === activeDistrictId) : products)} suppliers={suppliers}

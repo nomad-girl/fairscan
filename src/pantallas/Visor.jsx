@@ -107,45 +107,50 @@ export function Visor({
         </div>
       )}
 
-      {/* Teclado ampliado (decisión 2, 16/09): se abre solo en precio; arriba, los otros datos y la estrella */}
+      {/* Teclado ampliado (decisión 2 del 16/09, ajustado por Nati al probarlo): precio grande y solo por
+          defecto; abajo, en chico, los otros datos y la estrella; tocar uno cambia toda la tarjeta a ese dato.
+          No se va sola: se cierra con la equis, con Listo, o con la próxima foto (que guarda lo puesto). */}
       {datos && !esTarjeta && (() => {
-        const campos = [["price", t("visor.campoPrecio")], ["moq", t("visor.campoMoq")], ["piezasPorCaja", t("visor.campoPiezas")], ["cbmPorCaja", t("visor.campoCbm")]];
+        const campos = { price: t("visor.campoPrecio"), moq: t("visor.campoMoq"), piezasPorCaja: t("visor.campoPiezas"), cbmPorCaja: t("visor.campoCbm") };
         const valorActual = datos.valores[datos.campo] || "";
         const prefijo = datos.campo === "price" ? `${moneda} ` : "";
-        const sufijo = datos.campo === "cbmPorCaja" ? " CBM" : datos.campo === "piezasPorCaja" ? " pzs" : "";
+        const sufijo = datos.campo === "cbmPorCaja" ? " CBM" : "";
+        const enPrecio = datos.campo === "price";
+        const hayAlgo = Object.values(datos.valores).some(Boolean) || datos.favorito;
         return (
-          <div onClick={e => e.stopPropagation()} style={{ position: "absolute", left: 14, right: 14, bottom: 148, zIndex: 5, background: "rgba(10,14,23,0.9)", backdropFilter: "blur(12px)", borderRadius: 20, padding: "12px 12px 10px", maxWidth: 380, margin: "0 auto", display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "0 4px" }}>
-              <div><div style={{ fontSize: 13, fontWeight: 600, color: BLANCO }}>{t("visor.datosDelUltimo")}</div><div style={{ fontSize: 12, color: BLANCO_SUAVE }}>{datos.campo === "moq" ? t("visor.moqPista") : datos.tocado ? " " : t("visor.seVaSolo")}</div></div>
-              <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: valorActual ? "#22C55E" : BLANCO_SUAVE }}>{prefijo}{valorActual || "0"}{sufijo}</div>
+          <div onClick={e => e.stopPropagation()} role="dialog" aria-label={t("visor.datosDelUltimo")} style={{ position: "absolute", left: 14, right: 14, bottom: 148, zIndex: 5, background: "rgba(10,14,23,0.92)", backdropFilter: "blur(12px)", borderRadius: 20, padding: "10px 12px 10px", maxWidth: 380, margin: "0 auto", display: "flex", flexDirection: "column", gap: 10 }}>
+            {/* Cabecera: qué dato, valor grande, cerrar */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {!enPrecio && <button type="button" onClick={() => onCampo?.("price")} aria-label={t("visor.volverAPrecio")} style={{ width: 36, height: 36, borderRadius: 10, border: "none", background: "rgba(241,245,249,0.12)", color: BLANCO, cursor: "pointer", display: "grid", placeItems: "center" }}><Icono nombre="volver" tamano={18} color={BLANCO} /></button>}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: BLANCO_SUAVE }}>{enPrecio ? t("visor.datosDelUltimo") : campos[datos.campo]}</div>
+                <div style={{ fontSize: 30, fontWeight: 700, lineHeight: 1.1, fontVariantNumeric: "tabular-nums", color: valorActual ? "#22C55E" : BLANCO }}>{prefijo}{valorActual || "0"}{sufijo}</div>
+                {datos.campo === "moq" && <div style={{ fontSize: 12, color: BLANCO_SUAVE }}>{t("visor.moqPista")}</div>}
+              </div>
+              <button type="button" onClick={onConfirmarPrecio} aria-label={t("visor.cerrarTeclado")} style={{ width: alturas.tocable, height: alturas.tocable, borderRadius: 12, border: "none", background: "rgba(241,245,249,0.12)", color: BLANCO, cursor: "pointer", display: "grid", placeItems: "center" }}><Icono nombre="cerrar" tamano={20} color={BLANCO} /></button>
             </div>
-            <div role="tablist" style={{ display: "flex", gap: 4 }}>
-              {campos.map(([k, etiqueta]) => {
-                const activo = datos.campo === k; const lleno = !!datos.valores[k];
-                return (
-                  <button key={k} type="button" role="tab" aria-selected={activo} onClick={() => onCampo?.(k)} style={{ flex: 1, minHeight: 34, borderRadius: 999, border: "none", fontSize: 11.5, fontWeight: 600, lineHeight: 1.1, padding: "0 4px", cursor: "pointer", fontFamily: "inherit", WebkitTapHighlightColor: "transparent",
-                    background: activo ? MARCA.naranja : lleno ? "rgba(34,197,94,0.22)" : "rgba(241,245,249,0.10)", color: activo ? "#fff" : lleno ? "#86EFAC" : BLANCO_SUAVE }}>
-                    {lleno && !activo ? `✓ ${datos.valores[k]}` : etiqueta}
-                  </button>
-                );
-              })}
-              <button type="button" onClick={onFavorito} aria-pressed={!!datos.favorito} aria-label={datos.favorito ? t("visor.quitarFavorito") : t("visor.marcarFavorito")} style={{ flex: "0 0 40px", minHeight: 34, borderRadius: 999, border: "none", background: datos.favorito ? MARCA.naranja : "rgba(241,245,249,0.10)", color: datos.favorito ? "#fff" : BLANCO_SUAVE, cursor: "pointer", display: "grid", placeItems: "center" }}>
-                <Icono nombre="favorito" tamano={16} color={datos.favorito ? "#fff" : BLANCO_SUAVE} />
-              </button>
-            </div>
+            {/* Solo en MOQ: la base, grande */}
             {datos.campo === "moq" && (
-              <div role="radiogroup" aria-label={t("visor.campoMoq")} style={{ display: "flex", gap: 4 }}>
+              <div role="radiogroup" aria-label={t("visor.campoMoq")} style={{ display: "flex", gap: 6 }}>
                 {[["producto", t("visor.basePorProducto")], ["caja", t("visor.basePorCaja")], ["pedido", t("visor.basePorPedido")]].map(([b, etiqueta]) => (
-                  <button key={b} type="button" role="radio" aria-checked={datos.moqBase === b} onClick={() => onMoqBase?.(b)} style={{ flex: 1, minHeight: 30, borderRadius: 999, border: `1px solid ${datos.moqBase === b ? MARCA.naranja : "rgba(241,245,249,0.25)"}`, background: datos.moqBase === b ? "rgba(234,90,34,0.25)" : "transparent", color: datos.moqBase === b ? "#fff" : BLANCO_SUAVE, fontSize: 11, fontWeight: datos.moqBase === b ? 600 : 500, cursor: "pointer", fontFamily: "inherit" }}>{etiqueta}</button>
+                  <button key={b} type="button" role="radio" aria-checked={datos.moqBase === b} onClick={() => onMoqBase?.(b)} style={{ flex: 1, minHeight: alturas.tocable, borderRadius: 999, border: `1px solid ${datos.moqBase === b ? MARCA.naranja : "rgba(241,245,249,0.25)"}`, background: datos.moqBase === b ? MARCA.naranja : "transparent", color: BLANCO, fontSize: 14, fontWeight: datos.moqBase === b ? 700 : 500, cursor: "pointer", fontFamily: "inherit" }}>{etiqueta}</button>
                 ))}
               </div>
             )}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
               {teclas.map(k => (
-                <button key={k} type="button" onClick={() => onTeclaPrecio?.(k)} aria-label={k === "⌫" ? t("comun.borrar") : k} style={{ minHeight: alturas.tocable, borderRadius: 12, border: "none", background: "rgba(241,245,249,0.12)", color: BLANCO, fontSize: 20, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", WebkitTapHighlightColor: "transparent" }}>{k}</button>
+                <button key={k} type="button" onClick={() => onTeclaPrecio?.(k)} aria-label={k === "⌫" ? t("comun.borrar") : k} style={{ minHeight: 46, borderRadius: 12, border: "none", background: "rgba(241,245,249,0.12)", color: BLANCO, fontSize: 22, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", WebkitTapHighlightColor: "transparent" }}>{k}</button>
               ))}
             </div>
-            <button type="button" onClick={onConfirmarPrecio} style={{ width: "100%", minHeight: alturas.tocable, borderRadius: 12, border: "none", background: Object.values(datos.valores).some(Boolean) || datos.favorito ? "#15803D" : "rgba(241,245,249,0.12)", color: BLANCO, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{t("visor.listo")}</button>
+            <button type="button" onClick={onConfirmarPrecio} style={{ width: "100%", minHeight: alturas.tocable, borderRadius: 12, border: "none", background: hayAlgo ? "#15803D" : "rgba(241,245,249,0.12)", color: BLANCO, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{t("visor.listo")}</button>
+            {/* Abajo, en chico: los otros datos y la estrella */}
+            <div role="tablist" aria-label={t("visor.otrosDatos")} style={{ display: "flex", gap: 6, alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
+              {Object.entries(campos).filter(([k]) => k !== datos.campo).map(([k, etiqueta]) => {
+                const lleno = !!datos.valores[k];
+                return <button key={k} type="button" role="tab" aria-selected={false} onClick={() => onCampo?.(k)} style={{ minHeight: 32, padding: "0 10px", borderRadius: 999, border: "none", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", background: lleno ? "rgba(34,197,94,0.22)" : "rgba(241,245,249,0.08)", color: lleno ? "#86EFAC" : BLANCO_SUAVE }}>{lleno ? `✓ ${etiqueta} ${datos.valores[k]}` : etiqueta}</button>;
+              })}
+              <button type="button" onClick={onFavorito} aria-pressed={!!datos.favorito} aria-label={datos.favorito ? t("visor.quitarFavorito") : t("visor.marcarFavorito")} style={{ minHeight: 32, padding: "0 10px", borderRadius: 999, border: "none", background: datos.favorito ? MARCA.naranja : "rgba(241,245,249,0.08)", color: datos.favorito ? "#fff" : BLANCO_SUAVE, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, fontFamily: "inherit" }}><Icono nombre="favorito" tamano={14} color={datos.favorito ? "#fff" : BLANCO_SUAVE} />{t("visor.favorito")}</button>
+            </div>
           </div>
         );
       })()}

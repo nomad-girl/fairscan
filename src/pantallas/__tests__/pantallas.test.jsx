@@ -62,7 +62,9 @@ describe("Visor", () => {
     fireEvent.click(screen.getByRole("button", { name: "Marcar como favorito" }));
     expect(onFavorito).toHaveBeenCalled();
     fireEvent.click(screen.getByText("Listo"));
-    expect(onConfirmar).toHaveBeenCalled();
+    expect(onConfirmar).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Cerrar" })); // la equis también cierra guardando
+    expect(onConfirmar).toHaveBeenCalledTimes(2);
   });
   it("en MOQ aparece la base por producto / caja / pedido y los datos cargados se ven con tilde", () => {
     const onMoqBase = vi.fn();
@@ -70,8 +72,9 @@ describe("Visor", () => {
     expect(screen.getByRole("radio", { name: "por caja", checked: true })).toBeTruthy();
     fireEvent.click(screen.getByRole("radio", { name: "por pedido" }));
     expect(onMoqBase).toHaveBeenCalledWith("pedido");
-    expect(screen.getByRole("tab", { name: "✓ 0.85" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "✓ Precio 0.85" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Quitar de favoritos" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Precio" })).toBeTruthy(); // volver al precio
   });
 });
 
