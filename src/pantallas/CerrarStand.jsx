@@ -192,6 +192,11 @@ export function CerrarStand({
             <button type="button" onClick={onQuitarTarjeta} aria-label={t("comun.borrar")} style={{ position: "absolute", top: 8, right: 8, width: alturas.tocable, height: alturas.tocable, borderRadius: radios.medio, border: "none", background: "rgba(10,14,23,0.6)", display: "grid", placeItems: "center", cursor: "pointer" }}>
               <Icono nombre="cerrar" tamano={18} color="#F1F5F9" />
             </button>
+            {!cardProcessing && (
+              <button type="button" onClick={() => { onQuitarTarjeta?.(); onSacarTarjeta?.(); }} style={{ position: "absolute", right: 10, bottom: 10, minHeight: alturas.tocable, padding: "0 12px", borderRadius: radios.medio, border: "none", background: "rgba(10,14,23,0.7)", color: "#F1F5F9", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontFamily: "inherit", ...texto("pie", { fontWeight: 600 }) }}>
+                <Icono nombre="camara" tamano={16} color="#F1F5F9" />{t("cerrarStand.sacarDeNuevo")}
+              </button>
+            )}
           </div>
         )}
 

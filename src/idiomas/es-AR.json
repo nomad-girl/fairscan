@@ -146,7 +146,8 @@
     "dictando": "Hablá: lo que digas se agrega a los comentarios",
     "sinDictado": "Este teléfono no dicta; podés escribir",
     "pedirTarjetaTitulo": "Sacale una foto a la tarjeta del proveedor",
-    "pedirTarjetaTexto": "De la tarjeta salen el nombre, el vendedor y el contacto. Sin tarjeta, podés escribirlos abajo."
+    "pedirTarjetaTexto": "De la tarjeta salen el nombre, el vendedor y el contacto. Sin tarjeta, podés escribirlos abajo.",
+    "sacarDeNuevo": "Sacar de nuevo"
   },
   "catalogo": {
     "titulo": "Catálogo",

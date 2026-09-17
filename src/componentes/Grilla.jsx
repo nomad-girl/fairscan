@@ -37,10 +37,11 @@ export function CarruselDeFotos({ fotos = [], respaldos = [], Foto, tLegacy, onT
     ? <Foto src={src} respaldo={respaldos[k] || respaldos[0] || (typeof src === "string" && src.startsWith("http") ? src : null)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
     : <img src={src || respaldos[k]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />;
   return (
-    <div style={{ position: "relative", background: paleta.surface }}>
-      <div ref={ref} onScroll={onScroll} style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}>
+    <div style={{ position: "relative", aspectRatio: relacion, width: "100%", background: paleta.surface }}>
+      {/* La proporción va en el marco y la fila deslizable lo llena: en Safari, aspect-ratio en los hijos de la fila se aplastaba */}
+      <div ref={ref} onScroll={onScroll} style={{ position: "absolute", inset: 0, display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}>
         {(fotos.length ? fotos : [null]).map((f, k) => (
-          <button key={k} type="button" onClick={onTocar} aria-label={etiqueta} style={{ width: "100%", aspectRatio: relacion, flexShrink: 0, scrollSnapAlign: "start", border: "none", padding: 0, background: paleta.surface, cursor: onTocar ? "pointer" : "default", WebkitTapHighlightColor: "transparent" }}>
+          <button key={k} type="button" onClick={onTocar} aria-label={etiqueta} style={{ width: "100%", height: "100%", flexShrink: 0, scrollSnapAlign: "start", border: "none", padding: 0, background: paleta.surface, cursor: onTocar ? "pointer" : "default", WebkitTapHighlightColor: "transparent" }}>
             {f || respaldos[k] ? dibujar(f, k) : <span style={{ display: "grid", placeItems: "center", width: "100%", height: "100%" }}><Icono nombre="foto" tamano={28} color={paleta.dim} /></span>}
           </button>
         ))}

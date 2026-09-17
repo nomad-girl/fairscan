@@ -80,13 +80,13 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
       <div style={{ flex: 1, overflowY: "auto", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", padding: `0 ${espacios.margenLateral}px 40px`, display: "flex", flexDirection: "column", gap: espacios.entreFilas }}>
 
         {/* Foto 4:3, carrusel, +, flechas */}
-        <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={{ position: "relative", borderRadius: radios.grande, overflow: "hidden", background: paleta.surface, border: `1px solid ${paleta.border}` }}>
+        <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={{ position: "relative", aspectRatio: "4/3", width: "100%", borderRadius: radios.grande, overflow: "hidden", background: paleta.surface, border: `1px solid ${paleta.border}` }}>
           {fotos.length > 0 ? (
-            <div ref={scrollRef} onScroll={e => setFoto(Math.round(e.target.scrollLeft / e.target.offsetWidth))} style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}>
-              {fotos.map((ph, i) => <div key={i} style={{ width: "100%", aspectRatio: "4/3", flexShrink: 0, scrollSnapAlign: "start" }}>{Foto ? <Foto src={ph} respaldo={respaldoDe(p, i)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <img src={ph} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />}</div>)}
+            <div ref={scrollRef} onScroll={e => setFoto(Math.round(e.target.scrollLeft / e.target.offsetWidth))} style={{ position: "absolute", inset: 0, display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}>
+              {fotos.map((ph, i) => <div key={i} style={{ width: "100%", height: "100%", flexShrink: 0, scrollSnapAlign: "start" }}>{Foto ? <Foto src={ph} respaldo={respaldoDe(p, i)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <img src={ph} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />}</div>)}
             </div>
           ) : (
-            <div style={{ aspectRatio: "4/3", display: "grid", placeItems: "center" }}><Icono nombre="foto" tamano={32} color={paleta.dim} /></div>
+            <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}><Icono nombre="foto" tamano={32} color={paleta.dim} /></div>
           )}
           {fotos.length > 1 && (
             <div style={{ position: "absolute", bottom: 10, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 5 }}>

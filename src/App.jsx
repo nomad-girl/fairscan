@@ -834,10 +834,12 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   };
   useEffect(() => () => { clearTimeout(apagadoRef.current); apagarCamara(); }, []);
 
-  const captureFrame = () => {
+  // Productos a 800 px (alcanza para nombrarlos y pesan poco); la tarjeta a 1600 px, porque la letra
+  // chica de un mail o un WeChat a 800 px se lee mal (Nati, 17/09: "el scan me leyó bastante mal").
+  const captureFrame = (max = 800) => {
     const video = videoRef.current;
     if (!video || !video.videoWidth) return null;
-    const MAX = 800;
+    const MAX = max;
     let w = video.videoWidth, h = video.videoHeight;
     if (w > h && w > MAX) { h = h * MAX / w; w = MAX; }
     else if (h > MAX) { w = w * MAX / h; h = MAX; }
@@ -921,7 +923,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     .map(p => ({ id: p.id, photos: p.photos || [], price: p.price || "", notes: p.notes || "" }));
 
   const handleCameraShutter = async () => {
-    const photo = captureFrame();
+    const photo = captureFrame(cameraMode === "card" ? 1600 : 800);
     if (!photo) return;
     // Visual + haptic feedback
     setFlashVisible(true);

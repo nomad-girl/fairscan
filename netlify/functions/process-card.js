@@ -23,7 +23,9 @@ exports.handler = async (event) => {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
     const response = await client.messages.create({
-      model: process.env.CLAUDE_MODEL || "claude-haiku-4-5-20251001",
+      // 17/09: la tarjeta la lee Sonnet 5. Haiku leía mal nombres y números (Nati: "si esto falla, todo lo demás falla").
+      // Se puede cambiar sin tocar código con CLAUDE_MODEL_TARJETA en Netlify.
+      model: process.env.CLAUDE_MODEL_TARJETA || "claude-sonnet-5",
       max_tokens: 1024,
       messages: [
         {
