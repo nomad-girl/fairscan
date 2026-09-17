@@ -1350,35 +1350,54 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     setItems(prev => [{ id, photos, price: "", notes: "" }, ...prev]);
     return id;
   };
-  // Precio al toque (4.8): después de disparar, un teclado grande sobre el visor
-  // durante tres segundos (Nati, 16/09: al segundo y medio "se va demasiado rápido").
-  // Si se toca, se queda hasta confirmar; si no, se va.
+  // Teclado ampliado (4.8 + decisión 2 del 16/09): después de disparar se abre solo
+  // en precio durante tres segundos; arriba están MOQ (con base), piezas por caja,
+  // CBM y la estrella de favorito. Tocar cualquier cosa lo deja abierto hasta Listo.
+  // Nada se precarga entre productos: cada producto tiene su caja.
   const PRECIO_RAPIDO_MS = 3000;
-  const [precioRapido, setPrecioRapido] = useState(null); // { id, valor }
+  const [datosRapidos, setDatosRapidos] = useState(null); // { id, campo, valores:{price,moq,piezasPorCaja,cbmPorCaja}, moqBase, favorito, tocado }
   const precioTimerRef = useRef(null);
   const ofrecerPrecio = (id) => {
     clearTimeout(precioTimerRef.current);
-    setPrecioRapido({ id, valor: "" });
-    precioTimerRef.current = setTimeout(() => setPrecioRapido(p => (p && !p.valor ? null : p)), PRECIO_RAPIDO_MS);
+    setDatosRapidos({ id, campo: "price", valores: {}, moqBase: null, favorito: false, tocado: false });
+    precioTimerRef.current = setTimeout(() => setDatosRapidos(d => (d && !d.tocado && !Object.values(d.valores).some(Boolean) ? null : d)), PRECIO_RAPIDO_MS);
   };
   const tocarPrecio = (tecla) => {
     clearTimeout(precioTimerRef.current);
-    setPrecioRapido(p => {
-      if (!p) return p;
-      let v = p.valor;
+    setDatosRapidos(d => {
+      if (!d) return d;
+      let v = d.valores[d.campo] || "";
       if (tecla === "⌫") v = v.slice(0, -1);
-      else if (tecla === ".") { if (!v.includes(".")) v = (v || "0") + "."; }
+      else if (tecla === "." || tecla === ",") { if (!v.includes(".")) v = (v || "0") + "."; }
       else if (v.replace(".", "").length < 7) v = v + tecla;
-      return { ...p, valor: v };
+      return { ...d, tocado: true, valores: { ...d.valores, [d.campo]: v } };
+    });
+  };
+  const cambiarCampoRapido = (campo) => { clearTimeout(precioTimerRef.current); setDatosRapidos(d => d ? { ...d, campo, tocado: true } : d); };
+  const cambiarMoqBase = (base) => { clearTimeout(precioTimerRef.current); setDatosRapidos(d => d ? { ...d, moqBase: base, tocado: true } : d); };
+  const alternarFavoritoRapido = () => {
+    clearTimeout(precioTimerRef.current);
+    setDatosRapidos(d => {
+      if (!d) return d;
+      const favorito = !d.favorito;
+      guardarCampoItem(d.id, "favorito", favorito ? 1 : 0); // la estrella se guarda al toque
+      return { ...d, favorito, tocado: true };
     });
   };
   const confirmarPrecio = () => {
     clearTimeout(precioTimerRef.current);
-    setPrecioRapido(p => {
-      if (p?.valor) {
-        const v = p.valor.replace(/\.$/, "");
-        setItems(prev => prev.map(it => it.id === p.id ? { ...it, price: v } : it));
-        guardarCampoItem(p.id, "price", v);
+    setDatosRapidos(d => {
+      if (d) {
+        const limpiar = x => (x || "").replace(/\.$/, "");
+        const cambios = {};
+        if (d.valores.price) cambios.price = limpiar(d.valores.price);
+        if (d.valores.moq) { cambios.moq = limpiar(d.valores.moq); if (d.moqBase) cambios.moqBase = d.moqBase; }
+        if (d.valores.piezasPorCaja) cambios.piezasPorCaja = Number(limpiar(d.valores.piezasPorCaja));
+        if (d.valores.cbmPorCaja) cambios.cbmPorCaja = Number(limpiar(d.valores.cbmPorCaja));
+        if (Object.keys(cambios).length) {
+          setItems(prev => prev.map(it => it.id === d.id ? { ...it, ...cambios } : it));
+          onProductoCambio?.(d.id, cambios);
+        }
       }
       return null;
     });
@@ -1419,7 +1438,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
       } else {
         // Cada disparo crea el producto en la base al instante (4.3): si la app
         // muere antes de cerrar el stand, el producto ya está.
-        if (precioRapido?.valor) confirmarPrecio();
+        if (datosRapidos && (Object.values(datosRapidos.valores).some(Boolean))) confirmarPrecio(); else if (datosRapidos) setDatosRapidos(null);
         crearItem([photo]).then(id => {
           if (id == null) return;
           ofrecerPrecio(id);
@@ -1592,7 +1611,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
           videoRef={videoRef} modo={cameraMode} feria={activeDistrict ? `${activeDistrict.emoji || ""} ${activeDistrict.name}`.trim() : null}
           itemsCount={items.length} saldo={saldoCreditos} esperando={esperando} estadoSync={estadoSync} pendientesSync={queueCount}
           flash={flashVisible} ultimaCaptura={lastCapture} ultimas={ultimas} puedeAgregarAngulo={anguloDisponible && items.length > 0 && !addPhotoToItemId}
-          precioRapido={precioRapido} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"} onTeclaPrecio={tocarPrecio} onConfirmarPrecio={confirmarPrecio}
+          datos={datosRapidos} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"} onTeclaPrecio={tocarPrecio} onConfirmarPrecio={confirmarPrecio} onCampo={cambiarCampoRapido} onMoqBase={cambiarMoqBase} onFavorito={alternarFavoritoRapido}
           onDisparar={handleCameraShutter}
           onCerrarStand={closeCamera}
           onCancelar={closeCamera}

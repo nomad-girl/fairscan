@@ -249,3 +249,35 @@ describe('IdMapper: roundtrip (toCloud → toLocal)', () => {
     expect(restored.supplierId).toBe(original.supplierId);
   });
 });
+
+describe('datos de compra (16/09): favorito, MOQ con base, piezas y CBM por caja', () => {
+  it('van a la nube con sus nombres y vuelven iguales', async () => {
+    const { default: mapper } = await import('../idMapper.js');
+    const cloud = mapper.toCloud('products', { id: 1, name: 'Taza', favorito: 1, moq: '500', moqBase: 'caja', piezasPorCaja: 48, cbmPorCaja: 0.042 }, 'room-1');
+    expect(cloud.favorite).toBe(true);
+    expect(cloud.moq_base).toBe('caja');
+    expect(cloud.pieces_per_carton).toBe(48);
+    expect(cloud.cbm_per_carton).toBe(0.042);
+    const local = mapper.toLocal('products', { id: 'u1', favorite: true, moq_base: 'caja', pieces_per_carton: 48, cbm_per_carton: 0.042 });
+    expect(local.favorito).toBe(1);
+    expect(local.moqBase).toBe('caja');
+    expect(local.piezasPorCaja).toBe(48);
+    expect(local.cbmPorCaja).toBe(0.042);
+  });
+  it('vacíos quedan vacíos, nunca cero inventado', async () => {
+    const { default: mapper } = await import('../idMapper.js');
+    const cloud = mapper.toCloud('products', { id: 2, name: 'Vela' }, 'room-1');
+    expect(cloud.favorite).toBe(false);
+    expect(cloud.moq_base).toBeNull();
+    expect(cloud.pieces_per_carton).toBeNull();
+    expect(cloud.cbm_per_carton).toBeNull();
+    const local = mapper.toLocal('products', { id: 'u2' });
+    expect(local.favorito).toBe(0);
+    expect(local.piezasPorCaja).toBeNull();
+  });
+  it('el proveedor también tiene favorito', async () => {
+    const { default: mapper } = await import('../idMapper.js');
+    expect(mapper.toCloud('suppliers', { id: 1, company: 'Sunrise', favorito: 1 }, 'room-1').favorite).toBe(true);
+    expect(mapper.toLocal('suppliers', { id: 's1', company: 'Sunrise', favorite: true }).favorito).toBe(1);
+  });
+});

@@ -49,15 +49,29 @@ describe("Visor", () => {
     fireEvent.click(screen.getByText("Cancelar"));
     expect(onCancelar).toHaveBeenCalled();
   });
-  it("el consejo aparece una vez y se marca visto al tocarlo; el teclado de precio confirma", () => {
-    const onConsejoVisto = vi.fn(), onTecla = vi.fn(), onConfirmar = vi.fn();
-    con(<Visor videoRef={{ current: null }} consejoVisible onConsejoVisto={onConsejoVisto} precioRapido={{ id: 1, valor: "0.85" }} onTeclaPrecio={onTecla} onConfirmarPrecio={onConfirmar} />);
+  it("el consejo aparece una vez y se marca visto al tocarlo; el teclado ampliado tiene los cuatro datos y la estrella", () => {
+    const onConsejoVisto = vi.fn(), onTecla = vi.fn(), onConfirmar = vi.fn(), onCampo = vi.fn(), onFavorito = vi.fn();
+    con(<Visor videoRef={{ current: null }} consejoVisible onConsejoVisto={onConsejoVisto} datos={{ id: 1, campo: "price", valores: { price: "0.85" }, moqBase: null, favorito: false, tocado: false }} onTeclaPrecio={onTecla} onConfirmarPrecio={onConfirmar} onCampo={onCampo} onFavorito={onFavorito} />);
     fireEvent.click(screen.getByRole("status"));
     expect(onConsejoVisto).toHaveBeenCalled();
+    expect(screen.getByText("USD 0.85")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "5" }));
     expect(onTecla).toHaveBeenCalledWith("5");
-    fireEvent.click(screen.getByText("OK"));
+    fireEvent.click(screen.getByRole("tab", { name: "MOQ" }));
+    expect(onCampo).toHaveBeenCalledWith("moq");
+    fireEvent.click(screen.getByRole("button", { name: "Marcar como favorito" }));
+    expect(onFavorito).toHaveBeenCalled();
+    fireEvent.click(screen.getByText("Listo"));
     expect(onConfirmar).toHaveBeenCalled();
+  });
+  it("en MOQ aparece la base por producto / caja / pedido y los datos cargados se ven con tilde", () => {
+    const onMoqBase = vi.fn();
+    con(<Visor videoRef={{ current: null }} datos={{ id: 1, campo: "moq", valores: { price: "0.85", moq: "500" }, moqBase: "caja", favorito: true, tocado: true }} onMoqBase={onMoqBase} />);
+    expect(screen.getByRole("radio", { name: "por caja", checked: true })).toBeTruthy();
+    fireEvent.click(screen.getByRole("radio", { name: "por pedido" }));
+    expect(onMoqBase).toHaveBeenCalledWith("pedido");
+    expect(screen.getByRole("tab", { name: "✓ 0.85" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Quitar de favoritos" })).toBeTruthy();
   });
 });
 

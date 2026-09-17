@@ -86,6 +86,7 @@ class IdMapper {
       cloud.card_data = localRecord.cardData || null;
       cloud.booth_number = localRecord.boothNumber || null;
       cloud.rating = localRecord.rating || null; // 7.5
+      cloud.favorite = !!localRecord.favorito; // decisión 1 (16/09): favorito en proveedor
     }
 
     if (table === 'products') {
@@ -106,6 +107,11 @@ class IdMapper {
       cloud.cost_total = localRecord.costTotal || null;
       cloud.cost_data = localRecord.costData || null;
       cloud.target_price = localRecord.targetPrice || null;
+      // Datos de compra (decisiones 1, 2 y 4 del 16/09): favorito, MOQ con base, piezas y CBM por caja.
+      cloud.favorite = !!localRecord.favorito;
+      cloud.moq_base = localRecord.moqBase || null;                 // 'producto' | 'caja' | 'pedido'
+      cloud.pieces_per_carton = localRecord.piezasPorCaja ?? null;
+      cloud.cbm_per_carton = localRecord.cbmPorCaja ?? null;
     }
 
     return cloud;
@@ -147,6 +153,7 @@ class IdMapper {
       local.cardData = cloudRecord.card_data || null;
       local.boothNumber = cloudRecord.booth_number || null;
       local.rating = cloudRecord.rating || 0;
+      local.favorito = cloudRecord.favorite ? 1 : 0;
     }
 
     if (table === 'products') {
@@ -168,6 +175,10 @@ class IdMapper {
       local.costTotal = cloudRecord.cost_total || null;
       local.costData = cloudRecord.cost_data || null;
       local.targetPrice = cloudRecord.target_price || null;
+      local.favorito = cloudRecord.favorite ? 1 : 0;
+      local.moqBase = cloudRecord.moq_base || null;
+      local.piezasPorCaja = cloudRecord.pieces_per_carton ?? null;
+      local.cbmPorCaja = cloudRecord.cbm_per_carton ?? null;
     }
 
     return local;

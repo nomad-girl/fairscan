@@ -9,7 +9,7 @@
  *  · Arriba: saldo de escaneos y el punto de estado. Nada más.
  *  · "+ ángulo" unos segundos después de cada disparo: la próxima foto se suma al último.
  *  · Consejo en contexto tras la tercera foto, una vez en la vida.
- *  · Teclado de precio un segundo y medio después del disparo (4.8), rediseñado.
+ *  · Teclado ampliado tras el disparo (4.8 + decisión 2 del 16/09): precio, MOQ con base, piezas y CBM por caja, favorito.
  */
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -33,7 +33,7 @@ function Pastilla({ children, tono = "vidrio", estilo }) {
 export function Visor({
   videoRef, modo = "product", feria, itemsCount = 0, saldo = null, trial = 15, esperando = 0, estadoSync = "guardado", pendientesSync = 0,
   flash = false, ultimaCaptura = null, ultimas = [], puedeAgregarAngulo = false,
-  precioRapido = null, moneda = "USD", onTeclaPrecio, onConfirmarPrecio,
+  datos = null, moneda = "USD", onTeclaPrecio, onConfirmarPrecio, onCampo, onMoqBase, onFavorito,
   onDisparar, onCerrarStand, onCatalogo, onCancelar, onAgregarAngulo, onBorrarFoto,
   consejoVisible = false, onConsejoVisto,
   onTouchStart, onTouchEnd,
@@ -107,21 +107,48 @@ export function Visor({
         </div>
       )}
 
-      {/* Precio al toque (4.8) */}
-      {precioRapido && !esTarjeta && (
-        <div onClick={e => e.stopPropagation()} style={{ position: "absolute", left: 14, right: 14, bottom: 148, zIndex: 5, background: "rgba(10,14,23,0.88)", backdropFilter: "blur(12px)", borderRadius: 20, padding: "12px 12px 10px", maxWidth: 360, margin: "0 auto" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "0 4px 8px" }}>
-            <div><div style={{ fontSize: 13, fontWeight: 600, color: BLANCO }}>{t("visor.precioDelUltimo")}</div><div style={{ fontSize: 12, color: BLANCO_SUAVE }}>{t("visor.seVaSolo")}</div></div>
-            <div style={{ fontSize: 24, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: precioRapido.valor ? "#22C55E" : BLANCO_SUAVE }}>{moneda} {precioRapido.valor || "0"}</div>
+      {/* Teclado ampliado (decisión 2, 16/09): se abre solo en precio; arriba, los otros datos y la estrella */}
+      {datos && !esTarjeta && (() => {
+        const campos = [["price", t("visor.campoPrecio")], ["moq", t("visor.campoMoq")], ["piezasPorCaja", t("visor.campoPiezas")], ["cbmPorCaja", t("visor.campoCbm")]];
+        const valorActual = datos.valores[datos.campo] || "";
+        const prefijo = datos.campo === "price" ? `${moneda} ` : "";
+        const sufijo = datos.campo === "cbmPorCaja" ? " CBM" : datos.campo === "piezasPorCaja" ? " pzs" : "";
+        return (
+          <div onClick={e => e.stopPropagation()} style={{ position: "absolute", left: 14, right: 14, bottom: 148, zIndex: 5, background: "rgba(10,14,23,0.9)", backdropFilter: "blur(12px)", borderRadius: 20, padding: "12px 12px 10px", maxWidth: 380, margin: "0 auto", display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "0 4px" }}>
+              <div><div style={{ fontSize: 13, fontWeight: 600, color: BLANCO }}>{t("visor.datosDelUltimo")}</div><div style={{ fontSize: 12, color: BLANCO_SUAVE }}>{datos.campo === "moq" ? t("visor.moqPista") : datos.tocado ? " " : t("visor.seVaSolo")}</div></div>
+              <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: valorActual ? "#22C55E" : BLANCO_SUAVE }}>{prefijo}{valorActual || "0"}{sufijo}</div>
+            </div>
+            <div role="tablist" style={{ display: "flex", gap: 4 }}>
+              {campos.map(([k, etiqueta]) => {
+                const activo = datos.campo === k; const lleno = !!datos.valores[k];
+                return (
+                  <button key={k} type="button" role="tab" aria-selected={activo} onClick={() => onCampo?.(k)} style={{ flex: 1, minHeight: 34, borderRadius: 999, border: "none", fontSize: 11.5, fontWeight: 600, lineHeight: 1.1, padding: "0 4px", cursor: "pointer", fontFamily: "inherit", WebkitTapHighlightColor: "transparent",
+                    background: activo ? MARCA.naranja : lleno ? "rgba(34,197,94,0.22)" : "rgba(241,245,249,0.10)", color: activo ? "#fff" : lleno ? "#86EFAC" : BLANCO_SUAVE }}>
+                    {lleno && !activo ? `✓ ${datos.valores[k]}` : etiqueta}
+                  </button>
+                );
+              })}
+              <button type="button" onClick={onFavorito} aria-pressed={!!datos.favorito} aria-label={datos.favorito ? t("visor.quitarFavorito") : t("visor.marcarFavorito")} style={{ flex: "0 0 40px", minHeight: 34, borderRadius: 999, border: "none", background: datos.favorito ? MARCA.naranja : "rgba(241,245,249,0.10)", color: datos.favorito ? "#fff" : BLANCO_SUAVE, cursor: "pointer", display: "grid", placeItems: "center" }}>
+                <Icono nombre="favorito" tamano={16} color={datos.favorito ? "#fff" : BLANCO_SUAVE} />
+              </button>
+            </div>
+            {datos.campo === "moq" && (
+              <div role="radiogroup" aria-label={t("visor.campoMoq")} style={{ display: "flex", gap: 4 }}>
+                {[["producto", t("visor.basePorProducto")], ["caja", t("visor.basePorCaja")], ["pedido", t("visor.basePorPedido")]].map(([b, etiqueta]) => (
+                  <button key={b} type="button" role="radio" aria-checked={datos.moqBase === b} onClick={() => onMoqBase?.(b)} style={{ flex: 1, minHeight: 30, borderRadius: 999, border: `1px solid ${datos.moqBase === b ? MARCA.naranja : "rgba(241,245,249,0.25)"}`, background: datos.moqBase === b ? "rgba(234,90,34,0.25)" : "transparent", color: datos.moqBase === b ? "#fff" : BLANCO_SUAVE, fontSize: 11, fontWeight: datos.moqBase === b ? 600 : 500, cursor: "pointer", fontFamily: "inherit" }}>{etiqueta}</button>
+                ))}
+              </div>
+            )}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+              {teclas.map(k => (
+                <button key={k} type="button" onClick={() => onTeclaPrecio?.(k)} aria-label={k === "⌫" ? t("comun.borrar") : k} style={{ minHeight: alturas.tocable, borderRadius: 12, border: "none", background: "rgba(241,245,249,0.12)", color: BLANCO, fontSize: 20, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", WebkitTapHighlightColor: "transparent" }}>{k}</button>
+              ))}
+            </div>
+            <button type="button" onClick={onConfirmarPrecio} style={{ width: "100%", minHeight: alturas.tocable, borderRadius: 12, border: "none", background: Object.values(datos.valores).some(Boolean) || datos.favorito ? "#15803D" : "rgba(241,245,249,0.12)", color: BLANCO, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{t("visor.listo")}</button>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
-            {teclas.map(k => (
-              <button key={k} type="button" onClick={() => onTeclaPrecio?.(k)} aria-label={k === "⌫" ? t("comun.borrar") : k} style={{ minHeight: alturas.tocable, borderRadius: 12, border: "none", background: "rgba(241,245,249,0.12)", color: BLANCO, fontSize: 20, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", WebkitTapHighlightColor: "transparent" }}>{k}</button>
-            ))}
-          </div>
-          <button type="button" onClick={onConfirmarPrecio} style={{ width: "100%", marginTop: 6, minHeight: alturas.tocable, borderRadius: 12, border: "none", background: precioRapido.valor ? "#15803D" : "rgba(241,245,249,0.12)", color: BLANCO, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{t("visor.ok")}</button>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Abajo: miniatura · obturador · cerrar stand */}
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 3, padding: "24px 22px calc(22px + env(safe-area-inset-bottom, 0px))", display: "flex", alignItems: "center", justifyContent: "space-between", background: "linear-gradient(transparent, rgba(0,0,0,0.7))" }}>

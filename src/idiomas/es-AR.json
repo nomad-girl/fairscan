@@ -69,7 +69,20 @@
     "disparar": "Sacar foto",
     "sinCamara": "Sin cámara no hay FairScan",
     "abrirAjustes": "Abrir ajustes",
-    "elegirDeGaleria": "Elegir de la galería"
+    "elegirDeGaleria": "Elegir de la galería",
+    "datosDelUltimo": "Último producto",
+    "campoPrecio": "Precio",
+    "campoMoq": "MOQ",
+    "campoPiezas": "Piezas por caja",
+    "campoCbm": "CBM por caja",
+    "moqPista": "Mínimo que te pide el proveedor",
+    "basePorProducto": "por producto",
+    "basePorCaja": "por caja",
+    "basePorPedido": "por pedido",
+    "favorito": "Favorito",
+    "marcarFavorito": "Marcar como favorito",
+    "quitarFavorito": "Quitar de favoritos",
+    "listo": "Listo"
   },
   "cerrarStand": {
     "titulo": "Cerrar stand",
