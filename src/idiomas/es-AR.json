@@ -96,8 +96,8 @@
   "cerrarStand": {
     "titulo": "Cerrar stand",
     "tituloSoloProveedor": "Nuevo proveedor",
-    "subtitulo_one": "{{count}} producto · la tarjeta va al final",
-    "subtitulo_other": "{{count}} productos · la tarjeta va al final",
+    "subtitulo_one": "{{count}} producto en este stand",
+    "subtitulo_other": "{{count}} productos en este stand",
     "tarjeta": "Tarjeta del proveedor",
     "sacarFoto": "Sacar foto de la tarjeta",
     "galeria": "Galería",
@@ -144,7 +144,9 @@
     "dictar": "Dictar",
     "parar": "Parar",
     "dictando": "Hablá: lo que digas se agrega a los comentarios",
-    "sinDictado": "Este teléfono no dicta; podés escribir"
+    "sinDictado": "Este teléfono no dicta; podés escribir",
+    "pedirTarjetaTitulo": "Sacale una foto a la tarjeta del proveedor",
+    "pedirTarjetaTexto": "De la tarjeta salen el nombre, el vendedor y el contacto. Sin tarjeta, podés escribirlos abajo."
   },
   "catalogo": {
     "titulo": "Catálogo",

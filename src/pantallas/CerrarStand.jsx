@@ -102,7 +102,21 @@ export function CerrarStand({
 
       <div style={{ flex: 1, overflowY: "auto", padding: `0 ${espacios.margenLateral}px 120px`, display: "flex", flexDirection: "column", gap: espacios.entreFilas, overscrollBehavior: "contain" }}>
 
-        {/* 1. El nombre, grande y arriba de todo; el vendedor debajo; la estrella */}
+        {/* 1. Sin tarjeta todavía: lo primero que pide la hoja es sacarla; de ahí salen el nombre y el contacto */}
+        {!cardPhoto && (
+          <div style={{ background: paleta.card, border: `1px solid ${paleta.accent}`, borderRadius: radios.grande, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10, boxShadow: paleta.sombraTarjeta }}>
+            <div>
+              <p style={{ ...texto("destacado"), margin: 0 }}>{t("cerrarStand.pedirTarjetaTitulo")}</p>
+              <p style={{ ...texto("pie"), color: paleta.muted, margin: "2px 0 0" }}>{t("cerrarStand.pedirTarjetaTexto")}</p>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Boton variante="principal" icono="camara" ancho="total" onClick={onSacarTarjeta} estilo={{ flex: 1 }}>{t("cerrarStand.sacarTarjeta")}</Boton>
+              <Boton variante="secundario" icono="foto" onClick={onTarjetaDeGaleria} etiqueta={t("cerrarStand.galeria")} estilo={{ minHeight: alturas.botonPrincipal }} />
+            </div>
+          </div>
+        )}
+
+        {/* 2. El nombre, grande y arriba de todo; el vendedor debajo; la estrella */}
         <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <TextoEditable valor={proveedor.name} onChange={cambiar("name")} placeholder={t("cerrarStand.nombreEmpresa")} etiqueta={t("cerrarStand.empresa")} cargando={cardProcessing} estilo={{ ...texto("grande"), lineHeight: 1.15 }} />
@@ -139,7 +153,7 @@ export function CerrarStand({
           </div>
         )}
 
-        {/* 2. Las fotos del stand, enseguida: el proveedor es su catálogo */}
+        {/* Las fotos del stand, enseguida: el proveedor es su catálogo */}
         {!soloProveedor && (
           <section>
             {seccion(t("cerrarStand.productos", { count: itemsCount }))}
@@ -166,15 +180,10 @@ export function CerrarStand({
           </section>
         )}
 
-        {/* 3. La tarjeta: de acá sale el contacto */}
-        {!cardPhoto ? (
-          <div style={{ display: "flex", gap: 8 }}>
-            <Boton variante="principal" icono="camara" ancho="total" onClick={onSacarTarjeta} estilo={{ flex: 1 }}>{t("cerrarStand.sacarTarjeta")}</Boton>
-            <Boton variante="secundario" icono="foto" onClick={onTarjetaDeGaleria} etiqueta={t("cerrarStand.galeria")} estilo={{ minHeight: alturas.botonPrincipal }} />
-          </div>
-        ) : (
+        {/* 3. La tarjeta ya sacada, chica: se puede quitar y volver a sacar */}
+        {cardPhoto && (
           <div style={{ position: "relative", borderRadius: radios.grande, overflow: "hidden", border: `1px solid ${paleta.border}`, background: paleta.card, boxShadow: paleta.sombraTarjeta }}>
-            <img src={cardPhoto} alt={t("cerrarStand.tarjeta")} style={{ width: "100%", display: "block", maxHeight: 200, objectFit: "cover" }} />
+            <img src={cardPhoto} alt={t("cerrarStand.tarjeta")} style={{ width: "100%", display: "block", maxHeight: 160, objectFit: "cover" }} />
             {cardProcessing && (
               <div style={{ position: "absolute", left: 12, bottom: 12, display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(10,14,23,0.8)", color: "#F1F5F9", borderRadius: 999, padding: "6px 12px", fontSize: 13 }}>
                 <Esqueleto ancho={14} alto={14} radio={7} estilo={{ background: paleta.accent }} />{t("cerrarStand.leyendo")}

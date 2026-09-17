@@ -94,7 +94,7 @@ describe("CerrarStand", () => {
   it("muestra la tarjeta, los campos con dato y 'Agregar ›' en los vacíos, el favorito y Listo", () => {
     const onListo = vi.fn(), onCambiar = vi.fn();
     con(<CerrarStand itemsCount={2} items={[{ id: 1, photos: [FOTO], price: "0.85" }, { id: 2, photos: [FOTO, FOTO] }]} cardPhoto={FOTO} proveedor={proveedor} onCambiarProveedor={onCambiar} onListo={onListo} />);
-    expect(screen.getByText("2 productos · la tarjeta va al final")).toBeTruthy();
+    expect(screen.getByText("2 productos en este stand")).toBeTruthy();
     expect(screen.getByText("Yiwu Sunrise")).toBeTruthy(); // el nombre, grande y arriba
     expect(screen.getByText("Lily Chen")).toBeTruthy();    // el vendedor, debajo
     expect(screen.getByText("sunrise_lily")).toBeTruthy(); // el único dato de contacto con valor
@@ -109,6 +109,7 @@ describe("CerrarStand", () => {
   it("sin tarjeta ofrece sacarla; los productos se pueden sacar del stand", () => {
     const onSacarTarjeta = vi.fn(), onSacarProducto = vi.fn();
     con(<CerrarStand itemsCount={1} items={[{ id: 9, photos: [FOTO] }]} proveedor={proveedor} onSacarTarjeta={onSacarTarjeta} onSacarProducto={onSacarProducto} />);
+    expect(screen.getByText("Sacale una foto a la tarjeta del proveedor")).toBeTruthy(); // sin tarjeta, es lo primero que pide
     fireEvent.click(screen.getByText("Sacar la tarjeta"));
     expect(onSacarTarjeta).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Sacar del stand" }));
