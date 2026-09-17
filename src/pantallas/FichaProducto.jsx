@@ -61,6 +61,18 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
     r.readAsDataURL(f);
   };
 
+  // Los campos: los que tienen dato se ven; los vacíos quedan detrás de "Agregar un dato" (Nati, 17/09: "ocultos pero que se sepa que están").
+  const [masDatos, setMasDatos] = useState(false);
+  const vacio = (x) => x === null || x === undefined || String(x).trim() === "";
+  const campos = [
+    { clave: "price", etiqueta: t("ficha.precio"), valor: p.price, nodo: <Campo key="price" etiqueta={`${t("ficha.precio")} ${moneda}`} valor={p.price} tipo="numero" onChange={v => guardar({ price: v == null ? null : String(v) })} /> },
+    { clave: "moq", etiqueta: t("ficha.moq"), valor: p.moq, nodo: <React.Fragment key="moq"><Campo etiqueta={t("ficha.moq")} valor={p.moq} tipo="numero" onChange={v => guardar({ moq: v == null ? null : String(v) })} />{(p.moq || p.moqBase) && <div style={{ padding: "8px 0 10px" }}><Segmentado etiqueta={t("ficha.moqBase")} valor={p.moqBase || null} onChange={v => guardar({ moqBase: v })} opciones={[{ valor: "producto", texto: t("ficha.basePorProducto") }, { valor: "caja", texto: t("ficha.basePorCaja") }, { valor: "pedido", texto: t("ficha.basePorPedido") }]} /></div>}</React.Fragment> },
+    settings?.datosDeCompra?.piezasPorCaja !== false && { clave: "piezasPorCaja", etiqueta: t("ficha.piezasPorCaja"), valor: p.piezasPorCaja, nodo: <Campo key="piezas" etiqueta={t("ficha.piezasPorCaja")} valor={p.piezasPorCaja} tipo="numero" onChange={v => guardar({ piezasPorCaja: v })} /> },
+    settings?.datosDeCompra?.cbmPorCaja !== false && { clave: "cbmPorCaja", etiqueta: t("ficha.cbmPorCaja"), valor: p.cbmPorCaja, nodo: <Campo key="cbm" etiqueta={t("ficha.cbmPorCaja")} valor={p.cbmPorCaja} tipo="numero" sufijo="CBM" onChange={v => guardar({ cbmPorCaja: v })} /> },
+    { clave: "notes", etiqueta: t("ficha.notas"), valor: p.notes, nodo: <Campo key="notes" etiqueta={t("ficha.notas")} valor={p.notes} onChange={v => guardar({ notes: v })} multilinea apilado /> },
+  ].filter(Boolean);
+  const camposConDato = campos.filter(c => !vacio(c.valor));
+  const camposSinDato = campos.filter(c => vacio(c.valor));
   const sinNombre = !p.name && !p.ai_processed && estadoIA(p) !== "fallo";
 
   return (
@@ -140,16 +152,12 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
         {/* Los datos, editables tocando */}
         <Bloque>
           <Campo etiqueta={t("ficha.nombre")} valor={p.name} onChange={v => { if (v) guardar({ name: v }); }} />
-          <Campo etiqueta={`${t("ficha.precio")} ${moneda}`} valor={p.price} tipo="numero" onChange={v => guardar({ price: v == null ? null : String(v) })} />
-          <Campo etiqueta={t("ficha.moq")} valor={p.moq} tipo="numero" onChange={v => guardar({ moq: v == null ? null : String(v) })} />
-          {(p.moq || p.moqBase) && (
-            <div style={{ padding: "8px 0 10px" }}>
-              <Segmentado etiqueta={t("ficha.moqBase")} valor={p.moqBase || null} onChange={v => guardar({ moqBase: v })} opciones={[{ valor: "producto", texto: t("ficha.basePorProducto") }, { valor: "caja", texto: t("ficha.basePorCaja") }, { valor: "pedido", texto: t("ficha.basePorPedido") }]} />
-            </div>
+          {camposConDato.map(c => c.nodo)}
+          {masDatos ? camposSinDato.map(c => c.nodo) : camposSinDato.length > 0 && (
+            <button type="button" onClick={() => setMasDatos(true)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", minHeight: alturas.campo, padding: 0, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", ...texto("cuerpo", { fontWeight: 400 }), color: paleta.dim }}>
+              <span>{t("ficha.agregarDato")} · {camposSinDato.map(c => c.etiqueta).join(", ")}</span><Icono nombre="mas" tamano={18} color={paleta.dim} />
+            </button>
           )}
-          {settings?.datosDeCompra?.piezasPorCaja !== false && <Campo etiqueta={t("ficha.piezasPorCaja")} valor={p.piezasPorCaja} tipo="numero" onChange={v => guardar({ piezasPorCaja: v })} />}
-          {settings?.datosDeCompra?.cbmPorCaja !== false && <Campo etiqueta={t("ficha.cbmPorCaja")} valor={p.cbmPorCaja} tipo="numero" sufijo="CBM" onChange={v => guardar({ cbmPorCaja: v })} />}
-          <Campo etiqueta={t("ficha.notas")} valor={p.notes} onChange={v => guardar({ notes: v })} multilinea />
         </Bloque>
 
 

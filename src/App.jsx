@@ -715,6 +715,8 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   const [supplierProducts, setSupplierProducts] = useState("");
   const [supplierNotes, setSupplierNotes] = useState("");
   const [linkedSupplierId, setLinkedSupplierId] = useState(null);
+  const [supplierMinimo, setSupplierMinimo] = useState(null); // mínimo de compra del proveedor (wireframe Cerrar stand)
+  const [modoCierre, setModoCierre] = useState("completo"); // "resumen" tras la tarjeta (una sola pantalla y Listo) · "completo" a mano o al Editar
   const [supplierFavorito, setSupplierFavorito] = useState(false); // favorito en proveedor y producto, nada más (decisión de Nati, 16/09)
   const [items, setItems] = useState([]);
   // "+ ángulo": unos segundos después de cada disparo, la próxima foto se suma al último producto (recorrido, pantalla 2).
@@ -930,6 +932,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     setTimeout(() => setFlashVisible(false), 150);
     vibrarObturador();
     if (cameraMode === "card") {
+      setModoCierre("resumen"); // una sola pantalla y Listo (wireframe del recorrido)
       closeCamera();
       setCardPhoto(photo);
       processCardPhoto(photo);
@@ -1078,6 +1081,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
         supplierContact, supplierPhone, supplierEmail,
         supplierWechat, supplierWhatsapp, supplierWhatsappLink, supplierWechatLink,
         supplierWebsite, supplierAddress, supplierProducts, supplierNotes, supplierFavorito,
+        supplierMinimo,
         cardPhoto, cardData,
         productItems: items,
         productIds: items.map(it => it.id),
@@ -1119,7 +1123,9 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
           flash={flashVisible} ultimaCaptura={lastCapture} ultimas={ultimas} puedeAgregarAngulo={anguloDisponible && items.length > 0 && !addPhotoToItemId}
           datos={datosRapidos} datosActivos={settings?.datosDeCompra} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"} onTeclaPrecio={tocarPrecio} onConfirmarPrecio={confirmarPrecio} onCampo={cambiarCampoRapido} onMoqBase={cambiarMoqBase} onFavorito={alternarFavoritoRapido}
           onDisparar={handleCameraShutter}
-          onCerrarStand={closeCamera}
+          onCerrarStand={() => openCamera("card")}
+          onSinTarjeta={() => { setModoCierre("completo"); closeCamera(); }}
+          onVolverAProductos={() => openCamera("product")}
           onCancelar={closeCamera}
           onCatalogo={() => { closeCamera(); apagarCamara(); onCatalogo?.(); }}
           onAgregarAngulo={() => { if (!items.length) return; anguloDesdeVisorRef.current = true; setAddPhotoToItemId(items[0].id); setAnguloDisponible(false); }}
@@ -1135,8 +1141,8 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   }
 
   // === La hoja Cerrar stand (pantallas/CerrarStand.jsx) ===
-  const proveedor = { name: supplierName, contact: supplierContact, phone: supplierPhone, email: supplierEmail, wechat: supplierWechat, whatsapp: supplierWhatsapp, website: supplierWebsite, address: supplierAddress, products: supplierProducts, notes: supplierNotes, favorito: supplierFavorito };
-  const setters = { name: setSupplierName, contact: setSupplierContact, phone: setSupplierPhone, email: setSupplierEmail, wechat: setSupplierWechat, whatsapp: setSupplierWhatsapp, website: setSupplierWebsite, address: setSupplierAddress, products: setSupplierProducts, notes: setSupplierNotes, favorito: setSupplierFavorito };
+  const proveedor = { name: supplierName, contact: supplierContact, phone: supplierPhone, email: supplierEmail, wechat: supplierWechat, whatsapp: supplierWhatsapp, website: supplierWebsite, address: supplierAddress, products: supplierProducts, notes: supplierNotes, favorito: supplierFavorito, minimoDeCompra: supplierMinimo };
+  const setters = { name: setSupplierName, contact: setSupplierContact, phone: setSupplierPhone, email: setSupplierEmail, wechat: setSupplierWechat, whatsapp: setSupplierWhatsapp, website: setSupplierWebsite, address: setSupplierAddress, products: setSupplierProducts, notes: setSupplierNotes, favorito: setSupplierFavorito, minimoDeCompra: setSupplierMinimo };
   const cambiarProveedor = (parche) => { for (const [k, v] of Object.entries(parche)) setters[k]?.(v); };
   return (
     <>
@@ -1153,6 +1159,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
         onSacarProducto={borrarItem} onFotoAProducto={(id) => { setAddPhotoToItemId(id); openCamera("product"); }}
         onVolverAlVisor={() => openCamera("product")} onCatalogo={() => { closeCamera(); apagarCamara(); onCatalogo?.(); }}
         onListo={handleSave} guardando={saving} errorGuardar={saveError}
+        modo={modoCierre} onEditar={() => setModoCierre("completo")} stand={cardData?.boothNumber || null}
         borrador={borrador} onRetomar={retomarBorrador} onDescartar={descartarBorrador} descripcionBorrador={borrador ? describirBorrador(borrador) : null}
         avisoPermiso={<PermisoAviso info={cameraError} t={t} onClose={() => setCameraError(null)} onRetry={() => openCamera(cameraError?.modo)} alternativaLabel="Elegir de la galería" onAlternativa={() => (cameraError?.modo === "card" ? cardGalleryRef : prodGalleryRef).current?.click()} />}
       />
@@ -3098,6 +3105,8 @@ export default function App() {
                 address: data.supplierAddress || "",
                 products: data.supplierProducts || "",
                 notes: data.supplierNotes || "",
+                minimoDeCompra: data.supplierMinimo ?? null,
+              minimoDeCompra: data.supplierMinimo ?? null,
                 cardPhoto: data.cardPhoto || null,
                 cardData: data.cardData || null,
                 districtId: activeDistrictId,
@@ -3120,6 +3129,7 @@ export default function App() {
               address: data.supplierAddress || "",
               products: data.supplierProducts || "",
               notes: data.supplierNotes || "",
+              minimoDeCompra: data.supplierMinimo ?? null,
               cardPhoto: data.cardPhoto || null,
               cardData: data.cardData || null,
               districtId: activeDistrictId,
@@ -3134,8 +3144,8 @@ export default function App() {
       // Favorito del proveedor (decisión de Nati, 16/09): se guarda en el puntaje
       // existente como 5 hasta que exista el campo propio junto con el favorito de producto.
       if (supplierId && data.supplierFavorito) {
-        await dbUpdateSupplier(supplierId, { rating: 5 });
-        setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, rating: 5 } : s));
+        await dbUpdateSupplier(supplierId, { rating: 5, favorito: 1 });
+        setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, rating: 5, favorito: 1 } : s));
       }
       // === SUPPLIER ONLY: just save supplier and go to detail ===
       if (data.supplierOnly) {

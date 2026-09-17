@@ -49,6 +49,7 @@ export function CerrarStand({
   onVolverAlVisor, onCatalogo, onListo, guardando = false, errorGuardar = null,
   borrador = null, onRetomar, onDescartar, descripcionBorrador = null,
   avisoPermiso = null,
+  modo = "completo", onEditar, stand = null, // "resumen": tras la tarjeta, una sola pantalla y Listo (wireframe)
 }) {
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
@@ -80,6 +81,79 @@ export function CerrarStand({
   const campo = ([k, etiqueta]) => <Campo key={k} etiqueta={etiqueta} valor={proveedor[k]} onChange={cambiar(k)} apilado={APILADOS.has(k)} multilinea={k === "address" || k === "products"} />;
   const seccion = (txt) => <h3 style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: paleta.dim, margin: "6px 2px 8px" }}>{txt}</h3>;
 
+  const resumen = modo === "resumen" && !!cardPhoto && !soloProveedor;
+  const filaLeida = (etiqueta, valor) => (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, minHeight: alturas.campo, borderBottom: `1px solid ${paleta.border}` }}>
+      <span style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted, flexShrink: 0 }}>{etiqueta}</span>
+      {cardProcessing && !valor ? <Esqueleto ancho={140} alto={14} /> : <span style={{ ...texto("cuerpo", { fontWeight: 600 }), color: valor ? paleta.text : paleta.dim, textAlign: "right", minWidth: 0, overflowWrap: "anywhere" }}>{valor || "—"}</span>}
+    </div>
+  );
+
+  if (resumen) {
+    return (
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: `calc(env(safe-area-inset-top, 0px) + 8px) ${espacios.margenLateral}px 8px`, minHeight: alturas.tocable + 16 }}>
+          <h1 style={{ ...texto("titulo"), margin: 0, flex: 1 }}>{t("cerrarStand.titulo")}</h1>
+          <button type="button" onClick={onVolverAlVisor} aria-label={t("comun.cerrar")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="cerrar" tamano={20} color={paleta.muted} /></button>
+        </div>
+        {avisoPermiso}
+        <div style={{ flex: 1, overflowY: "auto", padding: `0 ${espacios.margenLateral}px 120px`, display: "flex", flexDirection: "column", gap: espacios.entreFilas, overscrollBehavior: "contain" }}>
+          {/* La tarjeta arriba */}
+          <div style={{ position: "relative", borderRadius: radios.grande, overflow: "hidden", border: `1px solid ${paleta.border}`, background: paleta.card, boxShadow: paleta.sombraTarjeta }}>
+            <img src={cardPhoto} alt={t("cerrarStand.tarjeta")} style={{ width: "100%", display: "block", maxHeight: 240, objectFit: "cover" }} />
+            {cardProcessing && (
+              <div style={{ position: "absolute", left: 12, bottom: 12, display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(10,14,23,0.8)", color: "#F1F5F9", borderRadius: 999, padding: "6px 12px", fontSize: 13 }}>
+                <Esqueleto ancho={14} alto={14} radio={7} estilo={{ background: paleta.accent }} />{t("cerrarStand.leyendo")}
+              </div>
+            )}
+            <button type="button" onClick={() => { onQuitarTarjeta?.(); onSacarTarjeta?.(); }} style={{ position: "absolute", right: 10, bottom: 10, minHeight: alturas.tocable, padding: "0 12px", borderRadius: radios.medio, border: "none", background: "rgba(10,14,23,0.7)", color: "#F1F5F9", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontFamily: "inherit", ...texto("pie", { fontWeight: 600 }) }}>
+              <Icono nombre="camara" tamano={16} color="#F1F5F9" />{t("cerrarStand.sacarDeNuevo")}
+            </button>
+          </div>
+          {/* Lo que leyó: la empresa y el vendedor, grandes; abajo el contacto y el stand */}
+          <div style={{ padding: "2px 2px 0" }}>
+            {cardProcessing && !proveedor.name ? <Esqueleto ancho={200} alto={22} /> : <p style={{ ...texto("grande"), margin: 0, lineHeight: 1.15, color: proveedor.name ? paleta.text : paleta.dim }}>{proveedor.name || t("cerrarStand.sinNombre")}</p>}
+            {cardProcessing && !proveedor.contact ? <Esqueleto ancho={140} alto={16} estilo={{ marginTop: 6 }} /> : <p style={{ ...texto("titulo", { fontWeight: 500 }), margin: "4px 0 0", color: proveedor.contact ? paleta.text : paleta.dim }}>{proveedor.contact || t("cerrarStand.sinVendedor")}</p>}
+          </div>
+          <Bloque>
+            {filaLeida(t("cerrarStand.contacto"), [proveedor.wechat ? `WeChat ${proveedor.wechat}` : null, proveedor.whatsapp ? `WhatsApp ${proveedor.whatsapp}` : null, proveedor.phone, proveedor.email].filter(Boolean).join(" · "))}
+            {(stand || cardProcessing) && filaLeida(t("cerrarStand.stand"), stand)}
+          </Bloque>
+          {/* Favorito, mínimo de compra, comentarios */}
+          <FilaDeChips>
+            <Chip activo={!!proveedor.favorito} onClick={() => cambiar("favorito")(!proveedor.favorito)} etiqueta={proveedor.favorito ? t("cerrarStand.quitarFavorito") : t("cerrarStand.marcarFavorito")}>
+              <Icono nombre="favorito" tamano={16} color={proveedor.favorito ? paleta.accentTexto : paleta.dim} />{t("cerrarStand.favorito")}
+            </Chip>
+          </FilaDeChips>
+          <Bloque>
+            <Campo etiqueta={t("cerrarStand.minimoDeCompra")} valor={proveedor.minimoDeCompra} tipo="numero" sufijo="USD" onChange={cambiar("minimoDeCompra")} />
+            <Campo etiqueta={t("cerrarStand.comentarios")} valor={proveedor.notes} onChange={cambiar("notes")} multilinea apilado placeholder={t("cerrarStand.comentariosPista")} />
+          </Bloque>
+          {/* Los productos, abajo: sacar los que no van */}
+          {items.length > 0 && (
+            <section>
+              {seccion(t("cerrarStand.productos", { count: itemsCount }))}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4 }}>
+                {items.map(it => (
+                  <div key={it.id} style={{ position: "relative", aspectRatio: "1", borderRadius: radios.chico, overflow: "hidden", background: paleta.surface }}>
+                    <img src={it.photos?.[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    <button type="button" onClick={() => onSacarProducto?.(it.id)} aria-label={t("cerrarStand.sacarDelStand")} style={{ position: "absolute", top: 3, right: 3, width: 30, height: 30, borderRadius: 8, border: "none", background: "rgba(10,14,23,0.6)", display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="cerrar" tamano={14} color="#F1F5F9" /></button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+        {/* Editar · Listo */}
+        <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, padding: `10px ${espacios.margenLateral}px calc(12px + env(safe-area-inset-bottom, 0px))`, background: `linear-gradient(to top, ${paleta.bg} 70%, transparent)`, display: "flex", gap: 8 }}>
+          <Boton variante="secundario" onClick={onEditar} estilo={{ flex: 1, minHeight: alturas.botonPrincipal }}>{t("cerrarStand.editar")}</Boton>
+          <Boton variante="principal" onClick={onListo} cargando={guardando} icono={errorGuardar ? "reintentar" : "listo"} estilo={{ flex: 2 }}>{guardando ? t("cerrarStand.guardando") : errorGuardar ? t("cerrarStand.reintentar") : t("cerrarStand.listo")}</Boton>
+        </div>
+        {errorGuardar && <p style={{ ...texto("pie"), color: paleta.red, margin: "8px 0 0", textAlign: "center" }}>{t("cerrarStand.errorGuardar")}</p>}
+      </div>
+    );
+  }
+
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit" }}>
       {/* Barra superior */}
@@ -102,17 +176,11 @@ export function CerrarStand({
 
       <div style={{ flex: 1, overflowY: "auto", padding: `0 ${espacios.margenLateral}px 120px`, display: "flex", flexDirection: "column", gap: espacios.entreFilas, overscrollBehavior: "contain" }}>
 
-        {/* 1. Sin tarjeta todavía: lo primero que pide la hoja es sacarla; de ahí salen el nombre y el contacto */}
+        {/* Sin tarjeta (entró a mano o la quitó): una fila chica para sacarla, sin sermón */}
         {!cardPhoto && (
-          <div style={{ background: paleta.card, border: `1px solid ${paleta.accent}`, borderRadius: radios.grande, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10, boxShadow: paleta.sombraTarjeta }}>
-            <div>
-              <p style={{ ...texto("destacado"), margin: 0 }}>{t("cerrarStand.pedirTarjetaTitulo")}</p>
-              <p style={{ ...texto("pie"), color: paleta.muted, margin: "2px 0 0" }}>{t("cerrarStand.pedirTarjetaTexto")}</p>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <Boton variante="principal" icono="camara" ancho="total" onClick={onSacarTarjeta} estilo={{ flex: 1 }}>{t("cerrarStand.sacarTarjeta")}</Boton>
-              <Boton variante="secundario" icono="foto" onClick={onTarjetaDeGaleria} etiqueta={t("cerrarStand.galeria")} estilo={{ minHeight: alturas.botonPrincipal }} />
-            </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Boton variante="secundario" icono="camara" ancho="total" onClick={onSacarTarjeta} estilo={{ flex: 1 }}>{t("cerrarStand.sacarTarjeta")}</Boton>
+            <Boton variante="secundario" icono="foto" onClick={onTarjetaDeGaleria} etiqueta={t("cerrarStand.galeria")} />
           </div>
         )}
 
@@ -214,6 +282,7 @@ export function CerrarStand({
 
         {/* 5. Comentarios, uno solo, con micrófono */}
         <Bloque titulo={t("cerrarStand.comentarios")}>
+          <Campo etiqueta={t("cerrarStand.minimoDeCompra")} valor={proveedor.minimoDeCompra} tipo="numero" sufijo="USD" onChange={cambiar("minimoDeCompra")} />
           <Campo etiqueta={t("cerrarStand.comentarios")} valor={proveedor.notes} onChange={cambiar("notes")} multilinea apilado placeholder={t("cerrarStand.comentariosPista")} />
           {nota && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0 6px" }}>

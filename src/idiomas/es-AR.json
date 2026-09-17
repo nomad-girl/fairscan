@@ -91,7 +91,10 @@
     "guardarYSeguir": "Guardar",
     "cerrarSinDatos": "Cerrar sin cargar nada",
     "campoPiezasCorto": "Piezas/caja",
-    "campoCbmCorto": "CBM"
+    "campoCbmCorto": "CBM",
+    "buscandoTarjeta": "Encuadrá la tarjeta del proveedor",
+    "sinTarjeta": "Sin tarjeta",
+    "productos": "Productos"
   },
   "cerrarStand": {
     "titulo": "Cerrar stand",
@@ -147,7 +150,11 @@
     "sinDictado": "Este teléfono no dicta; podés escribir",
     "pedirTarjetaTitulo": "Sacale una foto a la tarjeta del proveedor",
     "pedirTarjetaTexto": "De la tarjeta salen el nombre, el vendedor y el contacto. Sin tarjeta, podés escribirlos abajo.",
-    "sacarDeNuevo": "Sacar de nuevo"
+    "sacarDeNuevo": "Sacar de nuevo",
+    "stand": "Stand",
+    "minimoDeCompra": "Mínimo de compra",
+    "editar": "Editar",
+    "sinVendedor": "Sin nombre del vendedor"
   },
   "catalogo": {
     "titulo": "Catálogo",
@@ -281,7 +288,8 @@
     "eliminarTexto": "Se puede deshacer durante unos segundos desde el aviso.",
     "cancelar": "Cancelar",
     "verProveedor": "Ver proveedor",
-    "pedir": "Pedir este producto"
+    "pedir": "Pedir este producto",
+    "agregarDato": "Agregar un dato"
   },
   "proveedor": {
     "titulo": "Proveedor",

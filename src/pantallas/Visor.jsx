@@ -35,7 +35,7 @@ export function Visor({
   videoRef, modo = "product", feria, itemsCount = 0, saldo = null, trial = 15, esperando = 0, estadoSync = "guardado", pendientesSync = 0,
   flash = false, ultimaCaptura = null, ultimas = [], puedeAgregarAngulo = false,
   datos = null, moneda = "USD", onTeclaPrecio, onConfirmarPrecio, onCampo, onMoqBase, onFavorito,
-  onDisparar, onCerrarStand, onCatalogo, onCancelar, onAgregarAngulo, onBorrarFoto,
+  onDisparar, onCerrarStand, onCatalogo, onCancelar, onSinTarjeta, onVolverAProductos, onAgregarAngulo, onBorrarFoto,
   consejoVisible = false, onConsejoVisto,
   onTouchStart, onTouchEnd,
 }) {
@@ -92,7 +92,7 @@ export function Visor({
       {esTarjeta && (
         <>
           <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 60px)", left: 0, right: 0, zIndex: 3, display: "flex", justifyContent: "center" }}>
-            <Pastilla><Icono nombre="proveedor" tamano={16} color={BLANCO} />{t("visor.tarjetaDelProveedor")}</Pastilla>
+            <Pastilla><Icono nombre="tarjeta" tamano={16} color={BLANCO} />{t("visor.buscandoTarjeta")}</Pastilla>
           </div>
           <div aria-hidden style={{ position: "absolute", left: "8%", right: "8%", top: "30%", aspectRatio: "1.75", border: "2px dashed rgba(241,245,249,0.7)", borderRadius: 14, zIndex: 3, pointerEvents: "none" }} />
           <div style={{ position: "absolute", left: 14, right: 14, top: "calc(30% + 46vw + 14px)", zIndex: 3, textAlign: "center" }}>
@@ -163,7 +163,9 @@ export function Visor({
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 3, padding: "24px 22px calc(22px + env(safe-area-inset-bottom, 0px))", display: "flex", alignItems: "center", justifyContent: "space-between", background: "linear-gradient(transparent, rgba(0,0,0,0.7))" }}>
         {/* Izquierda: última captura + "+ ángulo" (o Catálogo si no hay captura) */}
         <div style={{ width: 84, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-          {ultimaCaptura || ultimas.length ? (
+          {esTarjeta ? (
+            <button type="button" onClick={onVolverAProductos || onCancelar} style={{ minWidth: alturas.miniatura, height: alturas.miniatura, padding: "0 10px", borderRadius: 14, border: "none", background: "rgba(241,245,249,0.14)", color: BLANCO, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 6 }}><Icono nombre="camara" tamano={16} color={BLANCO} />{t("visor.productos")}</button>
+          ) : ultimaCaptura || ultimas.length ? (
             <>
               <button type="button" onClick={() => setUltimasAbiertas(true)} aria-label={t("visor.ultimasFotos")} style={{ width: alturas.miniatura, height: alturas.miniatura, borderRadius: 12, border: "2px solid #fff", padding: 0, overflow: "hidden", background: "#111", cursor: "pointer", transform: miniaturaVuela && !reducido ? "scale(1.12)" : "scale(1)", transition: `transform ${duracion(movimiento.obturador.miniatura)}ms ${curvas.entra}` }}>
                 <img src={ultimaCaptura || ultimas[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
@@ -197,7 +199,7 @@ export function Visor({
         {/* Derecha: Cerrar stand (o Cancelar en modo tarjeta) */}
         <div style={{ width: 84, display: "flex", justifyContent: "flex-end" }}>
           {esTarjeta ? (
-            <button type="button" onClick={onCancelar} style={{ minWidth: alturas.miniatura, height: alturas.miniatura, padding: "0 12px", borderRadius: 14, border: "none", background: "rgba(241,245,249,0.14)", color: BLANCO, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{t("visor.cancelar")}</button>
+            <button type="button" onClick={onSinTarjeta || onCancelar} style={{ minWidth: alturas.miniatura, height: alturas.miniatura, padding: "0 12px", borderRadius: 14, border: "none", background: "rgba(241,245,249,0.14)", color: BLANCO, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", lineHeight: 1.2 }}>{t("visor.sinTarjeta")}</button>
           ) : (
             <button type="button" onClick={onCerrarStand} style={{ width: 84, height: alturas.miniatura, borderRadius: 14, border: "none", background: itemsCount > 0 ? MARCA.naranja : "rgba(241,245,249,0.14)", color: "#fff", fontSize: 12, fontWeight: 700, lineHeight: 1.15, cursor: "pointer", fontFamily: "inherit", textAlign: "center", padding: "0 6px", whiteSpace: "normal" }}>{t("visor.cerrarStand")}</button>
           )}

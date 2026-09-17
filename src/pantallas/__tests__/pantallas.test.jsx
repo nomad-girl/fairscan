@@ -42,11 +42,11 @@ describe("Visor", () => {
     fireEvent.click(screen.getByText("Borrar"));
     expect(onBorrarFoto).toHaveBeenCalledWith(7);
   });
-  it("en modo tarjeta guía el encuadre y ofrece Cancelar", () => {
+  it("en modo tarjeta guía el encuadre y ofrece Sin tarjeta", () => {
     const onCancelar = vi.fn();
     con(<Visor videoRef={{ current: null }} modo="card" onCancelar={onCancelar} />);
     expect(screen.getByText("Encuadrá la tarjeta y tocá el obturador")).toBeTruthy();
-    fireEvent.click(screen.getByText("Cancelar"));
+    fireEvent.click(screen.getByText("Sin tarjeta"));
     expect(onCancelar).toHaveBeenCalled();
   });
   it("el consejo aparece una vez y se marca visto al tocarlo; el teclado ampliado tiene los cuatro datos y la estrella", () => {
@@ -109,11 +109,25 @@ describe("CerrarStand", () => {
   it("sin tarjeta ofrece sacarla; los productos se pueden sacar del stand", () => {
     const onSacarTarjeta = vi.fn(), onSacarProducto = vi.fn();
     con(<CerrarStand itemsCount={1} items={[{ id: 9, photos: [FOTO] }]} proveedor={proveedor} onSacarTarjeta={onSacarTarjeta} onSacarProducto={onSacarProducto} />);
-    expect(screen.getByText("Sacale una foto a la tarjeta del proveedor")).toBeTruthy(); // sin tarjeta, es lo primero que pide
     fireEvent.click(screen.getByText("Sacar la tarjeta"));
     expect(onSacarTarjeta).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Sacar del stand" }));
     expect(onSacarProducto).toHaveBeenCalledWith(9);
+  });
+  it("tras la tarjeta: una sola pantalla con lo leído, favorito, mínimo, comentarios, Editar y Listo (wireframe)", () => {
+    const onListo = vi.fn(), onEditar = vi.fn(), onCambiar = vi.fn();
+    con(<CerrarStand modo="resumen" itemsCount={1} items={[{ id: 1, photos: [FOTO] }]} cardPhoto={FOTO} proveedor={proveedor} stand="10.2 F21" onCambiarProveedor={onCambiar} onListo={onListo} onEditar={onEditar} />);
+    expect(screen.getByText("Yiwu Sunrise")).toBeTruthy();
+    expect(screen.getByText("Lily Chen")).toBeTruthy(); // el vendedor, grande
+    expect(screen.getByText("WeChat sunrise_lily")).toBeTruthy();
+    expect(screen.getByText("10.2 F21")).toBeTruthy();
+    expect(screen.queryByText("Agregar un dato")).toBeNull(); // nada de formulario
+    fireEvent.click(screen.getByRole("button", { name: "Marcar como favorito" }));
+    expect(onCambiar).toHaveBeenCalledWith({ favorito: true });
+    fireEvent.click(screen.getByText("Editar"));
+    expect(onEditar).toHaveBeenCalled();
+    fireEvent.click(screen.getByText("Listo"));
+    expect(onListo).toHaveBeenCalled();
   });
   it("con un borrador pendiente ofrece retomar o descartar", () => {
     const onRetomar = vi.fn();
