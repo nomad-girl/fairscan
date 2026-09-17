@@ -1,7 +1,7 @@
 /**
  * Revisar el día (decisión 3 del 16/09, idea de Nati): una sesión guiada de a una
  * tarjeta. Primera parte: lo que falta (precio, proveedor) → tus favoritos de hoy →
- * cierre. Los repetidos de a pares y el redescubrimiento llegan en la segunda parte.
+ * cierre. Segunda parte (16/09, noche): los repetidos probables van primero, de a pares.
  *
  * Regla de toda la sesión: ignorar una tarjeta es tan fácil como responderla.
  * "Saltar" pesa igual que "Listo"; deslizar pasa a la siguiente; lo salteado no
@@ -13,16 +13,18 @@ import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { Boton, Chip, FilaDeChips, Icono } from "../componentes/index.js";
 import { elegirMiniatura } from "../lib/miniaturas.js";
 import { fechaCorta } from "../idiomas/formato.js";
+import { paresRepetidos } from "../lib/repetidos.js";
 
 function horaDe(ts) { const d = new Date(ts || 0); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; }
 
-export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, esAnonima = false, pendientesSync = 0, Foto, t: tLegacy, onActualizarProducto, onCerrar, onCrearCuenta, onVerLosDeHoy }) {
+export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, esAnonima = false, pendientesSync = 0, Foto, t: tLegacy, onActualizarProducto, onJuntar, onCerrar, onCrearCuenta, onVerLosDeHoy }) {
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
 
   // Las tarjetas se arman una vez al entrar; lo que se resuelva o se saltee no vuelve.
   const [tarjetas] = useState(() => {
     const t = [];
+    for (const par of paresRepetidos(productosDeHoy)) t.push({ tipo: "repetidos", par });
     for (const p of productosDeHoy) if (!p.price || isNaN(parseFloat(p.price))) t.push({ tipo: "precio", p });
     for (const p of productosDeHoy) if (!p.supplierId) t.push({ tipo: "proveedor", p });
     t.push({ tipo: "favoritos" });
@@ -30,9 +32,11 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
     return t;
   });
   const [i, setI] = useState(0);
+  const [borrados, setBorrados] = useState(() => new Set()); // los que se juntaron en otro
+  const deHoy = useMemo(() => productosDeHoy.filter(p => !borrados.has(p.id)), [productosDeHoy, borrados]);
   const [valor, setValor] = useState("");
-  const [favs, setFavs] = useState(() => new Set(productosDeHoy.filter(p => p.favorito).map(p => p.id)));
-  const [resueltos, setResueltos] = useState({ precios: 0, proveedores: 0 });
+  const [favs, setFavs] = useState(() => new Set(deHoy.filter(p => p.favorito).map(p => p.id)));
+  const [resueltos, setResueltos] = useState({ precios: 0, proveedores: 0, juntados: 0 });
   const inicio = useRef(null);
 
   const actual = tarjetas[i];
@@ -40,11 +44,11 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
   const siguiente = () => { setValor(""); setI(n => Math.min(n + 1, total - 1)); };
 
   const proveedoresDeHoy = useMemo(() => {
-    const ids = new Set(productosDeHoy.map(p => p.supplierId).filter(Boolean));
+    const ids = new Set(deHoy.map(p => p.supplierId).filter(Boolean));
     const recientes = suppliers.filter(s => ids.has(s.id));
     const otros = suppliers.filter(s => !ids.has(s.id)).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 6);
     return [...recientes, ...otros];
-  }, [productosDeHoy, suppliers]);
+  }, [deHoy, suppliers]);
 
   const onDown = e => { inicio.current = e.clientX; };
   const onUp = e => { if (inicio.current !== null && Math.abs(e.clientX - inicio.current) > 90) siguiente(); inicio.current = null; };
@@ -61,17 +65,17 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
   const elegirProveedor = (s) => { onActualizarProducto?.(actual.p.id, { supplierId: s.id, supplierCompany: s.company }); setResueltos(r => ({ ...r, proveedores: r.proveedores + 1 })); siguiente(); };
   const alternarFav = (p) => { const n = new Set(favs); const on = !n.has(p.id); if (on) n.add(p.id); else n.delete(p.id); setFavs(n); onActualizarProducto?.(p.id, { favorito: on ? 1 : 0 }); };
 
-  const sinPrecioAlFinal = productosDeHoy.filter(p => !p.price || isNaN(parseFloat(p.price))).length - resueltos.precios;
-  const proveedoresHoy = new Set(productosDeHoy.map(p => p.supplierId).filter(Boolean)).size + resueltos.proveedores;
+  const sinPrecioAlFinal = deHoy.filter(p => !p.price || isNaN(parseFloat(p.price))).length - resueltos.precios;
+  const proveedoresHoy = new Set(deHoy.map(p => p.supplierId).filter(Boolean)).size + resueltos.proveedores;
 
   const Tarjeta = ({ children }) => (
     <div onPointerDown={onDown} onPointerUp={onUp} style={{ background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande + 2, boxShadow: paleta.sombraTarjeta, padding: 12, display: "flex", flexDirection: "column", gap: 10, touchAction: "pan-y" }}>{children}</div>
   );
   const Pregunta = ({ titulo, sub }) => <div style={{ textAlign: "center" }}><p style={{ ...texto("cuerpo", { fontWeight: 600 }), margin: 0 }}>{titulo}</p>{sub && <p style={{ ...texto("pie"), color: paleta.dim, margin: "2px 0 0" }}>{sub}</p>}</div>;
-  const DosBotones = ({ onSaltar, onListo, listoTexto = t("revisar.listo"), listoActivo = true }) => (
+  const DosBotones = ({ onSaltar, onListo, listoTexto = t("revisar.listo"), saltarTexto = t("revisar.saltar"), listoActivo = true }) => (
     <>
       <div style={{ display: "flex", gap: 8 }}>
-        <Boton variante="secundario" ancho="total" onClick={onSaltar} estilo={{ flex: 1, minHeight: 48 }}>{t("revisar.saltar")}</Boton>
+        <Boton variante="secundario" ancho="total" onClick={onSaltar} estilo={{ flex: 1, minHeight: 48 }}>{saltarTexto}</Boton>
         <Boton variante="secundario" ancho="total" onClick={onListo} deshabilitado={!listoActivo} estilo={{ flex: 1, minHeight: 48 }}>{listoTexto}</Boton>
       </div>
       <p style={{ ...texto("pie"), color: paleta.dim, textAlign: "center", margin: 0 }}>{t("revisar.deslizaParaPasar")}</p>
@@ -88,6 +92,30 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
       <div aria-hidden style={{ margin: `0 ${espacios.margenLateral}px 10px`, height: 4, borderRadius: 2, background: paleta.border, overflow: "hidden" }}><div style={{ width: `${Math.round(((i + 1) / total) * 100)}%`, height: "100%", background: paleta.accent, transition: "width 250ms" }} /></div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: `0 ${espacios.margenLateral}px 24px`, display: "flex", flexDirection: "column", gap: 12 }}>
+
+        {actual?.tipo === "repetidos" && (() => {
+          const { a, b, minutos } = actual.par;
+          const prov = suppliers.find(x => x.id === a.supplierId)?.company || a.supplierCompany || null;
+          const juntarEstos = () => { onJuntar?.(a, b); setBorrados(prev => new Set([...prev, b.id])); setResueltos(r => ({ ...r, juntados: r.juntados + 1 })); siguiente(); };
+          return (
+            <>
+              <Pregunta titulo={t("revisar.sonElMismo")} sub={[minutos < 1 ? t("revisar.sacadasSeguidas") : t("revisar.repetidosSub", { count: minutos }), prov].filter(Boolean).join(" · ")} />
+              <Tarjeta>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  {[a, b].map(p => (
+                    <div key={p.id} style={{ minWidth: 0 }}>
+                      <div style={{ aspectRatio: "4/3", borderRadius: radios.medio, overflow: "hidden", background: paleta.surface }}><Miniatura p={p} /></div>
+                      <p style={{ ...texto("pie", { fontWeight: 600 }), margin: "6px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name || "—"}</p>
+                      <p style={{ ...texto("pie"), color: paleta.dim, margin: 0 }}>{horaDe(p.createdAt)}{p.price ? ` · USD ${p.price}` : ""}</p>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ ...texto("pie"), color: paleta.dim, textAlign: "center", margin: 0 }}>{t("revisar.juntarPista")}</p>
+                <DosBotones onSaltar={siguiente} onListo={juntarEstos} listoTexto={t("revisar.juntar")} saltarTexto={t("revisar.sonDistintos")} />
+              </Tarjeta>
+            </>
+          );
+        })()}
 
         {actual?.tipo === "precio" && (
           <>
@@ -119,17 +147,17 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
 
         {actual?.tipo === "favoritos" && (
           <>
-            <Pregunta titulo={t("revisar.favoritosDeHoy")} sub={t("revisar.favoritosDeHoySub", { count: favs.size, total: productosDeHoy.length })} />
+            <Pregunta titulo={t("revisar.favoritosDeHoy")} sub={t("revisar.favoritosDeHoySub", { count: favs.size, total: deHoy.length })} />
             {favs.size === 0 && <p style={{ ...texto("pie"), color: paleta.dim, textAlign: "center", margin: 0 }}>{t("revisar.sinFavoritos")}</p>}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
-              {[...productosDeHoy].sort((a, b) => (favs.has(b.id) ? 1 : 0) - (favs.has(a.id) ? 1 : 0)).slice(0, favs.size ? Math.max(favs.size, 9) : 9).map(p => (
+              {[...deHoy].sort((a, b) => (favs.has(b.id) ? 1 : 0) - (favs.has(a.id) ? 1 : 0)).slice(0, favs.size ? Math.max(favs.size, 9) : 9).map(p => (
                 <button key={p.id} type="button" onClick={() => alternarFav(p)} aria-pressed={favs.has(p.id)} aria-label={p.name || ""} style={{ position: "relative", aspectRatio: "1", borderRadius: radios.chico, overflow: "hidden", border: `2px solid ${favs.has(p.id) ? paleta.accent : paleta.border}`, background: paleta.card, padding: 0, cursor: "pointer", opacity: favs.has(p.id) ? 1 : 0.6 }}>
                   <Miniatura p={p} />
                   {favs.has(p.id) && <span style={{ position: "absolute", top: 4, right: 4, width: 22, height: 22, borderRadius: 6, background: "rgba(10,14,23,0.6)", display: "grid", placeItems: "center" }}><Icono nombre="favorito" tamano={13} color="#FDBA74" /></span>}
                 </button>
               ))}
             </div>
-            <FilaDeChips estilo={{ justifyContent: "center" }}><Chip onClick={onVerLosDeHoy}>{t("revisar.verLosDeHoy", { count: productosDeHoy.length })}</Chip></FilaDeChips>
+            <FilaDeChips estilo={{ justifyContent: "center" }}><Chip onClick={onVerLosDeHoy}>{t("revisar.verLosDeHoy", { count: deHoy.length })}</Chip></FilaDeChips>
             <Boton variante="principal" ancho="total" onClick={siguiente}>{t("revisar.cerrarElDia")}</Boton>
           </>
         )}
@@ -139,13 +167,13 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
             <div style={{ textAlign: "center", padding: "22px 0 6px", display: "flex", flexDirection: "column", gap: 4 }}>
               <span style={{ ...texto("enorme") }}>{t("revisar.diaCerrado")}</span>
               <span style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted }}>{feria ? `${feria} · ${fechaCorta(Date.now())}` : fechaCorta(Date.now())}</span>
-              <span style={{ ...texto("cuerpo"), color: paleta.text }}>{t("revisar.resumenCierre", { productos: t("catalogo.productos", { count: productosDeHoy.length }), proveedores: t("cantidades.proveedores", { count: proveedoresHoy }) })}</span>
+              <span style={{ ...texto("cuerpo"), color: paleta.text }}>{t("revisar.resumenCierre", { productos: t("catalogo.productos", { count: deHoy.length }), proveedores: t("cantidades.proveedores", { count: proveedoresHoy }) })}</span>
               <span style={{ ...texto("pie"), color: paleta.muted }}>{t("revisar.favoritosCierre", { count: favs.size })}{sinPrecioAlFinal > 0 ? ` · ${t("revisar.quedaronSinPrecio", { count: sinPrecioAlFinal })}` : ""}</span>
               <span style={{ ...texto("pie"), color: pendientesSync > 0 ? paleta.muted : paleta.green }}>{pendientesSync > 0 ? t("revisar.pendientesSync", { count: pendientesSync }) : t("revisar.todoSincronizado")}</span>
             </div>
             {esAnonima ? (
               <div style={{ background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, boxShadow: paleta.sombraTarjeta, padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
-                <p style={{ ...texto("cuerpo", { fontWeight: 600 }), margin: 0 }}>{t("revisar.tusProductosEnEsteTelefono", { count: productosDeHoy.length })}</p>
+                <p style={{ ...texto("cuerpo", { fontWeight: 600 }), margin: 0 }}>{t("revisar.tusProductosEnEsteTelefono", { count: deHoy.length })}</p>
                 <p style={{ ...texto("pie"), color: paleta.muted, margin: 0 }}>{t("revisar.creaCuenta")}</p>
                 <Boton variante="principal" ancho="total" onClick={onCrearCuenta}>{t("revisar.crearCuenta")}</Boton>
                 <Boton variante="fantasma" ancho="total" onClick={onCerrar}>{t("revisar.masTarde")}</Boton>

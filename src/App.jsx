@@ -105,6 +105,7 @@ import { ArmarPedido } from './pantallas/ArmarPedido.jsx';
 import { Pedidos } from './pantallas/Pedidos.jsx';
 import { pedidoDeProveedor, pedidoNuevo, textoProforma, nombreDeArchivo } from './lib/pedidos.js';
 import { excelDeProforma, excelDeFeria } from './lib/proformaExcel.js';
+import { juntar } from './lib/repetidos.js';
 import { numero as fNumero } from './idiomas/formato.js';
 import i18n from 'i18next';
 // Los textos por clave, para lo que vive en App y todavía usa `t` como paleta de colores.
@@ -3484,6 +3485,7 @@ export default function App() {
         <RevisarDia productosDeHoy={soloDeHoy(activeDistrictId ? products.filter(p => p.districtId === activeDistrictId) : products)} suppliers={suppliers}
           feria={activeDistrict ? `${activeDistrict.emoji || ""} ${activeDistrict.name}`.trim() : null} esAnonima={!!auth.esAnonima} pendientesSync={queueCount}
           Foto={FotoDeProducto} t={t} onActualizarProducto={handleUpdateProduct}
+          onJuntar={(a, b) => { const { cambios } = juntar(a, b); handleUpdateProduct(a.id, cambios); handleDeleteProduct(b.id); }}
           onCerrar={() => navigate("list")} onCrearCuenta={() => navigate("settings")} onVerLosDeHoy={() => { setListTab("todo"); navigate("list"); }} />
       )}
       {screen === "supplier" && screenData && (

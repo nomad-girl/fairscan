@@ -85,6 +85,19 @@ describe("Revisar el día", () => {
     fireEvent.click(screen.getByText("Yiwu Sunrise"));
     expect(onActualizar).toHaveBeenCalledWith(3, { supplierId: 10, supplierCompany: "Yiwu Sunrise" });
   });
+  it("los repetidos probables van primero, de a pares; Juntar avisa y Son distintos no", () => {
+    const onJuntar = vi.fn();
+    const par = [
+      { id: 21, name: "Taza de cerámica blanca", category: "Vajilla", price: "0.85", supplierId: 10, createdAt: hoy - 50000, photos: [FOTO], ai_processed: true },
+      { id: 22, name: "Taza cerámica blanca lisa", category: "Vajilla", price: "0.85", supplierId: 10, createdAt: hoy - 20000, photos: [FOTO], ai_processed: true },
+    ];
+    con(<RevisarDia productosDeHoy={[...deHoy, ...par]} suppliers={suppliers} onJuntar={onJuntar} />);
+    expect(screen.getByText("¿Son el mismo producto?")).toBeTruthy();
+    expect(screen.getByText("1 de 5")).toBeTruthy();
+    fireEvent.click(screen.getByText("Juntar en uno"));
+    expect(onJuntar).toHaveBeenCalledWith(par[0], par[1]);
+    expect(screen.getByText("¿A cuánto estaba?")).toBeTruthy();
+  });
   it("saltar no guarda nada y llega a favoritos y al cierre; la cuenta se pide solo a quien no la tiene", () => {
     const onActualizar = vi.fn(), onCrearCuenta = vi.fn();
     con(<RevisarDia productosDeHoy={deHoy} suppliers={suppliers} esAnonima onActualizarProducto={onActualizar} onCrearCuenta={onCrearCuenta} />);

@@ -203,7 +203,14 @@
     "masTarde": "Más tarde",
     "volverAlCatalogo": "Volver al catálogo",
     "nadaQueRevisar": "Nada para revisar hoy",
-    "ok": "OK"
+    "ok": "OK",
+    "sonElMismo": "¿Son el mismo producto?",
+    "sacadasSeguidas": "Sacadas una atrás de la otra",
+    "repetidosSub_one": "Sacadas con {{count}} minuto de diferencia",
+    "repetidosSub_other": "Sacadas con {{count}} minutos de diferencia",
+    "sonDistintos": "Son distintos",
+    "juntar": "Juntar en uno",
+    "juntarPista": "Queda un solo producto con las fotos de los dos. Se puede deshacer."
   },
   "ficha": {
     "producto": "Producto",
