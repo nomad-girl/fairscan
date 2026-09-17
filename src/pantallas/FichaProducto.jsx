@@ -13,6 +13,7 @@ import { Boton, Bloque, Campo, Segmentado, Fila, Icono, Hoja, Esqueleto } from "
 import { estadoIA, patchReintentoIA, explicarFalloIA } from "../lib/aiEstado.js";
 import { urlDeAudio, esPunteroMuerto } from "../lib/audioNotes.js";
 import { haceCuanto } from "../idiomas/formato.js";
+import { respaldoDe } from "../lib/miniaturas.js";
 
 export function FichaProducto({ product: p, allProducts = [], suppliers = [], districts = [], settings, moneda = "USD", Foto, tLegacy, onBack, onUpdate, onAddPhoto, onDelete, onNavigateSupplier, onNavigateProduct, onPedir }) {
   const { t } = useTranslation();
@@ -82,7 +83,7 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
         <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={{ position: "relative", borderRadius: radios.grande, overflow: "hidden", background: paleta.surface, border: `1px solid ${paleta.border}` }}>
           {fotos.length > 0 ? (
             <div ref={scrollRef} onScroll={e => setFoto(Math.round(e.target.scrollLeft / e.target.offsetWidth))} style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}>
-              {fotos.map((ph, i) => <div key={i} style={{ width: "100%", aspectRatio: "4/3", flexShrink: 0, scrollSnapAlign: "start" }}>{Foto ? <Foto src={ph} respaldo={p.photoUrls?.[i] || p.photoUrls?.[0] || null} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <img src={ph} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />}</div>)}
+              {fotos.map((ph, i) => <div key={i} style={{ width: "100%", aspectRatio: "4/3", flexShrink: 0, scrollSnapAlign: "start" }}>{Foto ? <Foto src={ph} respaldo={respaldoDe(p, i)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <img src={ph} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />}</div>)}
             </div>
           ) : (
             <div style={{ aspectRatio: "4/3", display: "grid", placeItems: "center" }}><Icono nombre="foto" tamano={32} color={paleta.dim} /></div>

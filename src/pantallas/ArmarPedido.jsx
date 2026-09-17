@@ -8,7 +8,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { Boton, Bloque, Campo, Fila, Icono, Hoja } from "../componentes/index.js";
-import { elegirMiniatura } from "../lib/miniaturas.js";
+import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
 import { cantidadDe, conCantidad, lineaDePedido, productosParaPedido, totalesDePedido, porcentajeDeContenedor } from "../lib/pedidos.js";
 import { numero as fNumero, cbm as fCbm, fechaCorta } from "../idiomas/formato.js";
 import { vibrarSeleccion } from "../sistema/vibrar.js";
@@ -59,7 +59,7 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
     const src = elegirMiniatura(p);
     const caja = { width: tamano, height: tamano, borderRadius: radios.chico, overflow: "hidden", flexShrink: 0, background: paleta.surface, border: `1px solid ${paleta.border}` };
     if (!src && !p.photoUrls?.[0]) return <div style={{ ...caja, display: "grid", placeItems: "center" }}><Icono nombre="foto" tamano={16} color={paleta.dim} /></div>;
-    return <div style={caja}>{Foto ? <Foto src={src} respaldo={p.photoUrls?.[0] || null} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <img src={src || p.photoUrls?.[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />}</div>;
+    return <div style={caja}>{Foto ? <Foto src={src} respaldo={respaldoDe(p)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <img src={src || respaldoDe(p)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />}</div>;
   };
 
   const contador = (p, cant, foco) => (

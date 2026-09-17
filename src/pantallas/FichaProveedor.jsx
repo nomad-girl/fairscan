@@ -9,7 +9,7 @@ import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { Boton, Bloque, Campo, Icono, Hoja, GrillaDeFotos, CeldaDeFoto } from "../componentes/index.js";
 import { urlDeAudio } from "../lib/audioNotes.js";
-import { elegirMiniatura } from "../lib/miniaturas.js";
+import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
 import { pedidoDeProveedor, productosParaPedido, totalesDePedido } from "../lib/pedidos.js";
 
 // Los datos largos van con la etiqueta arriba y el valor abajo (Nati, 17/09: "el mail se ve raro").
@@ -55,7 +55,7 @@ export function FichaProveedor({ supplier: s, products = [], pedidos = [], distr
   const miniatura = (p) => {
     const src = elegirMiniatura(p);
     if (!src && !p.photoUrls?.[0]) return <div style={{ width: "100%", height: "100%", background: paleta.surface, display: "grid", placeItems: "center" }}><Icono nombre="foto" tamano={20} color={paleta.dim} /></div>;
-    return Foto ? <Foto src={src} respaldo={p.photoUrls?.[0] || null} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <img src={src || p.photoUrls?.[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />;
+    return Foto ? <Foto src={src} respaldo={respaldoDe(p)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <img src={src || respaldoDe(p)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />;
   };
   const seccion = (txt) => <h3 style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: paleta.dim, margin: "4px 2px 8px" }}>{txt}</h3>;
   const subtitulo = [s.contact, s.boothNumber ? `${t("proveedor.stand")} ${s.boothNumber}` : null, feria ? feria.name : null].filter(Boolean).join(" · ");

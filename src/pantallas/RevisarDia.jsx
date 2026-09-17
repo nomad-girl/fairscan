@@ -12,7 +12,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { Boton, Chip, FilaDeChips, Fila, Icono } from "../componentes/index.js";
-import { elegirMiniatura } from "../lib/miniaturas.js";
+import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
 import { fechaCorta } from "../idiomas/formato.js";
 import { paresRepetidos } from "../lib/repetidos.js";
 
@@ -66,7 +66,7 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
   // Funciones de dibujo, no componentes: un componente definido adentro del render se desmonta en cada cambio (las fotos titilaban).
   const miniatura = (p, estilo) => {
     const src = elegirMiniatura(p);
-    return Foto ? <Foto src={src} respaldo={p.photoUrls?.[0] || null} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block", ...estilo }} /> : <img src={src || p.photoUrls?.[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", ...estilo }} />;
+    return Foto ? <Foto src={src} respaldo={respaldoDe(p)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block", ...estilo }} /> : <img src={src || respaldoDe(p)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", ...estilo }} />;
   };
   const tarjeta = (contenido) => (
     <div onPointerDown={onDown} onPointerUp={onUp} style={{ background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande + 2, boxShadow: paleta.sombraTarjeta, padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>{contenido}</div>

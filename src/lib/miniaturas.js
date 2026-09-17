@@ -22,6 +22,18 @@ export function elegirMiniatura(p) {
   return p?.thumb || p?.photos?.[0] || null;
 }
 
+/**
+ * La dirección de la nube para el segundo y tercer intento de FotoDeProducto (17/09): si la foto
+ * misma ya es una dirección web (productos que bajaron de la nube sin copia local), sirve como
+ * respaldo para pedirla a través de nuestro servidor cuando el teléfono no llega al bucket.
+ */
+export function respaldoDe(p, i = 0) {
+  const u = p?.photoUrls?.[i] || p?.photoUrls?.[0];
+  if (u) return u;
+  const f = p?.photos?.[i] ?? p?.photos?.[0];
+  return typeof f === 'string' && f.startsWith('http') ? f : null;
+}
+
 /** ¿Le falta la miniatura y se puede generar en este teléfono (foto local)? */
 export function necesitaMiniatura(p) {
   return !p?.thumb && esFotoLocal(p?.photos?.[0]);

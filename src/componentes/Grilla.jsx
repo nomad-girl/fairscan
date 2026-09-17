@@ -34,7 +34,7 @@ export function CarruselDeFotos({ fotos = [], respaldos = [], Foto, tLegacy, onT
   const ref = useRef(null);
   const onScroll = e => { const n = Math.round(e.target.scrollLeft / e.target.offsetWidth); if (n !== i) setI(n); };
   const dibujar = (src, k) => Foto
-    ? <Foto src={src} respaldo={respaldos[k] || respaldos[0] || null} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+    ? <Foto src={src} respaldo={respaldos[k] || respaldos[0] || (typeof src === "string" && src.startsWith("http") ? src : null)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
     : <img src={src || respaldos[k]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />;
   return (
     <div style={{ position: "relative", background: paleta.surface }}>
