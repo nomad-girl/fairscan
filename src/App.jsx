@@ -1834,6 +1834,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
             Borrar mi cuenta
           </button>}
 
+          <p style={{ fontSize:11, color:t.dim, textAlign:"center", margin:"18px 0 6px", fontVariantNumeric:"tabular-nums" }}>Versión {typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev"}</p>
           {/* Legales (pieza 10.0). Direcciones absolutas a propósito: en la app
               nativa no hay "sitio", así que un link relativo no llevaría a ningún lado. */}
           <p style={{ fontSize: 12, color: t.dim, margin: '18px 0 0', textAlign: 'center', lineHeight: 1.8 }}>

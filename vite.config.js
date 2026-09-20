@@ -1,6 +1,10 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { execSync } from 'node:child_process';
+
+// La versión visible en Configuración (20/09): commit corto y fecha de compilación, para saber qué corre cada teléfono.
+const VERSION_APP = (() => { try { return execSync('git rev-parse --short HEAD').toString().trim(); } catch { return 'dev'; } })() + ' · ' + new Date().toISOString().slice(0, 16).replace('T', ' ');
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -11,6 +15,7 @@ export default defineConfig(({ mode }) => {
   const nativeBuild = env.VITE_NATIVE === '1';
 
   return {
+    define: { __APP_VERSION__: JSON.stringify(VERSION_APP) },
     server: {
       proxy: {
         '/api': {
