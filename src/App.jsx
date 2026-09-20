@@ -331,7 +331,14 @@ const FotoDeProducto = memo(({ src, respaldo = null, t, estilo }) => {
       </div>
     );
   }
-  return <img src={actual} alt="" loading="lazy" decoding="async" onError={() => setIntento(i => (i === 2 ? 3 : i + 1))} style={caja} />;
+  // 20/09: si el respaldo es la misma dirección que falló, no se vuelve a poner (el navegador no recarga la misma
+  // dirección, no avisa error, y la imagen quedaba rota para siempre: el "?" azul de iOS). Se salta al servidor.
+  const siguienteIntento = (i) => {
+    if (i === 0) return respaldo && respaldo !== src ? 1 : 2;
+    if (i === 1) return 2;
+    return 3;
+  };
+  return <img src={actual} alt="" loading="lazy" decoding="async" onError={() => setIntento(siguienteIntento)} style={caja} />;
 });
 
 

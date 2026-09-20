@@ -110,7 +110,7 @@ export function FichaProveedor({ supplier: s, products = [], pedidos = [], distr
           {seccion(t("proveedor.contacto"))}
           {tarjeta && (
             <button type="button" onClick={() => setTarjetaGrande(true)} aria-label={t("proveedor.verTarjeta")} style={{ display: "block", width: "100%", padding: 0, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, overflow: "hidden", background: paleta.surface, cursor: "pointer", marginBottom: espacios.entreFilas }}>
-              <img src={tarjeta} alt="" style={{ width: "100%", aspectRatio: "16/10", objectFit: "cover", display: "block" }} />
+              <div style={{ width: "100%", aspectRatio: "16/10" }}>{Foto ? <Foto src={tarjeta} respaldo={s.cardPhotoUrl || null} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <img src={tarjeta} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />}</div>
             </button>
           )}
           <Bloque>
