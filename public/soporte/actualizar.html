@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>FairScan · actualizar</title>
+<style>body{font-family:-apple-system,system-ui,sans-serif;background:#EDF1F6;color:#0F172A;margin:0;padding:40px 24px;text-align:center}h1{font-size:22px;margin:0 0 8px}p{color:#475569;font-size:15px;line-height:1.5}#estado{font-weight:600;color:#C2410C}</style></head>
+<body>
+<h1>Actualizando FairScan</h1>
+<p>Esta página saca la copia vieja de la app guardada en el teléfono y abre la versión nueva. <b>No toca tus productos ni tus fotos.</b></p>
+<p id="estado">Un momento…</p>
+<script>
+(async function () {
+  var estado = document.getElementById('estado');
+  try {
+    if (navigator.serviceWorker) {
+      var regs = await navigator.serviceWorker.getRegistrations();
+      for (var r of regs) { try { await r.unregister(); } catch (e) {} }
+    }
+    if (window.caches) {
+      var ks = await caches.keys();
+      for (var k of ks) { try { await caches.delete(k); } catch (e) {} }
+    }
+    estado.textContent = 'Listo. Abriendo la app nueva…';
+  } catch (e) {
+    estado.textContent = 'No se pudo limpiar del todo; abriendo la app igual…';
+  }
+  setTimeout(function () { location.replace('/?actualizada=' + Date.now()); }, 800);
+})();
+</script>
+</body></html>
