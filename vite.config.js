@@ -69,7 +69,7 @@ export default defineConfig(({ mode }) => {
             // de foto falla en vez de pasar de largo. El caché HTTP normal del
             // navegador ya las guarda solo, sin ese castigo.
             {
-              urlPattern: /^https:\/\/.*\.(r2\.dev|cloudflare).*\.(jpg|jpeg|png|webp)/i,
+              urlPattern: /^https:\/\/(.*\.(r2\.dev|cloudflare)|fotos\.fairscan\.app).*\.(jpg|jpeg|png|webp)/i, // las fotos nunca pasan por el caché del SW (15/09)
               handler: 'NetworkOnly',
             },
             // (Las reglas para Google Fonts se fueron: DM Sans viaja dentro del

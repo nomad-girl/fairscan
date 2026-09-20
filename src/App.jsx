@@ -107,6 +107,7 @@ import { Pedidos } from './pantallas/Pedidos.jsx';
 import { pedidoDeProveedor, pedidoNuevo, textoProforma, nombreDeArchivo } from './lib/pedidos.js';
 import { excelDeProforma, excelDeFeria } from './lib/proformaExcel.js';
 import { juntar } from './lib/repetidos.js';
+import { conDominioPropio } from './lib/fotosDominio.js';
 import { numero as fNumero } from './idiomas/formato.js';
 import i18n from 'i18next';
 // Los textos por clave, para lo que vive en App y todavía usa `t` como paleta de colores.
@@ -316,7 +317,9 @@ const FotoDeProducto = memo(({ src, respaldo = null, t, estilo }) => {
     return () => { vivo = false; };
   }, [intento, respaldo, porProxy]);
   const caja = { width:"100%", height:"100%", objectFit:"cover", display:"block", ...estilo };
-  const actual = intento === 0 ? src : intento === 1 ? respaldo : intento === 2 ? porProxy : null;
+  // 20/09: lo que viene del bucket se muestra por fotos.fairscan.app (el dominio pub-….r2.dev no se alcanza desde
+  // algunos teléfonos). El tercer intento, por nuestro servidor, sigue usando la dirección original.
+  const actual = intento === 0 ? conDominioPropio(src) : intento === 1 ? conDominioPropio(respaldo) : intento === 2 ? porProxy : null;
   const fallo = intento >= 3 || (intento >= 1 && !respaldo);
   if (intento === 2 && !porProxy && !fallo) {
     return <div style={{ ...caja, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, opacity:0.6 }}>⏳</div>;
@@ -334,7 +337,7 @@ const FotoDeProducto = memo(({ src, respaldo = null, t, estilo }) => {
   // 20/09: si el respaldo es la misma dirección que falló, no se vuelve a poner (el navegador no recarga la misma
   // dirección, no avisa error, y la imagen quedaba rota para siempre: el "?" azul de iOS). Se salta al servidor.
   const siguienteIntento = (i) => {
-    if (i === 0) return respaldo && respaldo !== src ? 1 : 2;
+    if (i === 0) return respaldo && conDominioPropio(respaldo) !== conDominioPropio(src) ? 1 : 2;
     if (i === 1) return 2;
     return 3;
   };

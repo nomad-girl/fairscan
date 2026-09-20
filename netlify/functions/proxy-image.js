@@ -18,7 +18,7 @@ exports.handler = async (event) => {
     }
 
     // Only allow R2 URLs for security
-    if (!url.includes('.r2.dev/') && !url.includes('r2.cloudflarestorage.com')) {
+    if (!url.includes('.r2.dev/') && !url.includes('r2.cloudflarestorage.com') && !url.startsWith('https://fotos.fairscan.app/')) {
       return { statusCode: 403, headers, body: JSON.stringify({ error: 'Only R2 URLs allowed' }) };
     }
 
