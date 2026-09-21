@@ -217,7 +217,7 @@ export function CerrarStand({
             )}
           </div>
         )}
-        {vinculado && (
+        {vinculado && !!proveedor.name && ( /* sin nombre no dice nada: el campo de arriba es el llamado a completarlo */
           <div style={{ display: "flex", alignItems: "center", gap: 10, minHeight: alturas.tocable, padding: `0 14px`, borderRadius: radios.grande, background: paleta.accentSoft, border: `1px solid ${paleta.accent}` }}>
             <Icono nombre="proveedor" tamano={18} color={paleta.accentTexto} />
             <span style={{ ...texto("cuerpo", { fontWeight: 600 }), color: paleta.accentTexto, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t("cerrarStand.proveedorConocido")}: {proveedor.name}</span>
@@ -255,7 +255,7 @@ export function CerrarStand({
         {/* 3. La tarjeta ya sacada, chica: se puede quitar y volver a sacar */}
         {cardPhoto && (
           <div style={{ position: "relative", borderRadius: radios.grande, overflow: "hidden", border: `1px solid ${paleta.border}`, background: paleta.card, boxShadow: paleta.sombraTarjeta }}>
-            <img src={cardPhoto} alt={t("cerrarStand.tarjeta")} style={{ width: "100%", display: "block", maxHeight: 160, objectFit: "cover" }} />
+            <img src={cardPhoto} alt={t("cerrarStand.tarjeta")} style={{ width: "100%", display: "block", maxHeight: 280, objectFit: "contain", background: "#0B0E17" }} />
             {cardProcessing && (
               <div style={{ position: "absolute", left: 12, bottom: 12, display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(10,14,23,0.8)", color: "#F1F5F9", borderRadius: 999, padding: "6px 12px", fontSize: 13 }}>
                 <Esqueleto ancho={14} alto={14} radio={7} estilo={{ background: paleta.accent }} />{t("cerrarStand.leyendo")}

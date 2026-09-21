@@ -323,7 +323,7 @@ const FotoDeProducto = memo(({ src, respaldo = null, t, estilo }) => {
   const actual = intento === 0 ? conDominioPropio(src) : intento === 1 ? conDominioPropio(respaldo) : intento === 2 ? porProxy : null;
   const fallo = intento >= 3 || (intento >= 1 && !respaldo);
   if (intento === 2 && !porProxy && !fallo) {
-    return <div style={{ ...caja, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, opacity:0.6 }}>⏳</div>;
+    return <div style={{ ...caja, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", opacity:0.6 }}><Icono nombre="foto" tamano={22} color={t.dim} /></div>;
   }
   if (!actual || fallo) {
     return (

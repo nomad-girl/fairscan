@@ -104,7 +104,10 @@
     "tarjeta": "Tarjeta",
     "tarjetaLista": "Tarjeta lista",
     "nuevoStand": "Nuevo stand",
-    "abrirStand": "Abrir el stand"
+    "abrirStand": "Abrir el stand",
+    "standTarjetaSinLeer_one": "Tarjeta sin leer · {{count}} foto",
+    "standTarjetaSinLeer_other": "Tarjeta sin leer · {{count}} fotos",
+    "standTarjetaSinLeer_zero": "Tarjeta sin leer · tocá para completar"
   },
   "cerrarStand": {
     "titulo": "Cerrar stand",

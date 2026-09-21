@@ -18,7 +18,11 @@
 
 import { supabase } from '../lib/supabase.js';
 
-const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
+// En la app instalada (Capacitor) la página vive en capacitor://localhost: una dirección
+// relativa apunta al teléfono y la IA queda muda. El 21/09 pasó en el iPhone de Nati porque
+// el build nativo se hizo sin VITE_API_BASE. Ahora la app lo resuelve sola: si no es web, producción.
+const esNativa = typeof window !== 'undefined' && (/^(capacitor|ionic):$/.test(window.location.protocol) || !!window.Capacitor?.isNativePlatform?.());
+const API_BASE = (import.meta.env.VITE_API_BASE || (esNativa ? 'https://fairscan.app' : '')).replace(/\/$/, '');
 
 /** Arma la URL completa de un endpoint. Usarla siempre en vez de escribir "/api/..." suelto. */
 export const apiUrl = (path) => `${API_BASE}${path}`;

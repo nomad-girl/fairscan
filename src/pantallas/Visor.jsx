@@ -81,7 +81,7 @@ export function Visor({
       <div aria-hidden style={{ position: "absolute", inset: 0, background: "#fff", opacity: flash ? 0.75 : 0, pointerEvents: "none", zIndex: 2, transition: `opacity ${duracion(movimiento.obturador.velo)}ms linear` }} />
 
       {/* Arriba: saldo y estado. Nada más. */}
-      <div style={{ position: "absolute", top: "calc(0px + 12px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+      <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 12px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <div style={{ display: "flex", gap: 6, alignItems: "center", minWidth: 0 }}>
           {feria && <Pastilla estilo={{ maxWidth: "46vw", overflow: "hidden", textOverflow: "ellipsis", display: "block", lineHeight: "32px" }}>{feria}</Pastilla>}
           {textoSaldo && !esTarjeta && <Pastilla tono={saldoBajo ? "alerta" : "vidrio"}>{textoSaldo}</Pastilla>}
@@ -95,10 +95,11 @@ export function Visor({
         const conNombre = standAbierto.tieneTarjeta && !!standAbierto.nombre;
         const texto = standAbierto.leyendo ? `${t("visor.leyendoTarjeta")}${n ? ` · ${t("cantidades.fotos", { count: n })}` : ""}`
           : conNombre ? t("visor.standConNombre", { nombre: standAbierto.nombre, count: n })
-          : n === 0 && !standAbierto.tieneTarjeta ? t("visor.standNuevo")
+          : standAbierto.tieneTarjeta ? (n === 0 ? t("visor.standTarjetaSinLeer_zero") : t("visor.standTarjetaSinLeer", { count: n }))
+          : n === 0 ? t("visor.standNuevo")
           : t("visor.standSinTarjeta", { count: n });
         return (
-          <div style={{ position: "absolute", top: "calc(0px + 56px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "center" }}>
+          <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 56px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "center" }}>
             <button type="button" onClick={onStand} aria-label={t("visor.abrirStand")} style={{ maxWidth: "100%", minHeight: 36, padding: "0 14px", borderRadius: 999, border: "none", background: conNombre ? MARCA.naranja : "rgba(10,14,23,0.7)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", overflow: "hidden", backdropFilter: "blur(8px)" }}>
               <Icono nombre={conNombre ? "proveedor" : "tarjeta"} tamano={14} color="#fff" /><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{texto}</span><Icono nombre="siguiente" tamano={14} color="rgba(255,255,255,0.8)" />
             </button>
@@ -109,7 +110,7 @@ export function Visor({
       {/* Modo tarjeta: guía */}
       {esTarjeta && (
         <>
-          <div style={{ position: "absolute", top: "calc(0px + 60px)", left: 0, right: 0, zIndex: 3, display: "flex", justifyContent: "center" }}>
+          <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 60px)", left: 0, right: 0, zIndex: 3, display: "flex", justifyContent: "center" }}>
             <Pastilla><Icono nombre="tarjeta" tamano={16} color={BLANCO} />{t("visor.buscandoTarjeta")}</Pastilla>
           </div>
           <div aria-hidden style={{ position: "absolute", left: "8%", right: "8%", top: "30%", aspectRatio: "1.75", border: "2px dashed rgba(241,245,249,0.7)", borderRadius: 14, zIndex: 3, pointerEvents: "none" }} />
