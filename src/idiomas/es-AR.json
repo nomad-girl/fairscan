@@ -172,7 +172,7 @@
   "catalogo": {
     "titulo": "Catálogo",
     "hoy": "Hoy",
-    "todo": "Todo",
+    "todo": "Productos",
     "proveedores": "Proveedores",
     "buscar": "Buscar producto o proveedor",
     "todasLasFerias": "Todas las ferias",
@@ -208,7 +208,8 @@
     "capturar": "Capturar",
     "ajustes": "Cuenta y ajustes",
     "procesandoNombre": "Procesando…",
-    "pedidos": "Pedidos"
+    "pedidos": "Pedidos",
+    "ocultarAviso": "Ocultar este aviso"
   },
   "revisar": {
     "titulo": "Revisar el día",

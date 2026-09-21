@@ -53,6 +53,7 @@ export function Catalogo({
   }, [buscados, filtro]);
   const categorias = useMemo(() => [...new Set(enFeria.map(p => p.category).filter(Boolean))].slice(0, 8), [enFeria]);
   const pendientes = useMemo(() => enFeria.filter(p => !p.ai_processed && estadoIA(p) !== "fallo").length, [enFeria]);
+  const [avisoOculto, setAvisoOculto] = useState(false); // el cartel "procesando" se puede sacar (Nati, 21/09)
 
   const proveedoresBuscados = useMemo(() => {
     const base = feria === "todas" ? suppliers : suppliers.filter(s => s.districtId === activeDistrictId);
@@ -133,7 +134,7 @@ export function Catalogo({
         <Segmentado etiqueta={t("catalogo.titulo")} valor={pestana} onChange={onPestana} opciones={[{ valor: "todo", texto: t("catalogo.todo") }, { valor: "proveedores", texto: t("catalogo.proveedores") }]} />
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", padding: `6px ${espacios.margenLateral}px 110px`, display: "flex", flexDirection: "column", gap: espacios.entreFilas }}>
+      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", padding: `6px ${espacios.margenLateral}px 110px`, display: "flex", flexDirection: "column", gap: espacios.entreFilas }}>
 
         {pestana === "todo" && (
           <>
@@ -145,10 +146,11 @@ export function Catalogo({
               </button>
             </div>
 
-            {pendientes > 0 && (
-              <div role="status" style={{ display: "inline-flex", alignItems: "center", gap: 8, alignSelf: "flex-start", background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.pildora, padding: "6px 12px", ...texto("pie"), color: paleta.muted }}>
+            {pendientes > 0 && !avisoOculto && (
+              <div role="status" style={{ display: "inline-flex", alignItems: "center", gap: 8, alignSelf: "flex-start", background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.pildora, padding: "4px 6px 4px 12px", ...texto("pie"), color: paleta.muted }}>
                 <span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, background: paleta.accent, display: "inline-block" }} />
                 {enLinea ? t("catalogo.procesando", { count: pendientes }) : t("catalogo.pendientes", { count: pendientes })}
+                <button type="button" onClick={() => setAvisoOculto(true)} aria-label={t("catalogo.ocultarAviso")} style={{ width: 28, height: 28, borderRadius: 14, border: "none", background: "transparent", display: "grid", placeItems: "center", cursor: "pointer", padding: 0 }}><Icono nombre="cerrar" tamano={16} color={paleta.dim} /></button>
               </div>
             )}
 

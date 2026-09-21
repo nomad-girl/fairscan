@@ -129,7 +129,7 @@ import { supabase } from './lib/supabase.js';
 const ordenarPorFecha = (arr) => [...arr].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
 const CURRENCIES = { USD: { symbol:"USD", label:"Dólar (USD)" }, ARS: { symbol:"ARS", label:"Peso Argentino (ARS)" }, CNY: { symbol:"¥", label:"Yuan Chino (CNY)" } };
-const DEFAULT_SETTINGS_FALLBACK = { activeDistrictId:1, theme:"dark", preset:"vajilla", minMargin:40, quickCaptureMode:true, currency:"USD", showImportCalculator:false, ...PRESETS.vajilla };
+const DEFAULT_SETTINGS_FALLBACK = { activeDistrictId:1, theme:"light", preset:"vajilla", minMargin:40, quickCaptureMode:true, currency:"USD", showImportCalculator:false, ...PRESETS.vajilla };
 
 // ═══════════════════════════════════════════
 // IMAGE & EXPORT UTILS
@@ -1228,7 +1228,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
 // ═══════════════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════════════
-function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers, districts, onReload, teams, activeTeam, teamMembers, isAdmin, fetchMembers, inviteMember, onSwitchTeam, userEmail, userId, esAnonima = false, auth, onSignOut, onGoExport, onAccountDeleted }) {
+function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers, districts, onReload, teams, activeTeam, teamMembers, isAdmin, fetchMembers, inviteMember, onSwitchTeam, userEmail, userId, esAnonima = false, auth, onSignOut, onGoExport, onAccountDeleted, isDark = false, onToggleTheme }) {
   const handleSwitchTeam = async (teamId) => {
     if (onSwitchTeam) await onSwitchTeam(teamId);
   };
@@ -1412,24 +1412,11 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
     </div>
   );
 
-  // ─── SUB-SCREEN: Costos de importación ───
-  if (subScreen === "costs") return (
+  // ─── SUB-SCREEN: Captura y pantalla (21/09): lo que cambia cómo se saca la foto y cómo se ve la app ───
+  if (subScreen === "captura") return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
-      <Header title="Costos de importación" onBack={() => setSubScreen(null)} t={t} />
+      <Header title="Captura y pantalla" onBack={() => setSubScreen(null)} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
-
-        {/* Currency selector */}
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Moneda de precios</p>
-        <div style={{ display:"flex", gap:6, marginBottom:20 }}>
-          {Object.entries(CURRENCIES).map(([k, v]) => (
-            <button key={k} onClick={() => updateLoc(p => ({ ...p, currency: k }))} style={{
-              flex:1, padding:"10px 8px", borderRadius:10, border:`1.5px solid ${loc.currency===k?t.accent:t.border}`,
-              background:loc.currency===k?t.accentSoft:"transparent", color:loc.currency===k?t.accent:t.muted,
-              fontSize:12, fontWeight:700, cursor:"pointer", textAlign:"center",
-            }}>{v.label}</button>
-          ))}
-        </div>
-
         {/* Stand abierto (21/09): la captura nueva, detrás de un interruptor hasta el OK de Nati */}
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Captura · stand abierto (prueba)</p>
         <button type="button" role="switch" aria-checked={!!loc.capturaAbierta} onClick={() => updateLoc(p => ({ ...p, capturaAbierta: !p.capturaAbierta }))} style={{ width:"100%", minHeight:44, padding:"10px 12px", borderRadius:10, border:`1.5px solid ${loc.capturaAbierta?t.accent:t.border}`, background:loc.capturaAbierta?t.accentSoft:"transparent", color:loc.capturaAbierta?t.accent:t.muted, fontSize:13, fontWeight:700, cursor:"pointer", textAlign:"left", fontFamily:"inherit", marginBottom:20 }}>
@@ -1449,6 +1436,33 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
               }}>{activo ? "✓ " : ""}{etiqueta}</button>
             );
           })}
+        </div>
+
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Pantalla</p>
+        <button type="button" role="switch" aria-checked={!!isDark} onClick={onToggleTheme} style={{ width:"100%", minHeight:44, padding:"10px 12px", borderRadius:10, border:`1.5px solid ${isDark?t.accent:t.border}`, background:isDark?t.accentSoft:"transparent", color:isDark?t.accent:t.muted, fontSize:13, fontWeight:700, cursor:"pointer", textAlign:"left", fontFamily:"inherit", marginBottom:20 }}>
+          Modo oscuro · {isDark ? "Activado" : "Desactivado"}
+        </button>
+        <p style={{ fontSize:11, color:t.dim, textAlign:"center", fontStyle:"italic" }}>Los cambios se guardan automáticamente</p>
+      </div>
+    </div>
+  );
+
+  // ─── SUB-SCREEN: Costos de importación ───
+  if (subScreen === "costs") return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
+      <Header title="Costos de importación" onBack={() => setSubScreen(null)} t={t} />
+      <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
+
+        {/* Currency selector */}
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Moneda de precios</p>
+        <div style={{ display:"flex", gap:6, marginBottom:20 }}>
+          {Object.entries(CURRENCIES).map(([k, v]) => (
+            <button key={k} onClick={() => updateLoc(p => ({ ...p, currency: k }))} style={{
+              flex:1, padding:"10px 8px", borderRadius:10, border:`1.5px solid ${loc.currency===k?t.accent:t.border}`,
+              background:loc.currency===k?t.accentSoft:"transparent", color:loc.currency===k?t.accent:t.muted,
+              fontSize:12, fontWeight:700, cursor:"pointer", textAlign:"center",
+            }}>{v.label}</button>
+          ))}
         </div>
 
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Margen mínimo para importación</p>
@@ -1824,6 +1838,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
       <Header title="Configuración" onBack={onBack} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
+        <MenuItem icon="" title="Captura y pantalla" subtitle={`${loc.capturaAbierta ? "Stand abierto" : "Cerrar stand"} · ${isDark ? "oscuro" : "claro"}`} onClick={() => setSubScreen("captura")} accent={loc.capturaAbierta ? t.accent : undefined} />
         <MenuItem icon="" title="Equipo y sincronización" subtitle={activeTeam ? activeTeam.name : "Sin equipo"} onClick={() => setSubScreen("room")} />
         <MenuItem icon="" title="Rubros y etiquetas" subtitle={presetName} onClick={() => setSubScreen("tags")} accent={t.accent} />
         <MenuItem icon="" title="Fotos y backup" subtitle="Copia en tu galería" onClick={() => setSubScreen("capture")} />
@@ -2912,7 +2927,9 @@ export default function App() {
       // Wire sync engine into db.js CRUD hooks
       setSyncEngine(syncEngine);
       const st = await reloadAll();
-      setIsDark(st.theme === "dark");
+      // Claro por defecto (decisión 4 del sistema visual): el "dark" guardado de fábrica en los
+      // teléfonos viejos no cuenta como elección; solo vale si la usuaria lo eligió a mano.
+      setIsDark(st.theme === "dark" && !!st.temaElegido);
       setReady(true);
       // Config del negocio y saldo (5.1, 5.2), sin bloquear el arranque.
       // Compras (5.4): el SDK de la tienda se configura con el id de la usuaria; en la web no hace nada.
@@ -3031,8 +3048,8 @@ export default function App() {
   const toggleTheme = async () => {
     const next = !isDark;
     setIsDark(next);
-    await dbSaveSettings({ theme: next ? "dark" : "light" });
-    setSettings(prev => ({ ...prev, theme: next ? "dark" : "light" }));
+    await dbSaveSettings({ theme: next ? "dark" : "light", temaElegido: true });
+    setSettings(prev => ({ ...prev, theme: next ? "dark" : "light", temaElegido: true }));
   };
 
   const switchDistrict = async (id) => {
@@ -3623,7 +3640,7 @@ export default function App() {
           onBack={() => navigate("list")} t={t} />
       )}
       {screen === "settings" && (
-        <SettingsScreen settings={settings} onSave={handleSaveSettings} onBack={() => navigate("list")} sync={sync} t={t}
+        <SettingsScreen settings={settings} onSave={handleSaveSettings} onBack={() => navigate("list")} sync={sync} t={t} isDark={isDark} onToggleTheme={toggleTheme}
           products={products} suppliers={suppliers} districts={districts} onReload={reloadAll}
           teams={teamsHook.teams} activeTeam={teamsHook.teams.find(tm => tm.id === sync.teamId)} teamMembers={teamsHook.teamMembers}
           isAdmin={teamsHook.isAdmin} fetchMembers={teamsHook.fetchMembers} inviteMember={teamsHook.inviteMember}

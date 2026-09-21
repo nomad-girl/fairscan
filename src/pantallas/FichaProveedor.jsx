@@ -74,7 +74,7 @@ export function FichaProveedor({ supplier: s, products = [], pedidos = [], distr
         </button>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", padding: `0 ${espacios.margenLateral}px 40px`, display: "flex", flexDirection: "column", gap: espacios.entreFilas }}>
+      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", padding: `0 ${espacios.margenLateral}px 40px`, display: "flex", flexDirection: "column", gap: espacios.entreFilas }}>
 
         {/* Contacto directo */}
         {contactos.length > 0 && (

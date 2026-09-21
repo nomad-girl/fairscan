@@ -12,7 +12,9 @@ import { Icono } from "./Icono.jsx";
 
 export function GrillaDeFotos({ children, columnas = 3, alAncho = true, estilo }) {
   const { espacios } = useSistema();
-  return <div style={{ display: "grid", gridTemplateColumns: `repeat(${columnas}, 1fr)`, gap: 2, ...(alAncho ? { width: "100vw", marginLeft: "calc(50% - 50vw)" } : {}), ...estilo }}>{children}</div>;
+  // Al ancho: se come el margen lateral de la pantalla con márgenes negativos. Antes usaba 100vw y
+  // dentro de un contenedor con scroll la página se movía "hacia los lados" (Nati, 21/09).
+  return <div style={{ display: "grid", gridTemplateColumns: `repeat(${columnas}, 1fr)`, gap: 2, ...(alAncho ? { marginLeft: -espacios.margenLateral, marginRight: -espacios.margenLateral } : {}), ...estilo }}>{children}</div>;
 }
 
 export function CeldaDeFoto({ onClick, etiqueta, children, favorito = false, fotos = 1, insignia = null, estilo }) {
