@@ -94,7 +94,17 @@
     "campoCbmCorto": "CBM",
     "buscandoTarjeta": "Encuadrá la tarjeta del proveedor",
     "sinTarjeta": "Sin tarjeta",
-    "productos": "Productos"
+    "productos": "Productos",
+    "standNuevo": "Stand nuevo",
+    "standSinTarjeta_one": "Stand sin tarjeta · {{count}} foto",
+    "standSinTarjeta_other": "Stand sin tarjeta · {{count}} fotos",
+    "standConNombre_one": "{{nombre}} · {{count}} foto",
+    "standConNombre_other": "{{nombre}} · {{count}} fotos",
+    "leyendoTarjeta": "Leyendo la tarjeta…",
+    "tarjeta": "Tarjeta",
+    "tarjetaLista": "Tarjeta lista",
+    "nuevoStand": "Nuevo stand",
+    "abrirStand": "Abrir el stand"
   },
   "cerrarStand": {
     "titulo": "Cerrar stand",
@@ -155,7 +165,9 @@
     "minimoDeCompra": "Mínimo de compra",
     "editar": "Editar",
     "sinVendedor": "Sin nombre del vendedor",
-    "sinContacto": "La tarjeta no trajo contacto. Tocá Editar para cargarlo."
+    "sinContacto": "La tarjeta no trajo contacto. Tocá Editar para cargarlo.",
+    "tituloStand": "Stand",
+    "seguirFotos": "Seguir sacando fotos"
   },
   "catalogo": {
     "titulo": "Catálogo",

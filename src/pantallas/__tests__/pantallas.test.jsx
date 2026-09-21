@@ -143,3 +143,49 @@ describe("CerrarStand", () => {
     expect(screen.queryByText(/de este stand/)).toBeNull();
   });
 });
+
+// Stand abierto (decisión de Nati, 21/09): la cámara es la casa; el stand vive arriba como pastilla.
+describe("Visor · stand abierto", () => {
+  it("sin nada dice 'Stand nuevo', ofrece Tarjeta y Nuevo stand; la pastilla abre el stand", () => {
+    const onStand = vi.fn(), onTarjeta = vi.fn(), onNuevoStand = vi.fn(), onCerrarStand = vi.fn();
+    con(<Visor videoRef={{ current: null }} modo="product" itemsCount={0} standAbierto={{ nombre: "", fotos: 0, tieneTarjeta: false, leyendo: false }} onStand={onStand} onTarjeta={onTarjeta} onNuevoStand={onNuevoStand} onCerrarStand={onCerrarStand} />);
+    fireEvent.click(screen.getByText("Stand nuevo"));
+    expect(onStand).toHaveBeenCalled();
+    fireEvent.click(screen.getByText("Tarjeta"));
+    expect(onTarjeta).toHaveBeenCalled();
+    expect(screen.queryByText("Cerrar stand")).toBeNull();
+    fireEvent.click(screen.getByText("Nuevo stand"));
+    expect(onNuevoStand).toHaveBeenCalled();
+    expect(onCerrarStand).not.toHaveBeenCalled();
+  });
+  it("con fotos y sin tarjeta cuenta; con la tarjeta leída muestra la empresa y 'Tarjeta lista'", () => {
+    const { unmount } = con(<Visor videoRef={{ current: null }} modo="product" itemsCount={3} standAbierto={{ nombre: "", fotos: 3, tieneTarjeta: false, leyendo: false }} />);
+    expect(screen.getByText("Stand sin tarjeta · 3 fotos")).toBeTruthy();
+    unmount();
+    con(<Visor videoRef={{ current: null }} modo="product" itemsCount={3} standAbierto={{ nombre: "Yiwu Best Toys", fotos: 3, tieneTarjeta: true, leyendo: false }} />);
+    expect(screen.getByText("Yiwu Best Toys · 3 fotos")).toBeTruthy();
+    expect(screen.getByText("Tarjeta lista")).toBeTruthy();
+  });
+  it("mientras lee la tarjeta lo dice; en modo tarjeta no ofrece 'Sin tarjeta' (se vuelve con el obturador)", () => {
+    const { unmount } = con(<Visor videoRef={{ current: null }} modo="product" itemsCount={1} standAbierto={{ nombre: "", fotos: 1, tieneTarjeta: true, leyendo: true }} />);
+    expect(screen.getByText("Leyendo la tarjeta… · 1 foto")).toBeTruthy();
+    unmount();
+    con(<Visor videoRef={{ current: null }} modo="card" standAbierto={{ nombre: "", fotos: 1, tieneTarjeta: false, leyendo: false }} />);
+    expect(screen.getByText("Encuadrá la tarjeta y tocá el obturador")).toBeTruthy();
+    expect(screen.queryByText("Sin tarjeta")).toBeNull();
+    expect(screen.queryByText("Stand sin tarjeta · 1 foto")).toBeNull();
+  });
+});
+
+describe("CerrarStand · stand abierto", () => {
+  it("se titula Stand, no muestra Listo y vuelve a la cámara con 'Seguir sacando fotos'", () => {
+    const onVolverAlVisor = vi.fn(), onListo = vi.fn();
+    const proveedor = { name: "Yiwu Best Toys", contact: "", phone: "", email: "", wechat: "", whatsapp: "", website: "", address: "", products: "", notes: "", favorito: false, minimoDeCompra: null };
+    con(<CerrarStand abierto modo="resumen" itemsCount={2} items={[{ id: 1, photos: [FOTO] }, { id: 2, photos: [FOTO] }]} cardPhoto={FOTO} proveedor={proveedor} onCambiarProveedor={vi.fn()} onVolverAlVisor={onVolverAlVisor} onListo={onListo} />);
+    expect(screen.getByText("Stand")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Listo$/ })).toBeNull();
+    fireEvent.click(screen.getByText("Seguir sacando fotos"));
+    expect(onVolverAlVisor).toHaveBeenCalled();
+    expect(onListo).not.toHaveBeenCalled();
+  });
+});

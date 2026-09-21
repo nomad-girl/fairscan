@@ -50,6 +50,7 @@ export function CerrarStand({
   borrador = null, onRetomar, onDescartar, descripcionBorrador = null,
   avisoPermiso = null,
   modo = "completo", onEditar, stand = null, // "resumen": tras la tarjeta, una sola pantalla y Listo (wireframe)
+  abierto = false, // stand abierto (21/09): esta es la pantalla del stand; se vuelve a la cámara con un botón, sin Listo
 }) {
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
@@ -58,7 +59,7 @@ export function CerrarStand({
   const grababa = useRef(false);
 
   const cambiar = (campo) => (valor) => onCambiarProveedor?.({ [campo]: valor ?? "" });
-  const titulo = soloProveedor ? t("cerrarStand.tituloSoloProveedor") : t("cerrarStand.titulo");
+  const titulo = soloProveedor ? t("cerrarStand.tituloSoloProveedor") : abierto ? t("cerrarStand.tituloStand") : t("cerrarStand.titulo");
 
   // Un solo lugar para lo dicho y lo escrito (Nati, 17/09: "notas del stand y comentarios son redundantes"):
   // al parar de dictar, lo dictado se agrega a los comentarios.
@@ -81,7 +82,7 @@ export function CerrarStand({
   const campo = ([k, etiqueta]) => <Campo key={k} etiqueta={etiqueta} valor={proveedor[k]} onChange={cambiar(k)} apilado={APILADOS.has(k)} multilinea={k === "address" || k === "products"} />;
   const seccion = (txt) => <h3 style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: paleta.dim, margin: "6px 2px 8px" }}>{txt}</h3>;
 
-  const resumen = modo === "resumen" && !!cardPhoto && !soloProveedor;
+  const resumen = modo === "resumen" && !!cardPhoto && !soloProveedor && !abierto;
 
   if (resumen) {
     return (
@@ -303,9 +304,13 @@ export function CerrarStand({
 
       {/* Listo, siempre a mano */}
       <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, padding: `10px ${espacios.margenLateral}px calc(12px + env(safe-area-inset-bottom, 0px))`, background: `linear-gradient(to top, ${paleta.bg} 70%, transparent)` }}>
-        <Boton variante="principal" ancho="total" onClick={onListo} cargando={guardando} icono={errorGuardar ? "reintentar" : "listo"}>
-          {guardando ? t("cerrarStand.guardando") : errorGuardar ? t("cerrarStand.reintentar") : soloProveedor ? t("cerrarStand.guardarProveedor") : t("cerrarStand.listo")}
-        </Boton>
+        {abierto ? (
+          <Boton variante="principal" ancho="total" icono="camara" onClick={onVolverAlVisor}>{t("cerrarStand.seguirFotos")}</Boton>
+        ) : (
+          <Boton variante="principal" ancho="total" onClick={onListo} cargando={guardando} icono={errorGuardar ? "reintentar" : "listo"}>
+            {guardando ? t("cerrarStand.guardando") : errorGuardar ? t("cerrarStand.reintentar") : soloProveedor ? t("cerrarStand.guardarProveedor") : t("cerrarStand.listo")}
+          </Boton>
+        )}
         {errorGuardar && <p style={{ ...texto("pie"), color: paleta.red, margin: "8px 0 0", textAlign: "center" }}>{t("cerrarStand.errorGuardar")}</p>}
       </div>
 

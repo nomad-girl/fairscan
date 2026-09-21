@@ -732,6 +732,10 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   const [modoCierre, setModoCierre] = useState("completo"); // "resumen" tras la tarjeta (una sola pantalla y Listo) · "completo" a mano o al Editar
   const [supplierFavorito, setSupplierFavorito] = useState(false); // favorito en proveedor y producto, nada más (decisión de Nati, 16/09)
   const [items, setItems] = useState([]);
+  // Stand abierto (decisión de Nati, 21/09): la cámara es la casa y el stand vive arriba como pastilla.
+  // Detrás de un interruptor hasta su OK en el iPhone; apagado, todo sigue como hoy.
+  const abierto = !!settings?.capturaAbierta;
+  const guardadoTarjetaRef = useRef(null);
   // "+ ángulo": unos segundos después de cada disparo, la próxima foto se suma al último producto (recorrido, pantalla 2).
   const [anguloDisponible, setAnguloDisponible] = useState(false);
   const anguloTimerRef = useRef(null);
@@ -866,7 +870,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
 
   // ─── El stand es un grupo de productos ya guardados (4.3) ───
   const crearItem = async (photos) => {
-    const id = await onProductoNuevo?.(photos);
+    const id = await onProductoNuevo?.(photos, abierto ? linkedSupplierId : null, abierto ? (supplierName || null) : null);
     if (id == null) return null;
     setItems(prev => [{ id, photos, price: "", notes: "" }, ...prev]);
     return id;
@@ -944,7 +948,12 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     setFlashVisible(true);
     setTimeout(() => setFlashVisible(false), 150);
     vibrarObturador();
-    if (cameraMode === "card") {
+    if (cameraMode === "card" && abierto) {
+      // Stand abierto: la tarjeta se lee en segundo plano y se sigue sacando fotos.
+      setCardPhoto(photo);
+      processCardPhoto(photo);
+      setCameraMode("product");
+    } else if (cameraMode === "card") {
       setModoCierre("resumen"); // una sola pantalla y Listo (wireframe del recorrido)
       closeCamera();
       setCardPhoto(photo);
@@ -1082,12 +1091,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   // Si se llegó desde la ficha de un proveedor, los productos nacen vinculados (bug 1).
   useEffect(() => { if (initialSupplier) linkSupplier(initialSupplier); }, []);
 
-  const handleSave = async () => {
-    if (saving) return;
-    setSaving(true);
-    setSaveError(null);
-    try {
-      const ok = await onSave({
+  const armarPayload = () => ({
         quickCapture: true,
         linkedSupplierId,
         supplierName: supplierName.trim(),
@@ -1099,7 +1103,43 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
         productItems: items,
         productIds: items.map(it => it.id),
         standAudioBlob: nota.audioBlob, standAudioDuracion: nota.segundos, standTranscript: nota.transcripcion.trim(),
-      });
+  });
+  /** Stand abierto: guarda sin salir del visor. `final` descuenta los créditos y cierra el stand. */
+  const guardarStand = async ({ final = false } = {}) => {
+    if (!items.length && !cardPhoto && !supplierName.trim() && !linkedSupplierId) return null;
+    try {
+      const r = await onSave({ ...armarPayload(), quedarse: true, sinDescontar: !final });
+      if (r && typeof r === "object" && r.supplierId && !linkedSupplierId) setLinkedSupplierId(r.supplierId);
+      return r;
+    } catch (err) { console.warn("[stand abierto] guardar:", err); return null; }
+  };
+  const resetStand = () => {
+    setItems([]); setCardPhoto(null); setCardData(null); setCardProcessing(false);
+    setSupplierName(""); setSupplierContact(""); setSupplierPhone(""); setSupplierEmail(""); setSupplierWechat(""); setSupplierWhatsapp(""); setSupplierWhatsappLink(""); setSupplierWechatLink(""); setSupplierWebsite(""); setSupplierAddress(""); setSupplierProducts(""); setSupplierNotes(""); setSupplierFavorito(false); setSupplierMinimo(null); setLinkedSupplierId(null);
+    setLastCapture(null); setDatosRapidos(null); setAnguloDisponible(false); guardadoTarjetaRef.current = null;
+    try { nota.descartar?.(); } catch { /* sin nota */ }
+  };
+  /** Un toque: guarda el stand (descuenta) y arranca el siguiente, sin pantalla. */
+  const nuevoStand = async () => {
+    await guardarStand({ final: true });
+    await borrarBorrador();
+    resetStand();
+    openCamera("product");
+  };
+  // Con la tarjeta leída, el proveedor se guarda solo y las fotos que sigan nacen vinculadas.
+  useEffect(() => {
+    if (!abierto || cardProcessing || !cardPhoto || guardadoTarjetaRef.current === cardPhoto) return;
+    guardadoTarjetaRef.current = cardPhoto;
+    guardarStand({ final: false });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abierto, cardProcessing, cardPhoto]);
+
+  const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const ok = await onSave(armarPayload());
       if (ok === false) throw new Error("el guardado devolvió error");
       await borrarBorrador(); // el stand ya está en la base: el borrador sobra
       // Si salió bien, la pantalla se cierra desde afuera.
@@ -1137,6 +1177,8 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
           datos={datosRapidos} datosActivos={settings?.datosDeCompra} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"} onTeclaPrecio={tocarPrecio} onConfirmarPrecio={confirmarPrecio} onCampo={cambiarCampoRapido} onMoqBase={cambiarMoqBase} onFavorito={alternarFavoritoRapido}
           onDisparar={handleCameraShutter}
           onCerrarStand={() => openCamera("card")}
+          standAbierto={abierto ? { nombre: supplierName, fotos: items.length, tieneTarjeta: !!cardPhoto, leyendo: cardProcessing } : null}
+          onStand={() => { setModoCierre("completo"); closeCamera(); }} onTarjeta={() => openCamera("card")} onNuevoStand={nuevoStand}
           onSinTarjeta={() => { setModoCierre("completo"); closeCamera(); }}
           onVolverAProductos={() => openCamera("product")}
           onCancelar={closeCamera}
@@ -1163,14 +1205,14 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
         soloProveedor={soloProveedor} itemsCount={items.length} items={items}
         cardPhoto={cardPhoto} cardProcessing={cardProcessing}
         onSacarTarjeta={() => openCamera("card")} onTarjetaDeGaleria={() => cardGalleryRef.current?.click()}
-        onQuitarTarjeta={() => { setCardPhoto(null); setCardData(null); setSupplierName(""); setLinkedSupplierId(null); }}
+        onQuitarTarjeta={() => { setCardPhoto(null); setCardData(null); if (!abierto) { setSupplierName(""); setLinkedSupplierId(null); } }}
         proveedor={proveedor} onCambiarProveedor={cambiarProveedor}
         vinculado={linkedSupplierId} ultimoProveedor={lastSupplier} proveedoresFiltrados={filteredSuppliers} consulta={supplierQuery} onConsulta={setSupplierQuery}
         onVincular={(s) => { linkSupplier(s); setSupplierSearch(false); setSupplierQuery(""); }} onDesvincular={() => { setLinkedSupplierId(null); setSupplierName(""); }}
         nota={nota}
         onAgregarProducto={() => openCamera("product")} onProductoDeGaleria={() => prodGalleryRef.current?.click()}
         onSacarProducto={borrarItem} onFotoAProducto={(id) => { setAddPhotoToItemId(id); openCamera("product"); }}
-        onVolverAlVisor={() => openCamera("product")} onCatalogo={() => { closeCamera(); apagarCamara(); onCatalogo?.(); }}
+        onVolverAlVisor={() => { if (abierto) guardarStand({ final: false }); openCamera("product"); }} abierto={abierto} onCatalogo={() => { closeCamera(); apagarCamara(); onCatalogo?.(); }}
         onListo={handleSave} guardando={saving} errorGuardar={saveError}
         modo={modoCierre} onEditar={() => setModoCierre("completo")} stand={cardData?.boothNumber || null}
         borrador={borrador} onRetomar={retomarBorrador} onDescartar={descartarBorrador} descripcionBorrador={borrador ? describirBorrador(borrador) : null}
@@ -1387,6 +1429,12 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
             }}>{v.label}</button>
           ))}
         </div>
+
+        {/* Stand abierto (21/09): la captura nueva, detrás de un interruptor hasta el OK de Nati */}
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Captura · stand abierto (prueba)</p>
+        <button type="button" role="switch" aria-checked={!!loc.capturaAbierta} onClick={() => updateLoc(p => ({ ...p, capturaAbierta: !p.capturaAbierta }))} style={{ width:"100%", minHeight:44, padding:"10px 12px", borderRadius:10, border:`1.5px solid ${loc.capturaAbierta?t.accent:t.border}`, background:loc.capturaAbierta?t.accentSoft:"transparent", color:loc.capturaAbierta?t.accent:t.muted, fontSize:13, fontWeight:700, cursor:"pointer", textAlign:"left", fontFamily:"inherit", marginBottom:20 }}>
+          {loc.capturaAbierta ? "Activado" : "Desactivado"} · la tarjeta se saca cuando aparece, "Nuevo stand" es un toque y la pastilla de arriba abre el stand
+        </button>
 
         {/* Datos de compra tras la foto (Nati, 17/09): quien no usa MOQ, piezas por caja o CBM los apaga acá y el teclado solo pide precio */}
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Datos que pide el teclado después de la foto</p>
@@ -3155,6 +3203,22 @@ export default function App() {
         }
       }
 
+      // Stand abierto (21/09): el proveedor ya existe desde la tarjeta; lo que se editó
+      // en la pantalla del stand se vuelca acá, sin crear otro. La tarjeta se sube una vez.
+      let subirTarjeta = true;
+      if (data.quedarse && data.linkedSupplierId && supplierId === data.linkedSupplierId) {
+        const actual = suppliers.find(s => s.id === supplierId) || {};
+        const campos = { company: data.supplierName, contact: data.supplierContact, phone: data.supplierPhone, email: data.supplierEmail, wechat: data.supplierWechat, whatsapp: data.supplierWhatsapp, whatsappLink: data.supplierWhatsappLink, wechatLink: data.supplierWechatLink, website: data.supplierWebsite, address: data.supplierAddress, products: data.supplierProducts, notes: data.supplierNotes, cardPhoto: data.cardPhoto };
+        const updates = {};
+        for (const [k, v] of Object.entries(campos)) if (v && v !== actual[k]) updates[k] = v;
+        if (data.cardData && JSON.stringify(data.cardData) !== JSON.stringify(actual.cardData || null)) { updates.cardData = data.cardData; updates.ai_processed = true; }
+        if (data.supplierMinimo != null && data.supplierMinimo !== actual.minimoDeCompra) updates.minimoDeCompra = data.supplierMinimo;
+        if (Object.keys(updates).length) {
+          await dbUpdateSupplier(supplierId, updates);
+          setSuppliers(prev => prev.map(s => s.id === supplierId ? { ...s, ...updates } : s));
+        }
+        subirTarjeta = !!updates.cardPhoto || !actual.cardPhotoUrl;
+      }
       // Favorito del proveedor (decisión de Nati, 16/09): se guarda en el puntaje
       // existente como 5 hasta que exista el campo propio junto con el favorito de producto.
       if (supplierId && data.supplierFavorito) {
@@ -3223,9 +3287,9 @@ export default function App() {
         const idsPorUuid = {};
         for (const id of createdIds) { const u = products.find(p => p.id === id)?.uuid; if (u) idsPorUuid[u] = id; }
         const uuidsStand = Object.keys(idsPorUuid);
-        if (uuidsStand.length) await descontarAlCerrarStand(uuidsStand, idsPorUuid);
+        if (uuidsStand.length && !data.sinDescontar) await descontarAlCerrarStand(uuidsStand, idsPorUuid);
         // Background: upload card photo
-        if (data.cardPhoto && supplierId && navigator.onLine) {
+        if (data.cardPhoto && supplierId && navigator.onLine && subirTarjeta) {
           uploadPhoto(data.cardPhoto, 'cards').then(result => {
             if (result?.url) {
               dbUpdateSupplier(supplierId, { cardPhotoUrl: result.url });
@@ -3234,6 +3298,8 @@ export default function App() {
           }).catch(() => {});
         }
         await reloadAll();
+        // Stand abierto (21/09): guardar sin salir del visor; el que llama sigue con el mismo stand.
+        if (data.quedarse) return { supplierId, createdIds };
         // De vuelta al visor, con un stand nuevo: nunca tocaste "guardar" (4.1).
         setStandKey(k => k + 1);
         navigate(data.soloProveedor ? "list" : "capture");
@@ -3254,10 +3320,10 @@ export default function App() {
   };
 
   // Captura rápida (4.3): cada disparo crea el producto en la base al toque.
-  const crearProductoDesdeCaptura = async (photos) => {
+  const crearProductoDesdeCaptura = async (photos, supplierId = null, supplierCompany = null) => {
     const registro = {
       uuid: crypto.randomUUID(),
-      name: "", description: null, supplierCompany: null, supplierId: null,
+      name: "", description: null, supplierCompany: supplierCompany || null, supplierId: supplierId ?? null,
       districtId: activeDistrictId, photos, photoUrls: null,
       thumb: await miniaturaDe(photos[0]),
       price: null, moq: null, audioURL: null, audioTranscript: null, rating: 0,

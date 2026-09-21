@@ -36,6 +36,7 @@ export function Visor({
   flash = false, ultimaCaptura = null, ultimas = [], puedeAgregarAngulo = false,
   datos = null, moneda = "USD", onTeclaPrecio, onConfirmarPrecio, onCampo, onMoqBase, onFavorito,
   onDisparar, onCerrarStand, onCatalogo, onCancelar, onSinTarjeta, onVolverAProductos, onAgregarAngulo, onBorrarFoto,
+  standAbierto = null, onStand, onTarjeta, onNuevoStand, // stand abierto (21/09): { nombre, fotos, tieneTarjeta, leyendo }
   consejoVisible = false, onConsejoVisto,
   onTouchStart, onTouchEnd,
 }) {
@@ -87,6 +88,23 @@ export function Visor({
         </div>
         <Pastilla><span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, background: colorPunto, display: "inline-block" }} /><span style={{ fontSize: 12, fontWeight: 500, color: BLANCO_SUAVE }}>{textoSync}</span></Pastilla>
       </div>
+
+      {/* Stand abierto: la pastilla dice en qué stand estás y abre el stand al tocarla */}
+      {standAbierto && !esTarjeta && (() => {
+        const n = standAbierto.fotos || 0;
+        const conNombre = standAbierto.tieneTarjeta && !!standAbierto.nombre;
+        const texto = standAbierto.leyendo ? `${t("visor.leyendoTarjeta")}${n ? ` · ${t("cantidades.fotos", { count: n })}` : ""}`
+          : conNombre ? t("visor.standConNombre", { nombre: standAbierto.nombre, count: n })
+          : n === 0 && !standAbierto.tieneTarjeta ? t("visor.standNuevo")
+          : t("visor.standSinTarjeta", { count: n });
+        return (
+          <div style={{ position: "absolute", top: "calc(0px + 56px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "center" }}>
+            <button type="button" onClick={onStand} aria-label={t("visor.abrirStand")} style={{ maxWidth: "100%", minHeight: 36, padding: "0 14px", borderRadius: 999, border: "none", background: conNombre ? MARCA.naranja : "rgba(10,14,23,0.7)", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap", overflow: "hidden", backdropFilter: "blur(8px)" }}>
+              <Icono nombre={conNombre ? "proveedor" : "tarjeta"} tamano={14} color="#fff" /><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{texto}</span><Icono nombre="siguiente" tamano={14} color="rgba(255,255,255,0.8)" />
+            </button>
+          </div>
+        );
+      })()}
 
       {/* Modo tarjeta: guía */}
       {esTarjeta && (
@@ -163,6 +181,9 @@ export function Visor({
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 3, padding: "24px 22px calc(22px + env(safe-area-inset-bottom, 0px))", display: "flex", alignItems: "center", justifyContent: "space-between", background: "linear-gradient(transparent, rgba(0,0,0,0.7))" }}>
         {/* Izquierda: última captura + "+ ángulo" (o Catálogo si no hay captura) */}
         <div style={{ width: 84, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+          {standAbierto && !esTarjeta && (
+            <button type="button" onClick={onTarjeta} style={{ minHeight: 32, padding: "0 10px", borderRadius: 999, border: "none", background: standAbierto.tieneTarjeta ? "rgba(34,197,94,0.28)" : "rgba(241,245,249,0.16)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 5 }}><Icono nombre={standAbierto.tieneTarjeta ? "listo" : "tarjeta"} tamano={14} color="#fff" />{standAbierto.tieneTarjeta ? t("visor.tarjetaLista") : t("visor.tarjeta")}</button>
+          )}
           {esTarjeta ? (
             <button type="button" onClick={onVolverAProductos || onCancelar} style={{ minWidth: alturas.miniatura, height: alturas.miniatura, padding: "0 10px", borderRadius: 14, border: "none", background: "rgba(241,245,249,0.14)", color: BLANCO, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 6 }}><Icono nombre="camara" tamano={16} color={BLANCO} />{t("visor.productos")}</button>
           ) : ultimaCaptura || ultimas.length ? (
@@ -198,10 +219,10 @@ export function Visor({
 
         {/* Derecha: Cerrar stand (o Cancelar en modo tarjeta) */}
         <div style={{ width: 84, display: "flex", justifyContent: "flex-end" }}>
-          {esTarjeta ? (
+          {esTarjeta && standAbierto ? null : esTarjeta ? (
             <button type="button" onClick={onSinTarjeta || onCancelar} style={{ minWidth: alturas.miniatura, height: alturas.miniatura, padding: "0 12px", borderRadius: 14, border: "none", background: "rgba(241,245,249,0.14)", color: BLANCO, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", lineHeight: 1.2 }}>{t("visor.sinTarjeta")}</button>
           ) : (
-            <button type="button" onClick={onCerrarStand} style={{ width: 84, height: alturas.miniatura, borderRadius: 14, border: "none", background: itemsCount > 0 ? MARCA.naranja : "rgba(241,245,249,0.14)", color: "#fff", fontSize: 12, fontWeight: 700, lineHeight: 1.15, cursor: "pointer", fontFamily: "inherit", textAlign: "center", padding: "0 6px", whiteSpace: "normal" }}>{t("visor.cerrarStand")}</button>
+            <button type="button" onClick={standAbierto ? onNuevoStand : onCerrarStand} style={{ width: 84, height: alturas.miniatura, borderRadius: 14, border: "none", background: (standAbierto ? (itemsCount > 0 || standAbierto.tieneTarjeta) : itemsCount > 0) ? MARCA.naranja : "rgba(241,245,249,0.14)", color: "#fff", fontSize: 12, fontWeight: 700, lineHeight: 1.15, cursor: "pointer", fontFamily: "inherit", textAlign: "center", padding: "0 6px", whiteSpace: "normal" }}>{standAbierto ? t("visor.nuevoStand") : t("visor.cerrarStand")}</button>
           )}
         </div>
       </div>
