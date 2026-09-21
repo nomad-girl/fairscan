@@ -11,7 +11,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Bloque, Campo, Chip, FilaDeChips, Icono, Esqueleto } from "../componentes/index.js";
+import { Boton, Bloque, Campo, Chip, FilaDeChips, Fila, Icono, Esqueleto } from "../componentes/index.js";
 
 // Los datos largos van con la etiqueta arriba y el valor abajo.
 const APILADOS = new Set(["email", "website", "address", "products", "wechat"]);
@@ -49,7 +49,7 @@ export function CerrarStand({
   onVolverAlVisor, onCatalogo, onListo, guardando = false, errorGuardar = null,
   borrador = null, onRetomar, onDescartar, descripcionBorrador = null,
   avisoPermiso = null,
-  modo = "completo", onEditar, stand = null, // "resumen": tras la tarjeta, una sola pantalla y Listo (wireframe)
+  modo = "completo", onEditar, onResumen, stand = null, // "resumen": tras la tarjeta, una sola pantalla y Listo (wireframe)
   abierto = false, // stand abierto (21/09): esta es la pantalla del stand; se vuelve a la cámara con un botón, sin Listo
 }) {
   const { t } = useTranslation();
@@ -82,20 +82,24 @@ export function CerrarStand({
   const campo = ([k, etiqueta]) => <Campo key={k} etiqueta={etiqueta} valor={proveedor[k]} onChange={cambiar(k)} apilado={APILADOS.has(k)} multilinea={k === "address" || k === "products"} />;
   const seccion = (txt) => <h3 style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: paleta.dim, margin: "6px 2px 8px" }}>{txt}</h3>;
 
-  const resumen = modo === "resumen" && !!cardPhoto && !soloProveedor && !abierto;
+  // Stand abierto: la pantalla del stand es el resumen aprobado (tarjeta arriba), con o sin tarjeta; "completo" solo para corregir datos.
+  const resumen = abierto ? modo !== "completo" : (modo === "resumen" && !!cardPhoto && !soloProveedor);
 
   if (resumen) {
     return (
       <div style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: `calc(0px + 8px) ${espacios.margenLateral}px 8px`, minHeight: alturas.tocable + 16 }}>
-          <h1 style={{ ...texto("titulo"), margin: 0, flex: 1 }}>{t("cerrarStand.titulo")}</h1>
-          <button type="button" onClick={onVolverAlVisor} aria-label={t("comun.cerrar")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="cerrar" tamano={20} color={paleta.muted} /></button>
+          <h1 style={{ ...texto("titulo"), margin: 0, flex: 1 }}>{abierto ? t("cerrarStand.tituloStand") : t("cerrarStand.titulo")}</h1>
+          {abierto ? <Boton variante="secundario" icono="foto" onClick={onCatalogo}>{t("visor.catalogo")}</Boton> : (
+            <button type="button" onClick={onVolverAlVisor} aria-label={t("comun.cerrar")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="cerrar" tamano={20} color={paleta.muted} /></button>
+          )}
         </div>
         {avisoPermiso}
         <div style={{ flex: 1, overflowY: "auto", padding: `0 ${espacios.margenLateral}px 120px`, display: "flex", flexDirection: "column", gap: espacios.entreFilas, overscrollBehavior: "contain" }}>
-          {/* La tarjeta arriba */}
+          {/* La tarjeta arriba, entera; si todavía no está, el botón para escanearla */}
+          {cardPhoto ? (
           <div style={{ position: "relative", borderRadius: radios.grande, overflow: "hidden", border: `1px solid ${paleta.border}`, background: paleta.card, boxShadow: paleta.sombraTarjeta }}>
-            <img src={cardPhoto} alt={t("cerrarStand.tarjeta")} style={{ width: "100%", display: "block", maxHeight: 240, objectFit: "cover" }} />
+            <img src={cardPhoto} alt={t("cerrarStand.tarjeta")} style={{ width: "100%", display: "block", maxHeight: 280, objectFit: "contain", background: "#0B0E17" }} />
             {cardProcessing && (
               <div style={{ position: "absolute", left: 12, bottom: 12, display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(10,14,23,0.8)", color: "#F1F5F9", borderRadius: 999, padding: "6px 12px", fontSize: 13 }}>
                 <Esqueleto ancho={14} alto={14} radio={7} estilo={{ background: paleta.accent }} />{t("cerrarStand.leyendo")}
@@ -105,11 +109,14 @@ export function CerrarStand({
               <Icono nombre="camara" tamano={16} color="#F1F5F9" />{t("cerrarStand.sacarDeNuevo")}
             </button>
           </div>
+          ) : (
+            <Boton variante="secundario" ancho="total" icono="camara" onClick={onSacarTarjeta}>{t("cerrarStand.escanearTarjeta")}</Boton>
+          )}
           {/* Lo que leyó: la empresa y el vendedor, grandes; abajo el contacto y el stand */}
           <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "2px 2px 0" }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              {cardProcessing && !proveedor.name ? <Esqueleto ancho={200} alto={22} /> : <p style={{ ...texto("grande"), margin: 0, lineHeight: 1.15, color: proveedor.name ? paleta.text : paleta.dim, overflowWrap: "anywhere" }}>{proveedor.name || t("cerrarStand.sinNombre")}</p>}
-              {cardProcessing && !proveedor.contact ? <Esqueleto ancho={140} alto={16} estilo={{ marginTop: 6 }} /> : <p style={{ ...texto("titulo", { fontWeight: 500 }), margin: "4px 0 0", color: proveedor.contact ? paleta.text : paleta.dim }}>{proveedor.contact || t("cerrarStand.sinVendedor")}</p>}
+              {abierto ? <TextoEditable valor={proveedor.name} onChange={cambiar("name")} placeholder={t("cerrarStand.nombreEmpresa")} etiqueta={t("cerrarStand.empresa")} cargando={cardProcessing} estilo={{ ...texto("grande"), lineHeight: 1.15 }} /> : cardProcessing && !proveedor.name ? <Esqueleto ancho={200} alto={22} /> : <p style={{ ...texto("grande"), margin: 0, lineHeight: 1.15, color: proveedor.name ? paleta.text : paleta.dim, overflowWrap: "anywhere" }}>{proveedor.name || t("cerrarStand.sinNombre")}</p>}
+              {abierto ? <TextoEditable valor={proveedor.contact} onChange={cambiar("contact")} placeholder={t("cerrarStand.agregarVendedor")} etiqueta={t("cerrarStand.vendedor")} cargando={cardProcessing} estilo={{ ...texto("destacado", { fontWeight: 500 }) }} /> : cardProcessing && !proveedor.contact ? <Esqueleto ancho={140} alto={16} estilo={{ marginTop: 6 }} /> : <p style={{ ...texto("titulo", { fontWeight: 500 }), margin: "4px 0 0", color: proveedor.contact ? paleta.text : paleta.dim }}>{proveedor.contact || t("cerrarStand.sinVendedor")}</p>}
             </div>
             <button type="button" onClick={() => cambiar("favorito")(!proveedor.favorito)} aria-pressed={!!proveedor.favorito} aria-label={proveedor.favorito ? t("cerrarStand.quitarFavorito") : t("cerrarStand.marcarFavorito")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${proveedor.favorito ? paleta.accent : paleta.border}`, background: proveedor.favorito ? paleta.accentSoft : paleta.card, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}>
               <Icono nombre="favorito" tamano={20} color={proveedor.favorito ? paleta.accentTexto : paleta.muted} />
@@ -128,6 +135,7 @@ export function CerrarStand({
             {cardProcessing && !proveedor.phone && !proveedor.wechat && !proveedor.email && <div style={{ padding: "10px 0" }}><Esqueleto ancho={180} alto={14} /></div>}
             {!cardProcessing && !proveedor.phone && !proveedor.wechat && !proveedor.whatsapp && !proveedor.email && <p style={{ ...texto("pie"), color: paleta.dim, margin: 0, padding: "10px 0" }}>{t("cerrarStand.sinContacto")}</p>}
           </Bloque>
+          {abierto && <Fila onClick={onEditar} flecha titulo={t("cerrarStand.corregirDatos")} miniatura={<Icono nombre="editar" tamano={20} color={paleta.muted} />} />}
           {/* Mínimo de compra, comentarios */}
           <Bloque>
             <Campo etiqueta={t("cerrarStand.minimoDeCompra")} valor={proveedor.minimoDeCompra} tipo="numero" sufijo="USD" onChange={cambiar("minimoDeCompra")} />
@@ -150,7 +158,9 @@ export function CerrarStand({
         </div>
         {/* Editar · Listo */}
         <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, padding: `10px ${espacios.margenLateral}px calc(12px + env(safe-area-inset-bottom, 0px))`, background: `linear-gradient(to top, ${paleta.bg} 70%, transparent)`, display: "flex", gap: 8 }}>
-          <Boton variante="secundario" onClick={onEditar} estilo={{ flex: 1, minHeight: alturas.botonPrincipal }}>{t("cerrarStand.editar")}</Boton>
+          {abierto
+            ? <Boton variante="secundario" icono="camara" onClick={onVolverAlVisor} estilo={{ flex: 1, minHeight: alturas.botonPrincipal }}>{t("cerrarStand.seguirFotos")}</Boton>
+            : <Boton variante="secundario" onClick={onEditar} estilo={{ flex: 1, minHeight: alturas.botonPrincipal }}>{t("cerrarStand.editar")}</Boton>}
           <Boton variante="principal" onClick={onListo} cargando={guardando} icono={errorGuardar ? "reintentar" : "listo"} estilo={{ flex: 2 }}>{guardando ? t("cerrarStand.guardando") : errorGuardar ? t("cerrarStand.reintentar") : t("cerrarStand.listo")}</Boton>
         </div>
         {errorGuardar && <p style={{ ...texto("pie"), color: paleta.red, margin: "8px 0 0", textAlign: "center" }}>{t("cerrarStand.errorGuardar")}</p>}
@@ -162,14 +172,14 @@ export function CerrarStand({
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit" }}>
       {/* Barra superior */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: `calc(0px + 8px) ${espacios.margenLateral}px 8px`, minHeight: alturas.tocable + 16 }}>
-        <button type="button" onClick={soloProveedor ? onCatalogo : onVolverAlVisor} aria-label={t("comun.volver")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer", boxShadow: paleta.sombraTarjeta, flexShrink: 0 }}>
-          <Icono nombre={soloProveedor ? "cerrar" : "camara"} tamano={20} color={paleta.muted} />
+        <button type="button" onClick={soloProveedor ? onCatalogo : abierto ? onResumen : onVolverAlVisor} aria-label={t("comun.volver")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer", boxShadow: paleta.sombraTarjeta, flexShrink: 0 }}>
+          <Icono nombre={soloProveedor ? "cerrar" : abierto ? "volver" : "camara"} tamano={20} color={paleta.muted} />
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ ...texto("pie", { fontWeight: 600 }), color: paleta.muted, margin: 0, letterSpacing: "0.04em", textTransform: "uppercase" }}>{titulo}</p>
           {!soloProveedor && <p style={{ ...texto("pie"), color: paleta.dim, margin: 0 }}>{t("cerrarStand.subtitulo", { count: itemsCount })}</p>}
         </div>
-        {!soloProveedor && (
+        {!soloProveedor && !abierto && (
           <button type="button" onClick={onCatalogo} aria-label={t("visor.catalogo")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer", boxShadow: paleta.sombraTarjeta }}>
             <Icono nombre="foto" tamano={20} color={paleta.muted} />
           </button>
@@ -305,7 +315,7 @@ export function CerrarStand({
       {/* Listo, siempre a mano */}
       <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, padding: `10px ${espacios.margenLateral}px calc(12px + env(safe-area-inset-bottom, 0px))`, background: `linear-gradient(to top, ${paleta.bg} 70%, transparent)` }}>
         {abierto ? (
-          <Boton variante="principal" ancho="total" icono="camara" onClick={onVolverAlVisor}>{t("cerrarStand.seguirFotos")}</Boton>
+          <Boton variante="principal" ancho="total" icono="volver" onClick={onResumen}>{t("cerrarStand.volverAlStand")}</Boton>
         ) : (
           <Boton variante="principal" ancho="total" onClick={onListo} cargando={guardando} icono={errorGuardar ? "reintentar" : "listo"}>
             {guardando ? t("cerrarStand.guardando") : errorGuardar ? t("cerrarStand.reintentar") : soloProveedor ? t("cerrarStand.guardarProveedor") : t("cerrarStand.listo")}

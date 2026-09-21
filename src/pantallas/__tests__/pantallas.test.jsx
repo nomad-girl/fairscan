@@ -146,46 +146,65 @@ describe("CerrarStand", () => {
 
 // Stand abierto (decisión de Nati, 21/09): la cámara es la casa; el stand vive arriba como pastilla.
 describe("Visor · stand abierto", () => {
-  it("sin nada dice 'Stand nuevo', ofrece Tarjeta y Nuevo stand; la pastilla abre el stand", () => {
-    const onStand = vi.fn(), onTarjeta = vi.fn(), onNuevoStand = vi.fn(), onCerrarStand = vi.fn();
-    con(<Visor videoRef={{ current: null }} modo="product" itemsCount={0} standAbierto={{ nombre: "", fotos: 0, tieneTarjeta: false, leyendo: false }} onStand={onStand} onTarjeta={onTarjeta} onNuevoStand={onNuevoStand} onCerrarStand={onCerrarStand} />);
-    fireEvent.click(screen.getByText("Stand nuevo"));
-    expect(onStand).toHaveBeenCalled();
-    fireEvent.click(screen.getByText("Tarjeta"));
+  it("sin tarjeta la pastilla invita a escanearla y abre la cámara de tarjeta; Cerrar stand abre el stand", () => {
+    const onStand = vi.fn(), onTarjeta = vi.fn(), onCerrarStand = vi.fn();
+    con(<Visor videoRef={{ current: null }} modo="product" itemsCount={0} standAbierto={{ nombre: "", fotos: 0, tieneTarjeta: false, leyendo: false }} onStand={onStand} onTarjeta={onTarjeta} onCerrarStand={onCerrarStand} />);
+    fireEvent.click(screen.getByText("Escanear tarjeta del proveedor"));
     expect(onTarjeta).toHaveBeenCalled();
-    expect(screen.queryByText("Cerrar stand")).toBeNull();
-    fireEvent.click(screen.getByText("Nuevo stand"));
-    expect(onNuevoStand).toHaveBeenCalled();
+    expect(screen.queryByText("Tarjeta")).toBeNull();
+    fireEvent.click(screen.getByText("Cerrar stand"));
+    expect(onStand).toHaveBeenCalled();
     expect(onCerrarStand).not.toHaveBeenCalled();
   });
-  it("con fotos y sin tarjeta cuenta; con la tarjeta leída muestra la empresa y 'Tarjeta lista'", () => {
-    const { unmount } = con(<Visor videoRef={{ current: null }} modo="product" itemsCount={3} standAbierto={{ nombre: "", fotos: 3, tieneTarjeta: false, leyendo: false }} />);
-    expect(screen.getByText("Stand sin tarjeta · 3 fotos")).toBeTruthy();
+  it("con fotos y sin tarjeta cuenta las fotos; con la tarjeta leída muestra la empresa y abre el stand", () => {
+    const onStand = vi.fn(), onTarjeta = vi.fn();
+    const { unmount } = con(<Visor videoRef={{ current: null }} modo="product" itemsCount={3} standAbierto={{ nombre: "", fotos: 3, tieneTarjeta: false, leyendo: false }} onTarjeta={onTarjeta} />);
+    fireEvent.click(screen.getByText("Escanear tarjeta · 3 fotos"));
+    expect(onTarjeta).toHaveBeenCalled();
     unmount();
-    con(<Visor videoRef={{ current: null }} modo="product" itemsCount={3} standAbierto={{ nombre: "Yiwu Best Toys", fotos: 3, tieneTarjeta: true, leyendo: false }} />);
-    expect(screen.getByText("Yiwu Best Toys · 3 fotos")).toBeTruthy();
-    expect(screen.getByText("Tarjeta lista")).toBeTruthy();
+    con(<Visor videoRef={{ current: null }} modo="product" itemsCount={3} standAbierto={{ nombre: "Yiwu Best Toys", fotos: 3, tieneTarjeta: true, leyendo: false }} onStand={onStand} />);
+    fireEvent.click(screen.getByText("Yiwu Best Toys · 3 fotos"));
+    expect(onStand).toHaveBeenCalled();
   });
-  it("mientras lee la tarjeta lo dice; en modo tarjeta no ofrece 'Sin tarjeta' (se vuelve con el obturador)", () => {
+  it("mientras lee la tarjeta lo dice; si la tarjeta no se leyó lo avisa; en modo tarjeta no ofrece 'Sin tarjeta'", () => {
     const { unmount } = con(<Visor videoRef={{ current: null }} modo="product" itemsCount={1} standAbierto={{ nombre: "", fotos: 1, tieneTarjeta: true, leyendo: true }} />);
     expect(screen.getByText("Leyendo la tarjeta… · 1 foto")).toBeTruthy();
     unmount();
+    const r = con(<Visor videoRef={{ current: null }} modo="product" itemsCount={1} standAbierto={{ nombre: "", fotos: 1, tieneTarjeta: true, leyendo: false }} />);
+    expect(screen.getByText("Tarjeta sin leer · 1 foto")).toBeTruthy();
+    r.unmount();
     con(<Visor videoRef={{ current: null }} modo="card" standAbierto={{ nombre: "", fotos: 1, tieneTarjeta: false, leyendo: false }} />);
     expect(screen.getByText("Encuadrá la tarjeta y tocá el obturador")).toBeTruthy();
     expect(screen.queryByText("Sin tarjeta")).toBeNull();
-    expect(screen.queryByText("Stand sin tarjeta · 1 foto")).toBeNull();
   });
 });
 
 describe("CerrarStand · stand abierto", () => {
-  it("se titula Stand, no muestra Listo y vuelve a la cámara con 'Seguir sacando fotos'", () => {
+  it("se titula Stand; 'Seguir sacando' vuelve a la cámara y Listo cierra el stand", () => {
     const onVolverAlVisor = vi.fn(), onListo = vi.fn();
     const proveedor = { name: "Yiwu Best Toys", contact: "", phone: "", email: "", wechat: "", whatsapp: "", website: "", address: "", products: "", notes: "", favorito: false, minimoDeCompra: null };
-    con(<CerrarStand abierto modo="resumen" itemsCount={2} items={[{ id: 1, photos: [FOTO] }, { id: 2, photos: [FOTO] }]} cardPhoto={FOTO} proveedor={proveedor} onCambiarProveedor={vi.fn()} onVolverAlVisor={onVolverAlVisor} onListo={onListo} />);
+    const onEditar = vi.fn(), onCatalogo = vi.fn(), onResumen = vi.fn();
+    const r = con(<CerrarStand abierto modo="resumen" itemsCount={2} items={[{ id: 1, photos: [FOTO] }, { id: 2, photos: [FOTO] }]} cardPhoto={FOTO} proveedor={proveedor} onCambiarProveedor={vi.fn()} onVolverAlVisor={onVolverAlVisor} onListo={onListo} onEditar={onEditar} onCatalogo={onCatalogo} />);
     expect(screen.getByText("Stand")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /^Listo$/ })).toBeNull();
-    fireEvent.click(screen.getByText("Seguir sacando fotos"));
+    expect(screen.getByText("Yiwu Best Toys")).toBeTruthy(); // la empresa, grande y editable
+    fireEvent.click(screen.getByText("Catálogo"));
+    expect(onCatalogo).toHaveBeenCalled();
+    fireEvent.click(screen.getByText("Agregar o corregir datos"));
+    expect(onEditar).toHaveBeenCalled();
+    fireEvent.click(screen.getByText("Seguir sacando"));
     expect(onVolverAlVisor).toHaveBeenCalled();
     expect(onListo).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /Listo/ }));
+    expect(onListo).toHaveBeenCalled();
+    r.unmount();
+    // Sin tarjeta, el stand ofrece escanearla; el editor completo vuelve al stand
+    const onSacarTarjeta = vi.fn();
+    const r2 = con(<CerrarStand abierto modo="resumen" itemsCount={0} items={[]} proveedor={{ ...proveedor, name: "" }} onCambiarProveedor={vi.fn()} onSacarTarjeta={onSacarTarjeta} />);
+    fireEvent.click(screen.getByText("Escanear tarjeta del proveedor"));
+    expect(onSacarTarjeta).toHaveBeenCalled();
+    r2.unmount();
+    con(<CerrarStand abierto modo="completo" itemsCount={1} items={[{ id: 1, photos: [FOTO] }]} cardPhoto={FOTO} proveedor={proveedor} onCambiarProveedor={vi.fn()} onResumen={onResumen} />);
+    fireEvent.click(screen.getByText("Volver al stand"));
+    expect(onResumen).toHaveBeenCalled();
   });
 });

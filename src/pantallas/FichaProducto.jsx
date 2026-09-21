@@ -92,12 +92,12 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
       <div style={{ flex: 1, overflowY: "auto", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", padding: `0 ${espacios.margenLateral}px 40px`, display: "flex", flexDirection: "column", gap: espacios.entreFilas }}>
 
         {/* Foto 4:3, carrusel, +, flechas */}
-        {/* Marco fijo 4:5 (la proporción va en el marco, no en la foto: en Safari la foto se aplastaba a una tira);
-            la foto entera adentro, sobre fondo oscuro. Nati, 21/09: "la foto de la ficha sigue sin verse bien". */}
-        <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={{ position: "relative", width: "100%", aspectRatio: "4 / 5", borderRadius: radios.grande, overflow: "hidden", background: "#0B0E17", border: `1px solid ${paleta.border}` }}>
+        {/* Cuadrado que llena el ancho y la foto lo llena (como la ficha vieja, que a Nati le gustaba): grande y sin
+            franjas. La proporción va en el marco, no en la foto: en Safari la foto sola se aplastaba a una tira. */}
+        <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={{ position: "relative", width: "100%", aspectRatio: "1", borderRadius: radios.grande, overflow: "hidden", background: paleta.surface, border: `1px solid ${paleta.border}` }}>
           {fotos.length > 0 ? (
             <div ref={scrollRef} onScroll={e => setFoto(Math.round(e.target.scrollLeft / e.target.offsetWidth))} style={{ position: "absolute", inset: 0, display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}>
-              {fotos.map((ph, i) => <div key={i} style={{ width: "100%", height: "100%", flexShrink: 0, scrollSnapAlign: "start" }}>{Foto ? <Foto src={ph} respaldo={respaldoDe(p, i)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} /> : <img src={ph} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />}</div>)}
+              {fotos.map((ph, i) => <div key={i} style={{ width: "100%", height: "100%", flexShrink: 0, scrollSnapAlign: "start" }}>{Foto ? <Foto src={ph} respaldo={respaldoDe(p, i)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <img src={ph} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />}</div>)}
             </div>
           ) : (
             <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}><Icono nombre="foto" tamano={32} color={paleta.dim} /></div>

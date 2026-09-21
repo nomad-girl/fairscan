@@ -95,19 +95,18 @@
     "buscandoTarjeta": "Encuadrá la tarjeta del proveedor",
     "sinTarjeta": "Sin tarjeta",
     "productos": "Productos",
-    "standNuevo": "Stand nuevo",
     "standSinTarjeta_one": "Stand sin tarjeta · {{count}} foto",
     "standSinTarjeta_other": "Stand sin tarjeta · {{count}} fotos",
     "standConNombre_one": "{{nombre}} · {{count}} foto",
     "standConNombre_other": "{{nombre}} · {{count}} fotos",
     "leyendoTarjeta": "Leyendo la tarjeta…",
-    "tarjeta": "Tarjeta",
-    "tarjetaLista": "Tarjeta lista",
-    "nuevoStand": "Nuevo stand",
     "abrirStand": "Abrir el stand",
     "standTarjetaSinLeer_one": "Tarjeta sin leer · {{count}} foto",
     "standTarjetaSinLeer_other": "Tarjeta sin leer · {{count}} fotos",
-    "standTarjetaSinLeer_zero": "Tarjeta sin leer · tocá para completar"
+    "standTarjetaSinLeer_zero": "Tarjeta sin leer · tocá para completar",
+    "escanearTarjeta": "Escanear tarjeta del proveedor",
+    "escanearTarjetaConFotos_one": "Escanear tarjeta · {{count}} foto",
+    "escanearTarjetaConFotos_other": "Escanear tarjeta · {{count}} fotos"
   },
   "cerrarStand": {
     "titulo": "Cerrar stand",
@@ -170,7 +169,10 @@
     "sinVendedor": "Sin nombre del vendedor",
     "sinContacto": "La tarjeta no trajo contacto. Tocá Editar para cargarlo.",
     "tituloStand": "Stand",
-    "seguirFotos": "Seguir sacando fotos"
+    "seguirFotos": "Seguir sacando",
+    "corregirDatos": "Agregar o corregir datos",
+    "volverAlStand": "Volver al stand",
+    "escanearTarjeta": "Escanear tarjeta del proveedor"
   },
   "catalogo": {
     "titulo": "Catálogo",

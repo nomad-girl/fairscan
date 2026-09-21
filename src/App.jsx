@@ -942,7 +942,8 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     .map(p => ({ id: p.id, photos: p.photos || [], price: p.price || "", notes: p.notes || "" }));
 
   const handleCameraShutter = async () => {
-    const photo = captureFrame(cameraMode === "card" ? 1600 : 800);
+    // Producto a 1200 px (antes 800: Nati, 21/09, "que se vea grande y en alta calidad"); tarjeta a 1600 para leerla bien.
+    const photo = captureFrame(cameraMode === "card" ? 1600 : 1200);
     if (!photo) return;
     // Visual + haptic feedback
     setFlashVisible(true);
@@ -1093,6 +1094,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
 
   const armarPayload = () => ({
         quickCapture: true,
+        abierto,
         linkedSupplierId,
         supplierName: supplierName.trim(),
         supplierContact, supplierPhone, supplierEmail,
@@ -1112,19 +1114,6 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
       if (r && typeof r === "object" && r.supplierId && !linkedSupplierId) setLinkedSupplierId(r.supplierId);
       return r;
     } catch (err) { console.warn("[stand abierto] guardar:", err); return null; }
-  };
-  const resetStand = () => {
-    setItems([]); setCardPhoto(null); setCardData(null); setCardProcessing(false);
-    setSupplierName(""); setSupplierContact(""); setSupplierPhone(""); setSupplierEmail(""); setSupplierWechat(""); setSupplierWhatsapp(""); setSupplierWhatsappLink(""); setSupplierWechatLink(""); setSupplierWebsite(""); setSupplierAddress(""); setSupplierProducts(""); setSupplierNotes(""); setSupplierFavorito(false); setSupplierMinimo(null); setLinkedSupplierId(null);
-    setLastCapture(null); setDatosRapidos(null); setAnguloDisponible(false); guardadoTarjetaRef.current = null;
-    try { nota.descartar?.(); } catch { /* sin nota */ }
-  };
-  /** Un toque: guarda el stand (descuenta) y arranca el siguiente, sin pantalla. */
-  const nuevoStand = async () => {
-    await guardarStand({ final: true });
-    await borrarBorrador();
-    resetStand();
-    openCamera("product");
   };
   // Con la tarjeta leída, el proveedor se guarda solo y las fotos que sigan nacen vinculadas.
   useEffect(() => {
@@ -1178,7 +1167,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
           onDisparar={handleCameraShutter}
           onCerrarStand={() => openCamera("card")}
           standAbierto={abierto ? { nombre: supplierName, fotos: items.length, tieneTarjeta: !!cardPhoto, leyendo: cardProcessing } : null}
-          onStand={() => { setModoCierre("completo"); closeCamera(); }} onTarjeta={() => openCamera("card")} onNuevoStand={nuevoStand}
+          onStand={() => { setModoCierre("resumen"); closeCamera(); }} onTarjeta={() => openCamera("card")}
           onSinTarjeta={() => { setModoCierre("completo"); closeCamera(); }}
           onVolverAProductos={() => openCamera("product")}
           onCancelar={closeCamera}
@@ -1214,7 +1203,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
         onSacarProducto={borrarItem} onFotoAProducto={(id) => { setAddPhotoToItemId(id); openCamera("product"); }}
         onVolverAlVisor={() => { if (abierto) guardarStand({ final: false }); openCamera("product"); }} abierto={abierto} onCatalogo={() => { closeCamera(); apagarCamara(); onCatalogo?.(); }}
         onListo={handleSave} guardando={saving} errorGuardar={saveError}
-        modo={modoCierre} onEditar={() => setModoCierre("completo")} stand={cardData?.boothNumber || null}
+        modo={modoCierre} onEditar={() => setModoCierre("completo")} onResumen={() => setModoCierre("resumen")} stand={cardData?.boothNumber || null}
         borrador={borrador} onRetomar={retomarBorrador} onDescartar={descartarBorrador} descripcionBorrador={borrador ? describirBorrador(borrador) : null}
         avisoPermiso={<PermisoAviso info={cameraError} t={t} onClose={() => setCameraError(null)} onRetry={() => openCamera(cameraError?.modo)} alternativaLabel="Elegir de la galería" onAlternativa={() => (cameraError?.modo === "card" ? cardGalleryRef : prodGalleryRef).current?.click()} />}
       />
@@ -3223,7 +3212,7 @@ export default function App() {
       // Stand abierto (21/09): el proveedor ya existe desde la tarjeta; lo que se editó
       // en la pantalla del stand se vuelca acá, sin crear otro. La tarjeta se sube una vez.
       let subirTarjeta = true;
-      if (data.quedarse && data.linkedSupplierId && supplierId === data.linkedSupplierId) {
+      if ((data.quedarse || data.abierto) && data.linkedSupplierId && supplierId === data.linkedSupplierId) {
         const actual = suppliers.find(s => s.id === supplierId) || {};
         const campos = { company: data.supplierName, contact: data.supplierContact, phone: data.supplierPhone, email: data.supplierEmail, wechat: data.supplierWechat, whatsapp: data.supplierWhatsapp, whatsappLink: data.supplierWhatsappLink, wechatLink: data.supplierWechatLink, website: data.supplierWebsite, address: data.supplierAddress, products: data.supplierProducts, notes: data.supplierNotes, cardPhoto: data.cardPhoto };
         const updates = {};
