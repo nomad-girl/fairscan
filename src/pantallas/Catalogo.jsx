@@ -69,7 +69,7 @@ export function Catalogo({
   const redescubierto = useMemo(() => favoritosViejos.length ? favoritosViejos[(semilla + favoritosViejos.length) % favoritosViejos.length] : null, [favoritosViejos, semilla]);
   const hayQueRevisar = deHoy.length > 0 && (resumen.sinPrecio > 0 || deHoy.some(p => !p.supplierId) || deHoy.some(p => p.favorito) || deHoy.length >= 3);
 
-  const abrir = (p) => onNavigate?.("detail", p);
+  const abrir = (p) => onNavigate?.("detail", p, filtrados); // el orden con los filtros puestos: la ficha desliza por estos vecinos (21/09)
   const nombreFeria = feria === "todas" ? t("catalogo.todasLasFerias") : (activeDistrict?.name || "");
 
   // Función, no componente: un componente definido adentro del render es un tipo nuevo cada vez y React

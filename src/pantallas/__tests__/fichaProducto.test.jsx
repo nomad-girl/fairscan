@@ -18,16 +18,27 @@ const districts = [{ id: 1, name: "Cantón", emoji: "🇨🇳" }];
 const base = { id: 1, name: "Taza de cerámica blanca", price: "0.85", moq: "500", moqBase: "caja", supplierId: 10, districtId: 1, createdAt: Date.now() - 3600000, photos: [FOTO, FOTO], ai_processed: true, favorito: 0, category: "Vajilla", material: ["Cerámica"] };
 
 describe("Ficha de producto", () => {
+  it("es un feed: muestra la posición y a los vecinos anterior y siguiente en el paginador", () => {
+    const otro = { ...base, id: 2, name: "Plato hondo" };
+    const tercero = { ...base, id: 3, name: "Bowl" };
+    con(<FichaProducto product={otro} suppliers={suppliers} districts={districts} allProducts={[base, otro, tercero]} onNavigateProduct={vi.fn()} />);
+    expect(screen.getByText("2 de 3")).toBeTruthy();
+    expect(screen.getByText("Taza de cerámica blanca")).toBeTruthy();
+    expect(screen.getByText("Bowl")).toBeTruthy();
+  });
   it("muestra precio grande, MOQ con base, dos fotos y el proveedor como fila", () => {
     con(<FichaProducto product={base} suppliers={suppliers} districts={districts} allProducts={[base]} onAddPhoto={vi.fn()} />);
-    expect(screen.getByText("USD 0.85")).toBeTruthy();
+    expect(screen.getByText(/USD 0.85/)).toBeTruthy();
     expect(screen.getByText(/MOQ 500 por caja/)).toBeTruthy();
-    expect(screen.getAllByText("Yiwu Sunrise").length).toBe(2); // bajo el título y como fila
-    expect(screen.getByText("2 fotos")).toBeTruthy(); // el botón "+ ángulo" muestra cuántas hay
+    expect(screen.getByText("Yiwu Sunrise")).toBeTruthy(); // al pie, sobre la foto
+    expect(screen.getByText("2 fotos")).toBeTruthy(); // el botón de agregar foto muestra cuántas hay
+    fireEvent.click(screen.getByText("Ver todos los datos"));
+    expect(screen.getAllByText("Yiwu Sunrise").length).toBe(2); // y como fila en la hoja
   });
   it("piezas por caja y CBM se editan tocando, junto al precio", () => {
     const onUpdate = vi.fn();
     con(<FichaProducto product={base} suppliers={suppliers} districts={districts} allProducts={[base]} onUpdate={onUpdate} />);
+    fireEvent.click(screen.getByText("Ver todos los datos"));
     expect(screen.queryByText("CBM por caja")).toBeNull(); // vacío: escondido…
     fireEvent.click(screen.getByText(/Agregar un dato/)); // …pero se sabe que está
     expect(screen.getByText("CBM por caja")).toBeTruthy();
@@ -42,6 +53,7 @@ describe("Ficha de producto", () => {
     con(<FichaProducto product={base} suppliers={suppliers} districts={districts} allProducts={[base]} onUpdate={onUpdate} onDelete={onDelete} />);
     fireEvent.click(screen.getByRole("button", { name: "Marcar como favorito" }));
     expect(onUpdate).toHaveBeenCalledWith(1, { favorito: 1 });
+    fireEvent.click(screen.getByRole("button", { name: "Datos del producto" }));
     fireEvent.click(screen.getByText("Cambiar de proveedor"));
     fireEvent.click(screen.getByText("Shenzhen Brightwave"));
     expect(onUpdate).toHaveBeenCalledWith(1, { supplierId: 11, supplierCompany: "Shenzhen Brightwave" });
@@ -58,6 +70,7 @@ describe("Ficha de producto", () => {
     unmount();
     const fallo = { ...base, id: 3, ai_processed: true, ai_error: "timeout", aiPendiente: 0, ai_failed: true };
     con(<FichaProducto product={fallo} suppliers={suppliers} districts={districts} allProducts={[fallo]} onUpdate={onUpdate} />);
+    fireEvent.click(screen.getByText("Ver todos los datos"));
     const boton = screen.queryByText("Reintentar con IA");
     if (boton) { fireEvent.click(boton); expect(onUpdate).toHaveBeenCalled(); }
   });

@@ -308,7 +308,11 @@
     "cancelar": "Cancelar",
     "verProveedor": "Ver proveedor",
     "pedir": "Pedir este producto",
-    "agregarDato": "Agregar un dato"
+    "agregarDato": "Agregar un dato",
+    "verDatos": "Ver todos los datos",
+    "datos": "Datos del producto",
+    "posicion": "{{n}} de {{total}}",
+    "sinFoto": "Sin foto"
   },
   "proveedor": {
     "titulo": "Proveedor",

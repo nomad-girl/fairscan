@@ -3031,6 +3031,8 @@ export default function App() {
     const etiqueta = (feria?.name || "FairScan").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9]+/g, "-");
     await saveFile(blob, `Pedidos_${etiqueta}_${new Date().toISOString().slice(0, 10)}.xlsx`, { title: `FairScan · ${tx("pedidos.titulo")}` });
   };
+  // El orden del catálogo al abrir una ficha (con los filtros puestos): deslizar pasa por esos vecinos (21/09).
+  const [ordenFicha, setOrdenFicha] = useState(null);
   const navigate = (s, data) => { setPrevScreen({ screen, data: screenData }); setScreenData(data); setScreen(s); };
   const goBack = () => { if (prevScreen) { setScreen(prevScreen.screen); setScreenData(prevScreen.data); setPrevScreen(null); } else { setScreen("list"); setScreenData(null); } };
 
@@ -3577,7 +3579,7 @@ export default function App() {
         <Catalogo products={products} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} activeDistrict={activeDistrict} bajando={sync.bajando}
           queueCount={queueCount} enLinea={typeof navigator === "undefined" ? true : navigator.onLine !== false}
           Foto={FotoDeProducto} t={t}
-          onNavigate={navigate} onSwitchDistrict={switchDistrict}
+          onNavigate={(s, d, lista) => { if (lista) setOrdenFicha(lista.map(x => x.id)); navigate(s, d); }} onSwitchDistrict={switchDistrict}
           onToggleFavorito={(p) => handleUpdateProduct(p.id, { favorito: p.favorito ? 0 : 1 })}
           onToggleFavoritoProveedor={async (s) => { const favorito = s.favorito ? 0 : 1; await dbUpdateSupplier(s.id, { favorito }); setSuppliers(prev => prev.map(x => x.id === s.id ? { ...x, favorito } : x)); }}
           onRevisarDia={() => navigate("revisar")}
@@ -3591,7 +3593,7 @@ export default function App() {
           initialSupplier={screenData?.fromSupplierId != null ? suppliers.find(s => s.id === screenData.fromSupplierId) || null : null} />
       )}
       {screen === "detail" && screenData && (
-        <FichaProducto key={screenData.id} product={products.find(p => p.id === screenData.id) || screenData} allProducts={products} suppliers={suppliers} districts={districts}
+        <FichaProducto key={screenData.id} product={products.find(p => p.id === screenData.id) || screenData} allProducts={ordenFicha ? ordenFicha.map(id => products.find(p => p.id === id)).filter(Boolean) : products} suppliers={suppliers} districts={districts}
           settings={settings} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"}
           Foto={FotoDeProducto} tLegacy={t}
           onBack={goBack} onUpdate={(id, changes) => { handleUpdateProduct(id, changes); }} onAddPhoto={agregarFotoAProducto} onDelete={handleDeleteProduct}
