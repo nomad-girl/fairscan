@@ -68,16 +68,37 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
   const timerRef = useRef(null);
   const centro = prev ? 1 : 0;
   useLayoutEffect(() => { const el = pagerRef.current; if (el) el.scrollTop = centro * el.clientHeight; }, [centro]);
+  // Al asentarse en una vecina, se navega. Se decide en el momento exacto en que la foto encaja
+  // (a 2 px del punto de encaje) y, por si el encaje no llega a verse, con un segundo chequeo
+  // 220 ms después del último movimiento. Antes se decidía a los 90 ms, mientras el iPhone
+  // seguía animando el encaje: leía una posición intermedia, no navegaba y el feed quedaba
+  // trabado en la última pantalla (Nati, 21/09: "escroleo 3 y se traba").
+  const navegandoRef = useRef(false);
+  const decidir = (el) => {
+    if (navegandoRef.current) return;
+    const h = Math.max(1, el.clientHeight);
+    const i = Math.round(el.scrollTop / h);
+    if (i === centro) return;
+    const destino = i < centro ? prev : next;
+    if (!destino) return;
+    navegandoRef.current = true;
+    onNavigateProduct?.(destino);
+  };
   const onScrollPager = (e) => {
     const el = e.currentTarget;
+    const h = Math.max(1, el.clientHeight);
+    const resto = Math.abs(el.scrollTop - Math.round(el.scrollTop / h) * h);
+    if (resto < 2) decidir(el);
     clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      const i = Math.round(el.scrollTop / Math.max(1, el.clientHeight));
-      if (i < centro && prev) onNavigateProduct?.(prev);
-      else if (i > centro && next) onNavigateProduct?.(next);
-    }, 90);
+    timerRef.current = setTimeout(() => decidir(el), 220);
   };
-  useEffect(() => () => clearTimeout(timerRef.current), []);
+  useEffect(() => {
+    const el = pagerRef.current;
+    const alTerminar = () => el && decidir(el);
+    el?.addEventListener?.("scrollend", alTerminar);
+    return () => { clearTimeout(timerRef.current); el?.removeEventListener?.("scrollend", alTerminar); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const fotosDe = (x) => (x.photos?.length ? x.photos : (x.photoUrls || []));
   const supplierDe = (x) => suppliers.find(s => s.id === x.supplierId);
   const posicion = idx >= 0 ? t("ficha.posicion", { n: idx + 1, total: allProducts.length }) : "";
