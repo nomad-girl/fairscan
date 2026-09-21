@@ -80,7 +80,7 @@ export function Visor({
       <div aria-hidden style={{ position: "absolute", inset: 0, background: "#fff", opacity: flash ? 0.75 : 0, pointerEvents: "none", zIndex: 2, transition: `opacity ${duracion(movimiento.obturador.velo)}ms linear` }} />
 
       {/* Arriba: saldo y estado. Nada más. */}
-      <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 12px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+      <div style={{ position: "absolute", top: "calc(0px + 12px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <div style={{ display: "flex", gap: 6, alignItems: "center", minWidth: 0 }}>
           {feria && <Pastilla estilo={{ maxWidth: "46vw", overflow: "hidden", textOverflow: "ellipsis", display: "block", lineHeight: "32px" }}>{feria}</Pastilla>}
           {textoSaldo && !esTarjeta && <Pastilla tono={saldoBajo ? "alerta" : "vidrio"}>{textoSaldo}</Pastilla>}
@@ -91,7 +91,7 @@ export function Visor({
       {/* Modo tarjeta: guía */}
       {esTarjeta && (
         <>
-          <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 60px)", left: 0, right: 0, zIndex: 3, display: "flex", justifyContent: "center" }}>
+          <div style={{ position: "absolute", top: "calc(0px + 60px)", left: 0, right: 0, zIndex: 3, display: "flex", justifyContent: "center" }}>
             <Pastilla><Icono nombre="tarjeta" tamano={16} color={BLANCO} />{t("visor.buscandoTarjeta")}</Pastilla>
           </div>
           <div aria-hidden style={{ position: "absolute", left: "8%", right: "8%", top: "30%", aspectRatio: "1.75", border: "2px dashed rgba(241,245,249,0.7)", borderRadius: 14, zIndex: 3, pointerEvents: "none" }} />

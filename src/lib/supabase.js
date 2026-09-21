@@ -69,6 +69,23 @@ export async function convertirCuenta(email, password, displayName, teamName, ma
   return res;
 }
 
+/** Manda el mail para recuperar la contraseña. El link vuelve a la app, que detecta la recuperación y pide una nueva. */
+export async function resetPassword(email) {
+  if (!supabase) throw new Error('Supabase no está configurado');
+  const redirectTo = typeof window !== 'undefined' && window.location?.origin?.startsWith('http') ? window.location.origin : 'https://fairscan.app';
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+  if (error) throw error;
+  return true;
+}
+
+/** Cambia la contraseña de la sesión actual (después de entrar por el link de recuperación). */
+export async function updatePassword(password) {
+  if (!supabase) throw new Error('Supabase no está configurado');
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw error;
+  return true;
+}
+
 export async function signOut() {
   if (!supabase) return;
   const { error } = await supabase.auth.signOut();

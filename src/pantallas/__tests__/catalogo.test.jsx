@@ -46,21 +46,11 @@ describe("Catálogo", () => {
     fireEvent.click(screen.getByText("Yiwu Sunrise"));
     expect(onNavigate).toHaveBeenCalledWith("supplier", suppliers[0]);
   });
-  it("Hoy muestra el resumen y el botón Revisar el día cuando hay capturas de hoy", () => {
+  it("Todo ofrece Revisar el día arriba cuando hay capturas de hoy con algo que revisar", () => {
     const onRevisarDia = vi.fn();
-    con(<Catalogo products={products} suppliers={suppliers} districts={districts} activeDistrictId={1} activeDistrict={districts[0]} pestana="hoy" onRevisarDia={onRevisarDia} />);
-    expect(screen.getByText(/3 productos · 1 proveedor/)).toBeTruthy();
-    expect(screen.getAllByRole("article").length).toBe(3); // el feed del día: una publicación por producto
-    expect(screen.getByText("Taza de cerámica blanca")).toBeTruthy(); // el nombre, como pie de la publicación
-    fireEvent.click(screen.getByText(/Revisar el día/));
+    con(<Catalogo products={products} suppliers={suppliers} districts={districts} activeDistrictId={1} activeDistrict={districts[0]} pestana="todo" onRevisarDia={onRevisarDia} />);
+    fireEvent.click(screen.getByText("Revisar el día"));
     expect(onRevisarDia).toHaveBeenCalled();
-  });
-  it("sin capturas de hoy, Hoy redescubre un favorito viejo", () => {
-    const viejos = products.filter(p => p.createdAt < hoy - 86400000);
-    con(<Catalogo products={viejos} suppliers={suppliers} districts={districts} activeDistrictId={1} activeDistrict={districts[0]} pestana="hoy" />);
-    expect(screen.getByText("Hoy no capturaste nada")).toBeTruthy();
-    expect(screen.getByText("Vela vieja")).toBeTruthy();
-    expect(screen.getByText("Ver proveedor")).toBeTruthy();
   });
   it("vacío del todo: una sola acción, sacar la primera foto", () => {
     const onNavigate = vi.fn();

@@ -1,3 +1,4 @@
+import { Icono } from '../componentes/Icono.jsx';
 import { useState } from 'react';
 import { listaDeRubros, RUBRO_POR_DEFECTO } from '../lib/presets.js';
 
@@ -10,6 +11,13 @@ export default function LoginScreen({ t, onAuth, convertir = false, onCancel }) 
   const [mode, setMode] = useState(convertir ? 'register' : 'login'); // 'login' | 'register'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [aviso, setAviso] = useState('');
+  const recuperando = !!onAuth?.recuperando;
+  const olvide = async () => {
+    if (!email.trim()) { setAviso('Escribí tu mail arriba y volvé a tocar acá.'); return; }
+    try { await onAuth.recuperar(email.trim()); setAviso('Te mandamos un mail para crear una contraseña nueva. Revisá también no deseados.'); }
+    catch (e) { setAviso(e?.message || 'No se pudo mandar el mail.'); }
+  };
   const [displayName, setDisplayName] = useState('');
   const [teamName, setTeamName] = useState('');
   const [error, setError] = useState(null);
@@ -68,6 +76,20 @@ export default function LoginScreen({ t, onAuth, convertir = false, onCancel }) 
     boxSizing: 'border-box',
   };
 
+  if (recuperando) {
+    const [nueva, setNueva] = [password, setPassword];
+    return (
+      <div style={{ minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: t.bg, padding: 24 }}>
+        <form onSubmit={async (e) => { e.preventDefault(); if (nueva.length < 6) { setAviso('La contraseña tiene que tener al menos 6 caracteres.'); return; } try { await onAuth.cambiarContrasena(nueva); setAviso(''); } catch (err) { setAviso(err?.message || 'No se pudo cambiar.'); } }} style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: t.text, margin: 0 }}>Nueva contraseña</h1>
+          <p style={{ fontSize: 14, color: t.muted, margin: 0 }}>Elegí una contraseña nueva para tu cuenta de FairScan.</p>
+          <input type="password" placeholder="Nueva contraseña" value={nueva} onChange={e => setNueva(e.target.value)} autoComplete="new-password" style={inputStyle} />
+          <button type="submit" style={{ width: '100%', padding: 14, borderRadius: 12, border: 'none', background: t.accent, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>Guardar y entrar</button>
+          {aviso && <p style={{ fontSize: 13, color: t.red || '#DC2626', margin: 0 }}>{aviso}</p>}
+        </form>
+      </div>
+    );
+  }
   return (
     <div style={{
       height: '100%',
@@ -80,7 +102,7 @@ export default function LoginScreen({ t, onAuth, convertir = false, onCancel }) 
       <div style={{ width: '100%', maxWidth: 360 }}>
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <span style={{ fontSize: 48 }}>📸</span>
+          <Icono nombre="camara" tamano={40} color={t.accent} />
           <h1 style={{ fontSize: 24, fontWeight: 800, color: t.text, margin: '8px 0 4px' }}>FairScan</h1>
           <p style={{ fontSize: 13, color: t.muted, margin: 0 }}>
             {mode === 'login' ? 'Iniciá sesión para continuar' : convertir ? 'Creá tu cuenta para no perder tu catálogo' : 'Creá tu cuenta'}
@@ -163,7 +185,7 @@ export default function LoginScreen({ t, onAuth, convertir = false, onCancel }) 
               }}
               tabIndex={-1}
             >
-              {showPassword ? '🙈' : '👁️'}
+              <Icono nombre={showPassword ? 'ojoCerrado' : 'ojo'} tamano={20} color={t.muted} />
             </button>
           </div>
 
@@ -264,6 +286,12 @@ export default function LoginScreen({ t, onAuth, convertir = false, onCancel }) 
             {mode === 'login' ? 'Crear cuenta' : 'Iniciar sesión'}
           </button>
         </p>
+        {mode === 'login' && (
+          <p style={{ textAlign: 'center', margin: '8px 0 0' }}>
+            <button type="button" onClick={olvide} style={{ background: 'none', border: 'none', color: t.muted, fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 8 }}>¿Olvidaste tu contraseña?</button>
+          </p>
+        )}
+        {aviso && <p style={{ textAlign: 'center', fontSize: 13, color: t.muted, margin: '8px 0 0', lineHeight: 1.4 }}>{aviso}</p>}
       </div>
     </div>
   );

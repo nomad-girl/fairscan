@@ -116,7 +116,7 @@ export function Catalogo({
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit" }}>
       {/* Barra superior: título · feria · buscar · ajustes */}
-      <div style={{ padding: `calc(env(safe-area-inset-top, 0px) + 8px) ${espacios.margenLateral}px 6px`, display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ padding: `calc(0px + 8px) ${espacios.margenLateral}px 6px`, display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, minHeight: alturas.tocable }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <h1 style={{ ...texto("titulo"), margin: 0 }}>{t("catalogo.titulo")}</h1>
@@ -130,62 +130,16 @@ export function Catalogo({
           <input autoFocus value={consulta} onChange={e => setConsulta(e.target.value)} placeholder={t("catalogo.buscar")} aria-label={t("catalogo.buscar")}
             style={{ ...texto("cuerpo", { fontWeight: 400 }), minHeight: alturas.campo, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.surface, color: paleta.text, padding: "0 14px", fontFamily: "inherit", outline: "none", width: "100%" }} />
         )}
-        <Segmentado etiqueta={t("catalogo.titulo")} valor={pestana} onChange={onPestana} opciones={[{ valor: "hoy", texto: t("catalogo.hoy") }, { valor: "todo", texto: t("catalogo.todo") }, { valor: "proveedores", texto: t("catalogo.proveedores") }]} />
+        <Segmentado etiqueta={t("catalogo.titulo")} valor={pestana} onChange={onPestana} opciones={[{ valor: "todo", texto: t("catalogo.todo") }, { valor: "proveedores", texto: t("catalogo.proveedores") }]} />
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", padding: `6px ${espacios.margenLateral}px 110px`, display: "flex", flexDirection: "column", gap: espacios.entreFilas }}>
 
-        {/* ── HOY ── */}
-        {pestana === "hoy" && (
-          <>
-            {deHoy.length > 0 ? (
-              <>
-                <div style={{ background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, boxShadow: paleta.sombraTarjeta, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 2 }}>
-                  <b style={{ ...texto("destacado") }}>{t("catalogo.resumenHoy", { productos: t("catalogo.productos", { count: resumen.productos }), proveedores: t("cantidades.proveedores", { count: resumen.proveedores }) })}</b>
-                  <span style={{ ...texto("pie"), color: paleta.dim }}>{nombreFeria}</span>
-                </div>
-                {hayQueRevisar
-                  ? <Boton variante="principal" ancho="total" onClick={onRevisarDia}>{t("catalogo.revisarElDia")} · {t("catalogo.revisarMinutos", { count: Math.max(1, Math.ceil((resumen.sinPrecio + deHoy.filter(p => !p.supplierId).length + 2) / 3)) })}</Boton>
-                  : <Boton variante="secundario" ancho="total" icono="listo" deshabilitado>{t("catalogo.todoRevisado")}</Boton>}
-                {/* El feed del día (Nati, 16/09: "todos quieren ver su feed del día"): las fotos, sin tocar nada */}
-                {deHoy.map(p => publicacion(p))}
-              </>
-            ) : (
-              <>
-                <div style={{ ...texto("pie"), color: paleta.dim, textAlign: "center", padding: "6px 0" }}>{t("catalogo.sinCapturasHoy")}</div>
-                {redescubierto && (() => {
-                  const sup = suppliers.find(s => s.id === redescubierto.supplierId);
-                  const dist = districts.find(d => d.id === redescubierto.districtId);
-                  return (
-                    <div style={{ background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, boxShadow: paleta.sombraTarjeta, overflow: "hidden" }}>
-                      <div style={{ padding: "10px 14px 0", ...texto("pie"), color: paleta.dim }}>{t("catalogo.deHace", { feria: dist?.name || "—", tiempo: haceCuanto(redescubierto.createdAt).replace(/^hace /, "") })}</div>
-                      <button type="button" onClick={() => abrir(redescubierto)} style={{ display: "block", width: "100%", aspectRatio: "4/3", border: "none", padding: 0, margin: "8px 0 0", background: paleta.surface, cursor: "pointer" }}>{miniatura(redescubierto)}</button>
-                      <div style={{ padding: "10px 14px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
-                        <p style={{ ...texto("cuerpo", { fontWeight: 600 }), margin: 0 }}>{redescubierto.name}</p>
-                        <p style={{ ...texto("pie"), color: paleta.muted, margin: 0 }}><Icono nombre="favorito" tamano={13} color={paleta.accentTexto} /> {sup?.company || redescubierto.supplierCompany || "—"}{redescubierto.price ? ` · USD ${redescubierto.price}` : ""} · {t("catalogo.nuncaLoPediste")}</p>
-                        <div style={{ display: "flex", gap: 8 }}>
-                          {sup && <Boton variante="secundario" onClick={() => onNavigate?.("supplier", sup)} estilo={{ flex: 1 }}>{t("catalogo.verProveedor")}</Boton>}
-                          <Boton variante="secundario" onClick={() => setSemilla(s => s + 1)} estilo={{ flex: 1 }}>{t("catalogo.otro")}</Boton>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </>
-            )}
-          </>
-        )}
-
-        {/* ── TODO ── */}
         {pestana === "todo" && (
           <>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <FilaDeChips estilo={{ flex: 1 }}>
-                <Chip activo={filtro === "todos"} onClick={() => setFiltro("todos")}>{t("catalogo.todo")}</Chip>
-                <Chip activo={filtro === "favoritos"} onClick={() => setFiltro(filtro === "favoritos" ? "todos" : "favoritos")}><Icono nombre="favorito" tamano={14} color={filtro === "favoritos" ? paleta.accentTexto : paleta.dim} />{t("catalogo.favoritos")}</Chip>
-                <Chip activo={filtro === "sinPrecio"} onClick={() => setFiltro(filtro === "sinPrecio" ? "todos" : "sinPrecio")}>{t("catalogo.sinPrecio")}</Chip>
-                {categorias.map(c => <Chip key={c} activo={filtro === `cat:${c}`} onClick={() => setFiltro(filtro === `cat:${c}` ? "todos" : `cat:${c}`)}>{c}</Chip>)}
-              </FilaDeChips>
+              {hayQueRevisar && onRevisarDia && <Fila onClick={onRevisarDia} flecha miniatura={<Icono nombre="listo" tamano={22} color={paleta.accentTexto} />} titulo={t("catalogo.revisarElDia")} subtitulo={t("catalogo.resumenHoy", { productos: t("catalogo.productos", { count: resumen.productos }), proveedores: t("cantidades.proveedores", { count: resumen.proveedores }) })} />}
+              <button type="button" onClick={() => setFiltro(filtro === "favoritos" ? "todos" : "favoritos")} aria-pressed={filtro === "favoritos"} aria-label={t("catalogo.favoritos")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${filtro === "favoritos" ? paleta.accent : paleta.border}`, background: filtro === "favoritos" ? paleta.accentSoft : paleta.card, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}><Icono nombre="favorito" tamano={18} color={filtro === "favoritos" ? paleta.accentTexto : paleta.dim} /></button>
               <button type="button" onClick={() => setVista(v => (v === "grilla" ? "lista" : "grilla"))} aria-label={vista === "grilla" ? t("catalogo.lista") : t("catalogo.grilla")} style={{ width: alturas.chip, height: alturas.chip, borderRadius: radios.pildora, border: `1px solid ${paleta.border}`, background: paleta.surface, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}>
                 <Icono nombre={vista === "grilla" ? "opciones" : "foto"} tamano={18} color={paleta.dim} />
               </button>

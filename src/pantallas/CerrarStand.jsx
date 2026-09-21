@@ -86,7 +86,7 @@ export function CerrarStand({
   if (resumen) {
     return (
       <div style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: `calc(env(safe-area-inset-top, 0px) + 8px) ${espacios.margenLateral}px 8px`, minHeight: alturas.tocable + 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: `calc(0px + 8px) ${espacios.margenLateral}px 8px`, minHeight: alturas.tocable + 16 }}>
           <h1 style={{ ...texto("titulo"), margin: 0, flex: 1 }}>{t("cerrarStand.titulo")}</h1>
           <button type="button" onClick={onVolverAlVisor} aria-label={t("comun.cerrar")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="cerrar" tamano={20} color={paleta.muted} /></button>
         </div>
@@ -160,7 +160,7 @@ export function CerrarStand({
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit" }}>
       {/* Barra superior */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: `calc(env(safe-area-inset-top, 0px) + 8px) ${espacios.margenLateral}px 8px`, minHeight: alturas.tocable + 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: `calc(0px + 8px) ${espacios.margenLateral}px 8px`, minHeight: alturas.tocable + 16 }}>
         <button type="button" onClick={soloProveedor ? onCatalogo : onVolverAlVisor} aria-label={t("comun.volver")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer", boxShadow: paleta.sombraTarjeta, flexShrink: 0 }}>
           <Icono nombre={soloProveedor ? "cerrar" : "camara"} tamano={20} color={paleta.muted} />
         </button>

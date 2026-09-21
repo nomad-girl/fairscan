@@ -63,7 +63,7 @@ export function FichaProveedor({ supplier: s, products = [], pedidos = [], distr
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit" }}>
       {/* Barra superior */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: `calc(env(safe-area-inset-top, 0px) + 8px) ${espacios.margenLateral}px 8px`, minHeight: alturas.tocable + 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: `calc(0px + 8px) ${espacios.margenLateral}px 8px`, minHeight: alturas.tocable + 16 }}>
         <button type="button" onClick={onBack} aria-label={t("comun.volver")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}><Icono nombre="volver" tamano={20} color={paleta.muted} /></button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h1 style={{ ...texto("titulo"), margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.company || t("proveedor.titulo")}</h1>
@@ -147,7 +147,7 @@ export function FichaProveedor({ supplier: s, products = [], pedidos = [], distr
       {/* La tarjeta grande: el QR de WeChat se escanea desde acá */}
       {tarjetaGrande && tarjeta && (
         <div role="dialog" aria-label={t("proveedor.tarjeta")} onClick={() => setTarjetaGrande(false)} style={{ position: "fixed", inset: 0, zIndex: capas?.hoja || 300, background: "rgba(10,14,23,0.96)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <button type="button" onClick={() => setTarjetaGrande(false)} aria-label={t("proveedor.cerrarTarjeta")} style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 12px)", right: 12, width: alturas.tocable, height: alturas.tocable, borderRadius: radios.medio, border: "none", background: "rgba(241,245,249,0.14)", color: "#fff", display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="cerrar" tamano={20} color="#fff" /></button>
+          <button type="button" onClick={() => setTarjetaGrande(false)} aria-label={t("proveedor.cerrarTarjeta")} style={{ position: "absolute", top: "calc(0px + 12px)", right: 12, width: alturas.tocable, height: alturas.tocable, borderRadius: radios.medio, border: "none", background: "rgba(241,245,249,0.14)", color: "#fff", display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="cerrar" tamano={20} color="#fff" /></button>
           <img src={tarjeta} alt="" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", borderRadius: radios.medio }} />
         </div>
       )}

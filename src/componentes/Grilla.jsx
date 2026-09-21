@@ -12,7 +12,7 @@ import { Icono } from "./Icono.jsx";
 
 export function GrillaDeFotos({ children, columnas = 3, alAncho = true, estilo }) {
   const { espacios } = useSistema();
-  return <div style={{ display: "grid", gridTemplateColumns: `repeat(${columnas}, 1fr)`, gap: 2, margin: alAncho ? `0 -${espacios.margenLateral}px` : 0, ...estilo }}>{children}</div>;
+  return <div style={{ display: "grid", gridTemplateColumns: `repeat(${columnas}, 1fr)`, gap: 2, ...(alAncho ? { width: "100vw", marginLeft: "calc(50% - 50vw)" } : {}), ...estilo }}>{children}</div>;
 }
 
 export function CeldaDeFoto({ onClick, etiqueta, children, favorito = false, fotos = 1, insignia = null, estilo }) {

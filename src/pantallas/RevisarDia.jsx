@@ -104,7 +104,7 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: `calc(env(safe-area-inset-top, 0px) + 8px) ${espacios.margenLateral}px 6px`, minHeight: alturas.tocable + 14 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: `calc(0px + 8px) ${espacios.margenLateral}px 6px`, minHeight: alturas.tocable + 14 }}>
         <button type="button" onClick={juego ? volverAlMenu : onCerrar} aria-label={juego ? t("comun.volver") : t("comun.cerrar")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}><Icono nombre={juego ? "volver" : "cerrar"} tamano={20} color={paleta.muted} /></button>
         <h1 style={{ ...texto("titulo"), margin: 0, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{juego ? nombreJuego[juego] : t("revisar.titulo")}</h1>
         {juego && total > 0 && actual?.tipo !== "favoritos" && actual?.tipo !== "cierre" && <span style={{ ...texto("pie"), color: paleta.dim }}>{t("revisar.de", { n: i + 1, total })}</span>}

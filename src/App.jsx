@@ -101,6 +101,7 @@ import { Catalogo } from './pantallas/Catalogo.jsx';
 import { RevisarDia } from './pantallas/RevisarDia.jsx';
 import { FichaProducto } from './pantallas/FichaProducto.jsx';
 import { FichaProveedor } from './pantallas/FichaProveedor.jsx';
+import { Icono } from './componentes/index.js';
 import { useSistema } from './sistema/SistemaProvider.jsx';
 import { ArmarPedido } from './pantallas/ArmarPedido.jsx';
 import { Pedidos } from './pantallas/Pedidos.jsx';
@@ -306,7 +307,7 @@ const FotoDeProducto = memo(({ src, respaldo = null, t, estilo }) => {
   // bloquea. Pasarlas por fairscan.app las destraba, a costo de una función por
   // foto, así que es solo el último recurso.
   // 17/09: si no hay copia local (src vacío) pero sí dirección de la nube, se arranca por la nube; antes el
-  // componente se quedaba en el 📷 sin intentar nada, y "muchísimos productos" no cargaban en el iPhone de Nati.
+  // componente se quedaba en el sin intentar nada, y "muchísimos productos" no cargaban en el iPhone de Nati.
   const [intento, setIntento] = useState(src ? 0 : respaldo ? 1 : 0);   // 0 = src, 1 = respaldo, 2 = por nuestro servidor, 3 = fallo
   const [porProxy, setPorProxy] = useState(null);
   useEffect(() => { setIntento(src ? 0 : respaldo ? 1 : 0); setPorProxy(null); }, [src, respaldo]);
@@ -330,7 +331,7 @@ const FotoDeProducto = memo(({ src, respaldo = null, t, estilo }) => {
         onClick={fallo ? (e) => { e.stopPropagation(); setIntento(0); } : undefined}
         title={fallo ? "No se pudo bajar la foto. Tocá para reintentar." : undefined}
         style={{ ...caja, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, opacity:fallo ? 0.55 : 1 }}>
-        {fallo ? "🔄" : "📷"}
+        <Icono nombre={fallo ? "reintentar" : "foto"} tamano={22} color={t.dim || t.muted} />
       </div>
     );
   }
@@ -382,7 +383,7 @@ function DiagnosticoFotos({ t }) {
   const fila = (obj) => Object.entries(obj || {}).map(([k, v]) => `${k}: ${v}`).join(' · ') || '—';
   return (
     <div style={{ background:t.card, borderRadius:14, padding:"12px 14px", marginTop:12, border:`1px solid ${t.border}` }}>
-      <p style={{ fontSize:13, fontWeight:700, color:t.text, margin:"0 0 6px" }}>🔍 Diagnóstico de fotos</p>
+      <p style={{ fontSize:13, fontWeight:700, color:t.text, margin:"0 0 6px" }}>Diagnóstico de fotos</p>
       <p style={{ fontSize:11, color:t.muted, margin:"0 0 8px" }}>Para soporte: dice qué tiene guardado este teléfono y qué fotos no cargan. No cambia nada.</p>
       <button onClick={correr} disabled={!!estado?.corriendo} style={{ padding:"8px 12px", borderRadius:10, border:"none", background:t.accentSoft, color:t.accent, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
         {estado?.corriendo ? "Probando…" : "Probar las fotos"}
@@ -416,7 +417,7 @@ const BajandoCatalogo = memo(({ bajando, t }) => {
     <div style={{ position:"fixed", top:"calc(env(safe-area-inset-top, 0px) + 16px)", left:16, right:16, margin:"0 auto",
       width:"min(420px, calc(100vw - 32px))", boxSizing:"border-box", background:t.card, border:`1px solid ${t.blue}55`, color:t.text,
       padding:"12px 16px", borderRadius:14, boxShadow:"0 8px 30px rgba(0,0,0,0.35)", zIndex:1001 }} className="fade-in">
-      <p style={{ margin:0, fontSize:13, fontWeight:700 }}>☁️ Bajando tu catálogo…</p>
+      <p style={{ margin:0, fontSize:13, fontWeight:700 }}>Bajando tu catálogo…</p>
       <p style={{ margin:"2px 0 8px", fontSize:12, color:t.muted }}>
         {bajando.hechos} de {bajando.total} {nombre}. No cierres la app; nada se perdió.
       </p>
@@ -441,7 +442,7 @@ function PermisoAviso({ info, onRetry, onAlternativa, alternativaLabel, onClose,
         <p style={{ fontSize:14, color:t.muted, margin:"0 0 16px", lineHeight:1.5 }}>{info.texto}</p>
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
           {info.puedeAbrirAjustes && (
-            <button onClick={() => abrirAjustesDeLaApp()} style={btn({ background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff" })}>⚙️ Abrir ajustes del teléfono</button>
+            <button onClick={() => abrirAjustesDeLaApp()} style={btn({ background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff" })}>Abrir ajustes del teléfono</button>
           )}
           {onAlternativa && (
             <button onClick={() => { onClose?.(); onAlternativa(); }} style={btn({ background:t.card, color:t.text, border:`1px solid ${t.border}` })}>{alternativaLabel}</button>
@@ -491,7 +492,7 @@ function Bienvenida({ t, onEmpezar, sinCuenta }) {
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", justifyContent:"flex-end", background:t.bg, padding:"24px 24px calc(28px + env(safe-area-inset-bottom, 0px))", boxSizing:"border-box" }}>
       <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", gap:10 }}>
-        <span style={{ fontSize:56 }}>📸</span>
+        <Icono nombre="camara" tamano={44} color={t.accent} />
         <h1 style={{ fontSize:28, fontWeight:800, color:t.text, margin:0 }}>FairScan</h1>
         <p style={{ fontSize:15, color:t.muted, margin:0, textAlign:"center", lineHeight:1.5, maxWidth:320 }}>Sacás la foto, la IA le pone nombre. Escaneás la tarjeta del proveedor al final. Exportás todo a Excel.</p>
       </div>
@@ -637,7 +638,7 @@ const parseQRContent = (qrData) => {
 function DistrictsScreen({ districts, activeDistrictId, products, onActivate, onAdd, onUpdate, onDelete, onBack, t }) {
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [nn, setNn] = useState(""); const [nl, setNl] = useState(""); const [nd, setNd] = useState(""); const [ne, setNe] = useState("🏮");
+  const [nn, setNn] = useState(""); const [nl, setNl] = useState(""); const [nd, setNd] = useState(""); const [ne, setNe] = useState("");
   const emojis = ["🏮","🏪","🌏","🏭","🎪","✈️","🚢","📍","🗺","🎯","🇦🇷","🇨🇳","🇹🇷","🇭🇰"];
   const inp = { width:"100%", padding:"10px 12px", borderRadius:10, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:16, outline:"none", marginBottom:14, boxSizing:"border-box", fontFamily:"inherit" };
   const startEdit = (d) => { setEditingId(d.id); setNn(d.name||""); setNl(d.location||""); setNd(d.dates||""); setNe(d.emoji||"🏮"); setCreating(false); };
@@ -672,17 +673,17 @@ function DistrictsScreen({ districts, activeDistrictId, products, onActivate, on
                 <div style={{ flex:1 }}><div style={{ fontSize:15, fontWeight:700, color:t.text }}>{d.name}</div><div style={{ fontSize:12, color:t.muted }}>{d.location} · {d.dates}</div></div>
                 {d.id===activeDistrictId && <span style={{ fontSize:10, fontWeight:700, color:t.green, background:t.greenSoft, padding:"3px 8px", borderRadius:8 }}>ACTIVO</span>}
               </div>
-              <div style={{ fontSize:12, color:t.muted, marginBottom:10 }}>📦 <b style={{ color:t.text }}>{count}</b> productos</div>
+              <div style={{ fontSize:12, color:t.muted, marginBottom:10 }}><b style={{ color:t.text }}>{count}</b> productos</div>
               <div style={{ display:"flex", gap:8 }}>
                 {d.id!==activeDistrictId && <Btn onClick={() => onActivate(d.id)} full t={t} style={{ flex:1 }}>Activar esta feria</Btn>}
                 <button onClick={() => startEdit(d)} style={{
                   padding:"8px 12px", borderRadius:10, border:`1px solid ${t.border}`, background:t.surface,
                   color:t.text, fontSize:12, fontWeight:700, cursor:"pointer",
-                }}>✏️</button>
+                }}></button>
                 {d.id!==activeDistrictId && <button onClick={() => { if(confirm(`¿Eliminar "${d.name}" y sus ${count} productos?`)) onDelete(d.id); }} style={{
                   padding:"8px 12px", borderRadius:10, border:`1px solid ${t.red}30`, background:t.redSoft,
                   color:t.red, fontSize:12, fontWeight:700, cursor:"pointer",
-                }}>🗑</button>}
+                }}></button>}
               </div>
             </div>
           );
@@ -1336,15 +1337,15 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
       <Header title="Rubros y etiquetas" onBack={() => setSubScreen(null)} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>🚀 Preset por rubro</p>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Preset por rubro</p>
         <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:24 }}>
           {Object.entries(PRESETS).map(([k,p]) => <button key={k} onClick={() => updateLoc(prev => ({ ...prev, preset:k, ...PRESETS[k] }))} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px", borderRadius:12, cursor:"pointer", background:loc.preset===k?t.accentSoft:t.card, border:`1.5px solid ${loc.preset===k?t.accent:t.border}`, textAlign:"left" }}><span style={{ fontSize:22 }}>{p.icon}</span><span style={{ fontSize:13, fontWeight:600, color:loc.preset===k?t.accent:t.text, flex:1 }}>{p.name}</span>{loc.preset===k && <span style={{ color:t.accent }}>✓</span>}</button>)}
         </div>
         <div style={{ height:1, background:t.border, marginBottom:20 }} />
-        {sec("Categorías","🏷","categories",t.accent)}
-        {sec("Materiales","🏺","materials",t.blue)}
-        {sec("Packaging","📦","packagingTypes",t.green)}
-        {sec("Variantes","🔄","variantTypes",t.purple)}
+        {sec("Categorías","","categories",t.accent)}
+        {sec("Materiales","","materials",t.blue)}
+        {sec("Packaging","","packagingTypes",t.green)}
+        {sec("Variantes","","variantTypes",t.purple)}
         <p style={{ fontSize:11, color:t.dim, textAlign:"center", fontStyle:"italic" }}>Los cambios se guardan automáticamente</p>
       </div>
     </div>
@@ -1356,12 +1357,12 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
       <Header title="Captura y fotos" onBack={() => setSubScreen(null)} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
         <div style={{ height:1, background:t.border, margin:"0 0 20px" }} />
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.08em" }}>📱 Backup de fotos</p>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.08em" }}>Backup de fotos</p>
         <div style={{ padding:"12px 14px", borderRadius:14, background:t.greenSoft, border:`1.5px solid ${t.green}40`, marginBottom:16 }}>
           <p style={{ fontSize:12, color:t.green, fontWeight:700, margin:"0 0 4px" }}>✓ Siempre activo</p>
           <p style={{ fontSize:11, color:t.dim, margin:0, lineHeight:1.5 }}>
             Después de cada captura aparece un botón para guardar las fotos en tu galería/Camera Roll.
-            Para máxima seguridad: sacá las fotos con la cámara normal del iPhone y después importalas tocando "🖼 Galería" en la app.
+            Para máxima seguridad: sacá las fotos con la cámara normal del iPhone y después importalas tocando "Galería" en la app.
           </p>
         </div>
         <p style={{ fontSize:11, color:t.dim, textAlign:"center", fontStyle:"italic" }}>Los cambios se guardan automáticamente</p>
@@ -1376,7 +1377,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
 
         {/* Currency selector */}
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>💱 Moneda de precios</p>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Moneda de precios</p>
         <div style={{ display:"flex", gap:6, marginBottom:20 }}>
           {Object.entries(CURRENCIES).map(([k, v]) => (
             <button key={k} onClick={() => updateLoc(p => ({ ...p, currency: k }))} style={{
@@ -1402,7 +1403,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
           })}
         </div>
 
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>🎯 Margen mínimo para importación</p>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Margen mínimo para importación</p>
         <p style={{ fontSize:11, color:t.dim, marginBottom:20, lineHeight:1.5 }}>
           Los productos con margen menor a este porcentaje se marcan como no viables en el calculador de costos.
         </p>
@@ -1431,7 +1432,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
       <Header title="Backup y datos" onBack={() => setSubScreen(null)} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>💾 Backup y restauración</p>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Backup y restauración</p>
         <p style={{ fontSize:11, color:t.dim, marginBottom:12 }}>Exportá o importá toda tu data (proveedores, productos, ferias) como archivo JSON.</p>
         <div style={{ display:"flex", gap:8, marginBottom:12 }}>
           <button onClick={async () => {
@@ -1447,18 +1448,18 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
             const res = await saveFile(blob, `fairscan-backup-${new Date().toISOString().slice(0,10)}.json`, { title: 'FairScan · Backup' });
             if (res.cancelled) return;
             setImportStatus(res.ok
-              ? (isNativeApp() ? "✅ Backup listo para guardar" : "✅ Backup descargado")
-              : "❌ No se pudo guardar el backup");
+              ? (isNativeApp() ? "Backup listo para guardar" : "Backup descargado")
+              : "No se pudo guardar el backup");
             setTimeout(() => setImportStatus(null), 3000);
           }} style={{
             flex:1, padding:"12px", borderRadius:12, border:`1px solid ${t.blue}40`, background:t.blueSoft,
             color:t.blue, fontSize:13, fontWeight:700, cursor:"pointer",
-          }}>📥 Exportar JSON</button>
+          }}>Exportar JSON</button>
           <label style={{
             flex:1, padding:"12px", borderRadius:12, border:`1px solid ${t.green}40`, background:t.greenSoft,
             color:t.green, fontSize:13, fontWeight:700, cursor:"pointer", textAlign:"center",
           }}>
-            📤 Importar JSON
+            Importar JSON
             <input type="file" accept=".json" onChange={async (e) => {
               const file = e.target.files?.[0];
               if (!file) return;
@@ -1480,22 +1481,22 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
                 }
                 if (data.settings) { await onSave(data.settings, true); }
                 if (onReload) await onReload();
-                setImportStatus(`✅ Importado: ${data.districts.length} ferias, ${data.suppliers.length} proveedores, ${data.products.length} productos`);
+                setImportStatus(`Importado: ${data.districts.length} ferias, ${data.suppliers.length} proveedores, ${data.products.length} productos`);
                 setTimeout(() => setImportStatus(null), 5000);
               } catch (err) {
-                setImportStatus(`❌ Error: ${err.message}`);
+                setImportStatus(`Error: ${err.message}`);
                 setTimeout(() => setImportStatus(null), 4000);
               }
               e.target.value = '';
             }} style={{ display:'none' }} />
           </label>
         </div>
-        {importStatus && <p style={{ fontSize:12, fontWeight:600, color:importStatus.startsWith('✅') ? t.green : t.red, textAlign:"center" }}>{importStatus}</p>}
+        {importStatus && <p style={{ fontSize:12, fontWeight:600, color:importStatus.startsWith('') ? t.green : t.red, textAlign:"center" }}>{importStatus}</p>}
 
         {sync?.teamId && (
           <>
             <div style={{ height:1, background:t.border, margin:"20px 0" }} />
-            <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>☁️ Backup automático en la nube</p>
+            <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Backup automático en la nube</p>
             <p style={{ fontSize:11, color:t.dim, marginBottom:12 }}>Se guarda una copia de seguridad en la nube cada 1 hora automáticamente mientras estés conectado a un equipo.</p>
             <DiagnosticoFotos t={t} />
             <div style={{ display:"flex", gap:8, marginBottom:12 }}>
@@ -1503,16 +1504,16 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
                 setImportStatus("⏳ Guardando backup en la nube...");
                 try {
                   await syncEngine.createBackup();
-                  setImportStatus("✅ Backup guardado en la nube");
+                  setImportStatus("Backup guardado en la nube");
                   setTimeout(() => setImportStatus(null), 3000);
                 } catch (err) {
-                  setImportStatus(`❌ Error: ${err.message}`);
+                  setImportStatus(`Error: ${err.message}`);
                   setTimeout(() => setImportStatus(null), 4000);
                 }
               }} style={{
                 flex:1, padding:"12px", borderRadius:12, border:`1px solid ${t.purple}40`, background:t.purpleSoft,
                 color:t.purple, fontSize:13, fontWeight:700, cursor:"pointer",
-              }}>☁️ Guardar backup ahora</button>
+              }}>Guardar backup ahora</button>
               <button onClick={async () => {
                 setImportStatus("⏳ Buscando backups...");
                 try {
@@ -1528,17 +1529,17 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
                     setImportStatus("⏳ Restaurando...");
                     const result = await syncEngine.restoreBackup(latest.id);
                     if (onReload) await onReload();
-                    setImportStatus(`✅ Restaurado: ${result.districts} ferias, ${result.suppliers} proveedores, ${result.products} productos`);
+                    setImportStatus(`Restaurado: ${result.districts} ferias, ${result.suppliers} proveedores, ${result.products} productos`);
                     setTimeout(() => setImportStatus(null), 5000);
                   } else { setImportStatus(null); }
                 } catch (err) {
-                  setImportStatus(`❌ Error: ${err.message}`);
+                  setImportStatus(`Error: ${err.message}`);
                   setTimeout(() => setImportStatus(null), 4000);
                 }
               }} style={{
                 flex:1, padding:"12px", borderRadius:12, border:`1px solid ${t.accent}40`, background:t.accentSoft,
                 color:t.accent, fontSize:13, fontWeight:700, cursor:"pointer",
-              }}>🔄 Restaurar desde nube</button>
+              }}>Restaurar desde nube</button>
             </div>
           </>
         )}
@@ -1557,17 +1558,17 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
             <p style={{ fontSize:12, color:t.muted, textAlign:"center", margin:0 }}>⏳ Verificando...</p>
           )}
           {healthError && (
-            <p style={{ fontSize:12, color:t.red, textAlign:"center", margin:0 }}>⚠️ {healthError}</p>
+            <p style={{ fontSize:12, color:t.red, textAlign:"center", margin:0 }}>{healthError}</p>
           )}
           {!health && !healthLoading && !healthError && (
             <p style={{ fontSize:12, color:t.muted, textAlign:"center", margin:0 }}>Tocá "Verificar" para comprobar los servicios</p>
           )}
           {health && (() => {
             const serviceLabels = {
-              anthropic: { name: "Procesamiento de fotos", icon: "🤖" },
-              supabase: { name: "Sincronización en la nube", icon: "☁️" },
-              r2_storage: { name: "Almacenamiento de fotos", icon: "📸" },
-              model_config: { name: "Modelo de IA", icon: "🧠" },
+              anthropic: { name: "Procesamiento de fotos", icon: "" },
+              supabase: { name: "Sincronización en la nube", icon: "" },
+              r2_storage: { name: "Almacenamiento de fotos", icon: "" },
+              model_config: { name: "Modelo de IA", icon: "" },
             };
             const allOk = health.status === "ok";
             return (
@@ -1579,18 +1580,18 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
                   </span>
                 </div>
                 {Object.entries(health.services || {}).map(([key, svc]) => {
-                  const label = serviceLabels[key] || { name: key, icon: "⚙️" };
+                  const label = serviceLabels[key] || { name: key, icon: "" };
                   const ok = svc.status === "ok";
                   return (
                     <div key={key} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"6px 0" }}>
                       <span style={{ fontSize:12, color:t.text }}>{label.icon} {label.name}</span>
-                      <span style={{ fontSize:12, fontWeight:700, color:ok ? "#22c55e" : "#ef4444" }}>{ok ? "✓ OK" : "✗ Error"}</span>
+                      <span style={{ fontSize:12, fontWeight:700, color:ok ? "#22c55e" : "#ef4444" }}>{ok ? "✓ OK" : "Error"}</span>
                     </div>
                   );
                 })}
                 {!allOk && (
                   <p style={{ fontSize:11, color:t.red, margin:"10px 0 0", padding:"8px 10px", background:t.red+"10", borderRadius:8, lineHeight:1.5 }}>
-                    ⚠️ Algo no funciona. La app sigue funcionando offline pero algunas funciones pueden fallar.
+                    Algo no funciona. La app sigue funcionando offline pero algunas funciones pueden fallar.
                     Sacá fotos directo con la cámara del celular como respaldo.
                   </p>
                 )}
@@ -1602,7 +1603,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
           width:"100%", padding:"12px", borderRadius:12, border:`1px solid ${t.blue}40`, background:t.blueSoft,
           color:t.blue, fontSize:14, fontWeight:700, cursor:"pointer", opacity:healthLoading?0.6:1,
         }}>
-          {healthLoading ? "⏳ Verificando..." : "🔄 Verificar ahora"}
+          {healthLoading ? "⏳ Verificando..." : "Verificar ahora"}
         </button>
         {health && (
           <p style={{ fontSize:10, color:t.dim, textAlign:"center", marginTop:6 }}>
@@ -1665,7 +1666,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
           )}
           {delError && (
             <div style={{ background:t.redSoft, border:`1px solid ${t.red}40`, borderRadius:14, padding:14, marginBottom:16 }}>
-              <p style={{ fontSize:13, color:t.red, margin:0 }}>⚠️ {delError}</p>
+              <p style={{ fontSize:13, color:t.red, margin:0 }}>{delError}</p>
             </div>
           )}
 
@@ -1769,18 +1770,18 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
 
   // ─── MAIN MENU ───
   const presetName = PRESETS[loc.preset]?.name || "General";
-  const healthStatus = health ? (health.status === "ok" ? "✓ Todo OK" : "⚠️ Problemas") : null;
+  const healthStatus = health ? (health.status === "ok" ? "✓ Todo OK" : "Problemas") : null;
 
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
       <Header title="Configuración" onBack={onBack} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
-        <MenuItem icon="👥" title="Equipo y sincronización" subtitle={activeTeam ? activeTeam.name : "Sin equipo"} onClick={() => setSubScreen("room")} />
-        <MenuItem icon="🏷" title="Rubros y etiquetas" subtitle={presetName} onClick={() => setSubScreen("tags")} accent={t.accent} />
-        <MenuItem icon="📸" title="Fotos y backup" subtitle="Copia en tu galería" onClick={() => setSubScreen("capture")} />
-        <MenuItem icon="🎯" title="Costos de importación" subtitle={`${CURRENCIES[loc.currency]?.label || "USD"} · Margen: ${loc.minMargin || 40}%`} onClick={() => setSubScreen("costs")} />
-        <MenuItem icon="💾" title="Backup y datos" subtitle="JSON, nube" onClick={() => setSubScreen("backup")} />
-        <MenuItem icon="🏥" title="Salud del sistema" subtitle={healthStatus} onClick={() => { if (!health) checkHealth(); setSubScreen("health"); }} accent={health?.status === "ok" ? "#22c55e" : health ? "#ef4444" : undefined} />
+        <MenuItem icon="" title="Equipo y sincronización" subtitle={activeTeam ? activeTeam.name : "Sin equipo"} onClick={() => setSubScreen("room")} />
+        <MenuItem icon="" title="Rubros y etiquetas" subtitle={presetName} onClick={() => setSubScreen("tags")} accent={t.accent} />
+        <MenuItem icon="" title="Fotos y backup" subtitle="Copia en tu galería" onClick={() => setSubScreen("capture")} />
+        <MenuItem icon="" title="Costos de importación" subtitle={`${CURRENCIES[loc.currency]?.label || "USD"} · Margen: ${loc.minMargin || 40}%`} onClick={() => setSubScreen("costs")} />
+        <MenuItem icon="" title="Backup y datos" subtitle="JSON, nube" onClick={() => setSubScreen("backup")} />
+        <MenuItem icon="" title="Salud del sistema" subtitle={healthStatus} onClick={() => { if (!health) checkHealth(); setSubScreen("health"); }} accent={health?.status === "ok" ? "#22c55e" : health ? "#ef4444" : undefined} />
 
         {/* User & logout */}
         <div style={{ marginTop: 24, borderTop: `1px solid ${t.border}`, paddingTop: 20 }}>
@@ -1806,7 +1807,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
           <button onClick={async () => { try { const { restaurar } = await import("./lib/compras.js"); const r = await restaurar(); alert(r.mensaje); } catch (e) { alert(e?.message || "No se pudo restaurar"); } }} style={{
             width: '100%', padding: '12px', borderRadius: 12, marginBottom: 10,
             border: `1px solid ${t.border}`, background: t.card, color: t.text, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-          }}>🧾 Restaurar compras</button>
+          }}>Restaurar compras</button>
           {esAnonima ? (
             <div style={{ background:t.accentSoft, border:`1px solid ${t.accent}40`, borderRadius:14, padding:14 }}>
               <p style={{ fontSize:13, fontWeight:700, color:t.text, margin:"0 0 4px" }}>Estás usando FairScan sin cuenta</p>
@@ -1930,7 +1931,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
         const result = await uploadPhoto(await aDataUrl(product.photos[i]), 'products');
         urls.push(result?.url || null);
         done++;
-        setSyncProgress(`☁️ ${done}/${totalPhotosToSync}`);
+        setSyncProgress(`${done}/${totalPhotosToSync}`);
       }
       if (urls.some(Boolean)) {
         await onUpdateProduct(product.id, { photoUrls: urls });
@@ -1947,7 +1948,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
     }
     setSyncing(false);
     setSyncProgress("");
-    if (!opts.silent) onExported(`☁️ ${done} fotos subidas a la nube`);
+    if (!opts.silent) onExported(`${done} fotos subidas a la nube`);
     return subidas;
   };
 
@@ -2114,7 +2115,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
           p.moqBase === "caja" ? "por caja" : p.moqBase === "pedido" ? "por pedido" : p.moqBase === "producto" ? "por producto" : "",
           p.piezasPorCaja ?? "",
           p.cbmPorCaja ?? "",
-          p.favorito ? "★" : "",
+          p.favorito ? "" : "",
         ]);
         row.height = 65;
         row.alignment = { vertical: 'middle', wrapText: true };
@@ -2464,14 +2465,14 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
 
         {/* Scope */}
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>📍 ¿Qué exportar?</p>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>¿Qué exportar?</p>
         <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:20 }}>
           <button onClick={() => setScope("all")} style={{
             display:"flex", alignItems:"center", gap:10, padding:"12px 14px", borderRadius:12,
             border:`1.5px solid ${scope==="all"?t.accent:t.border}`, background:scope==="all"?t.accentSoft:"transparent",
             cursor:"pointer", textAlign:"left",
           }}>
-            <span style={{ fontSize:18 }}>🗺</span>
+            <span style={{ fontSize:18 }}></span>
             <div style={{ flex:1 }}>
               <span style={{ fontSize:13, fontWeight:700, color:scope==="all"?t.accent:t.text }}>Todas las ferias</span>
               <p style={{ fontSize:11, color:t.muted, margin:"2px 0 0" }}>{products.length} productos</p>
@@ -2498,11 +2499,11 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
         </div>
 
         {/* Date filter */}
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>📅 ¿De cuándo?</p>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>¿De cuándo?</p>
         <div style={{ display:"flex", gap:8, marginBottom:20 }}>
           {[
-            { k:"all", icon:"📦", name:"Todo", desc:"Todos los datos acumulados" },
-            { k:"today", icon:"📅", name:"Solo hoy", desc:"Agregados hoy" },
+            { k:"all", icon:"", name:"Todo", desc:"Todos los datos acumulados" },
+            { k:"today", icon:"", name:"Solo hoy", desc:"Agregados hoy" },
           ].map(d => (
             <button key={d.k} onClick={() => setDateFilter(d.k)} style={{
               flex:1, padding:"12px 10px", borderRadius:12, textAlign:"center",
@@ -2517,12 +2518,12 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
         </div>
 
         {/* Format */}
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>📄 Formato</p>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Formato</p>
         <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
           {[
-            { k:"zip", icon:"📁", name:"ZIP completo", desc:"Fotos + CSV organizados" },
-            { k:"csv", icon:"📊", name:"CSV", desc:"Solo tabla, sin fotos" },
-            { k:"excel", icon:"📊", name:"Excel", desc:"Tabla con fotos embebidas" },
+            { k:"zip", icon:"", name:"ZIP completo", desc:"Fotos + CSV organizados" },
+            { k:"csv", icon:"", name:"CSV", desc:"Solo tabla, sin fotos" },
+            { k:"excel", icon:"", name:"Excel", desc:"Tabla con fotos embebidas" },
           ].map(f => (
             <button key={f.k} onClick={() => setFormat(f.k)} style={{
               flex:1, minWidth:f.k==="zip"?"100%":0, padding:"14px 10px", borderRadius:14, textAlign:"center",
@@ -2555,18 +2556,18 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
         <div style={{ background:t.card, borderRadius:14, padding:14, border:`1px solid ${t.border}`, marginBottom:16 }}>
           <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Vista previa</p>
           <div style={{ display:"flex", gap:8, flexWrap:"wrap", fontSize:12 }}>
-            <span style={{ padding:"4px 10px", borderRadius:8, background:t.surface, color:t.text, fontWeight:600 }}>📦 {scopeProducts.length} productos</span>
+            <span style={{ padding:"4px 10px", borderRadius:8, background:t.surface, color:t.text, fontWeight:600 }}>{scopeProducts.length} productos</span>
             <span style={{ padding:"4px 10px", borderRadius:8, background:t.surface, color:t.text, fontWeight:600 }}>
-              🏭 {uniqueSupIds.length} proveedores
+              {uniqueSupIds.length} proveedores
             </span>
             {format === "zip" && (
               <span style={{ padding:"4px 10px", borderRadius:8, background:t.accentSoft, color:t.accent, fontWeight:600 }}>
-                📸 {totalPhotos} fotos{includeSuppliers && totalCards > 0 ? ` + ${totalCards} tarjetas` : ""}
+                {totalPhotos} fotos{includeSuppliers && totalCards > 0 ? ` + ${totalCards} tarjetas` : ""}
               </span>
             )}
             {scopeProducts.filter(p=>p.costTotal).length > 0 && (
               <span style={{ padding:"4px 10px", borderRadius:8, background:t.greenSoft, color:t.green, fontWeight:600 }}>
-                🧮 {scopeProducts.filter(p=>p.costTotal).length} con costo
+                {scopeProducts.filter(p=>p.costTotal).length} con costo
               </span>
             )}
           </div>
@@ -2578,7 +2579,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
               <div>
                 <p style={{ fontSize:13, fontWeight:700, color:hasCloudPhotos ? t.green : t.blue, margin:0 }}>
-                  {hasCloudPhotos ? "☁️ Fotos en la nube" : "☁️ Subir fotos a la nube"}
+                  {hasCloudPhotos ? "Fotos en la nube" : "Subir fotos a la nube"}
                 </p>
                 <p style={{ fontSize:11, color:t.muted, margin:"4px 0 0" }}>
                   {photosNotUploaded === 0
@@ -2603,7 +2604,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
         {/* ZIP structure preview */}
         {format === "zip" && (
           <div style={{ background:t.surface, borderRadius:12, padding:12, border:`1px solid ${t.border}`, marginBottom:16, fontFamily:"monospace", fontSize:11, color:t.muted, lineHeight:1.6 }}>
-            <p style={{ color:t.text, fontWeight:700, margin:"0 0 4px", fontFamily:"inherit" }}>📂 Estructura del ZIP:</p>
+            <p style={{ color:t.text, fontWeight:700, margin:"0 0 4px", fontFamily:"inherit" }}>Estructura del ZIP:</p>
             <div style={{ paddingLeft:8 }}>
               productos.csv <span style={{ color:t.accent }}>(con columnas Foto_1..5{hasCloudPhotos ? " + URLs" : ""})</span><br/>
               {includeSuppliers && <>proveedores.csv <span style={{ color:t.accent }}>(todos los datos)</span><br/></>}
@@ -2617,9 +2618,9 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       <div style={{ padding:"12px 20px", paddingBottom:"calc(16px + env(safe-area-inset-bottom, 0px))", borderTop:`1px solid ${t.border}` }}>
         <Btn onClick={handleExport} disabled={scopeProducts.length===0 || exporting || syncing} full t={t}>
           {exporting ? exportProgress :
-            format==="zip" ? `📁 Descargar ZIP${dateFilter==="today"?" de hoy":""} (${totalPhotos} fotos)` :
-            format==="csv" ? `📊 Descargar CSV${dateFilter==="today"?" de hoy":""}` :
-            `📊 Descargar Excel${dateFilter==="today"?" de hoy":""} con fotos`}
+            format==="zip" ? `Descargar ZIP${dateFilter==="today"?" de hoy":""} (${totalPhotos} fotos)` :
+            format==="csv" ? `Descargar CSV${dateFilter==="today"?" de hoy":""}` :
+            `Descargar Excel${dateFilter==="today"?" de hoy":""} con fotos`}
         </Btn>
       </div>
     </div>
@@ -3009,7 +3010,7 @@ export default function App() {
       // Save cloud URLs — keep local base64 photos intact for offline/export
       await dbUpdateProduct(productId, { photoUrls: urls });
       setProducts(prev => prev.map(p => p.id === productId ? { ...p, photoUrls: urls } : p));
-      console.log(`☁️ ${validUrls.length}/${photos.length} fotos subidas a la nube`);
+      console.log(`${validUrls.length}/${photos.length} fotos subidas a la nube`);
     }
   };
 
@@ -3247,7 +3248,7 @@ export default function App() {
       return true;
     } catch (err) {
       console.error("Error en handleCaptureSave:", err);
-      showToast(data.supplierOnly ? "❌ Error guardando proveedor" : "❌ Error guardando producto");
+      showToast(data.supplierOnly ? "Error guardando proveedor" : "Error guardando producto");
       return false;
     }
   };
@@ -3414,7 +3415,7 @@ export default function App() {
   // Auth gate: show login screen if not authenticated
   if (auth.loading) return (
     <div style={{ height:"100%", display:"flex", alignItems:"center", justifyContent:"center", background:t.bg, flexDirection:"column", gap:12 }}>
-      <span style={{ fontSize:48 }}>📸</span>
+      <Icono nombre="camara" tamano={36} color={t.accent} />
       <span style={{ fontSize:18, fontWeight:800, color:t.text }}>FairScan</span>
       <span style={{ fontSize:12, color:t.muted }}>Cargando...</span>
     </div>
@@ -3466,11 +3467,11 @@ export default function App() {
             <button onClick={() => { const r = dedupPrompt.resolve; setDedupPrompt(null); r("use_existing"); }} style={{
               width:"100%", padding:"12px", borderRadius:12, border:`1.5px solid ${t.blue}`, background:t.blueSoft,
               color:t.blue, fontSize:13, fontWeight:700, cursor:"pointer", marginBottom:8, textAlign:"left",
-            }}>🏭 Usar "{dedupPrompt.similar.company}"</button>
+            }}>Usar "{dedupPrompt.similar.company}"</button>
             <button onClick={() => { const r = dedupPrompt.resolve; setDedupPrompt(null); r("create_new"); }} style={{
               width:"100%", padding:"12px", borderRadius:12, border:`1px solid ${t.border}`, background:t.surface,
               color:t.text, fontSize:13, fontWeight:700, cursor:"pointer", textAlign:"left",
-            }}>➕ Crear nuevo "{dedupPrompt.newName}"</button>
+            }}>Crear nuevo "{dedupPrompt.newName}"</button>
           </div>
         </div>
       )}
@@ -3478,7 +3479,7 @@ export default function App() {
       {photosToShare && photosToShare.length > 0 && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center", padding:0 }}>
           <div style={{ background:t.card, borderRadius:"20px 20px 0 0", padding:"24px 20px", paddingBottom:"calc(24px + env(safe-area-inset-bottom, 0px))", width:"100%", maxWidth:420, border:`1px solid ${t.border}`, borderBottom:"none" }}>
-            <p style={{ fontSize:16, fontWeight:800, color:t.text, margin:"0 0 4px", textAlign:"center" }}>📱 Guardar fotos en tu celular</p>
+            <p style={{ fontSize:16, fontWeight:800, color:t.text, margin:"0 0 4px", textAlign:"center" }}>Guardar fotos en tu celular</p>
             <p style={{ fontSize:12, color:t.muted, margin:"0 0 20px", textAlign:"center", lineHeight:1.5 }}>
               {photosToShare.length} foto{photosToShare.length !== 1 ? "s" : ""} capturada{photosToShare.length !== 1 ? "s" : ""}. Tocá el botón para guardarlas en tu galería.
             </p>
@@ -3491,7 +3492,7 @@ export default function App() {
               width:"100%", padding:"16px", borderRadius:16, border:"none", fontSize:15, fontWeight:700, cursor:"pointer",
               background:`linear-gradient(135deg, ${t.green}, #34D399)`, color:"#fff", marginBottom:10,
               display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-            }}>📤 Guardar en mi galería</button>
+            }}>Guardar en mi galería</button>
             <button onClick={() => setPhotosToShare(null)} style={{
               width:"100%", padding:"14px", borderRadius:14, border:`1px solid ${t.border}`, background:t.surface,
               color:t.muted, fontSize:13, fontWeight:600, cursor:"pointer",

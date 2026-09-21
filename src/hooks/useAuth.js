@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { signIn, signUp, signOut, onAuthStateChange, getSession, signInAnonymously, convertirCuenta } from '../lib/supabase.js';
+import { supabase, signIn, signUp, signOut, onAuthStateChange, getSession, signInAnonymously, convertirCuenta, resetPassword, updatePassword } from '../lib/supabase.js';
 
 const CLAVE_CIERRE = 'fairscan_cerro_sesion';
 const recordarCierreDeSesion = () => { try { localStorage.setItem(CLAVE_CIERRE, '1'); } catch { /* modo privado */ } };
@@ -59,5 +59,14 @@ export default function useAuth() {
     setUser(null);
   }, []);
 
-  return { user, loading, esAnonima: !!user?.is_anonymous, signIn: handleSignIn, signUp: handleSignUp, convertir: handleConvertir, signOut: handleSignOut };
+  // Recuperación de contraseña (21/09): el link del mail trae type=recovery; la app pide la nueva.
+  const [recuperando, setRecuperando] = useState(() => typeof window !== 'undefined' && /type=recovery/.test(window.location.hash || ''));
+  useEffect(() => {
+    if (!supabase) return;
+    const { data } = supabase.auth.onAuthStateChange((event) => { if (event === 'PASSWORD_RECOVERY') setRecuperando(true); });
+    return () => data?.subscription?.unsubscribe?.();
+  }, []);
+  const recuperar = async (email) => resetPassword(email);
+  const cambiarContrasena = async (password) => { await updatePassword(password); setRecuperando(false); if (typeof window !== 'undefined') window.history.replaceState(null, '', window.location.pathname); };
+  return { user, loading, esAnonima: !!user?.is_anonymous, signIn: handleSignIn, signUp: handleSignUp, convertir: handleConvertir, signOut: handleSignOut, recuperar, cambiarContrasena, recuperando };
 }
