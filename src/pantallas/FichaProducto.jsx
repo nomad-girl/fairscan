@@ -7,10 +7,10 @@
  * datos" abre la hoja con los campos editables, el proveedor, la nota de voz y eliminar.
  * "Uno filtra por la foto y, si le interesa, ve más."
  */
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Bloque, Campo, Segmentado, Fila, Icono, Hoja, Esqueleto } from "../componentes/index.js";
+import { Boton, Bloque, Campo, Segmentado, Fila, Icono, Hoja, Esqueleto, PaginadorVertical } from "../componentes/index.js";
 import { estadoIA, patchReintentoIA, explicarFalloIA } from "../lib/aiEstado.js";
 import { urlDeAudio, esPunteroMuerto } from "../lib/audioNotes.js";
 import { haceCuanto } from "../idiomas/formato.js";
@@ -64,41 +64,6 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
   ].filter(Boolean);
   // La hoja de datos y el paginador vertical (3 pantallas: anterior · esta · siguiente)
   const [datosAbiertos, setDatosAbiertos] = useState(false);
-  const pagerRef = useRef(null);
-  const timerRef = useRef(null);
-  const navegandoRef = useRef(false);
-  const centro = prev ? 1 : 0;
-  useLayoutEffect(() => { const el = pagerRef.current; if (el) el.scrollTop = centro * el.clientHeight; navegandoRef.current = false; }, [p.id, centro]);
-  // Al asentarse en una vecina, se navega. Se decide en el momento exacto en que la foto encaja
-  // (a 2 px del punto de encaje) y, por si el encaje no llega a verse, con un segundo chequeo
-  // 220 ms después del último movimiento. Antes se decidía a los 90 ms, mientras el iPhone
-  // seguía animando el encaje: leía una posición intermedia, no navegaba y el feed quedaba
-  // trabado en la última pantalla (Nati, 21/09: "escroleo 3 y se traba").
-  const decidir = (el) => {
-    if (navegandoRef.current) return;
-    const h = Math.max(1, el.clientHeight);
-    const i = Math.round(el.scrollTop / h);
-    if (i === centro) return;
-    const destino = i < centro ? prev : next;
-    if (!destino) return;
-    navegandoRef.current = true;
-    onNavigateProduct?.(destino);
-  };
-  const onScrollPager = (e) => {
-    const el = e.currentTarget;
-    const h = Math.max(1, el.clientHeight);
-    const resto = Math.abs(el.scrollTop - Math.round(el.scrollTop / h) * h);
-    if (resto < 2) decidir(el);
-    clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => decidir(el), 220);
-  };
-  useEffect(() => {
-    const el = pagerRef.current;
-    const alTerminar = () => el && decidir(el);
-    el?.addEventListener?.("scrollend", alTerminar);
-    return () => { clearTimeout(timerRef.current); el?.removeEventListener?.("scrollend", alTerminar); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   const fotosDe = (x) => (x.photos?.length ? x.photos : (x.photoUrls || []));
   const supplierDe = (x) => suppliers.find(s => s.id === x.supplierId);
   const posicion = idx >= 0 ? t("ficha.posicion", { n: idx + 1, total: allProducts.length }) : "";
@@ -115,7 +80,7 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
       <div key={x.id} style={{ height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative", background: "#000" }}>
         {/* La miniatura, borrosa, debajo: la foto grande aparece encima cuando termina de cargar (deslizar se siente al toque) */}
         {x.thumb && <img src={x.thumb} alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "blur(10px)", transform: "scale(1.08)" }} />}
-        <div onScroll={esta ? (e => setFoto(Math.round(e.target.scrollLeft / Math.max(1, e.target.offsetWidth)))) : undefined} style={{ position: "absolute", inset: 0, display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}>
+        <div onScroll={esta ? (e => setFoto(Math.round(e.target.scrollLeft / Math.max(1, e.target.offsetWidth)))) : undefined} style={{ position: "absolute", inset: 0, display: "flex", overflowX: fs.length > 1 ? "auto" : "hidden", scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch", touchAction: "pan-x" }}>
           {fs.length > 0 ? fs.map((ph, i) => (
             <div key={i} style={{ width: "100%", height: "100%", flexShrink: 0, scrollSnapAlign: "start" }}>
               {Foto ? <Foto src={ph} respaldo={respaldoDe(x, i)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <img src={ph} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />}
@@ -155,11 +120,8 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
   return (
     <div style={{ position: "fixed", inset: 0, background: "#000", color: "#fff", fontFamily: "inherit", zIndex: 50 }}>
       {/* El paginador vertical: anterior · esta · siguiente; al asentarse en una vecina, se navega */}
-      <div ref={pagerRef} onScroll={onScrollPager} style={{ position: "absolute", inset: 0, overflowY: "auto", scrollSnapType: "y mandatory", scrollbarWidth: "none", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch" }}>
-        {prev && pantalla(prev, false)}
-        {pantalla(p, true)}
-        {next && pantalla(next, false)}
-      </div>
+      <PaginadorVertical clave={p.id} anterior={prev ? pantalla(prev, false) : null} actual={pantalla(p, true)} siguiente={next ? pantalla(next, false) : null}
+        onAnterior={() => prev && onNavigateProduct?.(prev)} onSiguiente={() => next && onNavigateProduct?.(next)} />
 
       {/* Arriba: volver, la posición en el catálogo, agregar foto */}
       <div style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 12px)`, left: 14, right: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, pointerEvents: "none" }}>
@@ -188,7 +150,7 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
 
       {/* Todos los datos, en una hoja */}
       <Hoja abierta={datosAbiertos} onCerrar={() => setDatosAbiertos(false)} titulo={t("ficha.datos")} altura="completa">
-        <div style={{ display: "flex", flexDirection: "column", gap: espacios.entreFilas, color: paleta.text }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 18, color: paleta.text }}>
           {p.bloqueado && (
             <div style={{ background: paleta.card, border: `1px solid ${paleta.accent}`, borderRadius: radios.grande, padding: "10px 14px" }}>
               <p style={{ ...texto("cuerpo", { fontWeight: 600 }), margin: 0 }}>{t("ficha.bloqueadoTitulo")}</p>
@@ -197,8 +159,8 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
           )}
           {district && <p style={{ ...texto("pie"), color: paleta.dim, margin: 0 }}>{district.name} · {t("ficha.capturado", { cuando: haceCuanto(p.createdAt) })}</p>}
 
-          {/* Los datos, editables tocando */}
-          <Bloque>
+          {/* Los datos, editables tocando: en secciones, con aire */}
+          <Bloque titulo={t("ficha.seccionProducto")}>
             <Campo etiqueta={t("ficha.nombre")} valor={p.name} onChange={v => { if (v) guardar({ name: v }); }} />
             {camposConDato.map(c => c.nodo)}
             {masDatos ? camposSinDato.map(c => c.nodo) : camposSinDato.length > 0 && (

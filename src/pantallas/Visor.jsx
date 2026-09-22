@@ -84,9 +84,10 @@ export function Visor({
       <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 12px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <div style={{ display: "flex", gap: 6, alignItems: "center", minWidth: 0 }}>
           {feria && <Pastilla estilo={{ maxWidth: "46vw", overflow: "hidden", textOverflow: "ellipsis", display: "block", lineHeight: "32px" }}>{feria}</Pastilla>}
-          {textoSaldo && !esTarjeta && <Pastilla tono={saldoBajo ? "alerta" : "vidrio"}>{textoSaldo}</Pastilla>}
+          {/* El saldo solo cuando está por acabarse; la nube no se muestra: en la cámara distrae (Nati, 22/09) */}
+          {textoSaldo && saldoBajo && !esTarjeta && <Pastilla tono="alerta">{textoSaldo}</Pastilla>}
         </div>
-        <Pastilla><span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, background: colorPunto, display: "inline-block" }} /><span style={{ fontSize: 12, fontWeight: 500, color: BLANCO_SUAVE }}>{textoSync}</span></Pastilla>
+        {estadoSync === "falla" && <Pastilla><span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, background: colorPunto, display: "inline-block" }} /><span style={{ fontSize: 12, fontWeight: 500, color: BLANCO_SUAVE }}>{textoSync}</span></Pastilla>}
       </div>
 
       {/* Stand abierto: la pastilla dice qué hacer ahora. Sin tarjeta invita a escanearla (eso empieza el
@@ -192,7 +193,7 @@ export function Visor({
                 <img src={ultimaCaptura || ultimas[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               </button>
               {puedeAgregarAngulo && !esTarjeta && (
-                <button type="button" onClick={onAgregarAngulo} style={{ minHeight: 28, padding: "0 10px", borderRadius: 999, border: "none", background: "rgba(241,245,249,0.16)", color: BLANCO, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{t("visor.masAngulo")}</button>
+                <button type="button" onClick={onAgregarAngulo} style={{ minHeight: 40, padding: "0 14px", borderRadius: 999, border: "none", background: "rgba(10,14,23,0.7)", color: BLANCO, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}><Icono nombre="mas" tamano={16} color={BLANCO} />{t("visor.agregarAngulo")}</button>
               )}
             </>
           ) : (

@@ -7,10 +7,10 @@
  *
  * Reglas que siguen: saltar es deslizar, nada queda como deuda; eliminar siempre a mano.
  */
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Chip, FilaDeChips, Icono, Hoja } from "../componentes/index.js";
+import { Boton, Chip, FilaDeChips, Icono, Hoja, PaginadorVertical } from "../componentes/index.js";
 import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
 import { fechaCorta } from "../idiomas/formato.js";
 import { paresRepetidos } from "../lib/repetidos.js";
@@ -54,28 +54,6 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
 
   const cambiarFiltro = (f) => { setFiltro(f); setI(0); };
 
-  // El paginador vertical (anterior · esta · siguiente); al asentarse en una vecina, se pasa
-  const pagerRef = useRef(null);
-  const timerRef = useRef(null);
-  const navegandoRef = useRef(false);
-  const centro = prev ? 1 : 0;
-  useLayoutEffect(() => { const el = pagerRef.current; if (el) el.scrollTop = centro * el.clientHeight; navegandoRef.current = false; }, [i, centro, filtro]);
-  const decidir = (el) => {
-    if (navegandoRef.current) return;
-    const h = Math.max(1, el.clientHeight);
-    const k = Math.round(el.scrollTop / h);
-    if (k === centro) return;
-    if (k < centro && prev) { navegandoRef.current = true; setI(i - 1); }
-    else if (k > centro && (next || (!enCierre && i === total - 1))) { navegandoRef.current = true; setI(i + 1); }
-  };
-  const onScrollPager = (e) => {
-    const el = e.currentTarget;
-    const h = Math.max(1, el.clientHeight);
-    if (Math.abs(el.scrollTop - Math.round(el.scrollTop / h) * h) < 2) decidir(el);
-    clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => decidir(el), 220);
-  };
-  useEffect(() => () => clearTimeout(timerRef.current), []);
 
   const proveedoresDeHoy = useMemo(() => {
     const ids = new Set(deHoy.map(p => p.supplierId).filter(Boolean));
@@ -173,15 +151,13 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "#000", color: "#fff", fontFamily: "inherit", zIndex: 50 }}>
-      <div ref={pagerRef} onScroll={onScrollPager} style={{ position: "absolute", inset: 0, overflowY: "auto", scrollSnapType: "y mandatory", scrollbarWidth: "none", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch" }}>
-        {total === 0 ? cierre : (
-          <>
-            {prev && pantalla(prev, false)}
-            {enCierre ? cierre : pantalla(actual, true)}
-            {!enCierre && (next ? pantalla(next, false) : cierre)}
-          </>
-        )}
-      </div>
+      {total === 0 ? <div style={{ position: "absolute", inset: 0 }}>{cierre}</div> : (
+        <PaginadorVertical clave={`${filtro}-${i}`}
+          anterior={prev ? pantalla(prev, false) : null}
+          actual={enCierre ? cierre : pantalla(actual, true)}
+          siguiente={enCierre ? null : (next ? pantalla(next, false) : cierre)}
+          onAnterior={() => i > 0 && setI(i - 1)} onSiguiente={() => !enCierre && setI(i + 1)} />
+      )}
 
       {/* Arriba: salir, el progreso, y los filtros (los jueguitos de antes) */}
       <div style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 12px)`, left: 0, right: 0, display: "flex", flexDirection: "column", gap: 8 }}>

@@ -92,26 +92,27 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
       </div>
     );
   }
-  // La propuesta 8b del wireframe (Nati, 22/09): la foto de feria a pantalla entera, un degradé oscuro
-  // abajo y los campos encima, sin tarjeta blanca. La foto se lee de /login-fondo.jpg (la pone Nati en
-  // web/public); mientras no esté, queda el gris de la propuesta.
+  // Sin foto (Nati, 22/09: "no es el código visual de la app"): el naranja de la marca arriba con FairScan
+  // y la frase; abajo, claro, los campos. El mismo código visual que el resto de la app.
   const campo = {
-    width: '100%', boxSizing: 'border-box', minHeight: 52, borderRadius: 14, border: '1px solid rgba(255,255,255,0.35)',
-    background: 'rgba(255,255,255,0.12)', color: '#FFFFFF', fontFamily: 'inherit', fontSize: 16, padding: '0 14px', outline: 'none',
+    width: '100%', boxSizing: 'border-box', minHeight: 52, borderRadius: 14, border: `1px solid ${t.border}`,
+    background: t.card, color: t.text, fontFamily: 'inherit', fontSize: 16, padding: '0 14px', outline: 'none',
   };
-  const etiqueta = { fontSize: 13, color: 'rgba(255,255,255,0.75)', margin: '0 0 6px', display: 'block' };
-  const link = { background: 'none', border: 'none', padding: 0, color: '#FFFFFF', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3 };
+  const etiqueta = { fontSize: 13, color: t.muted, margin: '0 0 6px', display: 'block' };
+  const link = { background: 'none', border: 'none', padding: 0, color: t.text, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3 };
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#8F97A3', color: '#FFFFFF', fontFamily: 'inherit', overflow: 'hidden' }}>
-      <img src="/login-fondo.jpg" alt="" onError={e => { e.currentTarget.style.display = 'none'; }} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-      {onCancel && !convertir && (
-        <button type="button" onClick={onCancel} aria-label="Volver" style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top, 0px) + 12px)', left: 14, width: 48, height: 48, borderRadius: 24, border: 'none', background: 'rgba(10,14,23,0.55)', display: 'grid', placeItems: 'center', cursor: 'pointer', zIndex: 2 }}>
-          <Icono nombre="volver" tamano={22} color="#fff" />
-        </button>
-      )}
-      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '100%', overflowY: 'auto', padding: '120px 22px calc(28px + env(safe-area-inset-bottom, 0px))', background: 'linear-gradient(to top, rgba(10,14,23,0.96) 70%, rgba(10,14,23,0))', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <h1 style={{ fontSize: 30, fontWeight: 700, margin: '0 0 4px', letterSpacing: '-0.01em' }}>{mode === 'login' ? 'Entrar' : 'Crear cuenta'}</h1>
-        {convertir && <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)', margin: '0 0 6px' }}>Lo que capturaste queda en esta cuenta.</p>}
+    <div style={{ position: 'fixed', inset: 0, background: t.bg, color: t.text, fontFamily: 'inherit', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ position: 'relative', background: '#EA5A22', color: '#fff', padding: 'calc(env(safe-area-inset-top, 0px) + 68px) 24px 28px', display: 'flex', flexDirection: 'column', gap: 8, borderRadius: '0 0 32px 32px', flexShrink: 0 }}>
+        {onCancel && !convertir && (
+          <button type="button" onClick={onCancel} aria-label="Volver" style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top, 0px) + 12px)', left: 14, width: 44, height: 44, borderRadius: 22, border: 'none', background: 'rgba(255,255,255,0.2)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+            <Icono nombre="volver" tamano={22} color="#fff" />
+          </button>
+        )}
+        <h1 style={{ fontSize: 36, fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }}>FairScan</h1>
+        <p style={{ fontSize: 16, margin: 0, lineHeight: 1.35, color: 'rgba(255,255,255,0.92)', maxWidth: 340 }}>{convertir ? 'Creá tu cuenta para no perder tu catálogo.' : 'Sacá la foto. La app le pone nombre, lee la tarjeta y arma el pedido.'}</p>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '22px 22px calc(28px + env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>{mode === 'login' ? 'Entrar' : 'Crear cuenta'}</h2>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {mode === 'register' && (
@@ -128,36 +129,36 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
           <div style={{ position: 'relative' }}>
             <input id="login-pass" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required minLength={6} style={{ ...campo, paddingRight: 48 }} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
             <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Ocultar la contraseña' : 'Ver la contraseña'} tabIndex={-1} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', padding: 4, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-              <Icono nombre={showPassword ? 'ojoCerrado' : 'ojo'} tamano={20} color="rgba(255,255,255,0.8)" />
+              <Icono nombre={showPassword ? 'ojoCerrado' : 'ojo'} tamano={20} color={t.muted} />
             </button>
           </div>
 
-          {error && <p style={{ fontSize: 13, color: '#FCA5A5', margin: 0, padding: '8px 12px', borderRadius: 10, background: 'rgba(220,38,38,0.25)' }}>{error}</p>}
-          {success && <p style={{ fontSize: 13, color: '#86EFAC', margin: 0, padding: '8px 12px', borderRadius: 10, background: 'rgba(21,128,61,0.25)' }}>{success}</p>}
+          {error && <p style={{ fontSize: 13, color: t.red, margin: 0, padding: '8px 12px', borderRadius: 10, background: t.redSoft }}>{error}</p>}
+          {success && <p style={{ fontSize: 13, color: t.green, margin: 0, padding: '8px 12px', borderRadius: 10, background: t.greenSoft }}>{success}</p>}
 
-          <button type="submit" disabled={loading} style={{ width: '100%', minHeight: 52, borderRadius: 14, border: 'none', background: loading ? 'rgba(255,255,255,0.3)' : '#EA5A22', color: '#fff', fontSize: 16, fontWeight: 700, cursor: loading ? 'default' : 'pointer', fontFamily: 'inherit', marginTop: 4 }}>
+          <button type="submit" disabled={loading} style={{ width: '100%', minHeight: 54, borderRadius: 14, border: 'none', background: loading ? t.border : '#EA5A22', color: '#fff', fontSize: 16, fontWeight: 700, cursor: loading ? 'default' : 'pointer', fontFamily: 'inherit', marginTop: 4 }}>
             {loading ? 'Entrando…' : mode === 'login' ? 'Entrar' : 'Crear cuenta'}
           </button>
         </form>
 
         {mode === 'register' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: 13, color: t.text, lineHeight: 1.5 }}>
               <input type="checkbox" checked={marketingOptIn} onChange={e => setMarketingOptIn(e.target.checked)} style={{ width: 18, height: 18, margin: '1px 0 0', accentColor: '#EA5A22', flexShrink: 0 }} />
               <span>Quiero recibir novedades de FairScan por mail. Me puedo dar de baja con un clic.</span>
             </label>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', margin: 0, lineHeight: 1.6 }}>
-              Al crear la cuenta aceptás los <a href="https://fairscan.app/terminos" target="_blank" rel="noopener" style={{ color: '#fff', fontWeight: 600 }}>Términos y Condiciones</a> y la <a href="https://fairscan.app/privacidad" target="_blank" rel="noopener" style={{ color: '#fff', fontWeight: 600 }}>Política de Privacidad</a>.
+            <p style={{ fontSize: 12, color: t.muted, margin: 0, lineHeight: 1.6 }}>
+              Al crear la cuenta aceptás los <a href="https://fairscan.app/terminos" target="_blank" rel="noopener" style={{ color: t.accent, fontWeight: 600 }}>Términos y Condiciones</a> y la <a href="https://fairscan.app/privacidad" target="_blank" rel="noopener" style={{ color: t.accent, fontWeight: 600 }}>Política de Privacidad</a>.
             </p>
           </div>
         )}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 6 }}>
           {mode === 'login' ? <button type="button" onClick={olvide} style={link}>Olvidé mi contraseña</button> : <span />}
-          <button type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(null); setSuccess(null); }} style={link}>{mode === 'login' ? 'Crear cuenta' : 'Ya tengo cuenta'}</button>
+          <button type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(null); setSuccess(null); }} style={{ ...link, color: t.accent }}>{mode === 'login' ? 'Crear cuenta' : 'Ya tengo cuenta'}</button>
         </div>
-        {convertir && <button type="button" onClick={onCancel} style={{ ...link, alignSelf: 'center', marginTop: 4, textDecoration: 'none', color: 'rgba(255,255,255,0.75)' }}>Ahora no</button>}
-        {aviso && <p style={{ textAlign: 'center', fontSize: 13, color: 'rgba(255,255,255,0.85)', margin: '6px 0 0', lineHeight: 1.4 }}>{aviso}</p>}
+        {convertir && <button type="button" onClick={onCancel} style={{ ...link, alignSelf: 'center', marginTop: 4, textDecoration: 'none', color: t.muted }}>Ahora no</button>}
+        {aviso && <p style={{ textAlign: 'center', fontSize: 13, color: t.muted, margin: '6px 0 0', lineHeight: 1.4 }}>{aviso}</p>}
       </div>
     </div>
   );

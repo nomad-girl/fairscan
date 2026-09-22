@@ -8,10 +8,10 @@
  * contacto y el stand, el mínimo, la tira de sus productos y los dos botones: Armar pedido y
  * "Ver todos los datos", que abre la hoja con los campos, las notas, la nota de voz y eliminar.
  */
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Bloque, Campo, Icono, Hoja } from "../componentes/index.js";
+import { Boton, Bloque, Campo, Icono, Hoja, PaginadorVertical } from "../componentes/index.js";
 import { urlDeAudio } from "../lib/audioNotes.js";
 import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
 import { pedidoDeProveedor, productosParaPedido, totalesDePedido } from "../lib/pedidos.js";
@@ -37,50 +37,16 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
   const guardar = (cambios) => { onUpdate?.(s.id, cambios, true); setGuardado(true); };
   useEffect(() => { if (!guardado) return; const id = setTimeout(() => setGuardado(false), 2000); return () => clearTimeout(id); }, [guardado]);
 
-  // Los vecinos, en el orden del catálogo; el paginador vertical (anterior · este · siguiente)
   const idx = allSuppliers.findIndex(x => x.id === s.id);
   const prev = idx > 0 ? allSuppliers[idx - 1] : null;
   const next = idx >= 0 && idx < allSuppliers.length - 1 ? allSuppliers[idx + 1] : null;
-  const centro = prev ? 1 : 0;
-  const pagerRef = useRef(null);
-  const timerRef = useRef(null);
-  const navegandoRef = useRef(false);
-  useLayoutEffect(() => { const el = pagerRef.current; if (el) el.scrollTop = centro * el.clientHeight; navegandoRef.current = false; }, [s.id, centro]);
-  const decidir = (el) => {
-    if (navegandoRef.current) return;
-    const h = Math.max(1, el.clientHeight);
-    const i = Math.round(el.scrollTop / h);
-    if (i === centro) return;
-    const destino = i < centro ? prev : next;
-    if (!destino) return;
-    navegandoRef.current = true;
-    onNavigateSupplier?.(destino);
-  };
-  const onScrollPager = (e) => {
-    const el = e.currentTarget;
-    const h = Math.max(1, el.clientHeight);
-    if (Math.abs(el.scrollTop - Math.round(el.scrollTop / h) * h) < 2) decidir(el);
-    clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => decidir(el), 220);
-  };
-  useEffect(() => {
-    const el = pagerRef.current;
-    const alTerminar = () => el && decidir(el);
-    el?.addEventListener?.("scrollend", alTerminar);
-    return () => { clearTimeout(timerRef.current); el?.removeEventListener?.("scrollend", alTerminar); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Contacto directo: solo lo que tiene dato, como botones (decisión 4)
-  const numeroWa = String(s.whatsapp || s.phone || "").replace(/[^0-9]/g, "");
   // Solo los botones que de verdad abren algo (Nati, 22/09): WhatsApp con link o un número de verdad,
   // WeChat solo con el link del QR (un id suelto no abre ningún chat), teléfono y mail si tienen forma de tal.
-  const waLink = s.whatsappLink || (numeroWa.length >= 8 ? `https://wa.me/${numeroWa}` : null);
-  const wcLink = s.wechatLink || null;
   const telDigitos = String(s.phone || "").replace(/[^0-9]/g, "");
+  // WeChat y WhatsApp no van como botones (Nati, 22/09: "si no van a funcionar, los sacaría"): quedan como dato en la hoja
   const contactos = [
-    waLink && { clave: "wa", texto: t("proveedor.whatsapp"), href: waLink, icono: "mensaje" },
-    wcLink && { clave: "wc", texto: t("proveedor.wechat"), href: wcLink, icono: "mensaje" },
     telDigitos.length >= 6 && { clave: "tel", texto: t("proveedor.llamar"), href: `tel:${s.phone}`, icono: "telefono" },
     /@/.test(s.email || "") && { clave: "mail", texto: t("proveedor.mail"), href: `mailto:${s.email}`, icono: "correo" },
   ].filter(Boolean);
@@ -118,9 +84,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
         {/* El pie: empresa, contacto y stand, mínimo, la tira de productos, y los dos botones */}
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: `80px 18px calc(18px + env(safe-area-inset-bottom, 0px))`, background: "linear-gradient(to top, rgba(10,14,23,0.9) 60%, rgba(10,14,23,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 }}>
           <p style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere", paddingRight: 60 }}>{x.company || t("proveedor.titulo")}</p>
-          {x.contact
-            ? <p style={{ margin: 0, fontSize: 17, fontWeight: 500, color: "rgba(255,255,255,0.92)", paddingRight: 60 }}>{x.contact}</p>
-            : esta && <button type="button" onClick={() => setDatosAbiertos(true)} style={{ alignSelf: "flex-start", background: "none", border: "none", padding: 0, color: "rgba(255,255,255,0.7)", fontFamily: "inherit", fontSize: 16, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}>{t("proveedor.agregarVendedor")}<Icono nombre="siguiente" tamano={16} color="rgba(255,255,255,0.6)" /></button>}
+          {x.contact && <p style={{ margin: 0, fontSize: 17, fontWeight: 500, color: "rgba(255,255,255,0.92)", paddingRight: 60 }}>{x.contact}</p>}
           {subtituloDe(x) && <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.75)", paddingRight: 60 }}>{subtituloDe(x)}</p>}
           {x.minimoDeCompra ? <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.75)" }}>{t("proveedor.minimoDeCompra")} {moneda} {x.minimoDeCompra}</p> : null}
           {propios.length > 0 ? (
@@ -155,11 +119,8 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "#000", color: "#fff", fontFamily: "inherit", zIndex: 50 }}>
-      <div ref={pagerRef} onScroll={onScrollPager} style={{ position: "absolute", inset: 0, overflowY: "auto", scrollSnapType: "y mandatory", scrollbarWidth: "none", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch" }}>
-        {prev && pantalla(prev, false)}
-        {pantalla(s, true)}
-        {next && pantalla(next, false)}
-      </div>
+      <PaginadorVertical clave={s.id} anterior={prev ? pantalla(prev, false) : null} actual={pantalla(s, true)} siguiente={next ? pantalla(next, false) : null}
+        onAnterior={() => prev && onNavigateSupplier?.(prev)} onSiguiente={() => next && onNavigateSupplier?.(next)} />
 
       {/* Arriba: volver, la posición, favorito */}
       <div style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 12px)`, left: 14, right: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
@@ -184,11 +145,11 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
 
       {/* Todos los datos, en una hoja */}
       <Hoja abierta={datosAbiertos} onCerrar={() => setDatosAbiertos(false)} titulo={t("proveedor.datos")} altura="completa">
-        <div style={{ display: "flex", flexDirection: "column", gap: espacios.entreFilas, color: paleta.text }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 18, color: paleta.text }}>
           {feria && <p style={{ ...texto("pie"), color: paleta.dim, margin: 0 }}>{feria.name}</p>}
-          <Bloque>
-            <Campo etiqueta={t("proveedor.titulo")} valor={s.company} onChange={v => { if (v) guardar({ company: v }); }} />
+          <Bloque titulo={t("proveedor.contacto")}>
             <Campo etiqueta={t("proveedor.vendedor")} valor={s.contact} onChange={v => guardar({ contact: v })} />
+            <Campo etiqueta={t("proveedor.titulo")} valor={s.company} onChange={v => { if (v) guardar({ company: v }); }} />
             {conDato.map(([k, etiqueta]) => <Campo key={k} etiqueta={etiqueta} valor={s[k]} multilinea={k === "address" || k === "products"} apilado={APILADOS.has(k)} onChange={v => guardar({ [k]: v })} />)}
             {masDatos
               ? sinDato.map(([k, etiqueta]) => <Campo key={k} etiqueta={etiqueta} valor={s[k]} multilinea={k === "address" || k === "products"} apilado={APILADOS.has(k)} onChange={v => guardar({ [k]: v })} />)

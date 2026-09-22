@@ -490,17 +490,18 @@ const DiaHeader = ({ etiqueta, n, grid, t }) => (
 
 /** Bienvenida de un solo golpe: el "para qué" antes de pedir la cámara (4.1, 1.5). */
 function Bienvenida({ onEmpezar, sinCuenta, onEntrar }) {
-  // Primera vez, propuesta 8a del wireframe (Nati, 22/09): la foto de feria a pantalla entera, el degradé
-  // abajo, FairScan y la frase, y un toque para estar en la cámara. La foto se lee de /login-fondo.jpg.
+  // Primera vez, sin foto (Nati, 22/09: "no es el código visual de la app"): el naranja de la marca arriba,
+  // con FairScan y la frase en blanco; abajo, claro, los dos botones. Un toque y estás en la cámara.
   return (
-    <div style={{ position:"fixed", inset:0, background:"#8F97A3", color:"#fff", fontFamily:"inherit", overflow:"hidden" }}>
-      <img src="/login-fondo.jpg" alt="" onError={e => { e.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />
-      <div style={{ position:"absolute", left:0, right:0, bottom:0, padding:"140px 22px calc(28px + env(safe-area-inset-bottom, 0px))", background:"linear-gradient(to top, rgba(10,14,23,0.94) 62%, rgba(10,14,23,0))", display:"flex", flexDirection:"column", gap:12 }}>
-        <h1 style={{ fontSize:40, fontWeight:700, margin:0, letterSpacing:"-0.02em" }}>FairScan</h1>
-        <p style={{ fontSize:18, fontWeight:500, color:"rgba(255,255,255,0.9)", margin:"0 0 8px", lineHeight:1.3, maxWidth:340 }}>Sacá la foto. La app le pone nombre, lee la tarjeta y arma el pedido.</p>
-        <button onClick={onEmpezar} style={{ width:"100%", minHeight:52, borderRadius:14, border:"none", background:"#EA5A22", color:"#fff", fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><Icono nombre="camara" tamano={20} color="#fff" />Empezar a escanear</button>
-        {sinCuenta && onEntrar && <button onClick={onEntrar} style={{ width:"100%", minHeight:52, borderRadius:14, border:"1px solid rgba(255,255,255,0.5)", background:"rgba(255,255,255,0.14)", color:"#fff", fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Ya tengo cuenta</button>}
-        <p style={{ fontSize:12, color:"rgba(255,255,255,0.6)", margin:"6px 0 0", textAlign:"center", lineHeight:1.5 }}>{sinCuenta ? "Sin cuenta, tus fotos quedan en este teléfono. Creás la cuenta cuando quieras, desde Ajustes." : "El teléfono te va a pedir permiso para usar la cámara."}</p>
+    <div style={{ position:"fixed", inset:0, background:"#F8FAFC", color:"#0F172A", fontFamily:"inherit", display:"flex", flexDirection:"column" }}>
+      <div style={{ flex:1, background:"#EA5A22", color:"#fff", padding:"calc(env(safe-area-inset-top, 0px) + 40px) 24px 36px", display:"flex", flexDirection:"column", justifyContent:"flex-end", gap:12, borderRadius:"0 0 32px 32px" }}>
+        <h1 style={{ fontSize:44, fontWeight:700, margin:0, letterSpacing:"-0.02em" }}>FairScan</h1>
+        <p style={{ fontSize:19, fontWeight:500, margin:0, lineHeight:1.3, maxWidth:340, color:"rgba(255,255,255,0.92)" }}>Sacá la foto. La app le pone nombre, lee la tarjeta y arma el pedido.</p>
+      </div>
+      <div style={{ padding:"24px 22px calc(28px + env(safe-area-inset-bottom, 0px))", display:"flex", flexDirection:"column", gap:10 }}>
+        <button onClick={onEmpezar} style={{ width:"100%", minHeight:54, borderRadius:14, border:"none", background:"#EA5A22", color:"#fff", fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><Icono nombre="camara" tamano={20} color="#fff" />Empezar a escanear</button>
+        {sinCuenta && onEntrar && <button onClick={onEntrar} style={{ width:"100%", minHeight:54, borderRadius:14, border:"1px solid #DCE3EC", background:"#FFFFFF", color:"#0F172A", fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Ya tengo cuenta</button>}
+        <p style={{ fontSize:12, color:"#64748B", margin:"8px 0 0", textAlign:"center", lineHeight:1.5 }}>{sinCuenta ? "Sin cuenta, tus fotos quedan en este teléfono. Creás la cuenta cuando quieras, desde Configuración." : "El teléfono te va a pedir permiso para usar la cámara."}</p>
       </div>
     </div>
   );
@@ -980,7 +981,6 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
           ofrecerPrecio(id);
           clearTimeout(anguloTimerRef.current);
           setAnguloDisponible(true);
-          anguloTimerRef.current = setTimeout(() => setAnguloDisponible(false), 6000);
           if (!consejoVistoRef.current && items.length + 1 >= 3) setConsejoVisible(true);
         });
       }
@@ -1336,7 +1336,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
       display:"flex", alignItems:"center", gap:14, width:"100%", padding:"16px", borderRadius:16,
       background:t.card, border:`1px solid ${t.border}`, cursor:"pointer", textAlign:"left", marginBottom:8,
     }}>
-      <span style={{ fontSize:24, width:36, textAlign:"center", flexShrink:0 }}>{icon}</span>
+      <span style={{ width:36, height:36, borderRadius:10, background:t.accentSoft, display:"grid", placeItems:"center", flexShrink:0 }}>{icon}</span>
       <div style={{ flex:1, minWidth:0 }}>
         <p style={{ fontSize:14, fontWeight:700, color:t.text, margin:0 }}>{title}</p>
         {subtitle && <p style={{ fontSize:11, color:accent || t.muted, margin:"2px 0 0", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{subtitle}</p>}
@@ -1429,6 +1429,13 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
               }}>{activo ? "✓ " : ""}{etiqueta}</button>
             );
           })}
+        </div>
+
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Moneda de precios</p>
+        <div style={{ display:"flex", gap:6, marginBottom:20 }}>
+          {Object.entries(CURRENCIES).map(([k, v]) => (
+            <button key={k} type="button" onClick={() => updateLoc(p => ({ ...p, currency: k }))} style={{ flex:1, minHeight:44, padding:"10px 8px", borderRadius:10, border:`1.5px solid ${loc.currency===k?t.accent:t.border}`, background:loc.currency===k?t.accentSoft:"transparent", color:loc.currency===k?t.accent:t.muted, fontSize:12, fontWeight:700, cursor:"pointer", textAlign:"center", fontFamily:"inherit" }}>{v.label}</button>
+          ))}
         </div>
 
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Pantalla</p>
@@ -1829,9 +1836,9 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
       <Header title="Configuración" onBack={onBack} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
-        <MenuItem icon="" title="Captura y pantalla" subtitle={`${loc.capturaAbierta ? "Stand abierto" : "Cerrar stand"} · ${isDark ? "oscuro" : "claro"}`} onClick={() => setSubScreen("captura")} accent={loc.capturaAbierta ? t.accent : undefined} />
-        <MenuItem icon="" title="Equipo y sincronización" subtitle={activeTeam ? activeTeam.name : "Sin equipo"} onClick={() => setSubScreen("room")} />
-        <MenuItem icon="" title="Backup y datos" subtitle="JSON, nube" onClick={() => setSubScreen("backup")} />
+        <MenuItem icon={<Icono nombre="camara" tamano={22} color={t.accent} />} title="Captura y pantalla" subtitle={`${CURRENCIES[loc.currency]?.symbol || "USD"} · ${isDark ? "oscuro" : "claro"}`} onClick={() => setSubScreen("captura")} accent={loc.capturaAbierta ? t.accent : undefined} />
+        <MenuItem icon={<Icono nombre="equipo" tamano={22} color={t.accent} />} title="Equipo y sincronización" subtitle={activeTeam ? activeTeam.name : "Sin equipo"} onClick={() => setSubScreen("room")} />
+        <MenuItem icon={<Icono nombre="nube" tamano={22} color={t.accent} />} title="Backup y datos" subtitle="JSON, nube" onClick={() => setSubScreen("backup")} />
 
         {/* User & logout */}
         <div style={{ marginTop: 24, borderTop: `1px solid ${t.border}`, paddingTop: 20 }}>

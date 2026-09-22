@@ -106,7 +106,8 @@
     "standTarjetaSinLeer_zero": "Tarjeta sin leer · tocá para completar",
     "escanearTarjeta": "Escanear tarjeta del proveedor",
     "escanearTarjetaConFotos_one": "Escanear tarjeta · {{count}} foto",
-    "escanearTarjetaConFotos_other": "Escanear tarjeta · {{count}} fotos"
+    "escanearTarjetaConFotos_other": "Escanear tarjeta · {{count}} fotos",
+    "agregarAngulo": "Otro ángulo"
   },
   "cerrarStand": {
     "titulo": "Cerrar stand",
@@ -332,7 +333,9 @@
     "verDatos": "Ver todos los datos",
     "datos": "Datos del producto",
     "posicion": "{{n}} de {{total}}",
-    "sinFoto": "Sin foto"
+    "sinFoto": "Sin foto",
+    "seccionProducto": "El producto",
+    "seccionCompra": "Compra"
   },
   "proveedor": {
     "titulo": "Proveedor",
@@ -383,7 +386,8 @@
     "verProducto": "Ver {{nombre}}",
     "agregarVendedor": "Agregar el nombre del vendedor",
     "vendedor": "Vendedor",
-    "sacarFotos": "Sacar fotos de este proveedor"
+    "sacarFotos": "Sacar fotos de este proveedor",
+    "compra": "Compra"
   },
   "pedido": {
     "titulo": "Pedido",

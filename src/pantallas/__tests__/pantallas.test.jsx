@@ -16,11 +16,12 @@ const con = (ui) => render(<SistemaProvider modo="claro">{ui}</SistemaProvider>)
 const FOTO = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
 describe("Visor", () => {
-  it("muestra el saldo, el estado, el contador del stand y Cerrar stand; el obturador mide 72", () => {
+  it("sin saldo ni nube a la vista; el contador del stand y Cerrar stand; el obturador mide 72", () => {
     const onDisparar = vi.fn(), onCerrarStand = vi.fn();
     con(<Visor videoRef={{ current: null }} modo="product" feria="🇨🇳 Cantón" itemsCount={3} saldo={12} estadoSync="sincronizando" pendientesSync={2} onDisparar={onDisparar} onCerrarStand={onCerrarStand} />);
-    expect(screen.getByText("12 de 15 escaneos de prueba")).toBeTruthy();
-    expect(screen.getByText("Sincronizando 2")).toBeTruthy();
+    // El saldo y la nube ya no se muestran en la cámara (Nati, 22/09: distraen); el saldo vuelve solo cuando está por acabarse
+    expect(screen.queryByText("12 de 15 escaneos de prueba")).toBeNull();
+    expect(screen.queryByText("Sincronizando 2")).toBeNull();
     expect(screen.getByLabelText("3 en este stand")).toBeTruthy();
     const obturador = screen.getByRole("button", { name: "Sacar foto" });
     expect(obturador.style.width).toBe("72px");
@@ -36,7 +37,7 @@ describe("Visor", () => {
   it("con la última captura ofrece '+ ángulo' y abre las últimas fotos para borrar", () => {
     const onAgregarAngulo = vi.fn(), onBorrarFoto = vi.fn();
     con(<Visor videoRef={{ current: null }} itemsCount={1} ultimaCaptura={FOTO} ultimas={[{ id: 7, foto: FOTO }]} puedeAgregarAngulo onAgregarAngulo={onAgregarAngulo} onBorrarFoto={onBorrarFoto} />);
-    fireEvent.click(screen.getByText("+ ángulo"));
+    fireEvent.click(screen.getByText("Otro ángulo"));
     expect(onAgregarAngulo).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Últimas fotos" }));
     fireEvent.click(screen.getByText("Borrar"));

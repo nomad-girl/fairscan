@@ -133,10 +133,11 @@ export function CerrarStand({
 
         {/* El pie: lo leído de la tarjeta, la tira de productos, Listo */}
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: `80px 18px calc(16px + env(safe-area-inset-bottom, 0px))`, background: "linear-gradient(to top, rgba(10,14,23,0.92) 65%, rgba(10,14,23,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 }}>
-          <button type="button" onClick={() => setDatosAbiertos(true)} style={{ background: "none", border: "none", padding: 0, textAlign: "left", color: "#fff", fontFamily: "inherit", cursor: "pointer", paddingRight: 60 }}>
+          {/* La portada solo muestra (Nati, 22/09): los datos se cargan en la hoja, con el lápiz */}
+          <div style={{ paddingRight: 60 }}>
             {cardProcessing && !proveedor.name ? <Esqueleto ancho={200} alto={22} estilo={{ background: "rgba(255,255,255,0.35)" }} /> : <p style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere", color: proveedor.name ? "#fff" : "rgba(255,255,255,0.6)" }}>{proveedor.name || t("cerrarStand.nombreEmpresa")}</p>}
-            <p style={{ margin: "2px 0 0", fontSize: 16, fontWeight: 500, color: proveedor.contact ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.55)" }}>{proveedor.contact || t("cerrarStand.agregarVendedor")}</p>
-          </button>
+            {proveedor.contact && <p style={{ margin: "2px 0 0", fontSize: 16, fontWeight: 500, color: "rgba(255,255,255,0.9)" }}>{proveedor.contact}</p>}
+          </div>
           {contactos.length > 0 && <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.75)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 60 }}>{contactos.join(" · ")}</p>}
           {proveedor.minimoDeCompra ? <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.75)" }}>{t("cerrarStand.minimoDeCompra")} USD {proveedor.minimoDeCompra}</p> : null}
           {items.length > 0 && (
@@ -160,8 +161,8 @@ export function CerrarStand({
         <Hoja abierta={datosAbiertos} onCerrar={() => setDatosAbiertos(false)} titulo={t("cerrarStand.corregirDatos")} altura="completa">
           <div style={{ display: "flex", flexDirection: "column", gap: 12, color: paleta.text }}>
             <Bloque>
-              <Campo etiqueta={t("cerrarStand.empresa")} valor={proveedor.name} onChange={v => cambiar("name")(v)} />
               <Campo etiqueta={t("cerrarStand.vendedor")} valor={proveedor.contact} onChange={v => cambiar("contact")(v)} />
+              <Campo etiqueta={t("cerrarStand.empresa")} valor={proveedor.name} onChange={v => cambiar("name")(v)} />
               <Campo etiqueta="WeChat" valor={proveedor.wechat} apilado onChange={v => cambiar("wechat")(v)} />
               <Campo etiqueta="WhatsApp" valor={proveedor.whatsapp} onChange={v => cambiar("whatsapp")(v)} />
               <Campo etiqueta={t("cerrarStand.telefono")} valor={proveedor.phone} onChange={v => cambiar("phone")(v)} />
