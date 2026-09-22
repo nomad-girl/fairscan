@@ -92,199 +92,72 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
       </div>
     );
   }
+  // La propuesta 8b del wireframe (Nati, 22/09): la foto de feria a pantalla entera, un degradé oscuro
+  // abajo y los campos encima, sin tarjeta blanca. La foto se lee de /login-fondo.jpg (la pone Nati en
+  // web/public); mientras no esté, queda el gris de la propuesta.
+  const campo = {
+    width: '100%', boxSizing: 'border-box', minHeight: 52, borderRadius: 14, border: '1px solid rgba(255,255,255,0.35)',
+    background: 'rgba(255,255,255,0.12)', color: '#FFFFFF', fontFamily: 'inherit', fontSize: 16, padding: '0 14px', outline: 'none',
+  };
+  const etiqueta = { fontSize: 13, color: 'rgba(255,255,255,0.75)', margin: '0 0 6px', display: 'block' };
+  const link = { background: 'none', border: 'none', padding: 0, color: '#FFFFFF', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3 };
   return (
-    <div style={{
-      height: '100%',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: t.bg,
-      color: t.text,
-      padding: 24,
-      position: 'relative',
-    }}>
+    <div style={{ position: 'fixed', inset: 0, background: '#8F97A3', color: '#FFFFFF', fontFamily: 'inherit', overflow: 'hidden' }}>
+      <img src="/login-fondo.jpg" alt="" onError={e => { e.currentTarget.style.display = 'none'; }} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
       {onCancel && !convertir && (
-        <button type="button" onClick={onCancel} aria-label="Volver" style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top, 0px) + 12px)', left: 14, width: 48, height: 48, borderRadius: 24, border: 'none', background: t.surface, display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
-          <Icono nombre="volver" tamano={22} color={t.text} />
+        <button type="button" onClick={onCancel} aria-label="Volver" style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top, 0px) + 12px)', left: 14, width: 48, height: 48, borderRadius: 24, border: 'none', background: 'rgba(10,14,23,0.55)', display: 'grid', placeItems: 'center', cursor: 'pointer', zIndex: 2 }}>
+          <Icono nombre="volver" tamano={22} color="#fff" />
         </button>
       )}
-      <div style={{ width: '100%', maxWidth: 360 }}>
-        {/* La marca */}
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <h1 style={{ fontSize: 36, fontWeight: 700, color: t.text, margin: '0 0 6px', letterSpacing: '-0.02em' }}>FairScan</h1>
-          <p style={{ fontSize: 15, color: t.muted, margin: 0 }}>
-            {mode === 'login' ? 'Entrar con tu cuenta' : convertir ? 'Creá tu cuenta para no perder tu catálogo' : 'Creá tu cuenta'}
-          </p>
-          <p style={{ fontSize: 14, color: t.muted, margin: '12px 0 0', lineHeight: 1.45 }}>Sacá la foto. La app le pone nombre, lee la tarjeta y arma el pedido.</p>
-        </div>
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '100%', overflowY: 'auto', padding: '120px 22px calc(28px + env(safe-area-inset-bottom, 0px))', background: 'linear-gradient(to top, rgba(10,14,23,0.96) 70%, rgba(10,14,23,0))', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <h1 style={{ fontSize: 30, fontWeight: 700, margin: '0 0 4px', letterSpacing: '-0.01em' }}>{mode === 'login' ? 'Entrar' : 'Crear cuenta'}</h1>
+        {convertir && <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)', margin: '0 0 6px' }}>Lo que capturaste queda en esta cuenta.</p>}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {mode === 'register' && (
             <>
-              <input
-                type="text"
-                placeholder="Tu nombre"
-                value={displayName}
-                onChange={e => setDisplayName(e.target.value)}
-                style={inputStyle}
-                autoComplete="name"
-              />
-              <input
-                type="text"
-                placeholder="Nombre de tu equipo"
-                value={teamName}
-                onChange={e => setTeamName(e.target.value)}
-                style={inputStyle}
-              />
+              <label style={etiqueta} htmlFor="login-nombre">Tu nombre</label>
+              <input id="login-nombre" type="text" value={displayName} onChange={e => setDisplayName(e.target.value)} style={campo} autoComplete="name" />
+              <label style={etiqueta} htmlFor="login-equipo">Nombre de tu equipo</label>
+              <input id="login-equipo" type="text" value={teamName} onChange={e => setTeamName(e.target.value)} style={campo} />
             </>
           )}
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            required
-            style={inputStyle}
-            autoComplete="email"
-          />
+          <label style={etiqueta} htmlFor="login-mail">Mail</label>
+          <input id="login-mail" type="email" value={email} onChange={e => setEmail(e.target.value)} required style={campo} autoComplete="email" autoCapitalize="none" autoCorrect="off" inputMode="email" />
+          <label style={etiqueta} htmlFor="login-pass">Contraseña</label>
           <div style={{ position: 'relative' }}>
-            <input
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Contraseña"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              minLength={6}
-              style={{ ...inputStyle, paddingRight: 48 }}
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              style={{
-                position: 'absolute',
-                right: 12,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                background: 'none',
-                border: 'none',
-                padding: 4,
-                cursor: 'pointer',
-                fontSize: 18,
-                color: t.muted,
-                display: 'flex',
-                alignItems: 'center',
-              }}
-              tabIndex={-1}
-            >
-              <Icono nombre={showPassword ? 'ojoCerrado' : 'ojo'} tamano={20} color={t.muted} />
+            <input id="login-pass" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required minLength={6} style={{ ...campo, paddingRight: 48 }} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
+            <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Ocultar la contraseña' : 'Ver la contraseña'} tabIndex={-1} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', padding: 4, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+              <Icono nombre={showPassword ? 'ojoCerrado' : 'ojo'} tamano={20} color="rgba(255,255,255,0.8)" />
             </button>
           </div>
 
-          {/* Error */}
-          {error && (
-            <div style={{
-              padding: '10px 14px',
-              borderRadius: 10,
-              background: t.redSoft,
-              border: `1px solid ${t.red}30`,
-            }}>
-              <p style={{ fontSize: 13, color: t.red, margin: 0 }}>{error}</p>
-            </div>
-          )}
+          {error && <p style={{ fontSize: 13, color: '#FCA5A5', margin: 0, padding: '8px 12px', borderRadius: 10, background: 'rgba(220,38,38,0.25)' }}>{error}</p>}
+          {success && <p style={{ fontSize: 13, color: '#86EFAC', margin: 0, padding: '8px 12px', borderRadius: 10, background: 'rgba(21,128,61,0.25)' }}>{success}</p>}
 
-          {/* Success */}
-          {success && (
-            <div style={{
-              padding: '10px 14px',
-              borderRadius: 10,
-              background: t.greenSoft,
-              border: `1px solid ${t.green}30`,
-            }}>
-              <p style={{ fontSize: 13, color: t.green, margin: 0 }}>{success}</p>
-            </div>
-          )}
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '16px',
-              borderRadius: 14,
-              border: 'none',
-              background: loading ? t.muted : t.accent,
-              color: '#fff',
-              fontSize: 15,
-              fontWeight: 700,
-              cursor: loading ? 'default' : 'pointer',
-              marginTop: 4,
-            }}
-          >
-            {loading
-              ? 'Entrando…'
-              : mode === 'login'
-                ? 'Entrar'
-                : 'Crear cuenta'
-            }
+          <button type="submit" disabled={loading} style={{ width: '100%', minHeight: 52, borderRadius: 14, border: 'none', background: loading ? 'rgba(255,255,255,0.3)' : '#EA5A22', color: '#fff', fontSize: 16, fontWeight: 700, cursor: loading ? 'default' : 'pointer', fontFamily: 'inherit', marginTop: 4 }}>
+            {loading ? 'Entrando…' : mode === 'login' ? 'Entrar' : 'Crear cuenta'}
           </button>
         </form>
 
-        {/* Consentimiento (pieza 1.15). Casilla desmarcada por defecto y texto fijo
-            con links absolutos: en la app nativa un link relativo no lleva a ningún lado. */}
         {mode === 'register' && (
-          <div style={{ marginTop: 16 }}>
-            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={marketingOptIn}
-                onChange={e => setMarketingOptIn(e.target.checked)}
-                style={{ width: 18, height: 18, margin: '1px 0 0', accentColor: t.accent, flexShrink: 0 }}
-              />
-              <span style={{ fontSize: 13, color: t.text, lineHeight: 1.5 }}>
-                Quiero recibir novedades de FairScan por mail. Me puedo dar de baja con un clic.
-              </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>
+              <input type="checkbox" checked={marketingOptIn} onChange={e => setMarketingOptIn(e.target.checked)} style={{ width: 18, height: 18, margin: '1px 0 0', accentColor: '#EA5A22', flexShrink: 0 }} />
+              <span>Quiero recibir novedades de FairScan por mail. Me puedo dar de baja con un clic.</span>
             </label>
-            <p style={{ fontSize: 12, color: t.muted, margin: '12px 0 0', lineHeight: 1.6 }}>
-              Al crear la cuenta aceptás los{' '}
-              <a href="https://fairscan.app/terminos" target="_blank" rel="noopener" style={{ color: t.accent, fontWeight: 600 }}>Términos y Condiciones</a>
-              {' '}y la{' '}
-              <a href="https://fairscan.app/privacidad" target="_blank" rel="noopener" style={{ color: t.accent, fontWeight: 600 }}>Política de Privacidad</a>.
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', margin: 0, lineHeight: 1.6 }}>
+              Al crear la cuenta aceptás los <a href="https://fairscan.app/terminos" target="_blank" rel="noopener" style={{ color: '#fff', fontWeight: 600 }}>Términos y Condiciones</a> y la <a href="https://fairscan.app/privacidad" target="_blank" rel="noopener" style={{ color: '#fff', fontWeight: 600 }}>Política de Privacidad</a>.
             </p>
           </div>
         )}
 
-        {convertir && (
-          <p style={{ textAlign: 'center', marginTop: 16, fontSize: 13, color: t.muted }}>
-            Lo que capturaste queda en esta cuenta. <button onClick={onCancel} style={{ background: 'none', border: 'none', color: t.accent, fontSize: 13, fontWeight: 700, cursor: 'pointer', padding: 0 }}>Ahora no</button>
-          </p>
-        )}
-        {/* Toggle mode */}
-        <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: t.muted }}>
-          {mode === 'login' ? '¿No tenés cuenta? ' : '¿Ya tenés cuenta? '}
-          <button
-            onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(null); setSuccess(null); }}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: t.accent,
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: 'pointer',
-              padding: 0,
-            }}
-          >
-            {mode === 'login' ? 'Crear cuenta' : 'Entrar'}
-          </button>
-        </p>
-        {mode === 'login' && (
-          <p style={{ textAlign: 'center', margin: '8px 0 0' }}>
-            <button type="button" onClick={olvide} style={{ background: 'none', border: 'none', color: t.text, fontSize: 14, fontWeight: 600, cursor: 'pointer', padding: 8, fontFamily: 'inherit' }}>Olvidé mi contraseña</button>
-          </p>
-        )}
-        {aviso && <p style={{ textAlign: 'center', fontSize: 13, color: t.muted, margin: '8px 0 0', lineHeight: 1.4 }}>{aviso}</p>}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 6 }}>
+          {mode === 'login' ? <button type="button" onClick={olvide} style={link}>Olvidé mi contraseña</button> : <span />}
+          <button type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(null); setSuccess(null); }} style={link}>{mode === 'login' ? 'Crear cuenta' : 'Ya tengo cuenta'}</button>
+        </div>
+        {convertir && <button type="button" onClick={onCancel} style={{ ...link, alignSelf: 'center', marginTop: 4, textDecoration: 'none', color: 'rgba(255,255,255,0.75)' }}>Ahora no</button>}
+        {aviso && <p style={{ textAlign: 'center', fontSize: 13, color: 'rgba(255,255,255,0.85)', margin: '6px 0 0', lineHeight: 1.4 }}>{aviso}</p>}
       </div>
     </div>
   );

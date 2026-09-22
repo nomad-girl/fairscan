@@ -490,17 +490,18 @@ const DiaHeader = ({ etiqueta, n, grid, t }) => (
 
 /** Bienvenida de un solo golpe: el "para qué" antes de pedir la cámara (4.1, 1.5). */
 function Bienvenida({ onEmpezar, sinCuenta, onEntrar }) {
-  // Primera vez (decisión 6 de Nati, 22/09): un toque y estás en la cámara, sin formulario antes de la primera
-  // foto. Fondo oscuro liso por ahora (decisión 10: sin foto). La cuenta se crea después, desde Cuenta y ajustes.
+  // Primera vez, propuesta 8a del wireframe (Nati, 22/09): la foto de feria a pantalla entera, el degradé
+  // abajo, FairScan y la frase, y un toque para estar en la cámara. La foto se lee de /login-fondo.jpg.
   return (
-    <div style={{ height:"100%", display:"flex", flexDirection:"column", justifyContent:"flex-end", background:"#F8FAFC", color:"#0F172A", padding:"24px 22px calc(28px + env(safe-area-inset-bottom, 0px))", boxSizing:"border-box", fontFamily:"inherit" }}>
-      <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"flex-end", gap:12, paddingBottom:24 }}>
+    <div style={{ position:"fixed", inset:0, background:"#8F97A3", color:"#fff", fontFamily:"inherit", overflow:"hidden" }}>
+      <img src="/login-fondo.jpg" alt="" onError={e => { e.currentTarget.style.display = "none"; }} style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover" }} />
+      <div style={{ position:"absolute", left:0, right:0, bottom:0, padding:"140px 22px calc(28px + env(safe-area-inset-bottom, 0px))", background:"linear-gradient(to top, rgba(10,14,23,0.94) 62%, rgba(10,14,23,0))", display:"flex", flexDirection:"column", gap:12 }}>
         <h1 style={{ fontSize:40, fontWeight:700, margin:0, letterSpacing:"-0.02em" }}>FairScan</h1>
-        <p style={{ fontSize:18, fontWeight:500, color:"#475569", margin:0, lineHeight:1.3, maxWidth:340 }}>Sacá la foto. La app le pone nombre, lee la tarjeta y arma el pedido.</p>
+        <p style={{ fontSize:18, fontWeight:500, color:"rgba(255,255,255,0.9)", margin:"0 0 8px", lineHeight:1.3, maxWidth:340 }}>Sacá la foto. La app le pone nombre, lee la tarjeta y arma el pedido.</p>
+        <button onClick={onEmpezar} style={{ width:"100%", minHeight:52, borderRadius:14, border:"none", background:"#EA5A22", color:"#fff", fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><Icono nombre="camara" tamano={20} color="#fff" />Empezar a escanear</button>
+        {sinCuenta && onEntrar && <button onClick={onEntrar} style={{ width:"100%", minHeight:52, borderRadius:14, border:"1px solid rgba(255,255,255,0.5)", background:"rgba(255,255,255,0.14)", color:"#fff", fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Ya tengo cuenta</button>}
+        <p style={{ fontSize:12, color:"rgba(255,255,255,0.6)", margin:"6px 0 0", textAlign:"center", lineHeight:1.5 }}>{sinCuenta ? "Sin cuenta, tus fotos quedan en este teléfono. Creás la cuenta cuando quieras, desde Ajustes." : "El teléfono te va a pedir permiso para usar la cámara."}</p>
       </div>
-      <button onClick={onEmpezar} style={{ width:"100%", minHeight:52, borderRadius:14, border:"none", background:"#EA5A22", color:"#fff", fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><Icono nombre="camara" tamano={20} color="#fff" />Empezar a escanear</button>
-      {sinCuenta && onEntrar && <button onClick={onEntrar} style={{ width:"100%", minHeight:52, borderRadius:14, marginTop:10, border:"1px solid #DCE3EC", background:"#FFFFFF", color:"#0F172A", fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Ya tengo cuenta</button>}
-      <p style={{ fontSize:12, color:"#64748B", margin:"14px 0 0", textAlign:"center", lineHeight:1.5 }}>El teléfono te va a pedir permiso para usar la cámara.{sinCuenta ? " Sin cuenta, tus fotos quedan en este teléfono; la creás cuando quieras desde Cuenta y ajustes." : ""}</p>
     </div>
   );
 }
