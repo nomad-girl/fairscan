@@ -45,7 +45,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
   const pagerRef = useRef(null);
   const timerRef = useRef(null);
   const navegandoRef = useRef(false);
-  useLayoutEffect(() => { const el = pagerRef.current; if (el) el.scrollTop = centro * el.clientHeight; }, [centro]);
+  useLayoutEffect(() => { const el = pagerRef.current; if (el) el.scrollTop = centro * el.clientHeight; navegandoRef.current = false; }, [s.id, centro]);
   const decidir = (el) => {
     if (navegandoRef.current) return;
     const h = Math.max(1, el.clientHeight);
@@ -73,17 +73,20 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
 
   // Contacto directo: solo lo que tiene dato, como botones (decisión 4)
   const numeroWa = String(s.whatsapp || s.phone || "").replace(/[^0-9]/g, "");
-  const waLink = s.whatsappLink || (numeroWa ? `https://wa.me/${numeroWa}` : null);
-  const wcLink = s.wechatLink || (s.wechat && s.wechat !== "QR escaneado" ? `weixin://dl/chat?${s.wechat}` : null);
+  // Solo los botones que de verdad abren algo (Nati, 22/09): WhatsApp con link o un número de verdad,
+  // WeChat solo con el link del QR (un id suelto no abre ningún chat), teléfono y mail si tienen forma de tal.
+  const waLink = s.whatsappLink || (numeroWa.length >= 8 ? `https://wa.me/${numeroWa}` : null);
+  const wcLink = s.wechatLink || null;
+  const telDigitos = String(s.phone || "").replace(/[^0-9]/g, "");
   const contactos = [
     waLink && { clave: "wa", texto: t("proveedor.whatsapp"), href: waLink, icono: "mensaje" },
-    wcLink && { clave: "wc", texto: t("proveedor.wechat"), href: wcLink, icono: "mensaje", onClick: () => { if (s.wechat && s.wechat !== "QR escaneado") navigator.clipboard?.writeText(s.wechat).catch(() => {}); } },
-    s.phone && { clave: "tel", texto: t("proveedor.llamar"), href: `tel:${s.phone}`, icono: "telefono" },
-    s.email && { clave: "mail", texto: t("proveedor.mail"), href: `mailto:${s.email}`, icono: "correo" },
+    wcLink && { clave: "wc", texto: t("proveedor.wechat"), href: wcLink, icono: "mensaje" },
+    telDigitos.length >= 6 && { clave: "tel", texto: t("proveedor.llamar"), href: `tel:${s.phone}`, icono: "telefono" },
+    /@/.test(s.email || "") && { clave: "mail", texto: t("proveedor.mail"), href: `mailto:${s.email}`, icono: "correo" },
   ].filter(Boolean);
 
   const campos = [
-    ["contact", t("proveedor.nombre")], ["boothNumber", t("proveedor.stand")], ["phone", t("proveedor.telefono")], ["whatsapp", t("proveedor.whatsappNumero")],
+    ["boothNumber", t("proveedor.stand")], ["phone", t("proveedor.telefono")], ["whatsapp", t("proveedor.whatsappNumero")],
     ["wechat", t("proveedor.wechatId")], ["email", t("proveedor.email")], ["website", t("proveedor.web")], ["address", t("proveedor.direccion")], ["products", t("proveedor.queVende")],
   ];
   const conDato = campos.filter(([k]) => s[k]);
@@ -94,7 +97,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
     if (!src) return <div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.2)", display: "grid", placeItems: "center" }}><Icono nombre="foto" tamano={18} color="rgba(255,255,255,0.8)" /></div>;
     return Foto ? <Foto src={src} respaldo={respaldoDe(p)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />;
   };
-  const subtituloDe = (x) => [x.contact, x.boothNumber ? `${t("proveedor.stand")} ${x.boothNumber}` : null, districts.find(d => d.id === x.districtId)?.name].filter(Boolean).join(" · ");
+  const subtituloDe = (x) => [x.boothNumber ? `${t("proveedor.stand")} ${x.boothNumber}` : null, districts.find(d => d.id === x.districtId)?.name].filter(Boolean).join(" · ");
   const posicion = idx >= 0 ? t("proveedor.posicion", { n: idx + 1, total: allSuppliers.length }) : "";
 
   // Una pantalla del feed: la tarjeta entera (o la foto del primer producto) y el pie con lo esencial.
@@ -115,7 +118,10 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
         {/* El pie: empresa, contacto y stand, mínimo, la tira de productos, y los dos botones */}
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: `80px 18px calc(18px + env(safe-area-inset-bottom, 0px))`, background: "linear-gradient(to top, rgba(10,14,23,0.9) 60%, rgba(10,14,23,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 }}>
           <p style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere", paddingRight: 60 }}>{x.company || t("proveedor.titulo")}</p>
-          {subtituloDe(x) && <p style={{ margin: 0, fontSize: 16, fontWeight: 500, color: "rgba(255,255,255,0.9)", paddingRight: 60 }}>{subtituloDe(x)}</p>}
+          {x.contact
+            ? <p style={{ margin: 0, fontSize: 17, fontWeight: 500, color: "rgba(255,255,255,0.92)", paddingRight: 60 }}>{x.contact}</p>
+            : esta && <button type="button" onClick={() => setDatosAbiertos(true)} style={{ alignSelf: "flex-start", background: "none", border: "none", padding: 0, color: "rgba(255,255,255,0.7)", fontFamily: "inherit", fontSize: 16, fontWeight: 500, display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}>{t("proveedor.agregarVendedor")}<Icono nombre="siguiente" tamano={16} color="rgba(255,255,255,0.6)" /></button>}
+          {subtituloDe(x) && <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.75)", paddingRight: 60 }}>{subtituloDe(x)}</p>}
           {x.minimoDeCompra ? <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.75)" }}>{t("proveedor.minimoDeCompra")} {moneda} {x.minimoDeCompra}</p> : null}
           {propios.length > 0 ? (
             <div style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", marginTop: 8, paddingBottom: 2 }}>
@@ -127,9 +133,10 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
           <p style={{ margin: "2px 0 0", fontSize: 13, color: "rgba(255,255,255,0.75)" }}>{t("proveedor.conProductos", { count: propios.length })}</p>
           {esta && (
             <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-              <button type="button" disabled={propios.length === 0} onClick={() => onArmarPedido?.(x)} style={{ minHeight: 44, borderRadius: 999, border: "none", background: propios.length === 0 ? "rgba(255,255,255,0.25)" : paleta.accent, color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 700, padding: "0 16px", display: "inline-flex", alignItems: "center", gap: 6, cursor: propios.length === 0 ? "default" : "pointer" }}>
+              {onAddProduct && <button type="button" onClick={onAddProduct} style={{ minHeight: 44, borderRadius: 999, border: propios.length === 0 ? "none" : "1px solid rgba(255,255,255,0.6)", background: propios.length === 0 ? paleta.accent : "rgba(10,14,23,0.35)", color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 700, padding: "0 16px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}><Icono nombre="camara" tamano={16} color="#fff" />{propios.length === 0 ? t("proveedor.sacarFotos") : t("proveedor.agregarProducto")}</button>}
+              {!(propios.length === 0 && onAddProduct) && <button type="button" disabled={propios.length === 0} onClick={() => onArmarPedido?.(x)} style={{ minHeight: 44, borderRadius: 999, border: "none", background: propios.length === 0 ? "rgba(255,255,255,0.25)" : paleta.accent, color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 700, padding: "0 16px", display: "inline-flex", alignItems: "center", gap: 6, cursor: propios.length === 0 ? "default" : "pointer" }}>
                 <Icono nombre="pedido" tamano={16} color="#fff" />{pedidoX ? `${t("proveedor.seguirPedido")} · ${t("proveedor.conProductos", { count: pedidoX.lineas.length })}` : `${t("proveedor.armarPedido")} · ${t("proveedor.conProductos", { count: propios.length })}`}
-              </button>
+              </button>}
               <button type="button" onClick={() => setDatosAbiertos(true)} style={{ minHeight: 44, borderRadius: 999, border: "1px solid rgba(255,255,255,0.6)", background: "rgba(10,14,23,0.35)", color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 600, padding: "0 14px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
                 <Icono nombre="abajo" tamano={16} color="#fff" style={{ transform: "rotate(180deg)" }} />{t("proveedor.verDatos")}
               </button>
@@ -181,6 +188,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
           {feria && <p style={{ ...texto("pie"), color: paleta.dim, margin: 0 }}>{feria.name}</p>}
           <Bloque>
             <Campo etiqueta={t("proveedor.titulo")} valor={s.company} onChange={v => { if (v) guardar({ company: v }); }} />
+            <Campo etiqueta={t("proveedor.vendedor")} valor={s.contact} onChange={v => guardar({ contact: v })} />
             {conDato.map(([k, etiqueta]) => <Campo key={k} etiqueta={etiqueta} valor={s[k]} multilinea={k === "address" || k === "products"} apilado={APILADOS.has(k)} onChange={v => guardar({ [k]: v })} />)}
             {masDatos
               ? sinDato.map(([k, etiqueta]) => <Campo key={k} etiqueta={etiqueta} valor={s[k]} multilinea={k === "address" || k === "products"} apilado={APILADOS.has(k)} onChange={v => guardar({ [k]: v })} />)
@@ -201,7 +209,6 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
               </div>
             )}
           </Bloque>
-          {onAddProduct && <Boton variante="secundario" ancho="total" icono="camara" onClick={onAddProduct}>{t("proveedor.agregarProducto")}</Boton>}
           {onDelete && <div style={{ marginTop: 8 }}><Boton variante="peligro" ancho="total" icono="borrar" onClick={() => setConfirmando(true)}>{t("proveedor.eliminar")}</Boton></div>}
         </div>
       </Hoja>

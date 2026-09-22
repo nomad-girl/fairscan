@@ -117,6 +117,7 @@ import { vibrarObturador } from './sistema/vibrar.js';
 import { serializarAudio, urlDeAudio, esPunteroMuerto } from './lib/audioNotes.js';
 import { crearPapelera } from './lib/deshacer.js';
 import { estadoIA, patchReintentoIA, explicarFalloIA } from './lib/aiEstado.js';
+import { proveedorVacio } from './lib/proveedores.js';
 import { debeLimpiarBaseLocal } from './lib/cuentaLocal.js';
 import { guardarResguardo, restaurarResguardo, borrarResguardos, claveDeEquipo } from './lib/resguardoLocal.js';
 import { copiaParaRestaurar } from './lib/syncEngine';
@@ -492,14 +493,14 @@ function Bienvenida({ onEmpezar, sinCuenta, onEntrar }) {
   // Primera vez (decisión 6 de Nati, 22/09): un toque y estás en la cámara, sin formulario antes de la primera
   // foto. Fondo oscuro liso por ahora (decisión 10: sin foto). La cuenta se crea después, desde Cuenta y ajustes.
   return (
-    <div style={{ height:"100%", display:"flex", flexDirection:"column", justifyContent:"flex-end", background:"#0B0E17", color:"#fff", padding:"24px 22px calc(28px + env(safe-area-inset-bottom, 0px))", boxSizing:"border-box", fontFamily:"inherit" }}>
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", justifyContent:"flex-end", background:"#F8FAFC", color:"#0F172A", padding:"24px 22px calc(28px + env(safe-area-inset-bottom, 0px))", boxSizing:"border-box", fontFamily:"inherit" }}>
       <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"flex-end", gap:12, paddingBottom:24 }}>
         <h1 style={{ fontSize:40, fontWeight:700, margin:0, letterSpacing:"-0.02em" }}>FairScan</h1>
-        <p style={{ fontSize:18, fontWeight:500, color:"rgba(255,255,255,0.9)", margin:0, lineHeight:1.3, maxWidth:340 }}>Sacá la foto. La app le pone nombre, lee la tarjeta y arma el pedido.</p>
+        <p style={{ fontSize:18, fontWeight:500, color:"#475569", margin:0, lineHeight:1.3, maxWidth:340 }}>Sacá la foto. La app le pone nombre, lee la tarjeta y arma el pedido.</p>
       </div>
       <button onClick={onEmpezar} style={{ width:"100%", minHeight:52, borderRadius:14, border:"none", background:"#EA5A22", color:"#fff", fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><Icono nombre="camara" tamano={20} color="#fff" />Empezar a escanear</button>
-      {sinCuenta && onEntrar && <button onClick={onEntrar} style={{ width:"100%", minHeight:52, borderRadius:14, marginTop:10, border:"1px solid rgba(255,255,255,0.5)", background:"rgba(255,255,255,0.12)", color:"#fff", fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Ya tengo cuenta</button>}
-      <p style={{ fontSize:12, color:"rgba(255,255,255,0.6)", margin:"14px 0 0", textAlign:"center", lineHeight:1.5 }}>El teléfono te va a pedir permiso para usar la cámara.{sinCuenta ? " Sin cuenta, tus fotos quedan en este teléfono; la creás cuando quieras desde Cuenta y ajustes." : ""}</p>
+      {sinCuenta && onEntrar && <button onClick={onEntrar} style={{ width:"100%", minHeight:52, borderRadius:14, marginTop:10, border:"1px solid #DCE3EC", background:"#FFFFFF", color:"#0F172A", fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Ya tengo cuenta</button>}
+      <p style={{ fontSize:12, color:"#64748B", margin:"14px 0 0", textAlign:"center", lineHeight:1.5 }}>El teléfono te va a pedir permiso para usar la cámara.{sinCuenta ? " Sin cuenta, tus fotos quedan en este teléfono; la creás cuando quieras desde Cuenta y ajustes." : ""}</p>
     </div>
   );
 }
@@ -1821,79 +1822,79 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
     );
   }
 
-  // ─── CUENTA Y AJUSTES (decisión de Nati, 22/09): una sola pantalla con la lógica del feed. La cuenta arriba,
-  //     como una ficha (el equipo vive adentro); abajo, pocas filas y dos interruptores que se guardan al toque.
-  //     Se fueron: Rubros y etiquetas (obsoleto), Fotos y backup, el margen de importación y Salud del sistema
-  //     (Nati: "genera desconfianza; nosotros monitoreamos esa salud, no el usuario"). ───
-  const seccion = (txt) => <p style={{ fontSize:12, fontWeight:600, letterSpacing:"0.07em", textTransform:"uppercase", color:t.dim, margin:"18px 0 4px" }}>{txt}</p>;
-  const fila = (titulo, derecha, onClick, { sub, peligro = false, primera = false } = {}) => (
-    <button type="button" onClick={onClick} disabled={!onClick} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, width:"100%", minHeight:52, padding:"6px 0", background:"none", border:"none", borderTop: primera ? "none" : `1px solid ${t.border}`, cursor: onClick ? "pointer" : "default", fontFamily:"inherit", textAlign:"left", color: peligro ? t.red : t.text }}>
-      <span style={{ display:"flex", flexDirection:"column", gap:1, minWidth:0 }}><span style={{ fontSize:15 }}>{titulo}</span>{sub && <span style={{ fontSize:12, color:t.muted }}>{sub}</span>}</span>
-      <span style={{ display:"flex", alignItems:"center", gap:6, fontSize:15, fontWeight:600, color:t.text, flexShrink:0 }}>{derecha}{onClick && typeof derecha !== "object" && <Icono nombre="siguiente" tamano={16} color={t.dim} />}</span>
-    </button>
-  );
-  const interruptor = (on, onClick, etiqueta) => (
-    <button type="button" role="switch" aria-checked={!!on} aria-label={etiqueta} onClick={onClick} style={{ width:44, height:26, borderRadius:13, padding:2, border:"none", background: on ? t.accent : t.border, display:"flex", alignItems:"center", justifyContent: on ? "flex-end" : "flex-start", cursor:"pointer", transition:"all 0.2s" }}>
-      <span style={{ width:22, height:22, borderRadius:11, background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }} />
-    </button>
-  );
-  const chips = (opciones, activo, onElegir) => (
-    <span style={{ display:"flex", gap:6 }}>
-      {opciones.map(([k, etiqueta, on]) => (
-        <button key={k} type="button" role={onElegir ? undefined : "switch"} aria-checked={onElegir ? undefined : on} aria-pressed={onElegir ? activo === k : undefined} onClick={() => onElegir ? onElegir(k) : null} style={{ minHeight:32, padding:"0 10px", borderRadius:999, border:`1.5px solid ${(onElegir ? activo === k : on) ? t.accent : t.border}`, background:(onElegir ? activo === k : on) ? t.accentSoft : "transparent", color:(onElegir ? activo === k : on) ? t.accent : t.muted, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{etiqueta}</button>
-      ))}
-    </span>
-  );
-  const nombre = userEmail ? userEmail.split("@")[0] : null;
-  const restaurar = async () => { try { const { restaurar } = await import("./lib/compras.js"); const r = await restaurar(); alert(r.mensaje); } catch (e) { alert(e?.message || "No se pudo restaurar"); } };
+  // ─── MENÚ (22/09: vuelve el menú simple que Nati prefería; se fueron Rubros, Fotos y backup, Costos y Salud del sistema) ───
 
   return (
-    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg, color:t.text }}>
-      {/* La cuenta, arriba, como una ficha */}
-      <div style={{ background:"#0B0E17", color:"#fff", padding:"calc(env(safe-area-inset-top, 0px) + 12px) 16px 18px", display:"flex", flexDirection:"column", gap:22 }}>
-        <button type="button" onClick={onBack} aria-label="Volver" style={{ width:48, height:48, borderRadius:24, border:"none", background:"rgba(255,255,255,0.12)", display:"grid", placeItems:"center", cursor:"pointer" }}><Icono nombre="volver" tamano={22} color="#fff" /></button>
-        <button type="button" onClick={() => setSubScreen(esAnonima ? "crear-cuenta" : "room")} style={{ display:"flex", alignItems:"center", gap:12, width:"100%", background:"none", border:"none", padding:0, color:"#fff", cursor:"pointer", fontFamily:"inherit", textAlign:"left" }}>
-          <span style={{ width:52, height:52, borderRadius:26, background:"rgba(255,255,255,0.18)", display:"grid", placeItems:"center", flexShrink:0 }}><Icono nombre={esAnonima ? "camara" : "equipo"} tamano={24} color="#fff" /></span>
-          <span style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:2 }}>
-            <span style={{ fontSize:20, fontWeight:700 }}>{esAnonima ? "Sin cuenta" : (nombre || "Tu cuenta")}</span>
-            <span style={{ fontSize:13, color:"rgba(255,255,255,0.75)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{esAnonima ? "Tus fotos quedan en este teléfono · Crear mi cuenta" : `${userEmail || ""} · ${activeTeam ? activeTeam.name : "Sin equipo"}`}</span>
-          </span>
-          <Icono nombre="siguiente" tamano={20} color="rgba(255,255,255,0.8)" />
-        </button>
-      </div>
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
+      <Header title="Configuración" onBack={onBack} t={t} />
+      <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
+        <MenuItem icon="" title="Captura y pantalla" subtitle={`${loc.capturaAbierta ? "Stand abierto" : "Cerrar stand"} · ${isDark ? "oscuro" : "claro"}`} onClick={() => setSubScreen("captura")} accent={loc.capturaAbierta ? t.accent : undefined} />
+        <MenuItem icon="" title="Equipo y sincronización" subtitle={activeTeam ? activeTeam.name : "Sin equipo"} onClick={() => setSubScreen("room")} />
+        <MenuItem icon="" title="Backup y datos" subtitle="JSON, nube" onClick={() => setSubScreen("backup")} />
 
-      <div style={{ flex:1, overflow:"auto", padding:"4px 16px 40px" }}>
-        {seccion("Captura")}
-        {fila("Stand abierto (prueba)", interruptor(!!loc.capturaAbierta, () => updateLoc(p => ({ ...p, capturaAbierta: !p.capturaAbierta })), "Stand abierto"), null, { sub:"La tarjeta se saca cuando aparece; Cerrar stand abre el stand", primera:true })}
-        {fila("Datos que pide el teclado", "", null, { sub:"El precio siempre; apagá los que no usás" })}
-        <div style={{ display:"flex", gap:6, margin:"-6px 0 8px" }}>
-          {[["moq", "MOQ"], ["piezasPorCaja", "Piezas por caja"], ["cbmPorCaja", "CBM"]].map(([k, etiqueta]) => { const activo = loc.datosDeCompra?.[k] !== false; return (
-            <button key={k} type="button" role="switch" aria-checked={activo} onClick={() => updateLoc(p => ({ ...p, datosDeCompra: { ...(p.datosDeCompra || {}), [k]: !activo } }))} style={{ flex:1, minHeight:40, borderRadius:10, border:`1.5px solid ${activo ? t.accent : t.border}`, background: activo ? t.accentSoft : "transparent", color: activo ? t.accent : t.muted, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{etiqueta}</button>
-          ); })}
+        {/* User & logout */}
+        <div style={{ marginTop: 24, borderTop: `1px solid ${t.border}`, paddingTop: 20 }}>
+          {userEmail && (
+            <p style={{ fontSize: 12, color: t.muted, margin: '0 0 12px', textAlign: 'center' }}>
+              Sesión: {userEmail}
+            </p>
+          )}
+          {marketingOptInAt !== undefined && (
+            <button onClick={toggleMarketingOptIn} style={{
+              display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%",
+              padding:"10px 14px", borderRadius:12, marginBottom:12,
+              background: t.surface, border:`1px solid ${t.border}`, cursor:"pointer",
+            }}>
+              <span style={{ fontSize:13, fontWeight:600, color:t.text, textAlign:"left" }}>Novedades por mail</span>
+              <span style={{ width:40, height:22, borderRadius:11, padding:2, flexShrink:0,
+                background: marketingOptInAt ? t.accent : t.border,
+                display:"flex", alignItems:"center", justifyContent: marketingOptInAt ? "flex-end" : "flex-start", transition:"all 0.2s" }}>
+                <span style={{ width:18, height:18, borderRadius:9, background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,0.3)" }} />
+              </span>
+            </button>
+          )}
+          <button onClick={async () => { try { const { restaurar } = await import("./lib/compras.js"); const r = await restaurar(); alert(r.mensaje); } catch (e) { alert(e?.message || "No se pudo restaurar"); } }} style={{
+            width: '100%', padding: '12px', borderRadius: 12, marginBottom: 10,
+            border: `1px solid ${t.border}`, background: t.card, color: t.text, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+          }}>Restaurar compras</button>
+          {esAnonima ? (
+            <div style={{ background:t.accentSoft, border:`1px solid ${t.accent}40`, borderRadius:14, padding:14 }}>
+              <p style={{ fontSize:13, fontWeight:700, color:t.text, margin:"0 0 4px" }}>Estás usando FairScan sin cuenta</p>
+              <p style={{ fontSize:12, color:t.muted, margin:"0 0 10px", lineHeight:1.5 }}>Lo que capturás queda en este teléfono. Con una cuenta lo tenés en la nube, en otros dispositivos y compartido con tu equipo.</p>
+              <button onClick={() => setSubScreen("crear-cuenta")} style={{ width:"100%", padding:"12px", borderRadius:12, border:"none", background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>Crear mi cuenta</button>
+            </div>
+          ) : (
+          <button onClick={onSignOut} style={{
+            width: '100%', padding: '12px', borderRadius: 12,
+            border: `1px solid ${t.red}40`, background: t.redSoft,
+            color: t.red, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+          }}>
+            Cerrar sesión
+          </button>
+          )}
+
+          {/* Requisito de App Store: se tiene que poder borrar la cuenta desde
+              adentro de la app. Discreto a propósito, pero no escondido. */}
+          {!esAnonima && <button onClick={openDeleteAccount} style={{
+            width: '100%', padding: '12px', borderRadius: 12, marginTop: 10,
+            border: 'none', background: 'transparent',
+            color: t.dim, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            textDecoration: 'underline', textUnderlineOffset: 3,
+          }}>
+            Borrar mi cuenta
+          </button>}
+
+          <p style={{ fontSize:11, color:t.dim, textAlign:"center", margin:"18px 0 6px", fontVariantNumeric:"tabular-nums" }}>Versión {typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev"}</p>
+          {/* Legales (pieza 10.0). Direcciones absolutas a propósito: en la app
+              nativa no hay "sitio", así que un link relativo no llevaría a ningún lado. */}
+          <p style={{ fontSize: 12, color: t.dim, margin: '18px 0 0', textAlign: 'center', lineHeight: 1.8 }}>
+            <a href="https://fairscan.app/privacidad" target="_blank" rel="noopener noreferrer" style={{ color: t.dim }}>Privacidad</a>
+            {' · '}
+            <a href="https://fairscan.app/terminos" target="_blank" rel="noopener noreferrer" style={{ color: t.dim }}>Términos</a>
+            {' · '}
+            <a href="https://fairscan.app/soporte" target="_blank" rel="noopener noreferrer" style={{ color: t.dim }}>Soporte</a>
+          </p>
         </div>
-        {fila("Moneda", chips(Object.entries(CURRENCIES).map(([k, v]) => [k, v.symbol === "¥" ? "CNY" : k, false]), loc.currency || "USD", (k) => updateLoc(p => ({ ...p, currency: k }))), null)}
-
-        {seccion("Pantalla")}
-        {fila("Modo oscuro", interruptor(!!isDark, onToggleTheme, "Modo oscuro"), null, { primera:true })}
-
-        {seccion("Tus datos")}
-        {fila("Copia de seguridad", "", () => setSubScreen("backup"), { sub:"Exportar, restaurar, copia en la nube", primera:true })}
-        {fila("Escaneos", "Restaurar compras", restaurar, { sub:"Si cambiaste de teléfono, la tienda te reconoce los packs que ya pagaste" })}
-
-        {seccion("Cuenta")}
-        {marketingOptInAt !== undefined && fila("Novedades por mail", interruptor(!!marketingOptInAt, toggleMarketingOptIn, "Novedades por mail"), null, { primera:true })}
-        {esAnonima
-          ? fila("Crear mi cuenta", "", () => setSubScreen("crear-cuenta"), { sub:"Para tener tus fotos en la nube y compartirlas con tu equipo", primera: marketingOptInAt === undefined })
-          : fila("Cerrar sesión", "", onSignOut, { peligro:true, primera: marketingOptInAt === undefined })}
-
-        <p style={{ fontSize:12, color:t.dim, textAlign:"center", margin:"28px 0 0", fontVariantNumeric:"tabular-nums", lineHeight:1.8 }}>
-          Versión {typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev"}
-          {!esAnonima && <>{" · "}<button onClick={openDeleteAccount} style={{ background:"none", border:"none", padding:0, color:t.dim, fontSize:12, fontWeight:600, cursor:"pointer", textDecoration:"underline", textUnderlineOffset:3, fontFamily:"inherit" }}>Borrar mi cuenta</button></>}
-          <br />
-          <a href="https://fairscan.app/privacidad" target="_blank" rel="noopener noreferrer" style={{ color: t.dim }}>Privacidad</a>{" · "}
-          <a href="https://fairscan.app/terminos" target="_blank" rel="noopener noreferrer" style={{ color: t.dim }}>Términos</a>{" · "}
-          <a href="https://fairscan.app/soporte" target="_blank" rel="noopener noreferrer" style={{ color: t.dim }}>Soporte</a>
-        </p>
       </div>
     </div>
   );
@@ -3529,7 +3530,8 @@ export default function App() {
           </div>
         </div>
       )}
-      <BajandoCatalogo bajando={sync.bajando} t={t} />
+      {/* Solo la primera vez, con el teléfono vacío: con catálogo a la vista el cartel molesta (Nati, 22/09) */}
+      <BajandoCatalogo bajando={products.length === 0 ? sync.bajando : null} t={t} />
       <Toast msg={undo ? undo.mensaje : toast} t={t}
         action={undo ? { label: "Deshacer", onClick: () => { papeleraRef.current.deshacer(); showToast("Restaurado"); } } : null} />
       {/* #10: Supplier dedup prompt */}
@@ -3596,7 +3598,7 @@ export default function App() {
           initialSupplier={screenData?.fromSupplierId != null ? suppliers.find(s => s.id === screenData.fromSupplierId) || null : null} />
       )}
       {screen === "detail" && screenData && (
-        <FichaProducto key={screenData.id} product={products.find(p => p.id === screenData.id) || screenData} allProducts={ordenFicha ? ordenFicha.map(id => products.find(p => p.id === id)).filter(Boolean) : products} suppliers={suppliers} districts={districts}
+        <FichaProducto product={products.find(p => p.id === screenData.id) || screenData} allProducts={ordenFicha ? ordenFicha.map(id => products.find(p => p.id === id)).filter(Boolean) : products} suppliers={suppliers} districts={districts}
           settings={settings} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"}
           Foto={FotoDeProducto} tLegacy={t}
           onBack={goBack} onUpdate={(id, changes) => { handleUpdateProduct(id, changes); }} onAddPhoto={agregarFotoAProducto} onDelete={handleDeleteProduct}
@@ -3612,7 +3614,7 @@ export default function App() {
           onCerrar={() => navigate("list")} onCrearCuenta={() => navigate("settings")} onVerLosDeHoy={() => { setListTab("todo"); navigate("list"); }} />
       )}
       {screen === "supplier" && screenData && (
-        <FichaProveedor key={screenData.id} supplier={suppliers.find(s => s.id === screenData.id) || screenData} allSuppliers={ordenProveedores ? ordenProveedores.map(id => suppliers.find(s => s.id === id)).filter(Boolean) : suppliers} products={products} pedidos={orders} districts={districts} moneda={monedaActual} Foto={FotoDeProducto} tLegacy={t}
+        <FichaProveedor supplier={suppliers.find(s => s.id === screenData.id) || screenData} allSuppliers={ordenProveedores ? ordenProveedores.map(id => suppliers.find(s => s.id === id)).filter(Boolean) : suppliers.filter(s => !proveedorVacio(s, products))} products={products} pedidos={orders} districts={districts} moneda={monedaActual} Foto={FotoDeProducto} tLegacy={t}
           onBack={goBack} onUpdate={handleUpdateSupplier} onDelete={handleDeleteSupplier} onNavigateSupplier={s => setScreenData(s)}
           onAddProduct={() => navigate("capture", { fromSupplierId: screenData.id })}
           onNavigateProduct={p => navigate("detail", p)} onArmarPedido={(s) => abrirPedido(s)} />

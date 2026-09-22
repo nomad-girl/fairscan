@@ -1,23 +1,21 @@
 /**
- * Pedidos como feed (decisión de Nati, 22/09: la lógica del feed en toda la app; pantalla 7 del wireframe).
- * Un pedido es un proveedor. Cada pedido es una pantalla: la foto del primer producto de fondo y los números
- * encima (total, productos, bultos, CBM), verde cuando ya se mandó. Deslizar arriba pasa al pedido de otro
- * proveedor; después vienen los proveedores con favoritos y sin pedido ("Armar pedido"), y al final el total
- * de la feria con el Excel. El detalle (cantidades por bultos, proforma) sigue siendo la lista de Armar pedido.
+ * Pedidos: la pantalla del consolidado (decisión 4 del 16/09). Por feria, un pedido por
+ * proveedor con su estado (en curso, proforma enviada), los proveedores con favoritos y sin
+ * pedido como "Armar ›", y abajo el total de la feria y cuánto contenedor va juntando.
+ * Es su propia pantalla, no una pestaña del catálogo: el catálogo es feria, esto es casa.
  */
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Chip, FilaDeChips, Icono } from "../componentes/index.js";
-import { totalesDePedido, totalesDeFeria, proveedoresSinPedido } from "../lib/pedidos.js";
-import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
+import { Boton, Chip, FilaDeChips, Fila, Precio, Icono, Hoja } from "../componentes/index.js";
+import { totalesDePedido, totalesDeFeria, proveedoresSinPedido, productosParaPedido } from "../lib/pedidos.js";
 import { numero as fNumero, cbm as fCbm, fechaCorta } from "../idiomas/formato.js";
 
-export function Pedidos({ pedidos = [], suppliers = [], products = [], districts = [], activeDistrictId = null, moneda = "USD", Foto, tLegacy, onBack, onAbrirPedido, onDescargarExcelFeria }) {
+export function Pedidos({ pedidos = [], suppliers = [], products = [], districts = [], activeDistrictId = null, moneda = "USD", onBack, onAbrirPedido, onDescargarExcelFeria }) {
   const { t } = useTranslation();
-  const { paleta } = useSistema();
+  const { paleta, alturas, radios, texto, espacios } = useSistema();
   const [feria, setFeria] = useState(activeDistrictId ?? "todas");
-  const [i, setI] = useState(0);
+  const [eligiendo, setEligiendo] = useState(false); // Crear nuevo pedido: ¿de qué proveedor?
   const filtro = feria === "todas" ? null : feria;
   const dinero = (n) => `${moneda} ${fNumero(n, { maximumFractionDigits: 2 })}`;
 
@@ -25,135 +23,69 @@ export function Pedidos({ pedidos = [], suppliers = [], products = [], districts
   const sinPedido = useMemo(() => proveedoresSinPedido(suppliers, products, conContenido, filtro), [suppliers, products, conContenido, filtro]);
   const tot = totalesDeFeria(conContenido, products);
   const feriaActual = districts.find(d => d.id === filtro) || null;
-
-  // Las pantallas del feed: los pedidos, los proveedores sin pedido, el total de la feria (o el vacío)
-  const pantallas = useMemo(() => {
-    const xs = [];
-    for (const pedido of conContenido) { const prov = suppliers.find(s => s.id === pedido.supplierId); if (prov) xs.push({ tipo: "pedido", clave: `p${pedido.id}`, pedido, prov }); }
-    for (const { proveedor, favoritos } of sinPedido) xs.push({ tipo: "sin", clave: `s${proveedor.id}`, prov: proveedor, favoritos });
-    xs.push(conContenido.length > 0 ? { tipo: "total", clave: "total" } : { tipo: "vacio", clave: "vacio" });
-    return xs;
-  }, [conContenido, sinPedido, suppliers]);
-  const total = pantallas.length;
-  const actual = pantallas[Math.min(i, total - 1)];
-  const prev = i > 0 ? pantallas[i - 1] : null;
-  const next = i + 1 < total ? pantallas[i + 1] : null;
-  const cambiarFeria = (f) => { setFeria(f); setI(0); };
-
-  // El paginador vertical (anterior · esta · siguiente)
-  const pagerRef = useRef(null);
-  const timerRef = useRef(null);
-  const navegandoRef = useRef(false);
-  const centro = prev ? 1 : 0;
-  useLayoutEffect(() => { const el = pagerRef.current; if (el) el.scrollTop = centro * el.clientHeight; navegandoRef.current = false; }, [i, centro, feria]);
-  const decidir = (el) => {
-    if (navegandoRef.current) return;
-    const h = Math.max(1, el.clientHeight);
-    const k = Math.round(el.scrollTop / h);
-    if (k === centro) return;
-    if (k < centro && prev) { navegandoRef.current = true; setI(i - 1); }
-    else if (k > centro && next) { navegandoRef.current = true; setI(i + 1); }
-  };
-  const onScrollPager = (e) => {
-    const el = e.currentTarget;
-    const h = Math.max(1, el.clientHeight);
-    if (Math.abs(el.scrollTop - Math.round(el.scrollTop / h) * h) < 2) decidir(el);
-    clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => decidir(el), 220);
-  };
-  useEffect(() => () => clearTimeout(timerRef.current), []);
-
-  const productosDe = (pedido) => (pedido.items || []).map(it => products.find(p => p.id === it.productId)).filter(Boolean);
-  const foto = (p, estilo) => {
-    const src = p ? (elegirMiniatura(p) || respaldoDe(p)) : null;
-    if (!src) return <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center" }}><Icono nombre="pedido" tamano={40} color="rgba(255,255,255,0.5)" /></div>;
-    return Foto ? <Foto src={p.photos?.[0] || src} respaldo={respaldoDe(p)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block", ...estilo }} /> : <img src={p.photos?.[0] || src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", ...estilo }} />;
-  };
-  const tira = (xs) => xs.length > 0 && (
-    <div style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", marginTop: 8, paddingBottom: 2 }}>
-      {xs.slice(0, 12).map(p => <div key={p.id} style={{ width: 56, height: 56, flexShrink: 0, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.15)" }}>{foto(p)}</div>)}
-    </div>
-  );
-  const pie = (children) => <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: `80px 18px calc(18px + env(safe-area-inset-bottom, 0px))`, background: "linear-gradient(to top, rgba(10,14,23,0.9) 60%, rgba(10,14,23,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 }}>{children}</div>;
-  const marco = (clave, fondo, children) => (
-    <div key={clave} style={{ height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative", background: "#0B0E17" }}>
-      <div style={{ position: "absolute", inset: 0 }}>{fondo}</div>
-      {children}
-    </div>
-  );
-  const pastillaBoton = (texto, onClick, { principal = false, icono } = {}) => (
-    <button type="button" onClick={onClick} style={{ minHeight: 44, borderRadius: 999, border: principal ? "none" : "1px solid rgba(255,255,255,0.6)", background: principal ? paleta.accent : "rgba(10,14,23,0.35)", color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: principal ? 700 : 600, padding: "0 16px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>{icono && <Icono nombre={icono} tamano={16} color="#fff" />}{texto}</button>
-  );
-
-  const pantalla = (x, esta) => {
-    if (x.tipo === "pedido") {
-      const tp = totalesDePedido(x.pedido, products);
-      const suyos = productosDe(x.pedido);
-      const enviado = x.pedido.estado === "enviado" && x.pedido.enviadoEl;
-      return marco(x.clave, foto(suyos[0]), <>
-        {esta && <span style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 66px)`, right: 14, background: enviado ? "rgba(21,128,61,0.9)" : "rgba(10,14,23,0.55)", color: "#fff", borderRadius: 999, padding: "5px 11px", fontSize: 12, fontWeight: 700 }}>{enviado ? t("pedidos.enviado", { fecha: fechaCorta(x.pedido.enviadoEl) }) : t("pedidos.borrador")}</span>}
-        {pie(<>
-          <p style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere" }}>{x.prov.favorito ? <><Icono nombre="favorito" tamano={18} color="#fff" /> </> : null}{x.prov.company || `#${x.prov.id}`}</p>
-          <p style={{ margin: 0, fontSize: 17, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{tp.total ? dinero(tp.total) : "—"}<span style={{ fontWeight: 400, color: "rgba(255,255,255,0.75)" }}> · {t("pedidos.productos", { count: suyos.length })}{tp.bultos ? ` · ${fNumero(tp.bultos)} ${t("pedido.bultosCorto")}` : ` · ${fNumero(tp.unidades)} ${t("pedido.unidadesCorto")}`}{tp.cbm ? ` · ${fCbm(tp.cbm)}` : ""}</span></p>
-          {tira(suyos)}
-          {esta && <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>{pastillaBoton(t("pedidos.verDetalle"), () => onAbrirPedido?.(x.prov), { principal: true, icono: "pedido" })}</div>}
-        </>)}
-      </>);
-    }
-    if (x.tipo === "sin") {
-      const suyos = products.filter(p => p.supplierId === x.prov.id);
-      return marco(x.clave, foto(suyos.find(p => p.favorito) || suyos[0]), <>
-        {esta && <span style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 66px)`, right: 14, background: "rgba(10,14,23,0.55)", color: "#fff", borderRadius: 999, padding: "5px 11px", fontSize: 12, fontWeight: 700 }}>{t("pedidos.sinPedido")}</span>}
-        {pie(<>
-          <p style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere" }}>{x.prov.favorito ? <><Icono nombre="favorito" tamano={18} color="#fff" /> </> : null}{x.prov.company || `#${x.prov.id}`}</p>
-          <p style={{ margin: 0, fontSize: 15, color: "rgba(255,255,255,0.8)" }}>{t("pedidos.sinPedido")}{x.favoritos ? ` · ${t("pedidos.favoritos", { count: x.favoritos })}` : ""}</p>
-          {tira(suyos)}
-          {esta && <div style={{ display: "flex", gap: 8, marginTop: 10 }}>{pastillaBoton(t("pedidos.armarPedido"), () => onAbrirPedido?.(x.prov), { principal: true, icono: "pedido" })}</div>}
-        </>)}
-      </>);
-    }
-    if (x.tipo === "total") {
-      return marco(x.clave, null, (
-        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 24px", textAlign: "center", gap: 6, color: "#fff" }}>
-          <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "rgba(255,255,255,0.7)" }}>{t("pedidos.totalFeria")}{feriaActual ? ` · ${feriaActual.name}` : ""}</span>
-          <span style={{ fontSize: 40, fontWeight: 700, color: "#86EFAC", fontVariantNumeric: "tabular-nums" }}>{dinero(tot.total)}</span>
-          <span style={{ fontSize: 15, color: "rgba(255,255,255,0.8)" }}>{[t("pedidos.productos", { count: conContenido.reduce((n, p) => n + (p.items || []).length, 0) }), tot.bultos ? `${fNumero(tot.bultos)} ${t("pedido.bultosCorto")}` : null, `${fNumero(tot.unidades)} ${t("pedido.unidadesCorto")}`, tot.cbm ? fCbm(tot.cbm) : null].filter(Boolean).join(" · ")}</span>
-          {tot.cbm > 0 && <span style={{ fontSize: 14, color: "rgba(255,255,255,0.7)" }}>{t("pedido.contenedor", { porcentaje: tot.porcentajeContenedor })}</span>}
-          {onDescargarExcelFeria && <div style={{ marginTop: 18 }}><Boton variante="principal" icono="excel" onClick={() => onDescargarExcelFeria(filtro, feriaActual)}>{t("pedidos.descargarExcel")}</Boton></div>}
-        </div>
-      ));
-    }
-    return marco(x.clave, null, (
-      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 28px", textAlign: "center", gap: 8, color: "#fff" }}>
-        <Icono nombre="pedido" tamano={40} color="rgba(255,255,255,0.6)" />
-        <span style={{ fontSize: 22, fontWeight: 700 }}>{t("pedidos.vacioTitulo")}</span>
-        <span style={{ fontSize: 15, color: "rgba(255,255,255,0.75)", lineHeight: 1.4 }}>{t("pedidos.vacioTexto")}</span>
-      </div>
-    ));
-  };
+  const vacio = conContenido.length === 0 && sinPedido.length === 0;
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "#000", color: "#fff", fontFamily: "inherit", zIndex: 50 }}>
-      <div ref={pagerRef} onScroll={onScrollPager} style={{ position: "absolute", inset: 0, overflowY: "auto", scrollSnapType: "y mandatory", scrollbarWidth: "none", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch" }}>
-        {prev && pantalla(prev, false)}
-        {actual && pantalla(actual, true)}
-        {next && pantalla(next, false)}
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: `calc(0px + 8px) ${espacios.margenLateral}px 8px`, minHeight: alturas.tocable + 16 }}>
+        <button type="button" onClick={onBack} aria-label={t("comun.volver")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}><Icono nombre="volver" tamano={20} color={paleta.muted} /></button>
+        <h1 style={{ ...texto("titulo"), margin: 0, flex: 1 }}>{t("pedidos.titulo")}</h1>
       </div>
 
-      {/* Arriba: volver, la posición, y las ferias si hay más de una */}
-      <div style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 12px)`, left: 0, right: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px" }}>
-          <button type="button" onClick={onBack} aria-label={t("comun.volver")} style={{ width: 48, height: 48, borderRadius: 24, border: "none", background: "rgba(10,14,23,0.55)", display: "grid", placeItems: "center", cursor: "pointer", backdropFilter: "blur(6px)" }}><Icono nombre="volver" tamano={22} color="#fff" /></button>
-          <span style={{ background: "rgba(10,14,23,0.55)", color: "#fff", borderRadius: 999, padding: "8px 14px", fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums", backdropFilter: "blur(6px)" }}>{t("pedidos.titulo")}{conContenido.length > 0 && actual?.tipo === "pedido" ? ` · ${t("pedidos.posicion", { n: i + 1, total: conContenido.length })}` : ""}</span>
-          <span style={{ width: 48 }} />
-        </div>
+      <div style={{ flex: 1, overflowY: "auto", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", padding: `0 ${espacios.margenLateral}px 40px`, display: "flex", flexDirection: "column", gap: espacios.entreFilas, maxWidth: 720, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
         {districts.length > 1 && (
-          <FilaDeChips estilo={{ padding: "0 14px" }}>
-            <Chip activo={feria === "todas"} onClick={() => cambiarFeria("todas")} estilo={feria === "todas" ? undefined : { background: "rgba(10,14,23,0.55)", color: "#fff", borderColor: "transparent" }}>{t("pedidos.todasLasFerias")}</Chip>
-            {districts.map(d => <Chip key={d.id} activo={feria === d.id} onClick={() => cambiarFeria(d.id)} estilo={feria === d.id ? undefined : { background: "rgba(10,14,23,0.55)", color: "#fff", borderColor: "transparent" }}>{d.name}</Chip>)}
+          <FilaDeChips>
+            <Chip activo={feria === "todas"} onClick={() => setFeria("todas")}>{t("pedidos.todasLasFerias")}</Chip>
+            {districts.map(d => <Chip key={d.id} activo={feria === d.id} onClick={() => setFeria(d.id)}>{d.name}</Chip>)}
           </FilaDeChips>
         )}
+
+        {/* Crear nuevo pedido (Nati, 22/09): un pedido es un proveedor; se elige y se abre Armar pedido */}
+        <Boton variante="principal" ancho="total" icono="mas" onClick={() => setEligiendo(true)}>{t("pedidos.crearNuevo")}</Boton>
+
+        {vacio && (
+          <div style={{ textAlign: "center", padding: "40px 16px" }}>
+            <Icono nombre="pedido" tamano={32} color={paleta.dim} />
+            <p style={{ ...texto("destacado"), margin: "12px 0 6px" }}>{t("pedidos.vacioTitulo")}</p>
+            <p style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted, margin: 0 }}>{t("pedidos.vacioTexto")}</p>
+          </div>
+        )}
+
+        {conContenido.map(pedido => {
+          const prov = suppliers.find(s => s.id === pedido.supplierId);
+          if (!prov) return null;
+          const tp = totalesDePedido(pedido, products);
+          const estado = pedido.estado === "enviado" && pedido.enviadoEl ? t("pedidos.enviado", { fecha: fechaCorta(pedido.enviadoEl) }) : t("pedidos.enCurso");
+          const sub = [tp.bultos ? `${fNumero(tp.bultos)} ${t("pedido.bultosCorto")}` : `${fNumero(tp.unidades)} ${t("pedido.unidadesCorto")}`, tp.cbm ? fCbm(tp.cbm) : null, estado].filter(Boolean).join(" · ");
+          return <Fila key={pedido.id} onClick={() => onAbrirPedido?.(prov)} flecha titulo={<>{prov.favorito ? <><Icono nombre="favorito" tamano={13} color={paleta.accentTexto} /> </> : null}{prov.company || `#${prov.id}`}</>} subtitulo={sub} derecha={<Precio>{tp.total ? dinero(tp.total) : "—"}</Precio>} />;
+        })}
+
+        {sinPedido.map(({ proveedor, favoritos }) => (
+          <Fila key={`sin-${proveedor.id}`} onClick={() => onAbrirPedido?.(proveedor)} flecha titulo={<>{proveedor.favorito ? <><Icono nombre="favorito" tamano={13} color={paleta.accentTexto} /> </> : null}{proveedor.company || `#${proveedor.id}`}</>}
+            subtitulo={`${t("pedidos.sinPedido")}${favoritos ? ` · ${t("pedidos.favoritos", { count: favoritos })}` : ""}`}
+            derecha={<span style={{ ...texto("pie", { fontWeight: 600 }), color: paleta.accentTexto }}>{t("pedidos.armar")}</span>} />
+        ))}
+
+        {conContenido.length > 0 && (
+          <div style={{ background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, padding: "12px 14px", boxShadow: paleta.sombraTarjeta, display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10 }}>
+              <span style={{ ...texto("cuerpo", { fontWeight: 600 }) }}>{t("pedidos.totalFeria")}</span>
+              <span style={{ ...texto("titulo"), color: paleta.green, fontVariantNumeric: "tabular-nums" }}>{dinero(tot.total)}</span>
+            </div>
+            <p style={{ ...texto("pie"), color: paleta.muted, margin: 0 }}>{[tot.bultos ? `${fNumero(tot.bultos)} ${t("pedido.bultosCorto")}` : null, `${fNumero(tot.unidades)} ${t("pedido.unidadesCorto")}`, tot.cbm ? fCbm(tot.cbm) : null].filter(Boolean).join(" · ")}</p>
+            {tot.cbm > 0 && <p style={{ ...texto("pie"), color: paleta.muted, margin: 0 }}>{t("pedido.contenedor", { porcentaje: tot.porcentajeContenedor })}</p>}
+            {onDescargarExcelFeria && <Boton variante="secundario" ancho="total" icono="excel" onClick={() => onDescargarExcelFeria(filtro, feriaActual)}>{t("pedidos.descargarExcel")}</Boton>}
+          </div>
+        )}
       </div>
+
+      <Hoja abierta={eligiendo} onCerrar={() => setEligiendo(false)} titulo={t("pedidos.elegirProveedor")}>
+        {(() => {
+          const conProductos = suppliers.filter(s => (filtro == null || s.districtId === filtro) && productosParaPedido(products, s.id).length > 0).sort((a, b) => (b.favorito ? 1 : 0) - (a.favorito ? 1 : 0) || (b.createdAt || 0) - (a.createdAt || 0));
+          if (conProductos.length === 0) return <p style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted, margin: 0 }}>{t("pedidos.sinProveedoresConProductos")}</p>;
+          return <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{conProductos.map(s => <Fila key={s.id} onClick={() => { setEligiendo(false); onAbrirPedido?.(s); }} flecha titulo={<>{s.favorito ? <><Icono nombre="favorito" tamano={13} color={paleta.accentTexto} /> </> : null}{s.company || `#${s.id}`}</>} subtitulo={t("proveedor.conProductos", { count: productosParaPedido(products, s.id).length })} />)}</div>;
+        })()}
+      </Hoja>
     </div>
   );
 }

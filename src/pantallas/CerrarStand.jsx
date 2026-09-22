@@ -11,7 +11,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Bloque, Campo, Chip, FilaDeChips, Fila, Icono, Esqueleto } from "../componentes/index.js";
+import { Boton, Bloque, Campo, Chip, FilaDeChips, Fila, Icono, Esqueleto, Hoja } from "../componentes/index.js";
 
 // Los datos largos van con la etiqueta arriba y el valor abajo.
 const APILADOS = new Set(["email", "website", "address", "products", "wechat"]);
@@ -53,6 +53,7 @@ export function CerrarStand({
   abierto = false, // stand abierto (21/09): esta es la pantalla del stand; se vuelve a la cámara con un botón, sin Listo
 }) {
   const { t } = useTranslation();
+  const [datosAbiertos, setDatosAbiertos] = useState(false); // stand abierto: la hoja para corregir los datos leídos
   const { paleta, alturas, radios, texto, espacios } = useSistema();
   const [buscando, setBuscando] = useState(false);
   const [masDatos, setMasDatos] = useState(false);
@@ -125,14 +126,14 @@ export function CerrarStand({
 
         {/* A la derecha: corregir datos, la tarjeta de nuevo, el catálogo */}
         <div style={{ position: "absolute", right: 10, bottom: `calc(250px + env(safe-area-inset-bottom, 0px))`, display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
-          {redondo("editar", t("cerrarStand.corregirDatos"), onEditar, { rotulo: t("cerrarStand.editar") })}
+          {redondo("editar", t("cerrarStand.corregirDatos"), () => setDatosAbiertos(true), { rotulo: t("cerrarStand.editar") })}
           {redondo("tarjeta", cardPhoto ? t("cerrarStand.sacarTarjetaDeNuevo") : t("cerrarStand.escanearTarjeta"), () => { if (cardPhoto) onQuitarTarjeta?.(); onSacarTarjeta?.(); }, { rotulo: t("cerrarStand.tarjeta") })}
           {redondo("foto", t("visor.catalogo"), onCatalogo, { rotulo: t("visor.catalogo") })}
         </div>
 
         {/* El pie: lo leído de la tarjeta, la tira de productos, Listo */}
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: `80px 18px calc(16px + env(safe-area-inset-bottom, 0px))`, background: "linear-gradient(to top, rgba(10,14,23,0.92) 65%, rgba(10,14,23,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 }}>
-          <button type="button" onClick={onEditar} style={{ background: "none", border: "none", padding: 0, textAlign: "left", color: "#fff", fontFamily: "inherit", cursor: "pointer", paddingRight: 60 }}>
+          <button type="button" onClick={() => setDatosAbiertos(true)} style={{ background: "none", border: "none", padding: 0, textAlign: "left", color: "#fff", fontFamily: "inherit", cursor: "pointer", paddingRight: 60 }}>
             {cardProcessing && !proveedor.name ? <Esqueleto ancho={200} alto={22} estilo={{ background: "rgba(255,255,255,0.35)" }} /> : <p style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere", color: proveedor.name ? "#fff" : "rgba(255,255,255,0.6)" }}>{proveedor.name || t("cerrarStand.nombreEmpresa")}</p>}
             <p style={{ margin: "2px 0 0", fontSize: 16, fontWeight: 500, color: proveedor.contact ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.55)" }}>{proveedor.contact || t("cerrarStand.agregarVendedor")}</p>
           </button>
@@ -154,6 +155,29 @@ export function CerrarStand({
           </Boton>
           {errorGuardar && <p style={{ margin: "6px 0 0", fontSize: 13, color: "#FCA5A5", textAlign: "center" }}>{t("cerrarStand.errorGuardar")}</p>}
         </div>
+
+        {/* Los datos, en una hoja como en las fichas (Nati, 22/09: la pantalla vieja de campos no va más) */}
+        <Hoja abierta={datosAbiertos} onCerrar={() => setDatosAbiertos(false)} titulo={t("cerrarStand.corregirDatos")} altura="completa">
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, color: paleta.text }}>
+            <Bloque>
+              <Campo etiqueta={t("cerrarStand.empresa")} valor={proveedor.name} onChange={v => cambiar("name")(v)} />
+              <Campo etiqueta={t("cerrarStand.vendedor")} valor={proveedor.contact} onChange={v => cambiar("contact")(v)} />
+              <Campo etiqueta="WeChat" valor={proveedor.wechat} apilado onChange={v => cambiar("wechat")(v)} />
+              <Campo etiqueta="WhatsApp" valor={proveedor.whatsapp} onChange={v => cambiar("whatsapp")(v)} />
+              <Campo etiqueta={t("cerrarStand.telefono")} valor={proveedor.phone} onChange={v => cambiar("phone")(v)} />
+              <Campo etiqueta={t("cerrarStand.email")} valor={proveedor.email} apilado onChange={v => cambiar("email")(v)} />
+              <Campo etiqueta={t("cerrarStand.web")} valor={proveedor.website} apilado onChange={v => cambiar("website")(v)} />
+              <Campo etiqueta={t("proveedor.direccion")} valor={proveedor.address} apilado multilinea onChange={v => cambiar("address")(v)} />
+            </Bloque>
+            <Bloque>
+              <Campo etiqueta={t("cerrarStand.minimoDeCompra")} valor={proveedor.minimoDeCompra} tipo="numero" sufijo="USD" onChange={v => cambiar("minimoDeCompra")(v)} />
+              <Campo etiqueta={t("cerrarStand.comentarios")} valor={proveedor.notes} onChange={v => cambiar("notes")(v)} multilinea apilado placeholder={t("cerrarStand.comentariosPista")} />
+            </Bloque>
+            {(ultimoProveedor || (proveedoresFiltrados && proveedoresFiltrados.length > 0)) && !vinculado && (
+              <Boton variante="secundario" ancho="total" icono="proveedor" onClick={() => { setDatosAbiertos(false); onEditar?.(); }}>{t("cerrarStand.vincularExistente")}</Boton>
+            )}
+          </div>
+        </Hoja>
       </div>
     );
   }

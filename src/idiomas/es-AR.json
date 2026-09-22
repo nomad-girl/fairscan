@@ -99,7 +99,7 @@
     "standSinTarjeta_other": "Stand sin tarjeta · {{count}} fotos",
     "standConNombre_one": "{{nombre}} · {{count}} foto",
     "standConNombre_other": "{{nombre}} · {{count}} fotos",
-    "leyendoTarjeta": "Leyendo la tarjeta…",
+    "leyendoTarjeta": "Leyendo la tarjeta · seguí sacando",
     "abrirStand": "Abrir el stand",
     "standTarjetaSinLeer_one": "Tarjeta sin leer · {{count}} foto",
     "standTarjetaSinLeer_other": "Tarjeta sin leer · {{count}} fotos",
@@ -176,7 +176,8 @@
     "seguirSacando": "Seguir sacando fotos",
     "sacarTarjetaDeNuevo": "Sacar la tarjeta de nuevo",
     "sinTarjetaAun": "Todavía sin tarjeta",
-    "primeraFoto": "Sacá la primera foto o escaneá la tarjeta"
+    "primeraFoto": "Sacá la primera foto o escaneá la tarjeta",
+    "vincularExistente": "Vincular a un proveedor ya cargado"
   },
   "catalogo": {
     "titulo": "Catálogo",
@@ -379,7 +380,10 @@
     "posicion": "{{n}} de {{total}}",
     "pedido": "Pedido",
     "sinTarjeta": "Sin tarjeta",
-    "verProducto": "Ver {{nombre}}"
+    "verProducto": "Ver {{nombre}}",
+    "agregarVendedor": "Agregar el nombre del vendedor",
+    "vendedor": "Vendedor",
+    "sacarFotos": "Sacar fotos de este proveedor"
   },
   "pedido": {
     "titulo": "Pedido",
@@ -446,6 +450,9 @@
     "unPedidoUnProveedor": "Un pedido es un proveedor: se arma con lo que le pediste",
     "armarPedido": "Armar pedido",
     "productos_one": "{{count}} producto",
-    "productos_other": "{{count}} productos"
+    "productos_other": "{{count}} productos",
+    "crearNuevo": "Crear nuevo pedido",
+    "elegirProveedor": "¿De qué proveedor?",
+    "sinProveedoresConProductos": "Primero sacá fotos de productos: el pedido se arma con ellas."
   }
 }

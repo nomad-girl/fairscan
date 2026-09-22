@@ -7,6 +7,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
+import { Icono } from "./Icono.jsx";
 
 export function Hoja({ abierta, onCerrar, titulo, altura = "media", children, pie }) {
   const { paleta, radios, movimiento, curvas, capas, duracion, reducido, texto } = useSistema();
@@ -61,9 +62,11 @@ export function Hoja({ abierta, onCerrar, titulo, altura = "media", children, pi
           transition: transicion, touchAction: "none",
         }}
       >
-        <div onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} style={{ padding: "10px 16px 6px", cursor: "grab", flexShrink: 0 }} aria-label={t("componentes.hoja.agarradera")}>
+        <div onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} style={{ padding: "10px 16px 6px", cursor: "grab", flexShrink: 0, position: "relative" }} aria-label={t("componentes.hoja.agarradera")}>
           <div style={{ width: 36, height: 4, borderRadius: 2, background: paleta.border, margin: "0 auto" }} />
-          {titulo && <h2 style={{ ...texto("titulo"), margin: "10px 0 0" }}>{titulo}</h2>}
+          {titulo && <h2 style={{ ...texto("titulo"), margin: "10px 44px 0 0" }}>{titulo}</h2>}
+          {/* La X: el gesto de arrastrar cuesta (Nati, 22/09); cerrar tiene que ser un toque */}
+          <button type="button" onClick={onCerrar} onPointerDown={e => e.stopPropagation()} aria-label={t("comun.cerrar")} style={{ position: "absolute", top: 12, right: 12, width: 40, height: 40, borderRadius: 20, border: "none", background: paleta.surface, display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="cerrar" tamano={20} color={paleta.muted} /></button>
         </div>
         <div style={{ overflowY: "auto", padding: "8px 16px 16px", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch" }}>{children}</div>
         {pie && <div style={{ padding: "8px 16px 12px", borderTop: `1px solid ${paleta.border}`, flexShrink: 0 }}>{pie}</div>}

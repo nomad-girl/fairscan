@@ -168,7 +168,7 @@ describe("Visor · stand abierto", () => {
   });
   it("mientras lee la tarjeta lo dice; si la tarjeta no se leyó lo avisa; en modo tarjeta no ofrece 'Sin tarjeta'", () => {
     const { unmount } = con(<Visor videoRef={{ current: null }} modo="product" itemsCount={1} standAbierto={{ nombre: "", fotos: 1, tieneTarjeta: true, leyendo: true }} />);
-    expect(screen.getByText("Leyendo la tarjeta… · 1 foto")).toBeTruthy();
+    expect(screen.getByText("Leyendo la tarjeta · seguí sacando · 1 foto")).toBeTruthy();
     unmount();
     const r = con(<Visor videoRef={{ current: null }} modo="product" itemsCount={1} standAbierto={{ nombre: "", fotos: 1, tieneTarjeta: true, leyendo: false }} />);
     expect(screen.getByText("Tarjeta sin leer · 1 foto")).toBeTruthy();
@@ -190,7 +190,8 @@ describe("CerrarStand · stand abierto", () => {
     fireEvent.click(screen.getByRole("button", { name: "Catálogo" }));
     expect(onCatalogo).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Agregar o corregir datos" }));
-    expect(onEditar).toHaveBeenCalled();
+    expect(screen.getByText("Comentarios")).toBeTruthy(); // la hoja de datos, no la pantalla vieja
+    expect(onEditar).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Seguir sacando fotos" }));
     expect(onVolverAlVisor).toHaveBeenCalled();
     expect(onListo).not.toHaveBeenCalled();

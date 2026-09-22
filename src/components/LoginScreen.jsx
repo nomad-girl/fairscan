@@ -7,11 +7,8 @@ import { listaDeRubros, RUBRO_POR_DEFECTO } from '../lib/presets.js';
  * ponerle mail y contraseña. Mismo formulario de registro, pero la cuenta no se
  * crea: se completa la que ya tiene, y el catálogo queda donde está.
  */
-// La lógica del feed (Nati, 22/09): fondo oscuro liso, sin tarjeta blanca ni logo grande; la marca es la palabra.
-const OSCURO = { bg: "#0B0E17", card: "#0B0E17", text: "#FFFFFF", muted: "rgba(255,255,255,0.78)", dim: "rgba(255,255,255,0.55)", border: "rgba(255,255,255,0.35)", surface: "rgba(255,255,255,0.12)", accent: "#EA5A22", red: "#FCA5A5", redSoft: "rgba(220,38,38,0.25)", green: "#86EFAC", greenSoft: "rgba(21,128,61,0.25)" };
-
 export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCancel }) {
-  const t = { ...tTema, ...OSCURO };
+  const t = tTema; // tema claro: el oscuro liso quedó vacío (Nati, 22/09: "toda oscura, no dice nada")
   const [mode, setMode] = useState(convertir ? 'register' : 'login'); // 'login' | 'register'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -107,8 +104,8 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
       position: 'relative',
     }}>
       {onCancel && !convertir && (
-        <button type="button" onClick={onCancel} aria-label="Volver" style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top, 0px) + 12px)', left: 14, width: 48, height: 48, borderRadius: 24, border: 'none', background: 'rgba(255,255,255,0.12)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
-          <Icono nombre="volver" tamano={22} color="#fff" />
+        <button type="button" onClick={onCancel} aria-label="Volver" style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top, 0px) + 12px)', left: 14, width: 48, height: 48, borderRadius: 24, border: 'none', background: t.surface, display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+          <Icono nombre="volver" tamano={22} color={t.text} />
         </button>
       )}
       <div style={{ width: '100%', maxWidth: 360 }}>
@@ -118,6 +115,7 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
           <p style={{ fontSize: 15, color: t.muted, margin: 0 }}>
             {mode === 'login' ? 'Entrar con tu cuenta' : convertir ? 'Creá tu cuenta para no perder tu catálogo' : 'Creá tu cuenta'}
           </p>
+          <p style={{ fontSize: 14, color: t.muted, margin: '12px 0 0', lineHeight: 1.45 }}>Sacá la foto. La app le pone nombre, lee la tarjeta y arma el pedido.</p>
         </div>
 
         {/* Form */}

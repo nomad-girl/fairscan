@@ -66,14 +66,14 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
   const [datosAbiertos, setDatosAbiertos] = useState(false);
   const pagerRef = useRef(null);
   const timerRef = useRef(null);
+  const navegandoRef = useRef(false);
   const centro = prev ? 1 : 0;
-  useLayoutEffect(() => { const el = pagerRef.current; if (el) el.scrollTop = centro * el.clientHeight; }, [centro]);
+  useLayoutEffect(() => { const el = pagerRef.current; if (el) el.scrollTop = centro * el.clientHeight; navegandoRef.current = false; }, [p.id, centro]);
   // Al asentarse en una vecina, se navega. Se decide en el momento exacto en que la foto encaja
   // (a 2 px del punto de encaje) y, por si el encaje no llega a verse, con un segundo chequeo
   // 220 ms después del último movimiento. Antes se decidía a los 90 ms, mientras el iPhone
   // seguía animando el encaje: leía una posición intermedia, no navegaba y el feed quedaba
   // trabado en la última pantalla (Nati, 21/09: "escroleo 3 y se traba").
-  const navegandoRef = useRef(false);
   const decidir = (el) => {
     if (navegandoRef.current) return;
     const h = Math.max(1, el.clientHeight);
@@ -113,6 +113,8 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
     const sinNombreX = !x.name && !x.ai_processed && estadoIA(x) !== "fallo";
     return (
       <div key={x.id} style={{ height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative", background: "#000" }}>
+        {/* La miniatura, borrosa, debajo: la foto grande aparece encima cuando termina de cargar (deslizar se siente al toque) */}
+        {x.thumb && <img src={x.thumb} alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "blur(10px)", transform: "scale(1.08)" }} />}
         <div onScroll={esta ? (e => setFoto(Math.round(e.target.scrollLeft / Math.max(1, e.target.offsetWidth)))) : undefined} style={{ position: "absolute", inset: 0, display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch" }}>
           {fs.length > 0 ? fs.map((ph, i) => (
             <div key={i} style={{ width: "100%", height: "100%", flexShrink: 0, scrollSnapAlign: "start" }}>

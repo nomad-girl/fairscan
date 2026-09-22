@@ -15,6 +15,7 @@ import { palabrasDeBusqueda, coincideBusqueda } from "../lib/busqueda.js";
 import { soloDeHoy, resumenDelDia, conEncabezadosDeDia } from "../lib/porDia.js";
 import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
 import { estadoIA } from "../lib/aiEstado.js";
+import { proveedorVacio } from "../lib/proveedores.js";
 import { haceCuanto } from "../idiomas/formato.js";
 
 function Iniciales({ texto }) {
@@ -56,7 +57,7 @@ export function Catalogo({
   const [avisoOculto, setAvisoOculto] = useState(false); // el cartel "procesando" se puede sacar (Nati, 21/09)
 
   const proveedoresBuscados = useMemo(() => {
-    const base = feria === "todas" ? suppliers : suppliers.filter(s => s.districtId === activeDistrictId);
+    const base = (feria === "todas" ? suppliers : suppliers.filter(s => s.districtId === activeDistrictId)).filter(s => !proveedorVacio(s, products));
     const r = palabras.length ? base.filter(s => coincideBusqueda([s.company, s.contact, s.products, s.notes], palabras)) : base;
     return [...r].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }, [suppliers, feria, activeDistrictId, palabras]);
