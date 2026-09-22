@@ -52,6 +52,19 @@ describe("Catálogo", () => {
     fireEvent.click(screen.getByText("Revisar el día"));
     expect(onRevisarDia).toHaveBeenCalled();
   });
+  it("selección múltiple: se eligen fotos, se confirma y se borran juntas con deshacer", () => {
+    const onEliminarVarios = vi.fn();
+    con(<Catalogo products={products} suppliers={suppliers} districts={districts} activeDistrictId={1} activeDistrict={districts[0]} pestana="todo" onEliminarVarios={onEliminarVarios} />);
+    fireEvent.click(screen.getByRole("button", { name: "Seleccionar" }));
+    expect(screen.getByText("Tocá las fotos que querés borrar")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Taza de cerámica blanca" }));
+    fireEvent.click(screen.getByRole("button", { name: "Vela vieja" }));
+    expect(screen.getByText("2 seleccionados")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^Eliminar$/ }));
+    expect(screen.getByText("¿Eliminar 2 productos?")).toBeTruthy();
+    fireEvent.click(screen.getAllByRole("button", { name: /Eliminar/ }).pop());
+    expect(onEliminarVarios).toHaveBeenCalledWith(expect.arrayContaining([1, 4]));
+  });
   it("vacío del todo: una sola acción, sacar la primera foto", () => {
     const onNavigate = vi.fn();
     con(<Catalogo products={[]} suppliers={[]} districts={districts} activeDistrictId={1} activeDistrict={districts[0]} pestana="todo" onNavigate={onNavigate} />);

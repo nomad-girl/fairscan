@@ -3595,7 +3595,7 @@ export default function App() {
           onNavigate={(s, d, lista) => { if (lista) (s === "supplier" ? setOrdenProveedores : setOrdenFicha)(lista.map(x => x.id)); navigate(s, d); }} onSwitchDistrict={switchDistrict}
           onToggleFavorito={(p) => handleUpdateProduct(p.id, { favorito: p.favorito ? 0 : 1 })}
           onToggleFavoritoProveedor={async (s) => { const favorito = s.favorito ? 0 : 1; await dbUpdateSupplier(s.id, { favorito }); setSuppliers(prev => prev.map(x => x.id === s.id ? { ...x, favorito } : x)); }}
-          onRevisarDia={() => navigate("revisar")}
+          onRevisarDia={() => navigate("revisar")} onEliminarVarios={handleBatchDelete}
           pestana={listTab} onPestana={setListTab} />
       )}
       {(screen === "capture" || screen === "capture-supplier") && (

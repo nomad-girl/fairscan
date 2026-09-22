@@ -224,7 +224,17 @@
     "deHoy_one": "{{count}} de hoy",
     "deHoy_other": "{{count}} de hoy",
     "procesandoCorto_one": "{{count}} procesando",
-    "procesandoCorto_other": "{{count}} procesando"
+    "procesandoCorto_other": "{{count}} procesando",
+    "seleccionar": "Seleccionar",
+    "seleccionados_one": "{{count}} seleccionado",
+    "seleccionados_other": "{{count}} seleccionados",
+    "eliminarSeleccion": "Eliminar",
+    "eliminarVariosSeguro_one": "¿Eliminar {{count}} producto?",
+    "eliminarVariosSeguro_other": "¿Eliminar {{count}} productos?",
+    "eliminarVariosTexto": "Se puede deshacer durante unos segundos desde el aviso. Las fotos se borran del teléfono y de la nube.",
+    "cancelar": "Cancelar",
+    "listo": "Listo",
+    "tocaParaSeleccionar": "Tocá las fotos que querés borrar"
   },
   "revisar": {
     "titulo": "Revisar el día",

@@ -27,7 +27,7 @@ function Iniciales({ texto }) {
 export function Catalogo({
   products = [], suppliers = [], districts = [], activeDistrictId, activeDistrict, bajando = null, queueCount = 0, enLinea = true,
   Foto, t: tLegacy,
-  onNavigate, onSwitchDistrict, onToggleFavorito, onToggleFavoritoProveedor, onRevisarDia,
+  onNavigate, onSwitchDistrict, onToggleFavorito, onToggleFavoritoProveedor, onRevisarDia, onEliminarVarios,
   pestana = "todo", onPestana,
 }) {
   const { t } = useTranslation();
@@ -70,7 +70,12 @@ export function Catalogo({
   const redescubierto = useMemo(() => favoritosViejos.length ? favoritosViejos[(semilla + favoritosViejos.length) % favoritosViejos.length] : null, [favoritosViejos, semilla]);
   const hayQueRevisar = deHoy.length > 0 && (resumen.sinPrecio > 0 || deHoy.some(p => !p.supplierId) || deHoy.some(p => p.favorito) || deHoy.length >= 3);
 
-  const abrir = (p) => onNavigate?.("detail", p, filtrados); // el orden con los filtros puestos: la ficha desliza por estos vecinos (21/09)
+  // Selección múltiple para borrar (Nati, 22/09: "quise borrar y me di cuenta que falta selección múltiple")
+  const [seleccion, setSeleccion] = useState(null); // null = normal · Set de ids = eligiendo
+  const [confirmandoBorrado, setConfirmandoBorrado] = useState(false);
+  const alternarSeleccion = (p) => setSeleccion(prev => { const n = new Set(prev || []); if (n.has(p.id)) n.delete(p.id); else n.add(p.id); return n; });
+  const borrarSeleccion = () => { const ids = [...(seleccion || [])]; setConfirmandoBorrado(false); setSeleccion(null); if (ids.length) onEliminarVarios?.(ids); };
+  const abrir = (p) => seleccion ? alternarSeleccion(p) : onNavigate?.("detail", p, filtrados); // el orden con los filtros puestos: la ficha desliza por estos vecinos (21/09)
   const nombreFeria = feria === "todas" ? t("catalogo.todasLasFerias") : (activeDistrict?.name || "");
 
   // Función, no componente: un componente definido adentro del render es un tipo nuevo cada vez y React
@@ -83,7 +88,8 @@ export function Catalogo({
 
   const celda = (p) => (
     <CeldaDeFoto key={p.id} onClick={() => abrir(p)} etiqueta={p.name || t("catalogo.procesandoNombre")} favorito={!!p.favorito} fotos={p.photos?.length || 0}
-      insignia={estadoIA(p) === "fallo" ? <span style={{ width: 22, height: 22, borderRadius: 6, background: "rgba(220,38,38,0.85)", display: "grid", placeItems: "center" }}><Icono nombre="error" tamano={13} color="#fff" /></span> : (!p.name && !p.ai_processed) ? <Esqueleto ancho={22} alto={22} radio={6} estilo={{ background: "rgba(241,245,249,0.7)" }} /> : null}>
+      estilo={seleccion ? { opacity: seleccion.has(p.id) ? 1 : 0.55, outline: seleccion.has(p.id) ? `3px solid ${paleta.accent}` : "none", outlineOffset: -3 } : undefined}
+      insignia={seleccion ? <span style={{ width: 24, height: 24, borderRadius: 12, border: "2px solid #fff", background: seleccion.has(p.id) ? paleta.accent : "rgba(10,14,23,0.35)", display: "grid", placeItems: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.4)" }}>{seleccion.has(p.id) && <Icono nombre="listo" tamano={14} color="#fff" />}</span> : estadoIA(p) === "fallo" ? <span style={{ width: 22, height: 22, borderRadius: 6, background: "rgba(220,38,38,0.85)", display: "grid", placeItems: "center" }}><Icono nombre="error" tamano={13} color="#fff" /></span> : (!p.name && !p.ai_processed) ? <Esqueleto ancho={22} alto={22} radio={6} estilo={{ background: "rgba(241,245,249,0.7)" }} /> : null}>
       {miniatura(p)}
     </CeldaDeFoto>
   );
@@ -142,6 +148,14 @@ export function Catalogo({
             {/* Arriba de la grilla, una sola fila (decisión de Nati, 22/09: la lógica del feed; pantalla 3 del
                 wireframe): la pastilla naranja "Revisar el día · N de hoy" reemplaza al cartel de procesando,
                 al botón de vista y a la fila de revisar; favoritos queda como un filtro chico a la derecha. */}
+            {seleccion ? (
+              <div style={{ display: "flex", gap: 8, alignItems: "center", minHeight: 40 }}>
+                <span style={{ ...texto("cuerpo", { fontWeight: 600 }) }}>{seleccion.size ? t("catalogo.seleccionados", { count: seleccion.size }) : t("catalogo.tocaParaSeleccionar")}</span>
+                <span style={{ flex: 1 }} />
+                <Boton variante="peligro" icono="borrar" deshabilitado={seleccion.size === 0} onClick={() => setConfirmandoBorrado(true)}>{t("catalogo.eliminarSeleccion")}</Boton>
+                <Boton variante="secundario" onClick={() => setSeleccion(null)}>{t("catalogo.cancelar")}</Boton>
+              </div>
+            ) : (
             <div style={{ display: "flex", gap: 8, alignItems: "center", minHeight: 40 }}>
               {deHoy.length > 0 && onRevisarDia ? (
                 <button type="button" onClick={onRevisarDia} style={{ display: "inline-flex", alignItems: "center", gap: 6, minHeight: 40, padding: "0 14px", borderRadius: radios.pildora, border: "none", background: paleta.accent, color: "#fff", cursor: "pointer", fontFamily: "inherit", ...texto("pie", { fontWeight: 700 }) }}>
@@ -153,7 +167,13 @@ export function Catalogo({
               <button type="button" onClick={() => setFiltro(filtro === "favoritos" ? "todos" : "favoritos")} aria-pressed={filtro === "favoritos"} aria-label={t("catalogo.favoritos")} style={{ width: 36, height: 36, borderRadius: 18, border: `1px solid ${filtro === "favoritos" ? paleta.accent : paleta.border}`, background: filtro === "favoritos" ? paleta.accentSoft : paleta.surface, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}>
                 <Icono nombre="favorito" tamano={16} color={filtro === "favoritos" ? paleta.accentTexto : paleta.dim} />
               </button>
+              {onEliminarVarios && filtrados.length > 0 && (
+                <button type="button" onClick={() => setSeleccion(new Set())} aria-label={t("catalogo.seleccionar")} style={{ width: 36, height: 36, borderRadius: 18, border: `1px solid ${paleta.border}`, background: paleta.surface, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}>
+                  <Icono nombre="listo" tamano={16} color={paleta.dim} />
+                </button>
+              )}
             </div>
+            )}
 
             {filtrados.length === 0 && (
               <div style={{ textAlign: "center", padding: "40px 16px", display: "flex", flexDirection: "column", gap: 12, alignItems: "center" }}>
@@ -226,6 +246,15 @@ export function Catalogo({
               miniatura={<Icono nombre="feria" tamano={22} color={paleta.muted} />} titulo={d.name} subtitulo={`${d.location ? d.location + " · " : ""}${t("catalogo.productos", { count: products.filter(p => p.districtId === d.id).length })}`} />
           ))}
           <Boton variante="secundario" ancho="total" onClick={() => { setFeriaAbierta(false); onNavigate?.("districts"); }}>{t("catalogo.ferias")} ›</Boton>
+        </div>
+      </Hoja>
+
+      {/* Confirmar el borrado de varios: se puede deshacer unos segundos desde el aviso */}
+      <Hoja abierta={confirmandoBorrado} onCerrar={() => setConfirmandoBorrado(false)} titulo={t("catalogo.eliminarVariosSeguro", { count: seleccion?.size || 0 })}>
+        <p style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted, margin: "0 0 14px" }}>{t("catalogo.eliminarVariosTexto")}</p>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Boton variante="secundario" ancho="total" onClick={() => setConfirmandoBorrado(false)} estilo={{ flex: 1 }}>{t("catalogo.cancelar")}</Boton>
+          <Boton variante="peligro" ancho="total" icono="borrar" onClick={borrarSeleccion} estilo={{ flex: 1 }}>{t("catalogo.eliminarSeleccion")}</Boton>
         </div>
       </Hoja>
     </div>
