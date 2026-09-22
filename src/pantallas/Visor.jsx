@@ -35,8 +35,8 @@ export function Visor({
   videoRef, modo = "product", feria, itemsCount = 0, saldo = null, trial = 15, esperando = 0, estadoSync = "guardado", pendientesSync = 0,
   flash = false, ultimaCaptura = null, ultimas = [], puedeAgregarAngulo = false,
   datos = null, moneda = "USD", onTeclaPrecio, onConfirmarPrecio, onCampo, onMoqBase, onFavorito,
-  onDisparar, onCerrarStand, onCatalogo, onCancelar, onSinTarjeta, onVolverAProductos, onAgregarAngulo, onBorrarFoto,
-  standAbierto = null, onStand, onTarjeta, // stand abierto (21/09): { nombre, fotos, tieneTarjeta, leyendo }; la tarjeta abre el stand, Cerrar stand lo cierra
+  onDisparar, onCatalogo, onCancelar, onVolverAProductos, onAgregarAngulo, onBorrarFoto,
+  standAbierto = null, onStand, onTarjeta, // el stand: { nombre, fotos, tieneTarjeta, leyendo }; la pastilla lo abre, Cerrar stand también
   consejoVisible = false, onConsejoVisto,
   onTouchStart, onTouchEnd,
 }) {
@@ -74,7 +74,7 @@ export function Visor({
   const teclas = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "⌫"];
 
   return (
-    <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#000", display: "flex", flexDirection: "column", color: BLANCO, fontFamily: "inherit", userSelect: "none" }}>
+    <div className="pantalla-fija" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#000", display: "flex", flexDirection: "column", color: BLANCO, fontFamily: "inherit", userSelect: "none" }}>
       <video ref={videoRef} autoPlay playsInline muted style={{ flex: 1, objectFit: "cover", width: "100%" }} />
 
       {/* Velo blanco del obturador (80 ms) */}
@@ -220,10 +220,8 @@ export function Visor({
 
         {/* Derecha: Cerrar stand (o Cancelar en modo tarjeta) */}
         <div style={{ width: 84, display: "flex", justifyContent: "flex-end" }}>
-          {esTarjeta && standAbierto ? null : esTarjeta ? (
-            <button type="button" onClick={onSinTarjeta || onCancelar} style={{ minWidth: alturas.miniatura, height: alturas.miniatura, padding: "0 12px", borderRadius: 14, border: "none", background: "rgba(241,245,249,0.14)", color: BLANCO, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", lineHeight: 1.2 }}>{t("visor.sinTarjeta")}</button>
-          ) : (
-            <button type="button" onClick={standAbierto ? onStand : onCerrarStand} style={{ width: 84, height: alturas.miniatura, borderRadius: 14, border: "none", background: (standAbierto ? (itemsCount > 0 || standAbierto.tieneTarjeta) : itemsCount > 0) ? MARCA.naranja : "rgba(241,245,249,0.14)", color: "#fff", fontSize: 12, fontWeight: 700, lineHeight: 1.15, cursor: "pointer", fontFamily: "inherit", textAlign: "center", padding: "0 6px", whiteSpace: "normal" }}>{t("visor.cerrarStand")}</button>
+          {esTarjeta ? null : (
+            <button type="button" onClick={onStand} style={{ width: 84, height: alturas.miniatura, borderRadius: 14, border: "none", background: (itemsCount > 0 || standAbierto?.tieneTarjeta) ? MARCA.naranja : "rgba(241,245,249,0.14)", color: "#fff", fontSize: 12, fontWeight: 700, lineHeight: 1.15, cursor: "pointer", fontFamily: "inherit", textAlign: "center", padding: "0 6px", whiteSpace: "normal" }}>{t("visor.cerrarStand")}</button>
           )}
         </div>
       </div>

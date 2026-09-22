@@ -493,7 +493,7 @@ function Bienvenida({ onEmpezar, sinCuenta, onEntrar }) {
   // Primera vez, sin foto (Nati, 22/09: "no es el código visual de la app"): el naranja de la marca arriba,
   // con FairScan y la frase en blanco; abajo, claro, los dos botones. Un toque y estás en la cámara.
   return (
-    <div style={{ position:"fixed", inset:0, background:"#F8FAFC", color:"#0F172A", fontFamily:"inherit", display:"flex", flexDirection:"column" }}>
+    <div className="pantalla-fija" style={{ position:"fixed", inset:0, background:"#F8FAFC", color:"#0F172A", fontFamily:"inherit", display:"flex", flexDirection:"column" }}>
       <div style={{ flex:1, background:"#EA5A22", color:"#fff", padding:"calc(env(safe-area-inset-top, 0px) + 40px) 24px 36px", display:"flex", flexDirection:"column", justifyContent:"flex-end", gap:12, borderRadius:"0 0 32px 32px" }}>
         <h1 style={{ fontSize:44, fontWeight:700, margin:0, letterSpacing:"-0.02em" }}>FairScan</h1>
         <p style={{ fontSize:19, fontWeight:500, margin:0, lineHeight:1.3, maxWidth:340, color:"rgba(255,255,255,0.92)" }}>Sacá la foto. La app le pone nombre, lee la tarjeta y arma el pedido.</p>
@@ -734,12 +734,10 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   const [supplierNotes, setSupplierNotes] = useState("");
   const [linkedSupplierId, setLinkedSupplierId] = useState(null);
   const [supplierMinimo, setSupplierMinimo] = useState(null); // mínimo de compra del proveedor (wireframe Cerrar stand)
-  const [modoCierre, setModoCierre] = useState("completo"); // "resumen" tras la tarjeta (una sola pantalla y Listo) · "completo" a mano o al Editar
   const [supplierFavorito, setSupplierFavorito] = useState(false); // favorito en proveedor y producto, nada más (decisión de Nati, 16/09)
   const [items, setItems] = useState([]);
-  // Stand abierto (decisión de Nati, 21/09): la cámara es la casa y el stand vive arriba como pastilla.
-  // Detrás de un interruptor hasta su OK en el iPhone; apagado, todo sigue como hoy.
-  const abierto = !!settings?.capturaAbierta;
+  // La captura es el stand abierto (decisión de Nati, 21/09; única desde el 22/09: la vieja se retiró).
+  const abierto = true;
   const guardadoTarjetaRef = useRef(null);
   // "+ ángulo": unos segundos después de cada disparo, la próxima foto se suma al último producto (recorrido, pantalla 2).
   const [anguloDisponible, setAnguloDisponible] = useState(false);
@@ -954,16 +952,11 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     setFlashVisible(true);
     setTimeout(() => setFlashVisible(false), 150);
     vibrarObturador();
-    if (cameraMode === "card" && abierto) {
-      // Stand abierto: la tarjeta se lee en segundo plano y se sigue sacando fotos.
+    if (cameraMode === "card") {
+      // La tarjeta se lee en segundo plano y se sigue sacando fotos.
       setCardPhoto(photo);
       processCardPhoto(photo);
       setCameraMode("product");
-    } else if (cameraMode === "card") {
-      setModoCierre("resumen"); // una sola pantalla y Listo (wireframe del recorrido)
-      closeCamera();
-      setCardPhoto(photo);
-      processCardPhoto(photo);
     } else if (cameraMode === "product") {
       if (addPhotoToItemId) {
         // Foto adicional a un producto que ya existe en la base. Desde "+ ángulo"
@@ -1169,10 +1162,8 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
           flash={flashVisible} ultimaCaptura={lastCapture} ultimas={ultimas} puedeAgregarAngulo={anguloDisponible && items.length > 0 && !addPhotoToItemId}
           datos={datosRapidos} datosActivos={settings?.datosDeCompra} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"} onTeclaPrecio={tocarPrecio} onConfirmarPrecio={confirmarPrecio} onCampo={cambiarCampoRapido} onMoqBase={cambiarMoqBase} onFavorito={alternarFavoritoRapido}
           onDisparar={handleCameraShutter}
-          onCerrarStand={() => openCamera("card")}
-          standAbierto={abierto ? { nombre: supplierName, fotos: items.length, tieneTarjeta: !!cardPhoto, leyendo: cardProcessing } : null}
-          onStand={() => { setModoCierre("resumen"); closeCamera(); }} onTarjeta={() => openCamera("card")}
-          onSinTarjeta={() => { setModoCierre("completo"); closeCamera(); }}
+          standAbierto={{ nombre: supplierName, fotos: items.length, tieneTarjeta: !!cardPhoto, leyendo: cardProcessing }}
+          onStand={() => closeCamera()} onTarjeta={() => openCamera("card")}
           onVolverAProductos={() => openCamera("product")}
           onCancelar={closeCamera}
           onCatalogo={() => { closeCamera(); apagarCamara(); onCatalogo?.(); }}
@@ -1198,16 +1189,16 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
         soloProveedor={soloProveedor} itemsCount={items.length} items={items}
         cardPhoto={cardPhoto} cardProcessing={cardProcessing}
         onSacarTarjeta={() => openCamera("card")} onTarjetaDeGaleria={() => cardGalleryRef.current?.click()}
-        onQuitarTarjeta={() => { setCardPhoto(null); setCardData(null); if (!abierto) { setSupplierName(""); setLinkedSupplierId(null); } }}
+        onQuitarTarjeta={() => { setCardPhoto(null); setCardData(null); }}
         proveedor={proveedor} onCambiarProveedor={cambiarProveedor}
         vinculado={linkedSupplierId} ultimoProveedor={lastSupplier} proveedoresFiltrados={filteredSuppliers} consulta={supplierQuery} onConsulta={setSupplierQuery}
         onVincular={(s) => { linkSupplier(s); setSupplierSearch(false); setSupplierQuery(""); }} onDesvincular={() => { setLinkedSupplierId(null); setSupplierName(""); }}
         nota={nota}
         onAgregarProducto={() => openCamera("product")} onProductoDeGaleria={() => prodGalleryRef.current?.click()}
         onSacarProducto={borrarItem} onFotoAProducto={(id) => { setAddPhotoToItemId(id); openCamera("product"); }}
-        onVolverAlVisor={() => { if (abierto) guardarStand({ final: false }); openCamera("product"); }} abierto={abierto} onCatalogo={() => { closeCamera(); apagarCamara(); onCatalogo?.(); }}
+        onVolverAlVisor={() => { guardarStand({ final: false }); openCamera("product"); }} onCatalogo={() => { closeCamera(); apagarCamara(); onCatalogo?.(); }}
         onListo={handleSave} guardando={saving} errorGuardar={saveError}
-        modo={modoCierre} onEditar={() => setModoCierre("completo")} onResumen={() => setModoCierre("resumen")} stand={cardData?.boothNumber || null}
+        stand={cardData?.boothNumber || null}
         borrador={borrador} onRetomar={retomarBorrador} onDescartar={descartarBorrador} descripcionBorrador={borrador ? describirBorrador(borrador) : null}
         avisoPermiso={<PermisoAviso info={cameraError} t={t} onClose={() => setCameraError(null)} onRetry={() => openCamera(cameraError?.modo)} alternativaLabel="Elegir de la galería" onAlternativa={() => (cameraError?.modo === "card" ? cardGalleryRef : prodGalleryRef).current?.click()} />}
       />
@@ -1410,12 +1401,6 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
       <Header title="Captura y pantalla" onBack={() => setSubScreen(null)} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
-        {/* Stand abierto (21/09): la captura nueva, detrás de un interruptor hasta el OK de Nati */}
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Captura · stand abierto (prueba)</p>
-        <button type="button" role="switch" aria-checked={!!loc.capturaAbierta} onClick={() => updateLoc(p => ({ ...p, capturaAbierta: !p.capturaAbierta }))} style={{ width:"100%", minHeight:44, padding:"10px 12px", borderRadius:10, border:`1.5px solid ${loc.capturaAbierta?t.accent:t.border}`, background:loc.capturaAbierta?t.accentSoft:"transparent", color:loc.capturaAbierta?t.accent:t.muted, fontSize:13, fontWeight:700, cursor:"pointer", textAlign:"left", fontFamily:"inherit", marginBottom:20 }}>
-          {loc.capturaAbierta ? "Activado" : "Desactivado"} · la tarjeta se saca cuando aparece, "Nuevo stand" es un toque y la pastilla de arriba abre el stand
-        </button>
-
         {/* Datos de compra tras la foto (Nati, 17/09): quien no usa MOQ, piezas por caja o CBM los apaga acá y el teclado solo pide precio */}
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Datos que pide el teclado después de la foto</p>
         <p style={{ fontSize:11, color:t.dim, margin:"0 0 8px", lineHeight:1.5 }}>El precio siempre. Los demás, apagalos si no los usás.</p>
@@ -1836,7 +1821,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
       <Header title="Configuración" onBack={onBack} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
-        <MenuItem icon={<Icono nombre="camara" tamano={22} color={t.accent} />} title="Captura y pantalla" subtitle={`${CURRENCIES[loc.currency]?.symbol || "USD"} · ${isDark ? "oscuro" : "claro"}`} onClick={() => setSubScreen("captura")} accent={loc.capturaAbierta ? t.accent : undefined} />
+        <MenuItem icon={<Icono nombre="camara" tamano={22} color={t.accent} />} title="Captura y pantalla" subtitle={`${CURRENCIES[loc.currency]?.symbol || "USD"} · ${isDark ? "oscuro" : "claro"}`} onClick={() => setSubScreen("captura")} />
         <MenuItem icon={<Icono nombre="equipo" tamano={22} color={t.accent} />} title="Equipo y sincronización" subtitle={activeTeam ? activeTeam.name : "Sin equipo"} onClick={() => setSubScreen("room")} />
         <MenuItem icon={<Icono nombre="nube" tamano={22} color={t.accent} />} title="Backup y datos" subtitle="JSON, nube" onClick={() => setSubScreen("backup")} />
 

@@ -18,7 +18,7 @@ const FOTO = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAAB
 describe("Visor", () => {
   it("sin saldo ni nube a la vista; el contador del stand y Cerrar stand; el obturador mide 72", () => {
     const onDisparar = vi.fn(), onCerrarStand = vi.fn();
-    con(<Visor videoRef={{ current: null }} modo="product" feria="🇨🇳 Cantón" itemsCount={3} saldo={12} estadoSync="sincronizando" pendientesSync={2} onDisparar={onDisparar} onCerrarStand={onCerrarStand} />);
+    con(<Visor videoRef={{ current: null }} modo="product" feria="🇨🇳 Cantón" itemsCount={3} saldo={12} estadoSync="sincronizando" pendientesSync={2} onDisparar={onDisparar} onStand={onCerrarStand} />);
     // El saldo y la nube ya no se muestran en la cámara (Nati, 22/09: distraen); el saldo vuelve solo cuando está por acabarse
     expect(screen.queryByText("12 de 15 escaneos de prueba")).toBeNull();
     expect(screen.queryByText("Sincronizando 2")).toBeNull();
@@ -43,12 +43,13 @@ describe("Visor", () => {
     fireEvent.click(screen.getByText("Borrar"));
     expect(onBorrarFoto).toHaveBeenCalledWith(7);
   });
-  it("en modo tarjeta guía el encuadre y ofrece Sin tarjeta", () => {
-    const onCancelar = vi.fn();
-    con(<Visor videoRef={{ current: null }} modo="card" onCancelar={onCancelar} />);
+  it("en modo tarjeta guía el encuadre y vuelve a productos; ya no hay 'Sin tarjeta' (la tarjeta se saca cuando aparece)", () => {
+    const onVolver = vi.fn();
+    con(<Visor videoRef={{ current: null }} modo="card" onVolverAProductos={onVolver} />);
     expect(screen.getByText("Encuadrá la tarjeta y tocá el obturador")).toBeTruthy();
-    fireEvent.click(screen.getByText("Sin tarjeta"));
-    expect(onCancelar).toHaveBeenCalled();
+    expect(screen.queryByText("Sin tarjeta")).toBeNull();
+    fireEvent.click(screen.getByText("Productos"));
+    expect(onVolver).toHaveBeenCalled();
   });
   it("el consejo aparece una vez y se marca visto al tocarlo; el teclado ampliado tiene los cuatro datos y la estrella", () => {
     const onConsejoVisto = vi.fn(), onTecla = vi.fn(), onConfirmar = vi.fn(), onCampo = vi.fn(), onFavorito = vi.fn();
@@ -90,62 +91,6 @@ describe("Visor · teclado vacío", () => {
   });
 });
 
-describe("CerrarStand", () => {
-  const proveedor = { name: "Yiwu Sunrise", contact: "Lily Chen", phone: "", email: "", wechat: "sunrise_lily", whatsapp: "", website: "", address: "", products: "", notes: "", favorito: false };
-  it("muestra la tarjeta, los campos con dato y 'Agregar ›' en los vacíos, el favorito y Listo", () => {
-    const onListo = vi.fn(), onCambiar = vi.fn();
-    con(<CerrarStand itemsCount={2} items={[{ id: 1, photos: [FOTO], price: "0.85" }, { id: 2, photos: [FOTO, FOTO] }]} cardPhoto={FOTO} proveedor={proveedor} onCambiarProveedor={onCambiar} onListo={onListo} />);
-    expect(screen.getByText("2 productos en este stand")).toBeTruthy();
-    expect(screen.getByText("Yiwu Sunrise")).toBeTruthy(); // el nombre, grande y arriba
-    expect(screen.getByText("Lily Chen")).toBeTruthy();    // el vendedor, debajo
-    expect(screen.getByText("sunrise_lily")).toBeTruthy(); // el único dato de contacto con valor
-    expect(screen.queryByText("Web")).toBeNull();          // lo vacío no ocupa lugar…
-    fireEvent.click(screen.getByText("Agregar un dato"));  // …hasta que se pide
-    expect(screen.getByText("Web")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Marcar como favorito" }));
-    expect(onCambiar).toHaveBeenCalledWith({ favorito: true });
-    fireEvent.click(screen.getByText("Listo"));
-    expect(onListo).toHaveBeenCalled();
-  });
-  it("sin tarjeta ofrece sacarla; los productos se pueden sacar del stand", () => {
-    const onSacarTarjeta = vi.fn(), onSacarProducto = vi.fn();
-    con(<CerrarStand itemsCount={1} items={[{ id: 9, photos: [FOTO] }]} proveedor={proveedor} onSacarTarjeta={onSacarTarjeta} onSacarProducto={onSacarProducto} />);
-    fireEvent.click(screen.getByText("Sacar la tarjeta"));
-    expect(onSacarTarjeta).toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Sacar del stand" }));
-    expect(onSacarProducto).toHaveBeenCalledWith(9);
-  });
-  it("tras la tarjeta: una sola pantalla con lo leído, favorito, mínimo, comentarios, Editar y Listo (wireframe)", () => {
-    const onListo = vi.fn(), onEditar = vi.fn(), onCambiar = vi.fn();
-    con(<CerrarStand modo="resumen" itemsCount={1} items={[{ id: 1, photos: [FOTO] }]} cardPhoto={FOTO} proveedor={proveedor} stand="10.2 F21" onCambiarProveedor={onCambiar} onListo={onListo} onEditar={onEditar} />);
-    expect(screen.getByText("Yiwu Sunrise")).toBeTruthy();
-    expect(screen.getByText("Lily Chen")).toBeTruthy(); // el vendedor, grande
-    expect(screen.getByText("sunrise_lily")).toBeTruthy();
-    expect(screen.getByText("10.2 F21")).toBeTruthy();
-    expect(screen.queryByText("Agregar un dato")).toBeNull(); // nada de formulario
-    fireEvent.click(screen.getByRole("button", { name: "Marcar como favorito" }));
-    expect(onCambiar).toHaveBeenCalledWith({ favorito: true });
-    fireEvent.click(screen.getByText("Editar"));
-    expect(onEditar).toHaveBeenCalled();
-    fireEvent.click(screen.getByText("Listo"));
-    expect(onListo).toHaveBeenCalled();
-  });
-  it("con un borrador pendiente ofrece retomar o descartar", () => {
-    const onRetomar = vi.fn();
-    con(<CerrarStand proveedor={proveedor} borrador={{}} descripcionBorrador={{ que: "3 productos", hace: "hace 2 horas" }} onRetomar={onRetomar} />);
-    expect(screen.getByRole("alertdialog")).toBeTruthy();
-    expect(screen.getByText("Quedó 3 productos, hace 2 horas. La app se cerró antes de cerrar el stand.")).toBeTruthy();
-    fireEvent.click(screen.getByText("Retomar"));
-    expect(onRetomar).toHaveBeenCalled();
-  });
-  it("en modo solo proveedor el botón dice Guardar proveedor y no muestra productos", () => {
-    con(<CerrarStand soloProveedor proveedor={proveedor} />);
-    expect(screen.getByText("Guardar proveedor")).toBeTruthy();
-    expect(screen.queryByText(/de este stand/)).toBeNull();
-  });
-});
-
-// Stand abierto (decisión de Nati, 21/09): la cámara es la casa; el stand vive arriba como pastilla.
 describe("Visor · stand abierto", () => {
   it("sin tarjeta la pastilla invita a escanearla y abre la cámara de tarjeta; Cerrar stand abre el stand", () => {
     const onStand = vi.fn(), onTarjeta = vi.fn(), onCerrarStand = vi.fn();
@@ -180,12 +125,12 @@ describe("Visor · stand abierto", () => {
   });
 });
 
-describe("CerrarStand · stand abierto", () => {
+describe("CerrarStand", () => {
   it("es la tarjeta a pantalla entera: la flecha vuelve a la cámara, el rail corrige y va al catálogo, un solo Listo cierra", () => {
     const onVolverAlVisor = vi.fn(), onListo = vi.fn();
     const proveedor = { name: "Yiwu Best Toys", contact: "", phone: "", email: "", wechat: "", whatsapp: "", website: "", address: "", products: "", notes: "", favorito: false, minimoDeCompra: null };
     const onEditar = vi.fn(), onCatalogo = vi.fn(), onResumen = vi.fn();
-    const r = con(<CerrarStand abierto modo="resumen" itemsCount={2} items={[{ id: 1, photos: [FOTO] }, { id: 2, photos: [FOTO] }]} cardPhoto={FOTO} proveedor={proveedor} onCambiarProveedor={vi.fn()} onVolverAlVisor={onVolverAlVisor} onListo={onListo} onEditar={onEditar} onCatalogo={onCatalogo} />);
+    const r = con(<CerrarStand itemsCount={2} items={[{ id: 1, photos: [FOTO] }, { id: 2, photos: [FOTO] }]} cardPhoto={FOTO} proveedor={proveedor} onCambiarProveedor={vi.fn()} onVolverAlVisor={onVolverAlVisor} onListo={onListo} onEditar={onEditar} onCatalogo={onCatalogo} />);
     expect(screen.getByText("Stand · 2 productos")).toBeTruthy();
     expect(screen.getByText("Yiwu Best Toys")).toBeTruthy(); // la empresa, grande, sobre la tarjeta
     fireEvent.click(screen.getByRole("button", { name: "Catálogo" }));
@@ -202,12 +147,18 @@ describe("CerrarStand · stand abierto", () => {
     r.unmount();
     // Sin tarjeta, el stand ofrece escanearla; el editor completo vuelve al stand
     const onSacarTarjeta = vi.fn();
-    const r2 = con(<CerrarStand abierto modo="resumen" itemsCount={0} items={[]} proveedor={{ ...proveedor, name: "" }} onCambiarProveedor={vi.fn()} onSacarTarjeta={onSacarTarjeta} />);
+    const r2 = con(<CerrarStand itemsCount={0} items={[]} proveedor={{ ...proveedor, name: "" }} onCambiarProveedor={vi.fn()} onSacarTarjeta={onSacarTarjeta} />);
     fireEvent.click(screen.getByText("Escanear tarjeta del proveedor"));
     expect(onSacarTarjeta).toHaveBeenCalled();
     r2.unmount();
-    con(<CerrarStand abierto modo="completo" itemsCount={1} items={[{ id: 1, photos: [FOTO] }]} cardPhoto={FOTO} proveedor={proveedor} onCambiarProveedor={vi.fn()} onResumen={onResumen} />);
-    fireEvent.click(screen.getByText("Volver al stand"));
-    expect(onResumen).toHaveBeenCalled();
+    // Un stand que quedó sin cerrar: retomar o descartar; en modo solo proveedor, Guardar proveedor
+    const onRetomar = vi.fn();
+    const r3 = con(<CerrarStand itemsCount={0} items={[]} proveedor={proveedor} onCambiarProveedor={vi.fn()} borrador={{}} descripcionBorrador={{ que: "3 productos", hace: "hace 2 horas" }} onRetomar={onRetomar} />);
+    fireEvent.click(screen.getByText("Retomar"));
+    expect(onRetomar).toHaveBeenCalled();
+    r3.unmount();
+    con(<CerrarStand soloProveedor proveedor={proveedor} onCambiarProveedor={vi.fn()} />);
+    expect(screen.getByText("Guardar proveedor")).toBeTruthy();
+    expect(onResumen).not.toHaveBeenCalled();
   });
 });

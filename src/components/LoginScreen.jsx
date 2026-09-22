@@ -101,7 +101,7 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
   const etiqueta = { fontSize: 13, color: t.muted, margin: '0 0 6px', display: 'block' };
   const link = { background: 'none', border: 'none', padding: 0, color: t.text, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3 };
   return (
-    <div style={{ position: 'fixed', inset: 0, background: t.bg, color: t.text, fontFamily: 'inherit', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div className="pantalla-fija" style={{ position: 'fixed', inset: 0, background: t.bg, color: t.text, fontFamily: 'inherit', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <div style={{ position: 'relative', background: '#EA5A22', color: '#fff', padding: 'calc(env(safe-area-inset-top, 0px) + 68px) 24px 28px', display: 'flex', flexDirection: 'column', gap: 8, borderRadius: '0 0 32px 32px', flexShrink: 0 }}>
         {onCancel && !convertir && (
           <button type="button" onClick={onCancel} aria-label="Volver" style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top, 0px) + 12px)', left: 14, width: 44, height: 44, borderRadius: 22, border: 'none', background: 'rgba(255,255,255,0.2)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>

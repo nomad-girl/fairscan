@@ -118,7 +118,7 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
   );
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "#000", color: "#fff", fontFamily: "inherit", zIndex: 50 }}>
+    <div className="pantalla-fija" style={{ position: "fixed", inset: 0, background: "#000", color: "#fff", fontFamily: "inherit", zIndex: 50 }}>
       {/* El paginador vertical: anterior · esta · siguiente; al asentarse en una vecina, se navega */}
       <PaginadorVertical clave={p.id} anterior={prev ? pantalla(prev, false) : null} actual={pantalla(p, true)} siguiente={next ? pantalla(next, false) : null}
         onAnterior={() => prev && onNavigateProduct?.(prev)} onSiguiente={() => next && onNavigateProduct?.(next)} />

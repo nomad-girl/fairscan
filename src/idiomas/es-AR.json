@@ -132,7 +132,7 @@
     "comentariosPista": "Pide 30 % de seña, habla inglés…",
     "proveedorConocido": "Proveedor ya cargado",
     "ultimo": "Último",
-    "buscarProveedor": "Buscar proveedor",
+    "buscarProveedor": "Buscar un proveedor ya cargado",
     "sinResultados": "Sin resultados",
     "desvincular": "Desvincular",
     "notaDeVoz": "Nota del stand",
@@ -178,7 +178,8 @@
     "sacarTarjetaDeNuevo": "Sacar la tarjeta de nuevo",
     "sinTarjetaAun": "Todavía sin tarjeta",
     "primeraFoto": "Sacá la primera foto o escaneá la tarjeta",
-    "vincularExistente": "Vincular a un proveedor ya cargado"
+    "vincularExistente": "Vincular a un proveedor ya cargado",
+    "vinculadoA": "Vinculado a {{empresa}}"
   },
   "catalogo": {
     "titulo": "Catálogo",

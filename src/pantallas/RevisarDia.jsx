@@ -150,7 +150,7 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
   ];
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "#000", color: "#fff", fontFamily: "inherit", zIndex: 50 }}>
+    <div className="pantalla-fija" style={{ position: "fixed", inset: 0, background: "#000", color: "#fff", fontFamily: "inherit", zIndex: 50 }}>
       {total === 0 ? <div style={{ position: "absolute", inset: 0 }}>{cierre}</div> : (
         <PaginadorVertical clave={`${filtro}-${i}`}
           anterior={prev ? pantalla(prev, false) : null}
