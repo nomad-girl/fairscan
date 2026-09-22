@@ -54,13 +54,11 @@ describe("Ficha de proveedor", () => {
     expect(screen.getByText("Armar pedido · 0 productos").closest("button").disabled).toBe(true);
     expect(screen.getByText("Todavía no hay productos de este proveedor")).toBeTruthy();
   });
-  it("los campos vacíos esperan detrás de Agregar un dato; eliminar pide confirmación", () => {
+  it("los campos vacíos se ven en gris al final; eliminar pide confirmación", () => {
     const onDelete = vi.fn();
     con(<FichaProveedor supplier={yiwu} products={products} districts={districts} onDelete={onDelete} />);
     fireEvent.click(screen.getByText("Ver todos los datos"));
-    expect(screen.queryByText("Sitio web")).toBeNull();
-    fireEvent.click(screen.getByText("Agregar un dato"));
-    expect(screen.getByText("Sitio web")).toBeTruthy();
+    expect(screen.getByText("Sitio web")).toBeTruthy(); // opción A: lo vacío a la vista, en gris
     fireEvent.click(screen.getByText("Eliminar proveedor"));
     expect(onDelete).not.toHaveBeenCalled();
     fireEvent.click(screen.getAllByText("Eliminar proveedor").pop());

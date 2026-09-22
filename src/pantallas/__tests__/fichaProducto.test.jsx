@@ -39,9 +39,7 @@ describe("Ficha de producto", () => {
     const onUpdate = vi.fn();
     con(<FichaProducto product={base} suppliers={suppliers} districts={districts} allProducts={[base]} onUpdate={onUpdate} />);
     fireEvent.click(screen.getByText("Ver todos los datos"));
-    expect(screen.queryByText("CBM por caja")).toBeNull(); // vacío: escondido…
-    fireEvent.click(screen.getByText(/Agregar un dato/)); // …pero se sabe que está
-    expect(screen.getByText("CBM por caja")).toBeTruthy();
+    expect(screen.getByText("CBM por caja")).toBeTruthy(); // opción A: lo vacío a la vista, en gris, al final de su sección
     fireEvent.click(screen.getByRole("button", { name: /Piezas por caja/ }));
     const input = screen.getByRole("textbox");
     fireEvent.change(input, { target: { value: "48" } });

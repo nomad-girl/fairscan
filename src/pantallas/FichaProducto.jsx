@@ -53,7 +53,6 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
   };
 
   // Los campos: los que tienen dato se ven; los vacíos quedan detrás de "Agregar un dato" (Nati, 17/09: "ocultos pero que se sepa que están").
-  const [masDatos, setMasDatos] = useState(false);
   const vacio = (x) => x === null || x === undefined || String(x).trim() === "";
   const campos = [
     { clave: "price", etiqueta: t("ficha.precio"), valor: p.price, nodo: <Campo key="price" etiqueta={`${t("ficha.precio")} ${moneda}`} valor={p.price} tipo="numero" onChange={v => guardar({ price: v == null ? null : String(v) })} /> },
@@ -160,14 +159,13 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
           {district && <p style={{ ...texto("pie"), color: paleta.dim, margin: 0 }}>{district.name} · {t("ficha.capturado", { cuando: haceCuanto(p.createdAt) })}</p>}
 
           {/* Los datos, editables tocando: en secciones, con aire */}
+          {/* Opción A (Nati, 22/09): una fila por dato, en secciones; lo vacío al final de su sección, en gris, dice "Agregar" */}
           <Bloque titulo={t("ficha.seccionProducto")}>
             <Campo etiqueta={t("ficha.nombre")} valor={p.name} onChange={v => { if (v) guardar({ name: v }); }} />
-            {camposConDato.map(c => c.nodo)}
-            {masDatos ? camposSinDato.map(c => c.nodo) : camposSinDato.length > 0 && (
-              <button type="button" onClick={() => setMasDatos(true)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", minHeight: alturas.campo, padding: 0, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted, textAlign: "left" }}>
-                <span>{t("ficha.agregarDato")} · {camposSinDato.map(c => c.etiqueta).join(", ")}</span><Icono nombre="mas" tamano={18} color={paleta.dim} />
-              </button>
-            )}
+            <Campo etiqueta={t("ficha.categoria")} valor={p.category} onChange={v => guardar({ category: v || null })} />
+          </Bloque>
+          <Bloque titulo={t("ficha.seccionCompra")}>
+            {[...camposConDato, ...camposSinDato].filter(c => c.clave !== "notes").map(c => c.nodo)}
           </Bloque>
 
           {/* Proveedor */}
@@ -195,7 +193,10 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
             </div>
           )}
 
-          {/* Nota de voz */}
+          {/* Notas y la nota de voz */}
+          <Bloque titulo={t("ficha.notas")}>
+            {campos.find(c => c.clave === "notes")?.nodo}
+          </Bloque>
           {(audioSrc || p.audioTranscript) && (
             <Bloque titulo={t("ficha.notaDeVoz")}>
               {audioSrc && <audio src={audioSrc} controls style={{ width: "100%", height: 36, margin: "6px 0 8px" }} />}

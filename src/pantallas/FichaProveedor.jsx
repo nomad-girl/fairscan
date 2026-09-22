@@ -22,7 +22,6 @@ const APILADOS = new Set(["email", "website", "address", "products", "wechat"]);
 export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], pedidos = [], districts = [], moneda = "USD", Foto, tLegacy, onBack, onUpdate, onDelete, onNavigateProduct, onNavigateSupplier, onAddProduct, onArmarPedido }) {
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
-  const [masDatos, setMasDatos] = useState(false);
   const [datosAbiertos, setDatosAbiertos] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
   const [guardado, setGuardado] = useState(false);
@@ -150,17 +149,13 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
           <Bloque titulo={t("proveedor.contacto")}>
             <Campo etiqueta={t("proveedor.vendedor")} valor={s.contact} onChange={v => guardar({ contact: v })} />
             <Campo etiqueta={t("proveedor.titulo")} valor={s.company} onChange={v => { if (v) guardar({ company: v }); }} />
-            {conDato.map(([k, etiqueta]) => <Campo key={k} etiqueta={etiqueta} valor={s[k]} multilinea={k === "address" || k === "products"} apilado={APILADOS.has(k)} onChange={v => guardar({ [k]: v })} />)}
-            {masDatos
-              ? sinDato.map(([k, etiqueta]) => <Campo key={k} etiqueta={etiqueta} valor={s[k]} multilinea={k === "address" || k === "products"} apilado={APILADOS.has(k)} onChange={v => guardar({ [k]: v })} />)
-              : sinDato.length > 0 && (
-                <button type="button" onClick={() => setMasDatos(true)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", minHeight: alturas.campo, padding: 0, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted, textAlign: "left" }}>
-                  <span>{t("proveedor.agregarDato")}</span><Icono nombre="mas" tamano={18} color={paleta.dim} />
-                </button>
-              )}
+            {/* Opción A (Nati, 22/09): todas las filas a la vista; las vacías al final, en gris, dicen "Agregar" */}
+            {[...conDato, ...sinDato].map(([k, etiqueta]) => <Campo key={k} etiqueta={etiqueta} valor={s[k]} multilinea={k === "address" || k === "products"} apilado={APILADOS.has(k)} onChange={v => guardar({ [k]: v })} />)}
+          </Bloque>
+          <Bloque titulo={t("proveedor.compra")}>
+            <Campo etiqueta={`${t("proveedor.minimoDeCompra")} ${moneda}`} valor={s.minimoDeCompra} tipo="numero" onChange={v => guardar({ minimoDeCompra: v })} />
           </Bloque>
           <Bloque titulo={t("proveedor.notas")}>
-            <Campo etiqueta={`${t("proveedor.minimoDeCompra")} ${moneda}`} valor={s.minimoDeCompra} tipo="numero" onChange={v => guardar({ minimoDeCompra: v })} />
             <Campo etiqueta={t("proveedor.comentarios")} valor={s.notes} multilinea onChange={v => guardar({ notes: v })} />
             {(audioSrc || s.audioTranscript) && (
               <div style={{ padding: "10px 0 4px" }}>
