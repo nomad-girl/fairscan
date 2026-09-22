@@ -3618,7 +3618,7 @@ export default function App() {
           onNavigateProduct={p => navigate("detail", p)} onArmarPedido={(s) => abrirPedido(s)} />
       )}
       {screen === "pedidos" && (
-        <Pedidos pedidos={orders} suppliers={suppliers} products={products} districts={districts} activeDistrictId={activeDistrictId} moneda={monedaActual}
+        <Pedidos pedidos={orders} suppliers={suppliers} products={products} districts={districts} activeDistrictId={activeDistrictId} moneda={monedaActual} Foto={FotoDeProducto} tLegacy={t}
           onBack={goBack} onAbrirPedido={(s) => abrirPedido(s)} onDescargarExcelFeria={descargarExcelFeria} />
       )}
       {screen === "pedido" && screenData && (() => {

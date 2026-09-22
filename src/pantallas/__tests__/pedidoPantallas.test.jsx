@@ -110,17 +110,18 @@ describe("Armar pedido", () => {
 });
 
 describe("Pedidos", () => {
-  it("lista el pedido con su total y estado, y los proveedores con favoritos sin pedido", () => {
+  it("es un feed: el pedido con su total y estado, y detrás los proveedores con favoritos sin pedido", () => {
     const onAbrirPedido = vi.fn();
     const pedidos = [{ id: 1, supplierId: 10, districtId: 1, estado: "enviado", enviadoEl: Date.now(), items: [{ productId: 1, cantidad: 10 }], updatedAt: 1 }];
     con(<Pedidos pedidos={pedidos} suppliers={suppliers} products={products} districts={districts} activeDistrictId={1} onAbrirPedido={onAbrirPedido} />);
+    // Es un feed: el pedido de Yiwu es la pantalla; el proveedor sin pedido (Shenzhen) ya está dibujado debajo
     expect(screen.getByText("Yiwu Sunrise")).toBeTruthy();
     expect(screen.getByText(/proforma enviada/)).toBeTruthy();
+    expect(screen.getByText(/Pedidos · 1 de 1/)).toBeTruthy();
     expect(screen.getByText("Shenzhen Brightwave")).toBeTruthy();
     expect(screen.getByText(/Sin pedido · 1 favorito/)).toBeTruthy();
-    expect(screen.getByText("Total de la feria")).toBeTruthy();
-    fireEvent.click(screen.getByText("Shenzhen Brightwave"));
-    expect(onAbrirPedido).toHaveBeenCalledWith(shenzhen);
+    fireEvent.click(screen.getByText("Ver el detalle"));
+    expect(onAbrirPedido).toHaveBeenCalledWith(yiwu);
   });
   it("vacío del todo, dice cómo empezar", () => {
     con(<Pedidos pedidos={[]} suppliers={[]} products={[]} districts={districts} />);

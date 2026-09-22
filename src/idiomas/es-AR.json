@@ -437,6 +437,15 @@
     "totalFeria": "Total de la feria",
     "descargarExcel": "Descargar Excel de toda la feria",
     "vacioTitulo": "Todavía no hay pedidos",
-    "vacioTexto": "Marcá favoritos en la feria y armá el pedido desde la ficha del proveedor, o con “Pedir este producto”."
+    "vacioTexto": "Marcá favoritos en la feria y armá el pedido desde la ficha del proveedor, o con “Pedir este producto”.",
+    "posicion": "{{n}} de {{total}}",
+    "borrador": "Borrador",
+    "verDetalle": "Ver el detalle",
+    "cantidades": "Cantidades",
+    "excelFeria": "Excel de la feria",
+    "unPedidoUnProveedor": "Un pedido es un proveedor: se arma con lo que le pediste",
+    "armarPedido": "Armar pedido",
+    "productos_one": "{{count}} producto",
+    "productos_other": "{{count}} productos"
   }
 }
