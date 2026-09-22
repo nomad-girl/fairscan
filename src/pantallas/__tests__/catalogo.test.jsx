@@ -62,56 +62,49 @@ describe("Catálogo", () => {
 
 describe("Revisar el día", () => {
   const deHoy = products.filter(p => p.createdAt > hoy - 86400000);
-  it("abre en el menú de juegos con los números; el precio se carga con teclado y el proveedor con chips", () => {
+  it("es un feed con filtros: el precio se carga con el teclado desde el rail y el proveedor con chips", () => {
     const onActualizar = vi.fn();
     con(<RevisarDia productosDeHoy={deHoy} suppliers={suppliers} onActualizarProducto={onActualizar} />);
-    expect(screen.getByText("¿Qué querés revisar?")).toBeTruthy();
-    fireEvent.click(screen.getByText("Falta el precio"));
+    expect(screen.getByText(/Revisar el día · 1 de 3/)).toBeTruthy();
+    fireEvent.click(screen.getByText(/Falta el precio/));
+    expect(screen.getByText(/Revisar el día · 1 de 1/)).toBeTruthy();
+    expect(screen.getByText("Sin precio · tocá $ para cargarlo")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Poner precio" }));
     expect(screen.getByText("¿A cuánto estaba?")).toBeTruthy();
-    expect(screen.getByText("1 de 1")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "4" }));
     fireEvent.click(screen.getByRole("button", { name: "," }));
     fireEvent.click(screen.getByRole("button", { name: "8" }));
-    const saltar = screen.getByText("Saltar"), listo = screen.getByText("Listo");
-    expect(saltar.closest("button").style.minHeight).toBe(listo.closest("button").style.minHeight);
-    fireEvent.click(listo);
+    fireEvent.click(screen.getByRole("button", { name: "Listo" }));
     expect(onActualizar).toHaveBeenCalledWith(2, { price: "4.8" });
-    expect(screen.getByText("¿Qué querés revisar?")).toBeTruthy(); // vuelve al menú
-    fireEvent.click(screen.getByText("Falta el proveedor"));
+    fireEvent.click(screen.getByText(/Falta el proveedor/));
+    fireEvent.click(screen.getByRole("button", { name: "Elegir proveedor" }));
     expect(screen.getByText("¿De qué proveedor era?")).toBeTruthy();
     fireEvent.click(screen.getByText("Yiwu Sunrise"));
     expect(onActualizar).toHaveBeenCalledWith(3, { supplierId: 10, supplierCompany: "Yiwu Sunrise" });
   });
-  it("saltar no guarda nada; favoritos y cierre; la cuenta se pide solo a quien no la tiene; eliminar siempre a mano", () => {
+  it("favorito y eliminar desde el rail; al final, Día revisado, y la cuenta se pide solo a quien no la tiene", () => {
     const onActualizar = vi.fn(), onCrearCuenta = vi.fn(), onEliminar = vi.fn();
     con(<RevisarDia productosDeHoy={deHoy} suppliers={suppliers} esAnonima onActualizarProducto={onActualizar} onCrearCuenta={onCrearCuenta} onEliminar={onEliminar} />);
-    fireEvent.click(screen.getByText("Falta el precio"));
-    fireEvent.click(screen.getByText("Saltar"));
-    expect(onActualizar).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByText("Falta el proveedor"));
-    fireEvent.click(screen.getByRole("button", { name: /Eliminar producto/ }));
-    expect(onEliminar).toHaveBeenCalledWith(deHoy.find(p => p.id === 3));
-    fireEvent.click(screen.getByText("Mis favoritos de hoy"));
-    expect(screen.getByText("Tus favoritos de hoy")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Taza de cerámica blanca" }));
+    fireEvent.click(screen.getByText(/Mis favoritos de hoy/));
+    fireEvent.click(screen.getByRole("button", { name: "Quitar de favoritos" }));
     expect(onActualizar).toHaveBeenCalledWith(1, { favorito: 0 });
-    fireEvent.click(screen.getByText("Cerrar el día"));
-    expect(screen.getByText("Día cerrado")).toBeTruthy();
+    expect(screen.getByText("Día revisado")).toBeTruthy(); // sin favoritos, el feed termina enseguida
     fireEvent.click(screen.getByText("Crear cuenta"));
     expect(onCrearCuenta).toHaveBeenCalled();
+    fireEvent.click(screen.getByText(/Falta el proveedor/));
+    fireEvent.click(screen.getByRole("button", { name: /Eliminar producto/ }));
+    expect(onEliminar).toHaveBeenCalledWith(expect.objectContaining({ id: 3 }));
   });
-  it("los repetidos probables son un juego aparte; Juntar avisa y vuelve al menú", () => {
+  it("los repetidos probables son un filtro; Juntar en uno se ofrece sobre la foto", () => {
     const onJuntar = vi.fn();
     const par = [
       { id: 21, name: "Taza de cerámica blanca", category: "Vajilla", price: "0.85", supplierId: 10, createdAt: hoy - 50000, photos: [FOTO], ai_processed: true },
       { id: 22, name: "Taza cerámica blanca lisa", category: "Vajilla", price: "0.85", supplierId: 10, createdAt: hoy - 20000, photos: [FOTO], ai_processed: true },
     ];
     con(<RevisarDia productosDeHoy={[...deHoy, ...par]} suppliers={suppliers} onJuntar={onJuntar} />);
-    expect(screen.getByText("1 par")).toBeTruthy();
-    fireEvent.click(screen.getByText("Repetidos probables"));
-    expect(screen.getByText("¿Son el mismo producto?")).toBeTruthy();
+    fireEvent.click(screen.getByText(/Repetidos probables · 1/));
+    expect(screen.getByText(/¿Son el mismo producto\?/)).toBeTruthy();
     fireEvent.click(screen.getByText("Juntar en uno"));
     expect(onJuntar).toHaveBeenCalledWith(par[0], par[1]);
-    expect(screen.getByText("¿Qué querés revisar?")).toBeTruthy();
   });
 });

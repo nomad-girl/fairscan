@@ -232,7 +232,7 @@
     "sinFavoritos": "No marcaste favoritos hoy. Tocá los que te interesaron.",
     "verLosDeHoy": "Ver los {{count}} de hoy",
     "cerrarElDia": "Cerrar el día",
-    "diaCerrado": "Día cerrado",
+    "diaCerrado": "Día revisado",
     "resumenCierre": "{{productos}} · {{proveedores}}",
     "favoritosCierre_one": "{{count}} favorito",
     "favoritosCierre_other": "{{count}} favoritos",
@@ -263,7 +263,18 @@
     "pares_one": "{{count}} par",
     "pares_other": "{{count}} pares",
     "nadaPendiente": "Nada pendiente",
-    "eliminar": "Eliminar producto"
+    "eliminar": "Eliminar producto",
+    "filtroTodos": "Todos",
+    "ponerPrecio": "Poner precio",
+    "elegirProveedor": "Elegir proveedor",
+    "sinPrecio": "Sin precio",
+    "sinProveedor": "Sin proveedor",
+    "tocaParaPrecio": "Sin precio · tocá $ para cargarlo",
+    "parecidoA": "Parecido a",
+    "favorito": "Favorito",
+    "todoRevisado": "Todo revisado",
+    "deslizaParaSeguir": "Deslizá hacia arriba para seguir",
+    "posicion": "{{n}} de {{total}}"
   },
   "ficha": {
     "producto": "Producto",

@@ -1,17 +1,16 @@
 /**
- * Revisar el día (decisión 3 del 16/09, idea de Nati; ajustado esa misma noche al probarlo):
- * un menú de "jueguitos" y se elige cuál jugar: repetidos probables, falta el precio, falta el
- * proveedor, mis favoritos. Cada uno es una ronda corta de a una tarjeta; al terminar se vuelve
- * al menú con los números actualizados. "Cerrar el día" es el último paso, y nunca es obligatorio.
+ * Revisar el día como feed (decisión 3 de Nati, 22/09: "un feed con filtros, no un menú de jueguitos").
+ * Las fotos de hoy, una por pantalla, a pantalla entera. Deslizar arriba pasa a la siguiente; en cada una
+ * se hace lo que falta desde el rail: favorito, precio (teclado en una hoja), proveedor (chips en una
+ * hoja), eliminar. Los jueguitos de antes (repetidos, sin precio, sin proveedor, favoritos) son filtros
+ * arriba, no pantallas. La pastilla roja dice qué le falta a la foto. Al final: "Día revisado".
  *
- * Reglas: ignorar una tarjeta es tan fácil como responderla ("Saltar" pesa igual que "Listo");
- * deslizar pasa a la siguiente; lo salteado no queda como deuda; y eliminar el producto está
- * siempre a mano (Nati: "que deje eliminar producto en todo momento con facilidad").
+ * Reglas que siguen: saltar es deslizar, nada queda como deuda; eliminar siempre a mano.
  */
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Chip, FilaDeChips, Fila, Icono } from "../componentes/index.js";
+import { Boton, Chip, FilaDeChips, Icono, Hoja } from "../componentes/index.js";
 import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
 import { fechaCorta } from "../idiomas/formato.js";
 import { paresRepetidos } from "../lib/repetidos.js";
@@ -21,37 +20,62 @@ const sinPrecio = (p) => !p.price || isNaN(parseFloat(p.price));
 
 export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, esAnonima = false, pendientesSync = 0, Foto, t: tLegacy, onActualizarProducto, onJuntar, onEliminar, onCerrar, onCrearCuenta, onVerLosDeHoy }) {
   const { t } = useTranslation();
-  const { paleta, alturas, radios, texto, espacios } = useSistema();
+  const { paleta, radios, texto } = useSistema();
 
-  const [juego, setJuego] = useState(null); // null = menú · repetidos · precio · proveedor · favoritos · cierre
-  const [ronda, setRonda] = useState(0);
+  const [filtro, setFiltro] = useState("todos"); // todos · precio · proveedor · repetidos · favoritos
   const [i, setI] = useState(0);
+  const [hoja, setHoja] = useState(null); // null · "precio" · "proveedor"
   const [valor, setValor] = useState("");
-  const [borrados, setBorrados] = useState(() => new Set()); // eliminados o juntados en otro
+  const [borrados, setBorrados] = useState(() => new Set());
   const [favs, setFavs] = useState(() => new Set(productosDeHoy.filter(p => p.favorito).map(p => p.id)));
-  const inicio = useRef(null);
+  const [precios, setPrecios] = useState({});     // lo cargado en esta sesión, para que la pantalla lo muestre al toque
+  const [provs, setProvs] = useState({});
 
-  const deHoy = useMemo(() => productosDeHoy.filter(p => !borrados.has(p.id)), [productosDeHoy, borrados]);
+  const deHoy = useMemo(() => productosDeHoy.filter(p => !borrados.has(p.id)).map(p => ({ ...p, price: precios[p.id] ?? p.price, supplierId: provs[p.id]?.id ?? p.supplierId, supplierCompany: provs[p.id]?.company ?? p.supplierCompany, favorito: favs.has(p.id) ? 1 : 0 })), [productosDeHoy, borrados, precios, provs, favs]);
   const pares = useMemo(() => paresRepetidos(deHoy), [deHoy]);
   const faltaPrecio = useMemo(() => deHoy.filter(sinPrecio), [deHoy]);
   const faltaProveedor = useMemo(() => deHoy.filter(p => !p.supplierId), [deHoy]);
+  const favoritos = useMemo(() => deHoy.filter(p => favs.has(p.id)), [deHoy, favs]);
+  const parDe = (p) => pares.find(par => par.a.id === p.id || par.b.id === p.id);
 
-  // Las tarjetas de una ronda se arman al elegir el juego; lo que se resuelva o saltee no vuelve hasta la próxima ronda.
-  const tarjetas = useMemo(() => {
-    if (juego === "repetidos") return pares.map(par => ({ tipo: "repetidos", par }));
-    if (juego === "precio") return faltaPrecio.map(p => ({ tipo: "precio", p }));
-    if (juego === "proveedor") return faltaProveedor.map(p => ({ tipo: "proveedor", p }));
-    if (juego === "favoritos") return [{ tipo: "favoritos" }];
-    if (juego === "cierre") return [{ tipo: "cierre" }];
-    return [];
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [juego, ronda]);
-  const actual = tarjetas[i];
-  const total = tarjetas.length;
+  // La lista que se recorre según el filtro
+  const lista = useMemo(() => {
+    if (filtro === "precio") return faltaPrecio;
+    if (filtro === "proveedor") return faltaProveedor;
+    if (filtro === "repetidos") return pares.map(par => par.a);
+    if (filtro === "favoritos") return favoritos;
+    return deHoy;
+  }, [filtro, deHoy, faltaPrecio, faltaProveedor, pares, favoritos]);
+  const total = lista.length;
+  const actual = lista[Math.min(i, Math.max(0, total - 1))] || null;
+  const enCierre = i >= total; // la última pantalla: el día revisado
+  const prev = i > 0 ? lista[i - 1] : null;
+  const next = i + 1 < total ? lista[i + 1] : null;
 
-  const elegir = (j) => { setJuego(j); setRonda(r => r + 1); setI(0); setValor(""); };
-  const volverAlMenu = () => { setJuego(null); setI(0); setValor(""); };
-  const siguiente = () => { setValor(""); if (i + 1 >= total) volverAlMenu(); else setI(i + 1); };
+  const cambiarFiltro = (f) => { setFiltro(f); setI(0); };
+
+  // El paginador vertical (anterior · esta · siguiente); al asentarse en una vecina, se pasa
+  const pagerRef = useRef(null);
+  const timerRef = useRef(null);
+  const navegandoRef = useRef(false);
+  const centro = prev ? 1 : 0;
+  useLayoutEffect(() => { const el = pagerRef.current; if (el) el.scrollTop = centro * el.clientHeight; navegandoRef.current = false; }, [i, centro, filtro]);
+  const decidir = (el) => {
+    if (navegandoRef.current) return;
+    const h = Math.max(1, el.clientHeight);
+    const k = Math.round(el.scrollTop / h);
+    if (k === centro) return;
+    if (k < centro && prev) { navegandoRef.current = true; setI(i - 1); }
+    else if (k > centro && (next || (!enCierre && i === total - 1))) { navegandoRef.current = true; setI(i + 1); }
+  };
+  const onScrollPager = (e) => {
+    const el = e.currentTarget;
+    const h = Math.max(1, el.clientHeight);
+    if (Math.abs(el.scrollTop - Math.round(el.scrollTop / h) * h) < 2) decidir(el);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => decidir(el), 220);
+  };
+  useEffect(() => () => clearTimeout(timerRef.current), []);
 
   const proveedoresDeHoy = useMemo(() => {
     const ids = new Set(deHoy.map(p => p.supplierId).filter(Boolean));
@@ -59,169 +83,146 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
     const otros = suppliers.filter(s => !ids.has(s.id)).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 6);
     return [...recientes, ...otros];
   }, [deHoy, suppliers]);
+  const nombreProveedor = (p) => suppliers.find(s => s.id === p.supplierId)?.company || p.supplierCompany || null;
 
-  const onDown = e => { inicio.current = e.clientX; };
-  const onUp = e => { if (inicio.current !== null && Math.abs(e.clientX - inicio.current) > 90) siguiente(); inicio.current = null; };
+  // Acciones del rail
+  const original = (p) => productosDeHoy.find(x => x.id === p.id) || p;
+  const alternarFav = (p) => { const n = new Set(favs); const on = !n.has(p.id); if (on) n.add(p.id); else n.delete(p.id); setFavs(n); onActualizarProducto?.(p.id, { favorito: on ? 1 : 0 }); };
+  const eliminar = (p) => { onEliminar?.(original(p)); setBorrados(prevB => new Set([...prevB, p.id])); if (i >= lista.length - 1 && i > 0) setI(i - 1); };
+  const teclas = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ",", "0", "⌫"];
+  const tocar = k => setValor(v => k === "⌫" ? v.slice(0, -1) : k === "," ? (v.includes(".") ? v : (v || "0") + ".") : v.replace(".", "").length < 7 ? v + k : v);
+  const confirmarPrecio = () => { if (valor && actual) { const precio = valor.replace(/\.$/, ""); onActualizarProducto?.(actual.id, { price: precio }); setPrecios(prevP => ({ ...prevP, [actual.id]: precio })); } setHoja(null); setValor(""); };
+  const elegirProveedor = (s) => { if (actual) { onActualizarProducto?.(actual.id, { supplierId: s.id, supplierCompany: s.company }); setProvs(prevS => ({ ...prevS, [actual.id]: { id: s.id, company: s.company } })); } setHoja(null); };
+  // Juntar recibe los productos originales (los de la lista de hoy son copias con lo cargado en la sesión)
+  const juntarEstos = (par) => { onJuntar?.(original(par.a), original(par.b)); setBorrados(prevB => new Set([...prevB, par.b.id])); };
 
-  // Funciones de dibujo, no componentes: un componente definido adentro del render se desmonta en cada cambio (las fotos titilaban).
-  const miniatura = (p, estilo) => {
-    const src = elegirMiniatura(p) || respaldoDe(p); // copia local, o la dirección de la nube (17/09)
-    return Foto ? <Foto src={src} respaldo={respaldoDe(p)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block", ...estilo }} /> : <img src={src || respaldoDe(p)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", ...estilo }} />;
+  const foto = (p, estilo) => {
+    const src = elegirMiniatura(p) || respaldoDe(p);
+    if (!src) return <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center" }}><Icono nombre="foto" tamano={40} color="rgba(255,255,255,0.6)" /></div>;
+    return Foto ? <Foto src={p.photos?.[0] || src} respaldo={respaldoDe(p)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block", ...estilo }} /> : <img src={p.photos?.[0] || src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", ...estilo }} />;
   };
-  const tarjeta = (contenido) => (
-    <div onPointerDown={onDown} onPointerUp={onUp} style={{ background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande + 2, boxShadow: paleta.sombraTarjeta, padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>{contenido}</div>
+  const redondo = (nombre, etiqueta, onClick, { activo = false, presionado, texto: rotulo } = {}) => (
+    <button type="button" onClick={onClick} aria-label={etiqueta} aria-pressed={presionado} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, background: "none", border: "none", padding: 0, cursor: "pointer", color: "#fff", width: 56, fontFamily: "inherit" }}>
+      <span style={{ width: 48, height: 48, borderRadius: 24, background: activo ? paleta.accent : "rgba(10,14,23,0.55)", display: "grid", placeItems: "center", backdropFilter: "blur(6px)" }}><Icono nombre={nombre} tamano={22} color="#fff" /></span>
+      {rotulo && <span style={{ fontSize: 11, fontWeight: 600, textShadow: "0 1px 2px rgba(0,0,0,0.6)" }}>{rotulo}</span>}
+    </button>
   );
-  const pregunta = (titulo, sub) => <div style={{ textAlign: "center" }}><p style={{ ...texto("cuerpo", { fontWeight: 600 }), margin: 0 }}>{titulo}</p>{sub && <p style={{ ...texto("pie"), color: paleta.dim, margin: "2px 0 0" }}>{sub}</p>}</div>;
-  const dosBotones = ({ onSaltar, onListo, listoTexto = t("revisar.listo"), saltarTexto = t("revisar.saltar"), listoActivo = true }) => (
-    <>
-      <div style={{ display: "flex", gap: 8 }}>
-        <Boton variante="secundario" ancho="total" onClick={onSaltar} estilo={{ flex: 1, minHeight: 48 }}>{saltarTexto}</Boton>
-        <Boton variante="secundario" ancho="total" onClick={onListo} deshabilitado={!listoActivo} estilo={{ flex: 1, minHeight: 48 }}>{listoTexto}</Boton>
+
+  const proveedoresHoy = new Set(deHoy.map(p => p.supplierId).filter(Boolean)).size;
+
+  // Una pantalla del feed
+  const pantalla = (p, esta) => {
+    const par = filtro === "repetidos" ? parDe(p) : null;
+    const otro = par ? (par.a.id === p.id ? par.b : par.a) : null;
+    const prov = nombreProveedor(p);
+    const faltas = [sinPrecio(p) && t("revisar.sinPrecio"), !p.supplierId && t("revisar.sinProveedor")].filter(Boolean);
+    return (
+      <div key={p.id} style={{ height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative", background: "#0B0E17" }}>
+        <div style={{ position: "absolute", inset: 0 }}>{foto(p)}</div>
+        {esta && faltas.length > 0 && (
+          <span style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 66px)`, right: 14, background: "rgba(220,38,38,0.9)", color: "#fff", borderRadius: 999, padding: "5px 11px", fontSize: 12, fontWeight: 700 }}>{faltas.join(" · ")}</span>
+        )}
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: `80px 84px calc(18px + env(safe-area-inset-bottom, 0px)) 18px`, background: "linear-gradient(to top, rgba(10,14,23,0.9) 60%, rgba(10,14,23,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 }}>
+          <p style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere" }}>{p.name || t("pedido.sinNombre")}</p>
+          <p style={{ margin: 0, fontSize: 17, fontWeight: 600, color: sinPrecio(p) ? "#FCD34D" : "#fff" }}>{sinPrecio(p) ? t("revisar.tocaParaPrecio") : `USD ${p.price}`}</p>
+          <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.8)" }}>{prov || t("revisar.sinProveedor")} · {horaDe(p.createdAt)}</p>
+          {otro && esta && (
+            <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 56, height: 56, borderRadius: 10, overflow: "hidden", flexShrink: 0, border: "1px solid rgba(255,255,255,0.4)" }}>{foto(otro)}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.8)" }}>{t("revisar.sonElMismo")} {t("revisar.parecidoA").toLowerCase()}:</p>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{otro.name || t("pedido.sinNombre")} · {horaDe(otro.createdAt)}</p>
+              </div>
+              <button type="button" onClick={() => juntarEstos(par)} style={{ minHeight: 40, borderRadius: 999, border: "none", background: paleta.accent, color: "#fff", fontFamily: "inherit", fontSize: 13, fontWeight: 700, padding: "0 12px", cursor: "pointer", flexShrink: 0 }}>{t("revisar.juntar")}</button>
+            </div>
+          )}
+        </div>
       </div>
-      <p style={{ ...texto("pie"), color: paleta.dim, textAlign: "center", margin: 0 }}>{t("revisar.deslizaParaPasar")}</p>
-    </>
-  );
-  const eliminar = (p) => { onEliminar?.(p); setBorrados(prev => new Set([...prev, p.id])); siguiente(); };
-  const cabeceraProducto = (p) => (
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <div style={{ width: 88, height: 88, borderRadius: radios.medio, overflow: "hidden", background: paleta.surface, flexShrink: 0 }}>{miniatura(p)}</div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ ...texto("cuerpo", { fontWeight: 600 }), margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name || "—"}</p>
-        <p style={{ ...texto("pie"), color: paleta.muted, margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{suppliers.find(s => s.id === p.supplierId)?.company || p.supplierCompany || "—"} · {horaDe(p.createdAt)}</p>
+    );
+  };
+
+  const cierre = (
+    <div key="cierre" style={{ height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative", background: "#0B0E17", color: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 24px", textAlign: "center", gap: 8 }}>
+      <Icono nombre="listo" tamano={44} color="#86EFAC" />
+      <span style={{ fontSize: 32, fontWeight: 700 }}>{t("revisar.diaCerrado")}</span>
+      <span style={{ fontSize: 15, color: "rgba(255,255,255,0.75)" }}>{feria ? `${feria} · ${fechaCorta(Date.now())}` : fechaCorta(Date.now())}</span>
+      <span style={{ fontSize: 16 }}>{t("revisar.resumenCierre", { productos: t("catalogo.productos", { count: deHoy.length }), proveedores: t("cantidades.proveedores", { count: proveedoresHoy }) })}</span>
+      <span style={{ fontSize: 14, color: "rgba(255,255,255,0.75)" }}>{t("revisar.favoritosCierre", { count: favs.size })}{faltaPrecio.length > 0 ? ` · ${t("revisar.quedaronSinPrecio", { count: faltaPrecio.length })}` : ""}</span>
+      <span style={{ fontSize: 14, color: pendientesSync > 0 ? "rgba(255,255,255,0.75)" : "#86EFAC" }}>{pendientesSync > 0 ? t("revisar.pendientesSync", { count: pendientesSync }) : t("revisar.todoSincronizado")}</span>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", maxWidth: 360, marginTop: 18 }}>
+        {esAnonima && (
+          <>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{t("revisar.tusProductosEnEsteTelefono", { count: deHoy.length })}</p>
+            <p style={{ margin: "0 0 6px", fontSize: 13, color: "rgba(255,255,255,0.75)" }}>{t("revisar.creaCuenta")}</p>
+            <Boton variante="principal" ancho="total" onClick={onCrearCuenta}>{t("revisar.crearCuenta")}</Boton>
+          </>
+        )}
+        <Boton variante={esAnonima ? "secundario" : "principal"} ancho="total" onClick={onCerrar}>{t("revisar.volverAlCatalogo")}</Boton>
+        {onVerLosDeHoy && <Boton variante="fantasma" ancho="total" onClick={onVerLosDeHoy} estilo={{ color: "#fff" }}>{t("revisar.verLosDeHoy", { count: deHoy.length })}</Boton>}
       </div>
-      <button type="button" onClick={() => eliminar(p)} aria-label={`${t("revisar.eliminar")} ${p.name || ""}`.trim()} style={{ width: alturas.tocable, height: alturas.tocable, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.surface, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}><Icono nombre="borrar" tamano={18} color={paleta.red} /></button>
     </div>
   );
 
-  const teclas = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ",", "0", "⌫"];
-  const tocar = k => setValor(v => k === "⌫" ? v.slice(0, -1) : k === "," ? (v.includes(".") ? v : (v || "0") + ".") : v.replace(".", "").length < 7 ? v + k : v);
-  const confirmarPrecio = () => { if (valor) onActualizarProducto?.(actual.p.id, { price: valor.replace(/\.$/, "") }); siguiente(); };
-  const elegirProveedor = (s) => { onActualizarProducto?.(actual.p.id, { supplierId: s.id, supplierCompany: s.company }); siguiente(); };
-  const alternarFav = (p) => { const n = new Set(favs); const on = !n.has(p.id); if (on) n.add(p.id); else n.delete(p.id); setFavs(n); onActualizarProducto?.(p.id, { favorito: on ? 1 : 0 }); };
-
-  const proveedoresHoy = new Set(deHoy.map(p => p.supplierId).filter(Boolean)).size;
-  const nombreJuego = { repetidos: t("revisar.juegoRepetidos"), precio: t("revisar.juegoPrecio"), proveedor: t("revisar.juegoProveedor"), favoritos: t("revisar.juegoFavoritos"), cierre: t("revisar.cerrarElDia") };
+  const filtros = [
+    ["todos", t("revisar.filtroTodos"), deHoy.length],
+    ["precio", t("revisar.juegoPrecio"), faltaPrecio.length],
+    ["proveedor", t("revisar.juegoProveedor"), faltaProveedor.length],
+    ["repetidos", t("revisar.juegoRepetidos"), pares.length],
+    ["favoritos", t("revisar.juegoFavoritos"), favoritos.length],
+  ];
 
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: `calc(0px + 8px) ${espacios.margenLateral}px 6px`, minHeight: alturas.tocable + 14 }}>
-        <button type="button" onClick={juego ? volverAlMenu : onCerrar} aria-label={juego ? t("comun.volver") : t("comun.cerrar")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}><Icono nombre={juego ? "volver" : "cerrar"} tamano={20} color={paleta.muted} /></button>
-        <h1 style={{ ...texto("titulo"), margin: 0, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{juego ? nombreJuego[juego] : t("revisar.titulo")}</h1>
-        {juego && total > 0 && actual?.tipo !== "favoritos" && actual?.tipo !== "cierre" && <span style={{ ...texto("pie"), color: paleta.dim }}>{t("revisar.de", { n: i + 1, total })}</span>}
-      </div>
-      {juego && total > 1 && <div aria-hidden style={{ margin: `0 ${espacios.margenLateral}px 10px`, height: 4, borderRadius: 2, background: paleta.border, overflow: "hidden" }}><div style={{ width: `${Math.round(((i + 1) / total) * 100)}%`, height: "100%", background: paleta.accent, transition: "width 200ms" }} /></div>}
-
-      <div style={{ flex: 1, overflowY: "auto", padding: `0 ${espacios.margenLateral}px 24px`, display: "flex", flexDirection: "column", gap: 12 }}>
-
-        {/* El menú: qué querés revisar */}
-        {!juego && (
+    <div style={{ position: "fixed", inset: 0, background: "#000", color: "#fff", fontFamily: "inherit", zIndex: 50 }}>
+      <div ref={pagerRef} onScroll={onScrollPager} style={{ position: "absolute", inset: 0, overflowY: "auto", scrollSnapType: "y mandatory", scrollbarWidth: "none", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch" }}>
+        {total === 0 ? cierre : (
           <>
-            {pregunta(t("revisar.elegirJuego"), [feria, t("catalogo.productos", { count: deHoy.length })].filter(Boolean).join(" · "))}
-            <Fila onClick={pares.length ? () => elegir("repetidos") : undefined} flecha={pares.length > 0} miniatura={<Icono nombre="copiar" tamano={22} color={pares.length ? paleta.accentTexto : paleta.dim} />} titulo={t("revisar.juegoRepetidos")} subtitulo={pares.length ? t("revisar.pares", { count: pares.length }) : t("revisar.nadaPendiente")} />
-            <Fila onClick={faltaPrecio.length ? () => elegir("precio") : undefined} flecha={faltaPrecio.length > 0} miniatura={<Icono nombre="editar" tamano={22} color={faltaPrecio.length ? paleta.accentTexto : paleta.dim} />} titulo={t("revisar.juegoPrecio")} subtitulo={faltaPrecio.length ? t("catalogo.productos", { count: faltaPrecio.length }) : t("revisar.nadaPendiente")} />
-            <Fila onClick={faltaProveedor.length ? () => elegir("proveedor") : undefined} flecha={faltaProveedor.length > 0} miniatura={<Icono nombre="proveedor" tamano={22} color={faltaProveedor.length ? paleta.accentTexto : paleta.dim} />} titulo={t("revisar.juegoProveedor")} subtitulo={faltaProveedor.length ? t("catalogo.productos", { count: faltaProveedor.length }) : t("revisar.nadaPendiente")} />
-            <Fila onClick={deHoy.length ? () => elegir("favoritos") : undefined} flecha={deHoy.length > 0} miniatura={<Icono nombre="favorito" tamano={22} color={paleta.accentTexto} />} titulo={t("revisar.juegoFavoritos")} subtitulo={t("revisar.favoritosDeHoySub", { count: favs.size, total: deHoy.length })} />
-            <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
-              <Boton variante="principal" ancho="total" onClick={() => elegir("cierre")}>{t("revisar.cerrarElDia")}</Boton>
-              <Boton variante="fantasma" ancho="total" onClick={onCerrar}>{t("revisar.volverAlCatalogo")}</Boton>
-            </div>
-          </>
-        )}
-
-        {actual?.tipo === "repetidos" && (() => {
-          const { a, b, minutos } = actual.par;
-          const prov = suppliers.find(x => x.id === a.supplierId)?.company || a.supplierCompany || null;
-          const juntarEstos = () => { onJuntar?.(a, b); setBorrados(prev => new Set([...prev, b.id])); siguiente(); };
-          return (
-            <>
-              {pregunta(t("revisar.sonElMismo"), [minutos < 1 ? t("revisar.sacadasSeguidas") : t("revisar.repetidosSub", { count: minutos }), prov].filter(Boolean).join(" · "))}
-              {tarjeta(<>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                  {[a, b].map(p => (
-                    <div key={p.id} style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-                      <div style={{ aspectRatio: "1", borderRadius: radios.medio, overflow: "hidden", background: paleta.surface }}>{miniatura(p)}</div>
-                      <p style={{ ...texto("pie", { fontWeight: 600 }), margin: "4px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name || "—"}</p>
-                      <p style={{ ...texto("pie"), color: paleta.dim, margin: 0 }}>{horaDe(p.createdAt)}{p.price ? ` · USD ${p.price}` : ""}</p>
-                      <Boton variante="fantasma" icono="borrar" onClick={() => eliminar(p)} etiqueta={`${t("revisar.eliminar")} ${p.name || ""}`.trim()}>{t("comun.borrar")}</Boton>
-                    </div>
-                  ))}
-                </div>
-                <p style={{ ...texto("pie"), color: paleta.dim, textAlign: "center", margin: 0 }}>{t("revisar.juntarPista")}</p>
-                {dosBotones({ onSaltar: siguiente, onListo: juntarEstos, listoTexto: t("revisar.juntar"), saltarTexto: t("revisar.sonDistintos") })}
-              </>)}
-            </>
-          );
-        })()}
-
-        {actual?.tipo === "precio" && (
-          <>
-            {pregunta(t("revisar.aCuantoEstaba"))}
-            {tarjeta(<>
-              {cabeceraProducto(actual.p)}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "0 4px" }}><span style={{ ...texto("pie"), color: paleta.dim }}>USD</span><b style={{ ...texto("grande"), color: valor ? paleta.green : paleta.dim, fontVariantNumeric: "tabular-nums" }}>{valor || "0"}</b></div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
-                {teclas.map(k => <button key={k} type="button" onClick={() => tocar(k)} aria-label={k === "⌫" ? t("comun.borrar") : k} style={{ minHeight: 42, borderRadius: radios.chico, border: `1px solid ${paleta.border}`, background: paleta.surface, color: paleta.text, fontSize: 20, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", WebkitTapHighlightColor: "transparent" }}>{k}</button>)}
-              </div>
-              {dosBotones({ onSaltar: siguiente, onListo: confirmarPrecio })}
-            </>)}
-          </>
-        )}
-
-        {actual?.tipo === "proveedor" && (
-          <>
-            {pregunta(t("revisar.deQueProveedor"), t("revisar.estabaEnEseStand", { hora: horaDe(actual.p.createdAt) }))}
-            {tarjeta(<>
-              {cabeceraProducto(actual.p)}
-              <FilaDeChips estilo={{ flexWrap: "wrap", overflow: "visible", justifyContent: "center" }}>
-                {proveedoresDeHoy.map(s => <Chip key={s.id} onClick={() => elegirProveedor(s)}>{s.company || `#${s.id}`}</Chip>)}
-              </FilaDeChips>
-              {dosBotones({ onSaltar: siguiente, onListo: siguiente, listoActivo: false })}
-            </>)}
-          </>
-        )}
-
-        {actual?.tipo === "favoritos" && (
-          <>
-            {pregunta(t("revisar.favoritosDeHoy"), t("revisar.favoritosDeHoySub", { count: favs.size, total: deHoy.length }))}
-            {favs.size === 0 && <p style={{ ...texto("pie"), color: paleta.dim, textAlign: "center", margin: 0 }}>{t("revisar.sinFavoritos")}</p>}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
-              {[...deHoy].sort((a, b) => (favs.has(b.id) ? 1 : 0) - (favs.has(a.id) ? 1 : 0)).map(p => (
-                <button key={p.id} type="button" onClick={() => alternarFav(p)} aria-pressed={favs.has(p.id)} aria-label={p.name || ""} style={{ position: "relative", aspectRatio: "1", borderRadius: radios.chico, overflow: "hidden", border: `2px solid ${favs.has(p.id) ? paleta.accent : paleta.border}`, background: paleta.surface, padding: 0, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
-                  {miniatura(p)}
-                  {favs.has(p.id) && <span style={{ position: "absolute", top: 4, right: 4, width: 22, height: 22, borderRadius: 6, background: "rgba(10,14,23,0.6)", display: "grid", placeItems: "center" }}><Icono nombre="favorito" tamano={13} color="#FDBA74" /></span>}
-                </button>
-              ))}
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <Boton variante="secundario" ancho="total" onClick={volverAlMenu} estilo={{ flex: 1 }}>{t("revisar.listo")}</Boton>
-              <Boton variante="principal" ancho="total" onClick={() => elegir("cierre")} estilo={{ flex: 1 }}>{t("revisar.cerrarElDia")}</Boton>
-            </div>
-          </>
-        )}
-
-        {actual?.tipo === "cierre" && (
-          <>
-            <div style={{ textAlign: "center", padding: "22px 0 6px", display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ ...texto("enorme") }}>{t("revisar.diaCerrado")}</span>
-              <span style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted }}>{feria ? `${feria} · ${fechaCorta(Date.now())}` : fechaCorta(Date.now())}</span>
-              <span style={{ ...texto("cuerpo"), color: paleta.text }}>{t("revisar.resumenCierre", { productos: t("catalogo.productos", { count: deHoy.length }), proveedores: t("cantidades.proveedores", { count: proveedoresHoy }) })}</span>
-              <span style={{ ...texto("pie"), color: paleta.muted }}>{t("revisar.favoritosCierre", { count: favs.size })}{faltaPrecio.length > 0 ? ` · ${t("revisar.quedaronSinPrecio", { count: faltaPrecio.length })}` : ""}</span>
-              <span style={{ ...texto("pie"), color: pendientesSync > 0 ? paleta.muted : paleta.green }}>{pendientesSync > 0 ? t("revisar.pendientesSync", { count: pendientesSync }) : t("revisar.todoSincronizado")}</span>
-            </div>
-            {esAnonima ? (
-              <div style={{ background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, boxShadow: paleta.sombraTarjeta, padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
-                <p style={{ ...texto("cuerpo", { fontWeight: 600 }), margin: 0 }}>{t("revisar.tusProductosEnEsteTelefono", { count: deHoy.length })}</p>
-                <p style={{ ...texto("pie"), color: paleta.muted, margin: 0 }}>{t("revisar.creaCuenta")}</p>
-                <Boton variante="principal" ancho="total" onClick={onCrearCuenta}>{t("revisar.crearCuenta")}</Boton>
-                <Boton variante="fantasma" ancho="total" onClick={onCerrar}>{t("revisar.masTarde")}</Boton>
-              </div>
-            ) : (
-              <Boton variante="principal" ancho="total" onClick={onCerrar}>{t("revisar.volverAlCatalogo")}</Boton>
-            )}
-            {onVerLosDeHoy && <Boton variante="fantasma" ancho="total" onClick={onVerLosDeHoy}>{t("revisar.verLosDeHoy", { count: deHoy.length })}</Boton>}
+            {prev && pantalla(prev, false)}
+            {enCierre ? cierre : pantalla(actual, true)}
+            {!enCierre && (next ? pantalla(next, false) : cierre)}
           </>
         )}
       </div>
+
+      {/* Arriba: salir, el progreso, y los filtros (los jueguitos de antes) */}
+      <div style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 12px)`, left: 0, right: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px" }}>
+          <button type="button" onClick={onCerrar} aria-label={t("comun.cerrar")} style={{ width: 48, height: 48, borderRadius: 24, border: "none", background: "rgba(10,14,23,0.55)", display: "grid", placeItems: "center", cursor: "pointer", backdropFilter: "blur(6px)" }}><Icono nombre="cerrar" tamano={22} color="#fff" /></button>
+          <span style={{ background: paleta.accent, color: "#fff", borderRadius: 999, padding: "8px 14px", fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{t("revisar.titulo")}{total > 0 && !enCierre ? ` · ${t("revisar.posicion", { n: Math.min(i + 1, total), total })}` : ""}</span>
+          <span style={{ width: 48 }} />
+        </div>
+        <FilaDeChips estilo={{ padding: "0 14px" }}>
+          {filtros.map(([k, nombre, n]) => <Chip key={k} activo={filtro === k} onClick={() => cambiarFiltro(k)} estilo={filtro === k ? undefined : { background: "rgba(10,14,23,0.55)", color: "#fff", borderColor: "transparent" }}>{nombre}{n ? ` · ${n}` : ""}</Chip>)}
+        </FilaDeChips>
+      </div>
+
+      {/* A la derecha: lo que falta se hace acá */}
+      {actual && !enCierre && (
+        <div style={{ position: "absolute", right: 10, bottom: `calc(160px + env(safe-area-inset-bottom, 0px))`, display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
+          {redondo("favorito", favs.has(actual.id) ? t("ficha.quitarFavorito") : t("ficha.marcarFavorito"), () => alternarFav(actual), { activo: favs.has(actual.id), presionado: favs.has(actual.id), texto: t("revisar.favorito") })}
+          {redondo("editar", t("revisar.ponerPrecio"), () => { setValor(""); setHoja("precio"); }, { activo: sinPrecio(actual), texto: "$" })}
+          {redondo("proveedor", t("revisar.elegirProveedor"), () => setHoja("proveedor"), { activo: !actual.supplierId, texto: t("proveedor.titulo") })}
+          {redondo("borrar", `${t("revisar.eliminar")} ${actual.name || ""}`.trim(), () => eliminar(actual), { texto: t("comun.borrar") })}
+        </div>
+      )}
+
+      {/* ¿A cuánto estaba? */}
+      <Hoja abierta={hoja === "precio"} onCerrar={() => setHoja(null)} titulo={t("revisar.aCuantoEstaba")}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "0 4px" }}><span style={{ ...texto("pie"), color: paleta.dim }}>USD</span><b style={{ ...texto("grande"), color: valor ? paleta.green : paleta.dim, fontVariantNumeric: "tabular-nums" }}>{valor || "0"}</b></div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+            {teclas.map(k => <button key={k} type="button" onClick={() => tocar(k)} aria-label={k === "⌫" ? t("comun.borrar") : k} style={{ minHeight: 44, borderRadius: radios.chico, border: `1px solid ${paleta.border}`, background: paleta.card, color: paleta.text, fontSize: 18, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{k}</button>)}
+          </div>
+          <Boton variante="principal" ancho="total" onClick={confirmarPrecio} deshabilitado={!valor}>{t("revisar.listo")}</Boton>
+        </div>
+      </Hoja>
+
+      {/* ¿De qué proveedor era? */}
+      <Hoja abierta={hoja === "proveedor"} onCerrar={() => setHoja(null)} titulo={t("revisar.deQueProveedor")}>
+        {actual && <p style={{ ...texto("pie"), color: paleta.dim, margin: "0 0 10px" }}>{t("revisar.estabaEnEseStand", { hora: horaDe(actual.createdAt) })}</p>}
+        <FilaDeChips estilo={{ flexWrap: "wrap", overflow: "visible" }}>
+          {proveedoresDeHoy.map(s => <Chip key={s.id} onClick={() => elegirProveedor(s)}>{s.company || `#${s.id}`}</Chip>)}
+        </FilaDeChips>
+      </Hoja>
     </div>
   );
 }
