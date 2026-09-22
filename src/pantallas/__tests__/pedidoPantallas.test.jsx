@@ -28,6 +28,11 @@ const products = [
 const ancho = (px) => Object.defineProperty(window, "innerWidth", { value: px, configurable: true, writable: true });
 
 describe("Ficha de proveedor", () => {
+  it("es un feed: muestra al proveedor vecino y la posición", () => {
+    con(<FichaProveedor supplier={yiwu} allSuppliers={suppliers} products={products} districts={districts} onNavigateSupplier={vi.fn()} />);
+    expect(screen.getByText("1 de 2")).toBeTruthy();
+    expect(screen.getByText("Shenzhen Brightwave")).toBeTruthy(); // el siguiente, ya dibujado debajo
+  });
   it("productos, contacto directo, favorito y el botón Armar pedido con la cuenta", () => {
     const onUpdate = vi.fn(), onArmarPedido = vi.fn();
     con(<FichaProveedor supplier={yiwu} products={products} districts={districts} onUpdate={onUpdate} onArmarPedido={onArmarPedido} />);
@@ -52,6 +57,7 @@ describe("Ficha de proveedor", () => {
   it("los campos vacíos esperan detrás de Agregar un dato; eliminar pide confirmación", () => {
     const onDelete = vi.fn();
     con(<FichaProveedor supplier={yiwu} products={products} districts={districts} onDelete={onDelete} />);
+    fireEvent.click(screen.getByText("Ver todos los datos"));
     expect(screen.queryByText("Sitio web")).toBeNull();
     fireEvent.click(screen.getByText("Agregar un dato"));
     expect(screen.getByText("Sitio web")).toBeTruthy();

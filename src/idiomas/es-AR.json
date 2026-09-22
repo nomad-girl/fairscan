@@ -354,7 +354,13 @@
     "eliminar": "Eliminar proveedor",
     "eliminarSeguro": "¿Eliminar a {{empresa}}?",
     "eliminarTexto": "Los productos no se borran: quedan sin proveedor.",
-    "cancelar": "Cancelar"
+    "cancelar": "Cancelar",
+    "verDatos": "Ver todos los datos",
+    "datos": "Datos del proveedor",
+    "posicion": "{{n}} de {{total}}",
+    "pedido": "Pedido",
+    "sinTarjeta": "Sin tarjeta",
+    "verProducto": "Ver {{nombre}}"
   },
   "pedido": {
     "titulo": "Pedido",

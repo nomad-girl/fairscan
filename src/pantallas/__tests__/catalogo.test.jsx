@@ -44,7 +44,7 @@ describe("Catálogo", () => {
     expect(screen.getByText("Yiwu Sunrise")).toBeTruthy();
     expect(screen.queryByText("Shenzhen Brightwave")).toBeNull();
     fireEvent.click(screen.getByText("Yiwu Sunrise"));
-    expect(onNavigate).toHaveBeenCalledWith("supplier", suppliers[0]);
+    expect(onNavigate).toHaveBeenCalledWith("supplier", suppliers[0], expect.anything());
   });
   it("Todo ofrece Revisar el día arriba cuando hay capturas de hoy con algo que revisar", () => {
     const onRevisarDia = vi.fn();

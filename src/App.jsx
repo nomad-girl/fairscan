@@ -3033,6 +3033,7 @@ export default function App() {
   };
   // El orden del catálogo al abrir una ficha (con los filtros puestos): deslizar pasa por esos vecinos (21/09).
   const [ordenFicha, setOrdenFicha] = useState(null);
+  const [ordenProveedores, setOrdenProveedores] = useState(null);
   const navigate = (s, data) => { setPrevScreen({ screen, data: screenData }); setScreenData(data); setScreen(s); };
   const goBack = () => { if (prevScreen) { setScreen(prevScreen.screen); setScreenData(prevScreen.data); setPrevScreen(null); } else { setScreen("list"); setScreenData(null); } };
 
@@ -3579,7 +3580,7 @@ export default function App() {
         <Catalogo products={products} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} activeDistrict={activeDistrict} bajando={sync.bajando}
           queueCount={queueCount} enLinea={typeof navigator === "undefined" ? true : navigator.onLine !== false}
           Foto={FotoDeProducto} t={t}
-          onNavigate={(s, d, lista) => { if (lista) setOrdenFicha(lista.map(x => x.id)); navigate(s, d); }} onSwitchDistrict={switchDistrict}
+          onNavigate={(s, d, lista) => { if (lista) (s === "supplier" ? setOrdenProveedores : setOrdenFicha)(lista.map(x => x.id)); navigate(s, d); }} onSwitchDistrict={switchDistrict}
           onToggleFavorito={(p) => handleUpdateProduct(p.id, { favorito: p.favorito ? 0 : 1 })}
           onToggleFavoritoProveedor={async (s) => { const favorito = s.favorito ? 0 : 1; await dbUpdateSupplier(s.id, { favorito }); setSuppliers(prev => prev.map(x => x.id === s.id ? { ...x, favorito } : x)); }}
           onRevisarDia={() => navigate("revisar")}
@@ -3609,8 +3610,8 @@ export default function App() {
           onCerrar={() => navigate("list")} onCrearCuenta={() => navigate("settings")} onVerLosDeHoy={() => { setListTab("todo"); navigate("list"); }} />
       )}
       {screen === "supplier" && screenData && (
-        <FichaProveedor supplier={suppliers.find(s => s.id === screenData.id) || screenData} products={products} pedidos={orders} districts={districts} moneda={monedaActual} Foto={FotoDeProducto} tLegacy={t}
-          onBack={goBack} onUpdate={handleUpdateSupplier} onDelete={handleDeleteSupplier}
+        <FichaProveedor key={screenData.id} supplier={suppliers.find(s => s.id === screenData.id) || screenData} allSuppliers={ordenProveedores ? ordenProveedores.map(id => suppliers.find(s => s.id === id)).filter(Boolean) : suppliers} products={products} pedidos={orders} districts={districts} moneda={monedaActual} Foto={FotoDeProducto} tLegacy={t}
+          onBack={goBack} onUpdate={handleUpdateSupplier} onDelete={handleDeleteSupplier} onNavigateSupplier={s => setScreenData(s)}
           onAddProduct={() => navigate("capture", { fromSupplierId: screenData.id })}
           onNavigateProduct={p => navigate("detail", p)} onArmarPedido={(s) => abrirPedido(s)} />
       )}

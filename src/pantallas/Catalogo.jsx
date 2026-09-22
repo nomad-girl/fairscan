@@ -202,7 +202,7 @@ export function Catalogo({
               </div>
             )}
             {proveedoresBuscados.map(s => (
-              <Fila key={s.id} onClick={() => onNavigate?.("supplier", s)} flecha
+              <Fila key={s.id} onClick={() => onNavigate?.("supplier", s, proveedoresBuscados)} flecha
                 miniatura={(s.cardPhoto || s.cardPhotoUrl) ? (Foto ? <Foto src={s.cardPhoto || s.cardPhotoUrl} respaldo={s.cardPhotoUrl || null} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <img src={s.cardPhoto || s.cardPhotoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <Iniciales texto={s.company} />}
                 titulo={<>{s.favorito ? <><Icono nombre="favorito" tamano={13} color={paleta.accentTexto} /> </> : null}{s.company || `#${s.id}`}</>}
                 subtitulo={`${s.contact ? s.contact + " · " : ""}${t("catalogo.productos", { count: productosPorProveedor.get(s.id) || 0 })}`} />
