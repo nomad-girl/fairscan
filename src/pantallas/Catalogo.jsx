@@ -138,21 +138,21 @@ export function Catalogo({
 
         {pestana === "todo" && (
           <>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              {hayQueRevisar && onRevisarDia && <Fila onClick={onRevisarDia} flecha miniatura={<Icono nombre="listo" tamano={22} color={paleta.accentTexto} />} titulo={t("catalogo.revisarElDia")} subtitulo={t("catalogo.resumenHoy", { productos: t("catalogo.productos", { count: resumen.productos }), proveedores: t("cantidades.proveedores", { count: resumen.proveedores }) })} />}
-              <button type="button" onClick={() => setFiltro(filtro === "favoritos" ? "todos" : "favoritos")} aria-pressed={filtro === "favoritos"} aria-label={t("catalogo.favoritos")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${filtro === "favoritos" ? paleta.accent : paleta.border}`, background: filtro === "favoritos" ? paleta.accentSoft : paleta.card, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}><Icono nombre="favorito" tamano={18} color={filtro === "favoritos" ? paleta.accentTexto : paleta.dim} /></button>
-              <button type="button" onClick={() => setVista(v => (v === "grilla" ? "lista" : "grilla"))} aria-label={vista === "grilla" ? t("catalogo.lista") : t("catalogo.grilla")} style={{ width: alturas.chip, height: alturas.chip, borderRadius: radios.pildora, border: `1px solid ${paleta.border}`, background: paleta.surface, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}>
-                <Icono nombre={vista === "grilla" ? "opciones" : "foto"} tamano={18} color={paleta.dim} />
+            {/* Arriba de la grilla, una sola fila (decisión de Nati, 22/09: la lógica del feed; pantalla 3 del
+                wireframe): la pastilla naranja "Revisar el día · N de hoy" reemplaza al cartel de procesando,
+                al botón de vista y a la fila de revisar; favoritos queda como un filtro chico a la derecha. */}
+            <div style={{ display: "flex", gap: 8, alignItems: "center", minHeight: 40 }}>
+              {deHoy.length > 0 && onRevisarDia ? (
+                <button type="button" onClick={onRevisarDia} style={{ display: "inline-flex", alignItems: "center", gap: 6, minHeight: 40, padding: "0 14px", borderRadius: radios.pildora, border: "none", background: paleta.accent, color: "#fff", cursor: "pointer", fontFamily: "inherit", ...texto("pie", { fontWeight: 700 }) }}>
+                  <Icono nombre="listo" tamano={16} color="#fff" /><b>{t("catalogo.revisarElDia")}</b><span style={{ fontWeight: 500, opacity: 0.9 }}> · {t("catalogo.deHoy", { count: deHoy.length })}</span>
+                </button>
+              ) : <span style={{ ...texto("pie"), color: paleta.dim }}>{t("catalogo.productos", { count: enFeria.length })}</span>}
+              <span style={{ flex: 1 }} />
+              {pendientes > 0 && <span role="status" style={{ ...texto("pie"), color: paleta.dim, display: "inline-flex", alignItems: "center", gap: 6 }}><span aria-hidden style={{ width: 6, height: 6, borderRadius: 3, background: paleta.accent, display: "inline-block" }} />{enLinea ? t("catalogo.procesandoCorto", { count: pendientes }) : t("catalogo.pendientes", { count: pendientes })}</span>}
+              <button type="button" onClick={() => setFiltro(filtro === "favoritos" ? "todos" : "favoritos")} aria-pressed={filtro === "favoritos"} aria-label={t("catalogo.favoritos")} style={{ width: 36, height: 36, borderRadius: 18, border: `1px solid ${filtro === "favoritos" ? paleta.accent : paleta.border}`, background: filtro === "favoritos" ? paleta.accentSoft : paleta.surface, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}>
+                <Icono nombre="favorito" tamano={16} color={filtro === "favoritos" ? paleta.accentTexto : paleta.dim} />
               </button>
             </div>
-
-            {pendientes > 0 && !avisoOculto && (
-              <div role="status" style={{ display: "inline-flex", alignItems: "center", gap: 8, alignSelf: "flex-start", background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.pildora, padding: "4px 6px 4px 12px", ...texto("pie"), color: paleta.muted }}>
-                <span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, background: paleta.accent, display: "inline-block" }} />
-                {enLinea ? t("catalogo.procesando", { count: pendientes }) : t("catalogo.pendientes", { count: pendientes })}
-                <button type="button" onClick={() => setAvisoOculto(true)} aria-label={t("catalogo.ocultarAviso")} style={{ width: 28, height: 28, borderRadius: 14, border: "none", background: "transparent", display: "grid", placeItems: "center", cursor: "pointer", padding: 0 }}><Icono nombre="cerrar" tamano={16} color={paleta.dim} /></button>
-              </div>
-            )}
 
             {filtrados.length === 0 && (
               <div style={{ textAlign: "center", padding: "40px 16px", display: "flex", flexDirection: "column", gap: 12, alignItems: "center" }}>

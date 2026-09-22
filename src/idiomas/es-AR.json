@@ -172,7 +172,11 @@
     "seguirFotos": "Seguir sacando",
     "corregirDatos": "Agregar o corregir datos",
     "volverAlStand": "Volver al stand",
-    "escanearTarjeta": "Escanear tarjeta del proveedor"
+    "escanearTarjeta": "Escanear tarjeta del proveedor",
+    "seguirSacando": "Seguir sacando fotos",
+    "sacarTarjetaDeNuevo": "Sacar la tarjeta de nuevo",
+    "sinTarjetaAun": "Todavía sin tarjeta",
+    "primeraFoto": "Sacá la primera foto o escaneá la tarjeta"
   },
   "catalogo": {
     "titulo": "Catálogo",
@@ -214,7 +218,11 @@
     "ajustes": "Cuenta y ajustes",
     "procesandoNombre": "Procesando…",
     "pedidos": "Pedidos",
-    "ocultarAviso": "Ocultar este aviso"
+    "ocultarAviso": "Ocultar este aviso",
+    "deHoy_one": "{{count}} de hoy",
+    "deHoy_other": "{{count}} de hoy",
+    "procesandoCorto_one": "{{count}} procesando",
+    "procesandoCorto_other": "{{count}} procesando"
   },
   "revisar": {
     "titulo": "Revisar el día",

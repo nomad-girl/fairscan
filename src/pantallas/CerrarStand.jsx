@@ -83,7 +83,80 @@ export function CerrarStand({
   const seccion = (txt) => <h3 style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: paleta.dim, margin: "6px 2px 8px" }}>{txt}</h3>;
 
   // Stand abierto: la pantalla del stand es el resumen aprobado (tarjeta arriba), con o sin tarjeta; "completo" solo para corregir datos.
-  const resumen = abierto ? modo !== "completo" : (modo === "resumen" && !!cardPhoto && !soloProveedor);
+  const resumen = !abierto && modo === "resumen" && !!cardPhoto && !soloProveedor;
+
+  // Stand abierto (decisión de Nati, 22/09: la lógica del feed en toda la app; pantalla 2 del wireframe):
+  // la tarjeta es la pantalla (entera; sin tarjeta, la foto del primer producto); empresa, vendedor y
+  // contactos leídos encima; los productos como tira; un solo botón: Listo. La flecha de arriba es
+  // "seguir sacando"; corregir un dato abre el editor completo.
+  if (abierto && modo !== "completo") {
+    const primera = items[0]?.photos?.[0] || null;
+    const fondo = cardPhoto || primera;
+    const contactos = [proveedor.wechat && `WeChat ${proveedor.wechat}`, proveedor.whatsapp && `WhatsApp ${proveedor.whatsapp}`, proveedor.phone, proveedor.email].filter(Boolean);
+    const redondo = (nombre, etiqueta, onClick, { activo = false, presionado, rotulo } = {}) => (
+      <button type="button" onClick={onClick} aria-label={etiqueta} aria-pressed={presionado} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, background: "none", border: "none", padding: 0, cursor: "pointer", color: "#fff", width: 56, fontFamily: "inherit" }}>
+        <span style={{ width: 48, height: 48, borderRadius: 24, background: activo ? paleta.accent : "rgba(10,14,23,0.55)", display: "grid", placeItems: "center", backdropFilter: "blur(6px)" }}><Icono nombre={nombre} tamano={22} color="#fff" /></span>
+        {rotulo && <span style={{ fontSize: 11, fontWeight: 600, textShadow: "0 1px 2px rgba(0,0,0,0.6)" }}>{rotulo}</span>}
+      </button>
+    );
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "#0B0E17", color: "#fff", fontFamily: "inherit", zIndex: 50 }}>
+        <div style={{ position: "absolute", inset: 0 }}>
+          {fondo
+            ? <img src={fondo} alt={cardPhoto ? t("cerrarStand.tarjeta") : ""} style={{ width: "100%", height: "100%", objectFit: cardPhoto ? "contain" : "cover", display: "block" }} />
+            : (
+              <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, padding: 24, textAlign: "center" }}>
+                <Icono nombre="tarjeta" tamano={44} color="rgba(255,255,255,0.6)" />
+                <p style={{ margin: 0, fontSize: 15, color: "rgba(255,255,255,0.75)" }}>{t("cerrarStand.primeraFoto")}</p>
+                <Boton variante="principal" icono="camara" onClick={onSacarTarjeta}>{t("cerrarStand.escanearTarjeta")}</Boton>
+              </div>
+            )}
+        </div>
+        {avisoPermiso}
+
+        {/* Arriba: seguir sacando (la flecha), el stand, favorito */}
+        <div style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 12px)`, left: 14, right: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <button type="button" onClick={onVolverAlVisor} aria-label={t("cerrarStand.seguirSacando")} style={{ width: 48, height: 48, borderRadius: 24, border: "none", background: "rgba(10,14,23,0.55)", display: "grid", placeItems: "center", cursor: "pointer", backdropFilter: "blur(6px)" }}><Icono nombre="camara" tamano={22} color="#fff" /></button>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(10,14,23,0.55)", color: "#fff", borderRadius: 999, padding: "8px 14px", fontSize: 13, fontWeight: 700, backdropFilter: "blur(6px)" }}>
+            {cardProcessing ? <><Esqueleto ancho={12} alto={12} radio={6} estilo={{ background: paleta.accent }} />{t("cerrarStand.leyendo")}</> : `${t("cerrarStand.tituloStand")} · ${t("catalogo.productos", { count: itemsCount })}`}
+          </span>
+          <button type="button" onClick={() => cambiar("favorito")(!proveedor.favorito)} aria-pressed={!!proveedor.favorito} aria-label={proveedor.favorito ? t("cerrarStand.quitarFavorito") : t("cerrarStand.marcarFavorito")} style={{ width: 48, height: 48, borderRadius: 24, border: "none", background: proveedor.favorito ? paleta.accent : "rgba(10,14,23,0.55)", display: "grid", placeItems: "center", cursor: "pointer", backdropFilter: "blur(6px)" }}><Icono nombre="favorito" tamano={22} color="#fff" /></button>
+        </div>
+
+        {/* A la derecha: corregir datos, la tarjeta de nuevo, el catálogo */}
+        <div style={{ position: "absolute", right: 10, bottom: `calc(250px + env(safe-area-inset-bottom, 0px))`, display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
+          {redondo("editar", t("cerrarStand.corregirDatos"), onEditar, { rotulo: t("cerrarStand.editar") })}
+          {redondo("tarjeta", cardPhoto ? t("cerrarStand.sacarTarjetaDeNuevo") : t("cerrarStand.escanearTarjeta"), () => { if (cardPhoto) onQuitarTarjeta?.(); onSacarTarjeta?.(); }, { rotulo: t("cerrarStand.tarjeta") })}
+          {redondo("foto", t("visor.catalogo"), onCatalogo, { rotulo: t("visor.catalogo") })}
+        </div>
+
+        {/* El pie: lo leído de la tarjeta, la tira de productos, Listo */}
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: `80px 18px calc(16px + env(safe-area-inset-bottom, 0px))`, background: "linear-gradient(to top, rgba(10,14,23,0.92) 65%, rgba(10,14,23,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 }}>
+          <button type="button" onClick={onEditar} style={{ background: "none", border: "none", padding: 0, textAlign: "left", color: "#fff", fontFamily: "inherit", cursor: "pointer", paddingRight: 60 }}>
+            {cardProcessing && !proveedor.name ? <Esqueleto ancho={200} alto={22} estilo={{ background: "rgba(255,255,255,0.35)" }} /> : <p style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere", color: proveedor.name ? "#fff" : "rgba(255,255,255,0.6)" }}>{proveedor.name || t("cerrarStand.nombreEmpresa")}</p>}
+            <p style={{ margin: "2px 0 0", fontSize: 16, fontWeight: 500, color: proveedor.contact ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.55)" }}>{proveedor.contact || t("cerrarStand.agregarVendedor")}</p>
+          </button>
+          {contactos.length > 0 && <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.75)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 60 }}>{contactos.join(" · ")}</p>}
+          {proveedor.minimoDeCompra ? <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.75)" }}>{t("cerrarStand.minimoDeCompra")} USD {proveedor.minimoDeCompra}</p> : null}
+          {items.length > 0 && (
+            <div style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", marginTop: 8, paddingBottom: 2 }}>
+              {items.map(it => (
+                <div key={it.id} style={{ position: "relative", width: 64, height: 64, flexShrink: 0, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.15)" }}>
+                  <img src={it.photos?.[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  {it.price && <span style={{ position: "absolute", left: 3, bottom: 3, fontSize: 10, fontWeight: 700, background: "rgba(10,14,23,0.7)", borderRadius: 4, padding: "1px 4px" }}>{it.price}</span>}
+                  <button type="button" onClick={() => onSacarProducto?.(it.id)} aria-label={t("cerrarStand.sacarDelStand")} style={{ position: "absolute", top: 2, right: 2, width: 22, height: 22, borderRadius: 11, border: "none", background: "rgba(10,14,23,0.75)", display: "grid", placeItems: "center", cursor: "pointer", padding: 0 }}><Icono nombre="cerrar" tamano={12} color="#fff" /></button>
+                </div>
+              ))}
+            </div>
+          )}
+          <Boton variante="principal" ancho="total" onClick={onListo} cargando={guardando} icono={errorGuardar ? "reintentar" : "listo"} estilo={{ marginTop: 12 }}>
+            {guardando ? t("cerrarStand.guardando") : errorGuardar ? t("cerrarStand.reintentar") : t("cerrarStand.listo")}
+          </Boton>
+          {errorGuardar && <p style={{ margin: "6px 0 0", fontSize: 13, color: "#FCA5A5", textAlign: "center" }}>{t("cerrarStand.errorGuardar")}</p>}
+        </div>
+      </div>
+    );
+  }
 
   if (resumen) {
     return (

@@ -180,20 +180,21 @@ describe("Visor · stand abierto", () => {
 });
 
 describe("CerrarStand · stand abierto", () => {
-  it("se titula Stand; 'Seguir sacando' vuelve a la cámara y Listo cierra el stand", () => {
+  it("es la tarjeta a pantalla entera: la flecha vuelve a la cámara, el rail corrige y va al catálogo, un solo Listo cierra", () => {
     const onVolverAlVisor = vi.fn(), onListo = vi.fn();
     const proveedor = { name: "Yiwu Best Toys", contact: "", phone: "", email: "", wechat: "", whatsapp: "", website: "", address: "", products: "", notes: "", favorito: false, minimoDeCompra: null };
     const onEditar = vi.fn(), onCatalogo = vi.fn(), onResumen = vi.fn();
     const r = con(<CerrarStand abierto modo="resumen" itemsCount={2} items={[{ id: 1, photos: [FOTO] }, { id: 2, photos: [FOTO] }]} cardPhoto={FOTO} proveedor={proveedor} onCambiarProveedor={vi.fn()} onVolverAlVisor={onVolverAlVisor} onListo={onListo} onEditar={onEditar} onCatalogo={onCatalogo} />);
-    expect(screen.getByText("Stand")).toBeTruthy();
-    expect(screen.getByText("Yiwu Best Toys")).toBeTruthy(); // la empresa, grande y editable
-    fireEvent.click(screen.getByText("Catálogo"));
+    expect(screen.getByText("Stand · 2 productos")).toBeTruthy();
+    expect(screen.getByText("Yiwu Best Toys")).toBeTruthy(); // la empresa, grande, sobre la tarjeta
+    fireEvent.click(screen.getByRole("button", { name: "Catálogo" }));
     expect(onCatalogo).toHaveBeenCalled();
-    fireEvent.click(screen.getByText("Agregar o corregir datos"));
+    fireEvent.click(screen.getByRole("button", { name: "Agregar o corregir datos" }));
     expect(onEditar).toHaveBeenCalled();
-    fireEvent.click(screen.getByText("Seguir sacando"));
+    fireEvent.click(screen.getByRole("button", { name: "Seguir sacando fotos" }));
     expect(onVolverAlVisor).toHaveBeenCalled();
     expect(onListo).not.toHaveBeenCalled();
+    expect(screen.getAllByRole("button", { name: /Listo/ }).length).toBe(1); // un solo botón grande
     fireEvent.click(screen.getByRole("button", { name: /Listo/ }));
     expect(onListo).toHaveBeenCalled();
     r.unmount();
