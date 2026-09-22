@@ -7,7 +7,11 @@ import { listaDeRubros, RUBRO_POR_DEFECTO } from '../lib/presets.js';
  * ponerle mail y contraseña. Mismo formulario de registro, pero la cuenta no se
  * crea: se completa la que ya tiene, y el catálogo queda donde está.
  */
-export default function LoginScreen({ t, onAuth, convertir = false, onCancel }) {
+// La lógica del feed (Nati, 22/09): fondo oscuro liso, sin tarjeta blanca ni logo grande; la marca es la palabra.
+const OSCURO = { bg: "#0B0E17", card: "#0B0E17", text: "#FFFFFF", muted: "rgba(255,255,255,0.78)", dim: "rgba(255,255,255,0.55)", border: "rgba(255,255,255,0.35)", surface: "rgba(255,255,255,0.12)", accent: "#EA5A22", red: "#FCA5A5", redSoft: "rgba(220,38,38,0.25)", green: "#86EFAC", greenSoft: "rgba(21,128,61,0.25)" };
+
+export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCancel }) {
+  const t = { ...tTema, ...OSCURO };
   const [mode, setMode] = useState(convertir ? 'register' : 'login'); // 'login' | 'register'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -68,12 +72,13 @@ export default function LoginScreen({ t, onAuth, convertir = false, onCancel }) 
     width: '100%',
     padding: '14px 16px',
     borderRadius: 12,
-    border: `1.5px solid ${t.border}`,
+    border: `1px solid ${t.border}`,
     background: t.surface,
     color: t.text,
-    fontSize: 15,
+    fontSize: 16,
     outline: 'none',
     boxSizing: 'border-box',
+    fontFamily: 'inherit',
   };
 
   if (recuperando) {
@@ -97,15 +102,21 @@ export default function LoginScreen({ t, onAuth, convertir = false, onCancel }) 
       alignItems: 'center',
       justifyContent: 'center',
       background: t.bg,
+      color: t.text,
       padding: 24,
+      position: 'relative',
     }}>
+      {onCancel && !convertir && (
+        <button type="button" onClick={onCancel} aria-label="Volver" style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top, 0px) + 12px)', left: 14, width: 48, height: 48, borderRadius: 24, border: 'none', background: 'rgba(255,255,255,0.12)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+          <Icono nombre="volver" tamano={22} color="#fff" />
+        </button>
+      )}
       <div style={{ width: '100%', maxWidth: 360 }}>
-        {/* Logo */}
+        {/* La marca */}
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <Icono nombre="camara" tamano={40} color={t.accent} />
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: t.text, margin: '8px 0 4px' }}>FairScan</h1>
-          <p style={{ fontSize: 13, color: t.muted, margin: 0 }}>
-            {mode === 'login' ? 'Iniciá sesión para continuar' : convertir ? 'Creá tu cuenta para no perder tu catálogo' : 'Creá tu cuenta'}
+          <h1 style={{ fontSize: 36, fontWeight: 700, color: t.text, margin: '0 0 6px', letterSpacing: '-0.02em' }}>FairScan</h1>
+          <p style={{ fontSize: 15, color: t.muted, margin: 0 }}>
+            {mode === 'login' ? 'Entrar con tu cuenta' : convertir ? 'Creá tu cuenta para no perder tu catálogo' : 'Creá tu cuenta'}
           </p>
         </div>
 
@@ -128,22 +139,6 @@ export default function LoginScreen({ t, onAuth, convertir = false, onCancel }) 
                 onChange={e => setTeamName(e.target.value)}
                 style={inputStyle}
               />
-              <div>
-                <p style={{ fontSize: 11, fontWeight: 700, color: t.muted, margin: '4px 0 8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>¿Qué comprás?</p>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  {listaDeRubros().map(r => (
-                    <button key={r.clave} type="button" onClick={() => setRubro(r.clave)} style={{
-                      display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
-                      background: rubro === r.clave ? `${t.accent}22` : t.surface,
-                      border: `1.5px solid ${rubro === r.clave ? t.accent : t.border}`,
-                      color: rubro === r.clave ? t.accent : t.text, fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
-                    }}>
-                      <span style={{ fontSize: 18 }}>{r.icono}</span><span>{r.nombre}</span>
-                    </button>
-                  ))}
-                </div>
-                <p style={{ fontSize: 11, color: t.muted, margin: '6px 0 0' }}>Define las categorías y materiales que vas a ver. Se puede cambiar después en Configuración.</p>
-              </div>
             </>
           )}
           <input
@@ -231,9 +226,9 @@ export default function LoginScreen({ t, onAuth, convertir = false, onCancel }) 
             }}
           >
             {loading
-              ? '⏳ Cargando...'
+              ? 'Entrando…'
               : mode === 'login'
-                ? 'Iniciar sesión'
+                ? 'Entrar'
                 : 'Crear cuenta'
             }
           </button>
@@ -283,12 +278,12 @@ export default function LoginScreen({ t, onAuth, convertir = false, onCancel }) 
               padding: 0,
             }}
           >
-            {mode === 'login' ? 'Crear cuenta' : 'Iniciar sesión'}
+            {mode === 'login' ? 'Crear cuenta' : 'Entrar'}
           </button>
         </p>
         {mode === 'login' && (
           <p style={{ textAlign: 'center', margin: '8px 0 0' }}>
-            <button type="button" onClick={olvide} style={{ background: 'none', border: 'none', color: t.muted, fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 8 }}>¿Olvidaste tu contraseña?</button>
+            <button type="button" onClick={olvide} style={{ background: 'none', border: 'none', color: t.text, fontSize: 14, fontWeight: 600, cursor: 'pointer', padding: 8, fontFamily: 'inherit' }}>Olvidé mi contraseña</button>
           </p>
         )}
         {aviso && <p style={{ textAlign: 'center', fontSize: 13, color: t.muted, margin: '8px 0 0', lineHeight: 1.4 }}>{aviso}</p>}
