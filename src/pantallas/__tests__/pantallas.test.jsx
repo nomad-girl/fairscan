@@ -16,7 +16,7 @@ const con = (ui) => render(<SistemaProvider modo="claro">{ui}</SistemaProvider>)
 const FOTO = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
 describe("Visor", () => {
-  it("sin saldo ni nube a la vista; el contador del stand y Terminar; el obturador mide 72", () => {
+  it("sin saldo ni nube a la vista, sin botón a la derecha; el contador del stand; el obturador mide 72", () => {
     const onDisparar = vi.fn(), onCerrarStand = vi.fn();
     con(<Visor videoRef={{ current: null }} modo="product" feria="🇨🇳 Cantón" itemsCount={3} saldo={12} estadoSync="sincronizando" pendientesSync={2} onDisparar={onDisparar} onStand={onCerrarStand} />);
     // El saldo y la nube ya no se muestran en la cámara (Nati, 22/09: distraen); el saldo vuelve solo cuando está por acabarse
@@ -27,8 +27,7 @@ describe("Visor", () => {
     expect(obturador.style.width).toBe("72px");
     fireEvent.click(obturador);
     expect(onDisparar).toHaveBeenCalled();
-    fireEvent.click(screen.getByText("Terminar"));
-    expect(onCerrarStand).toHaveBeenCalled();
+    expect(screen.queryByText("Terminar")).toBeNull(); // sin botón a la derecha: la pastilla de arriba es el stand
   });
   it("en cero muestra cuántas fotos esperan y en naranja", () => {
     con(<Visor videoRef={{ current: null }} saldo={0} esperando={2} />);
@@ -96,14 +95,13 @@ describe("Visor · otra foto del mismo producto", () => {
 });
 
 describe("Visor · stand abierto", () => {
-  it("sin tarjeta la pastilla invita a escanearla y abre la cámara de tarjeta; Terminar abre el stand", () => {
+  it("sin tarjeta la pastilla invita a escanearla y abre la cámara de tarjeta; no hay botón Terminar", () => {
     const onStand = vi.fn(), onTarjeta = vi.fn(), onCerrarStand = vi.fn();
     con(<Visor videoRef={{ current: null }} modo="product" itemsCount={0} standAbierto={{ nombre: "", fotos: 0, tieneTarjeta: false, leyendo: false }} onStand={onStand} onTarjeta={onTarjeta} onCerrarStand={onCerrarStand} />);
     fireEvent.click(screen.getByText("Escanear tarjeta del proveedor"));
     expect(onTarjeta).toHaveBeenCalled();
     expect(screen.queryByText("Tarjeta")).toBeNull();
-    fireEvent.click(screen.getByText("Terminar"));
-    expect(onStand).toHaveBeenCalled();
+    expect(screen.queryByText("Terminar")).toBeNull();
     expect(onCerrarStand).not.toHaveBeenCalled();
   });
   it("con fotos y sin tarjeta cuenta las fotos; con la tarjeta leída muestra la empresa y abre el stand", () => {

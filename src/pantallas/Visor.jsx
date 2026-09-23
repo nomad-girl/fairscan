@@ -241,9 +241,10 @@ export function Visor({
           )}
         </button>
 
-        {/* Derecha: Cerrar stand (o Cancelar en modo tarjeta) */}
+        {/* Derecha: nada (Nati, 23/09: la pastilla de arriba es el stand; el ciclo se cierra desde ahí con Listo,
+            o lo propone la app al escanear la tarjeta del stand siguiente). Queda el ancho para centrar el obturador. */}
         <div style={{ width: 84, display: "flex", justifyContent: "flex-end" }}>
-          {esTarjeta ? null : (
+          {true ? null : (
             <button type="button" onClick={onStand} style={{ width: 84, height: alturas.miniatura, borderRadius: 14, border: "none", background: (itemsCount > 0 || standAbierto?.tieneTarjeta) ? MARCA.naranja : "rgba(241,245,249,0.14)", color: "#fff", fontSize: 12, fontWeight: 700, lineHeight: 1.15, cursor: "pointer", fontFamily: "inherit", textAlign: "center", padding: "0 6px", whiteSpace: "normal" }}>{t("visor.cerrarStand")}</button>
           )}
         </div>

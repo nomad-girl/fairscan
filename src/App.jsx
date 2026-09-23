@@ -101,7 +101,7 @@ import { Catalogo } from './pantallas/Catalogo.jsx';
 import { RevisarDia } from './pantallas/RevisarDia.jsx';
 import { FichaProducto } from './pantallas/FichaProducto.jsx';
 import { FichaProveedor } from './pantallas/FichaProveedor.jsx';
-import { Icono } from './componentes/index.js';
+import { Icono, Hoja, Boton } from './componentes/index.js';
 import { useSistema } from './sistema/SistemaProvider.jsx';
 import { ArmarPedido } from './pantallas/ArmarPedido.jsx';
 import { Pedidos } from './pantallas/Pedidos.jsx';
@@ -1011,7 +1011,9 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     setTimeout(() => setFlashVisible(false), 150);
     vibrarObturador();
     if (cameraMode === "card") {
-      // La tarjeta se lee en segundo plano y se sigue sacando fotos.
+      // La tarjeta se lee en segundo plano y se sigue sacando fotos. Si el stand ya tenía tarjeta y fotos,
+      // esta tarjeta casi seguro es del stand siguiente: la app lo propone y la usuaria decide (23/09).
+      if (cardPhoto && items.length > 0) { setTarjetaPendiente(photo); setCameraMode("product"); return; }
       setCardPhoto(photo);
       processCardPhoto(photo);
       setCameraMode("product");
@@ -1161,6 +1163,22 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
         productIds: items.map(it => it.id),
         standAudioBlob: nota.audioBlob, standAudioDuracion: nota.segundos, standTranscript: nota.transcripcion.trim(),
   });
+  // Tarjeta nueva con un stand abierto: ¿cerramos el anterior y arrancamos con esta?
+  const [tarjetaPendiente, setTarjetaPendiente] = useState(null);
+  const resetStand = () => {
+    setItems([]); setCardPhoto(null); setCardData(null); setCardProcessing(false);
+    setSupplierName(""); setSupplierContact(""); setSupplierPhone(""); setSupplierEmail(""); setSupplierWechat(""); setSupplierWhatsapp(""); setSupplierWhatsappLink(""); setSupplierWechatLink(""); setSupplierWebsite(""); setSupplierAddress(""); setSupplierProducts(""); setSupplierNotes(""); setSupplierFavorito(false); setSupplierMinimo(null); setLinkedSupplierId(null);
+    setLastCapture(null); setDatosRapidos(null); setAnguloDisponible(false); guardadoTarjetaRef.current = null;
+    try { nota.descartar?.(); } catch { /* sin nota */ }
+  };
+  const cerrarYArrancar = async () => {
+    const foto = tarjetaPendiente; setTarjetaPendiente(null);
+    await guardarStand({ final: true });
+    await borrarBorrador();
+    resetStand();
+    setCardPhoto(foto); processCardPhoto(foto);
+  };
+  const esLaMismaTarjeta = () => { const foto = tarjetaPendiente; setTarjetaPendiente(null); setCardPhoto(foto); processCardPhoto(foto); };
   /** Stand abierto: guarda sin salir del visor. `final` descuenta los créditos y cierra el stand. */
   const guardarStand = async ({ final = false } = {}) => {
     if (!items.length && !cardPhoto && !supplierName.trim() && !linkedSupplierId) return null;
@@ -1211,9 +1229,19 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   const estadoSync = typeof navigator !== "undefined" && navigator.onLine === false ? "guardado" : queueCount > 0 ? "sincronizando" : "nube";
   const ultimas = items.slice(0, 3).map(it => ({ id: it.id, foto: it.photos?.[0] })).filter(u => u.foto);
   const esperando = products.filter(p => p.bloqueado).length;
+  const hojaTarjetaNueva = (
+    <Hoja abierta={!!tarjetaPendiente} onCerrar={esLaMismaTarjeta} titulo={t("visor.tarjetaNueva")}>
+      <p style={{ fontSize: 15, lineHeight: 1.45, margin: "0 0 14px" }}>{supplierName ? t("visor.cerrarYArrancar", { empresa: supplierName, fotos: t("cantidades.fotos", { count: items.length }) }) : t("visor.cerrarYArrancarSinNombre", { fotos: t("cantidades.fotos", { count: items.length }) })}</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <Boton variante="principal" ancho="total" icono="listo" onClick={cerrarYArrancar}>{t("visor.siCerrar")}</Boton>
+        <Boton variante="secundario" ancho="total" onClick={esLaMismaTarjeta}>{t("visor.noEsLaMisma")}</Boton>
+      </div>
+    </Hoja>
+  );
   if (cameraMode) {
     return (
       <>
+        {hojaTarjetaNueva}
         <Visor
           videoRef={videoRef} modo={cameraMode} feria={activeDistrict?.name || null}
           itemsCount={items.length} saldo={saldoCreditos} esperando={esperando} estadoSync={estadoSync} pendientesSync={queueCount}
