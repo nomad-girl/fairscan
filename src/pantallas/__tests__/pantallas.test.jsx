@@ -65,8 +65,8 @@ describe("Visor", () => {
     expect(onFavorito).toHaveBeenCalled();
     rerender(<SistemaProvider modo="claro"><Visor videoRef={{ current: null }} datos={{ id: 1, campo: "moq", valores: { price: "0.85" }, moqBase: null, favorito: false, tocado: true, listos: {}, pista: true }} onEscribirDato={onEscribir} onListoDato={onListo} onConfirmarPrecio={onConfirmar} onCampo={onCampo} /></SistemaProvider>);
     expect(screen.queryByRole("button", { name: "Listo" })).toBeNull(); // no existe el botón Guardar: se guarda al escribir
-    expect(screen.getByRole("tab", { name: "Precio" })).toBeTruthy(); // en MOQ, Precio aparece como chip para volver; sin valores ni tildes
-    expect(screen.queryByRole("tab", { name: "MOQ" })).toBeNull(); // el dato que estás editando no se repite como chip
+    expect(screen.getByRole("tab", { name: "Precio" })).toBeTruthy(); // texto plano, sin valores ni tildes
+    expect(screen.getByRole("tab", { name: "MOQ", selected: true })).toBeTruthy(); // la activa, marcada
     fireEvent.click(screen.getByRole("button", { name: "Cerrar" }));
     expect(onConfirmar).toHaveBeenCalledTimes(2); // una por tocar afuera (el consejo, más arriba) y otra por la X
     fireEvent.click(screen.getByRole("tab", { name: "Precio" }));
@@ -79,7 +79,7 @@ describe("Visor", () => {
     expect(screen.getByRole("radio", { name: "por caja", checked: true })).toBeTruthy();
     fireEvent.click(screen.getByRole("radio", { name: "por pedido" }));
     expect(onMoqBase).toHaveBeenCalledWith("pedido");
-    expect(screen.queryByRole("tab", { name: "MOQ" })).toBeNull(); // el activo no se repite
+    expect(screen.getByRole("tab", { name: "MOQ", selected: true })).toBeTruthy();
   });
 });
 

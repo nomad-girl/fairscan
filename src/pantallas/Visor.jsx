@@ -191,10 +191,12 @@ export function Visor({
               </div>
             )}
             {mostrarChips && (
-              <div role="tablist" aria-label={t("visor.otrosDatos")} style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {campos.filter(([k]) => k !== campo).map(([k, etiqueta]) => {
-                  const activo = false; const ok = hecho(k);
-                  return <button key={k} type="button" role="tab" aria-selected={activo} onClick={() => elegir(k)} style={{ minHeight: 34, padding: "0 12px", borderRadius: 999, border: `1px solid ${activo ? MARCA.naranja : "#DCE3EC"}`, background: activo ? MARCA.naranja : "#FFFFFF", color: activo ? "#fff" : "#475569", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>{etiqueta}{ok && !activo && <span aria-hidden style={{ display: "inline-block", width: 6, height: 6, borderRadius: 3, background: "#15803D", marginLeft: 6, verticalAlign: "middle" }} />}</button>;
+              <div role="tablist" aria-label={t("visor.otrosDatos")} style={{ display: "flex", gap: 14, flexWrap: "wrap", padding: "0 4px" }}>
+                {/* Texto plano, tipo pestañas (Nati, 23/09: "que no sea todo formato pastilla, eso genera ruido"):
+                    la activa en negrita con una raya naranja; un puntito verde en las que ya tienen dato */}
+                {campos.map(([k, etiqueta]) => {
+                  const activo = k === campo; const ok = hecho(k);
+                  return <button key={k} type="button" role="tab" aria-selected={activo} onClick={() => elegir(k)} style={{ minHeight: 32, padding: "0 4px 4px", border: "none", borderBottom: `2px solid ${activo ? MARCA.naranja : "transparent"}`, background: "transparent", color: activo ? "#0F172A" : "#64748B", fontSize: 13, fontWeight: activo ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 }}>{etiqueta}{ok && !activo && <span aria-hidden style={{ display: "inline-block", width: 6, height: 6, borderRadius: 3, background: "#15803D" }} />}</button>;
                 })}
               </div>
             )}
