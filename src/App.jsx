@@ -930,6 +930,8 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
       return { ...d, favorito, tocado: true };
     });
   };
+  const [avisoGuardado, setAvisoGuardado] = useState(null);
+  const avisoTimerRef = useRef(null);
   const confirmarPrecio = () => {
     clearTimeout(precioTimerRef.current);
     setDatosRapidos(d => {
@@ -943,11 +945,17 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
         if (Object.keys(cambios).length) {
           setItems(prev => prev.map(it => it.id === d.id ? { ...it, ...cambios } : it));
           onProductoCambio?.(d.id, cambios);
+          // "Listo es listo": la barra se cierra y un aviso corto dice qué quedó guardado (Nati, 23/09)
+          const partes = [cambios.price ? `${CURRENCIES[settings?.currency]?.symbol || "USD"} ${cambios.price}` : null, cambios.moq ? `MOQ ${cambios.moq}` : null, cambios.piezasPorCaja ? `${cambios.piezasPorCaja}/caja` : null, cambios.cbmPorCaja ? `${cambios.cbmPorCaja} CBM` : null].filter(Boolean);
+          clearTimeout(avisoTimerRef.current);
+          setAvisoGuardado(partes.join(" · "));
+          avisoTimerRef.current = setTimeout(() => setAvisoGuardado(null), 2200);
         }
       }
       return null;
     });
   };
+  useEffect(() => () => clearTimeout(avisoTimerRef.current), []);
   useEffect(() => () => clearTimeout(precioTimerRef.current), []);
   const agregarFotoAItem = (id, photo) => {
     setItems(prev => prev.map(it => {
@@ -1178,7 +1186,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
           videoRef={videoRef} modo={cameraMode} feria={activeDistrict?.name || null}
           itemsCount={items.length} saldo={saldoCreditos} esperando={esperando} estadoSync={estadoSync} pendientesSync={queueCount}
           flash={flashVisible} ultimaCaptura={lastCapture} ultimas={ultimas} puedeAgregarAngulo={anguloDisponible && items.length > 0 && !addPhotoToItemId}
-          datos={datosRapidos} datosActivos={settings?.datosDeCompra} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"} onTeclaPrecio={tocarPrecio} onConfirmarPrecio={confirmarPrecio} onEscribirDato={escribirDato} onListoDato={guardarDatoRapido} modoAngulo={!!addPhotoToItemId} onCampo={cambiarCampoRapido} onMoqBase={cambiarMoqBase} onFavorito={alternarFavoritoRapido}
+          datos={datosRapidos} datosActivos={settings?.datosDeCompra} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"} onTeclaPrecio={tocarPrecio} onConfirmarPrecio={confirmarPrecio} onEscribirDato={escribirDato} onListoDato={guardarDatoRapido} modoAngulo={!!addPhotoToItemId} avisoGuardado={avisoGuardado} onCampo={cambiarCampoRapido} onMoqBase={cambiarMoqBase} onFavorito={alternarFavoritoRapido}
           onDisparar={handleCameraShutter}
           standAbierto={{ nombre: supplierName, fotos: items.length, tieneTarjeta: !!cardPhoto, leyendo: cardProcessing }}
           onStand={() => closeCamera()} onTarjeta={() => openCamera("card")}

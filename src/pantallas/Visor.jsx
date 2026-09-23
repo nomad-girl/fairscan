@@ -36,7 +36,7 @@ export function Visor({
   flash = false, ultimaCaptura = null, ultimas = [], puedeAgregarAngulo = false,
   datos = null, moneda = "USD", onTeclaPrecio, onConfirmarPrecio, onCampo, onMoqBase, onFavorito,
   onDisparar, onCatalogo, onCancelar, onVolverAProductos, onAgregarAngulo, onBorrarFoto,
-  onEscribirDato, onListoDato, modoAngulo = false, // la barra del pulgar y el modo "otra foto del mismo producto"
+  onEscribirDato, onListoDato, modoAngulo = false, avisoGuardado = null, // la barra del pulgar y el modo "otra foto del mismo producto"
   standAbierto = null, onStand, onTarjeta, // el stand: { nombre, fotos, tieneTarjeta, leyendo }; la pastilla lo abre, Cerrar stand también
   consejoVisible = false, onConsejoVisto,
   onTouchStart, onTouchEnd,
@@ -84,7 +84,7 @@ export function Visor({
   }, []);
 
   return (
-    <div className="pantalla-fija" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#000", display: "flex", flexDirection: "column", color: BLANCO, fontFamily: "inherit", userSelect: "none" }}>
+    <div className="pantalla-fija" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} onClick={() => { if (datos && !esTarjeta) { inputDatoRef.current?.blur(); onConfirmarPrecio?.(); } }} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#000", display: "flex", flexDirection: "column", color: BLANCO, fontFamily: "inherit", userSelect: "none" }}>
       <video ref={videoRef} autoPlay playsInline muted style={{ flex: 1, objectFit: "cover", width: "100%" }} />
 
       {/* Velo blanco del obturador (80 ms) */}
@@ -155,7 +155,7 @@ export function Visor({
         const valor = datos.valores[campo] || "";
         const listos = datos.listos || {};
         const hecho = (k) => !!listos[k] || (!!datos.valores[k] && k !== campo);
-        const mostrarChips = campos.length > 1 && (Object.values(listos).some(Boolean) || campo !== "price");
+        const mostrarChips = campos.length > 1; // siempre a la vista (boceto de Nati, 23/09): se sabe qué se puede cargar; precio por defecto
         const elegir = (k) => { inputDatoRef.current?.focus(); onCampo?.(k); };
         const abajo = alturaTeclado > 0 ? `calc(${alturaTeclado + 10}px)` : `calc(150px + env(safe-area-inset-bottom, 0px))`;
         const cerrarBarra = () => { inputDatoRef.current?.blur(); onConfirmarPrecio?.(); };
@@ -169,13 +169,13 @@ export function Visor({
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#64748B", whiteSpace: "nowrap" }}>{campo === "price" ? moneda : etiquetaDe[campo]}</span>
                 <input ref={inputDatoRef} type="text" inputMode="decimal" enterKeyHint="done" value={valor} placeholder={campo === "price" ? t("visor.aCuanto") : ""} aria-label={campo === "price" ? t("visor.aCuantoEstaba") : etiquetaDe[campo]}
                   onChange={e => onEscribirDato?.(campo, e.target.value.replace(/,/g, ".").replace(/[^0-9.]/g, "").slice(0, 8))}
-                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); onListoDato?.(); e.currentTarget.blur(); } }}
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); cerrarBarra(); } }}
                   style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", fontSize: 18, fontWeight: 700, color: "#0F172A", fontFamily: "inherit", outline: "none", fontVariantNumeric: "tabular-nums" }} />
                 {campo === "cbmPorCaja" && <span style={{ fontSize: 12, color: "#64748B" }}>CBM</span>}
               </label>
               <button type="button" onClick={cerrarBarra} aria-label={t("visor.cerrarBarra")} style={{ width: 36, height: 44, border: "none", background: "transparent", display: "grid", placeItems: "center", cursor: "pointer", padding: 0, order: 3 }}><Icono nombre="cerrar" tamano={20} color="#94A3B8" /></button>
               {valor && !listos[campo] ? (
-                <button type="button" onClick={() => { onListoDato?.(); inputDatoRef.current?.blur(); }} style={{ minHeight: 44, padding: "0 14px", borderRadius: 12, border: "none", background: MARCA.naranja, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{t("visor.listo")}</button>
+                <button type="button" onClick={cerrarBarra} style={{ minHeight: 44, padding: "0 14px", borderRadius: 12, border: "none", background: MARCA.naranja, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{t("visor.listo")}</button>
               ) : (
                 <button type="button" onClick={onFavorito} aria-pressed={!!datos.favorito} aria-label={datos.favorito ? t("visor.quitarFavorito") : t("visor.marcarFavorito")} style={{ width: 44, height: 44, borderRadius: 12, border: `1px solid ${datos.favorito ? MARCA.naranja : "#DCE3EC"}`, background: datos.favorito ? "rgba(234,90,34,0.12)" : "#FFFFFF", display: "grid", placeItems: "center", cursor: "pointer" }}>
                   <Icono nombre="favorito" tamano={20} color={datos.favorito ? MARCA.naranja : "#475569"} />
@@ -195,7 +195,6 @@ export function Visor({
                   const activo = k === campo; const ok = hecho(k);
                   return <button key={k} type="button" role="tab" aria-selected={activo} onClick={() => elegir(k)} style={{ minHeight: 34, padding: "0 12px", borderRadius: 999, border: `1px solid ${activo ? MARCA.naranja : ok ? "rgba(21,128,61,0.5)" : "#DCE3EC"}`, background: activo ? MARCA.naranja : ok ? "rgba(21,128,61,0.10)" : "#FFFFFF", color: activo ? "#fff" : ok ? "#15803D" : "#475569", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>{ok ? "✓ " : ""}{etiqueta}{ok && datos.valores[k] ? ` ${datos.valores[k]}` : ""}</button>;
                 })}
-                {puedeAgregarAngulo && onAgregarAngulo && <button type="button" onClick={() => { cerrarBarra(); onAgregarAngulo(); }} style={{ minHeight: 34, padding: "0 12px", borderRadius: 999, border: "1px dashed #94A3B8", background: "#FFFFFF", color: "#475569", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>{t("visor.otraFoto")}</button>}
               </div>
             )}
           </div>
@@ -213,7 +212,10 @@ export function Visor({
               <button type="button" onClick={() => setUltimasAbiertas(true)} aria-label={t("visor.ultimasFotos")} style={{ width: alturas.miniatura, height: alturas.miniatura, borderRadius: 12, border: modoAngulo ? `2px solid ${MARCA.naranja}` : "2px solid #fff", padding: 0, overflow: "hidden", background: "#111", cursor: "pointer", transform: miniaturaVuela && !reducido ? "scale(1.12)" : "scale(1)", transition: `transform ${duracion(movimiento.obturador.miniatura)}ms ${curvas.entra}` }}>
                 <img src={ultimaCaptura || ultimas[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               </button>
-              {puedeAgregarAngulo && !esTarjeta && !modoAngulo && (
+              {avisoGuardado && !datos && (
+                <span role="status" style={{ position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)", minHeight: 24, padding: "0 8px", borderRadius: 999, background: "#15803D", color: "#fff", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 4 }}><Icono nombre="listo" tamano={12} color="#fff" />{avisoGuardado}</span>
+              )}
+              {puedeAgregarAngulo && !esTarjeta && !modoAngulo && !avisoGuardado && (
                 <button type="button" onClick={onAgregarAngulo} aria-label={t("visor.agregarAngulo")} style={{ position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)", minHeight: 24, padding: "0 8px", borderRadius: 999, border: "1.5px solid #fff", background: MARCA.naranja, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit" }}>{t("visor.otraFoto")}</button>
               )}
             </>

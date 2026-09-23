@@ -51,21 +51,21 @@ describe("Visor", () => {
     fireEvent.click(screen.getByText("Productos"));
     expect(onVolver).toHaveBeenCalled();
   });
-  it("la barra del pulgar: se escribe el precio con el teclado del sistema, Listo guarda y aparecen los chips", () => {
-    const onConsejoVisto = vi.fn(), onEscribir = vi.fn(), onListo = vi.fn(), onCampo = vi.fn(), onFavorito = vi.fn();
-    const { rerender } = con(<Visor videoRef={{ current: null }} consejoVisible onConsejoVisto={onConsejoVisto} datos={{ id: 1, campo: "price", valores: {}, moqBase: null, favorito: false, tocado: false, listos: {} }} onEscribirDato={onEscribir} onListoDato={onListo} onCampo={onCampo} onFavorito={onFavorito} />);
+  it("la barra del pulgar: chips a la vista, se escribe con el teclado del sistema, Listo guarda todo y cierra", () => {
+    const onConsejoVisto = vi.fn(), onEscribir = vi.fn(), onListo = vi.fn(), onConfirmar = vi.fn(), onCampo = vi.fn(), onFavorito = vi.fn();
+    const { rerender } = con(<Visor videoRef={{ current: null }} consejoVisible onConsejoVisto={onConsejoVisto} datos={{ id: 1, campo: "price", valores: {}, moqBase: null, favorito: false, tocado: false, listos: {} }} onEscribirDato={onEscribir} onListoDato={onListo} onConfirmarPrecio={onConfirmar} onCampo={onCampo} onFavorito={onFavorito} />);
     fireEvent.click(screen.getByRole("status"));
     expect(onConsejoVisto).toHaveBeenCalled();
     const campo = screen.getByRole("textbox", { name: "¿A cuánto estaba?" });
     expect(campo.getAttribute("inputmode")).toBe("decimal"); // el teclado del iPhone, no uno propio
     fireEvent.change(campo, { target: { value: "0,85" } });
     expect(onEscribir).toHaveBeenCalledWith("price", "0.85");
-    expect(screen.queryByRole("tab", { name: "MOQ" })).toBeNull(); // sin chips hasta el primer Listo
+    expect(screen.getByRole("tab", { name: "MOQ" })).toBeTruthy(); // los chips siempre a la vista; precio por defecto
     fireEvent.click(screen.getByRole("button", { name: "Marcar como favorito" }));
     expect(onFavorito).toHaveBeenCalled();
-    rerender(<SistemaProvider modo="claro"><Visor videoRef={{ current: null }} datos={{ id: 1, campo: "price", valores: { price: "0.85" }, moqBase: null, favorito: false, tocado: true, listos: {} }} onEscribirDato={onEscribir} onListoDato={onListo} onCampo={onCampo} /></SistemaProvider>);
-    fireEvent.click(screen.getByRole("button", { name: "Listo" }));
-    expect(onListo).toHaveBeenCalledTimes(1);
+    rerender(<SistemaProvider modo="claro"><Visor videoRef={{ current: null }} datos={{ id: 1, campo: "price", valores: { price: "0.85" }, moqBase: null, favorito: false, tocado: true, listos: {} }} onEscribirDato={onEscribir} onListoDato={onListo} onConfirmarPrecio={onConfirmar} onCampo={onCampo} /></SistemaProvider>);
+    fireEvent.click(screen.getByRole("button", { name: "Listo" })); // Listo es listo: guarda todo y cierra
+    expect(onConfirmar).toHaveBeenCalledTimes(2); // una por tocar afuera (el consejo, más arriba) y otra por Listo
     rerender(<SistemaProvider modo="claro"><Visor videoRef={{ current: null }} datos={{ id: 1, campo: "price", valores: { price: "0.85" }, moqBase: null, favorito: false, tocado: true, listos: { price: true } }} onEscribirDato={onEscribir} onListoDato={onListo} onCampo={onCampo} /></SistemaProvider>);
     expect(screen.getByRole("tab", { name: "✓ Precio 0.85" })).toBeTruthy(); // lo cargado, con tilde
     fireEvent.click(screen.getByRole("tab", { name: "MOQ" }));

@@ -48,7 +48,7 @@
     "sinEscaneos": "0 escaneos · {{count}} esperando",
     "enEsteStand_one": "{{count}} en este stand",
     "enEsteStand_other": "{{count}} en este stand",
-    "guardado": "Guardado en el teléfono",
+    "guardado": "Guardado",
     "sincronizando_one": "Sincronizando {{count}}",
     "sincronizando_other": "Sincronizando {{count}}",
     "enLaNube": "Todo en la nube",
