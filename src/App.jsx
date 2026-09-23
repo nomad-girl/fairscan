@@ -904,6 +904,8 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   // La barra del pulgar (wireframe del 23/09): se escribe con el teclado del iPhone y Listo guarda ese dato
   // sin cerrar la barra; los demás datos quedan como chips, de a uno.
   const persistirTimerRef = useRef(null);
+  const [campoGuardado, setCampoGuardado] = useState(null);
+  const campoGuardadoTimerRef = useRef(null);
   const persistirCampo = (d, campo) => {
     const v = (d.valores[campo] || "").replace(/\.$/, "");
     const cambios = {};
@@ -913,6 +915,10 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     if (campo === "cbmPorCaja") cambios.cbmPorCaja = v ? Number(v) : null;
     setItems(prev => prev.map(it => it.id === d.id ? { ...it, ...cambios } : it));
     onProductoCambio?.(d.id, cambios);
+    // En vivo: el campo se pone verde un instante con una tilde (Nati, 23/09: "escribo un número y algo pasa")
+    clearTimeout(campoGuardadoTimerRef.current);
+    setCampoGuardado(v ? campo : null);
+    campoGuardadoTimerRef.current = setTimeout(() => setCampoGuardado(null), 1200);
   };
   // Se guarda mientras escribís (Nati, 23/09: "no existe el botón Guardar"): 400 ms después de la última tecla.
   const escribirDato = (campo, texto) => {
@@ -969,9 +975,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
           onProductoCambio?.(d.id, cambios);
           // "Listo es listo": la barra se cierra y un aviso corto dice qué quedó guardado (Nati, 23/09)
           // La confirmación es una tilde que aparece sobre la miniatura (Nati, 23/09: "una animación que denote guardado", sin texto)
-          clearTimeout(avisoTimerRef.current);
-          setAvisoGuardado(true);
-          avisoTimerRef.current = setTimeout(() => setAvisoGuardado(null), 1400);
+
         }
       }
       return null;
@@ -1208,7 +1212,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
           videoRef={videoRef} modo={cameraMode} feria={activeDistrict?.name || null}
           itemsCount={items.length} saldo={saldoCreditos} esperando={esperando} estadoSync={estadoSync} pendientesSync={queueCount}
           flash={flashVisible} ultimaCaptura={lastCapture} ultimas={ultimas} puedeAgregarAngulo={anguloDisponible && items.length > 0 && !addPhotoToItemId}
-          datos={datosRapidos} datosActivos={settings?.datosDeCompra} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"} onTeclaPrecio={tocarPrecio} onConfirmarPrecio={confirmarPrecio} onEscribirDato={escribirDato} onListoDato={guardarDatoRapido} modoAngulo={!!addPhotoToItemId} avisoGuardado={avisoGuardado} onCampo={cambiarCampoRapido} onMoqBase={cambiarMoqBase} onFavorito={alternarFavoritoRapido}
+          datos={datosRapidos} datosActivos={settings?.datosDeCompra} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"} onTeclaPrecio={tocarPrecio} onConfirmarPrecio={confirmarPrecio} onEscribirDato={escribirDato} onListoDato={guardarDatoRapido} modoAngulo={!!addPhotoToItemId} avisoGuardado={avisoGuardado} campoGuardado={campoGuardado} onCampo={cambiarCampoRapido} onMoqBase={cambiarMoqBase} onFavorito={alternarFavoritoRapido}
           onDisparar={handleCameraShutter}
           standAbierto={{ nombre: supplierName, fotos: items.length, tieneTarjeta: !!cardPhoto, leyendo: cardProcessing }}
           onStand={() => closeCamera()} onTarjeta={() => openCamera("card")}

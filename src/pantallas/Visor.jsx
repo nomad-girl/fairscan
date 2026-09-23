@@ -36,7 +36,7 @@ export function Visor({
   flash = false, ultimaCaptura = null, ultimas = [], puedeAgregarAngulo = false,
   datos = null, moneda = "USD", onTeclaPrecio, onConfirmarPrecio, onCampo, onMoqBase, onFavorito,
   onDisparar, onCatalogo, onCancelar, onVolverAProductos, onAgregarAngulo, onBorrarFoto,
-  onEscribirDato, onListoDato, modoAngulo = false, avisoGuardado = null, // la barra del pulgar y el modo "otra foto del mismo producto"
+  onEscribirDato, onListoDato, modoAngulo = false, avisoGuardado = null, campoGuardado = null, // la barra del pulgar y el modo "otra foto del mismo producto"
   standAbierto = null, onStand, onTarjeta, // el stand: { nombre, fotos, tieneTarjeta, leyendo }; la pastilla lo abre, Cerrar stand también
   consejoVisible = false, onConsejoVisto,
   onTouchStart, onTouchEnd,
@@ -88,7 +88,7 @@ export function Visor({
       <video ref={videoRef} autoPlay playsInline muted style={{ flex: 1, objectFit: "cover", width: "100%" }} />
 
       {/* Velo blanco del obturador (80 ms) */}
-      <style>{`@keyframes fairscanGuardado { 0% { transform: scale(0.4); opacity: 0 } 25% { transform: scale(1.15); opacity: 1 } 40% { transform: scale(1) } 75% { opacity: 1 } 100% { transform: scale(0.9); opacity: 0 } }`}</style>
+      <style>{`@keyframes fairscanGuardado { 0% { transform: scale(0.4); opacity: 0 } 35% { transform: scale(1.15); opacity: 1 } 55% { transform: scale(1) } 100% { transform: scale(1); opacity: 1 } }`}</style>
       <div aria-hidden style={{ position: "absolute", inset: 0, background: "#fff", opacity: flash ? 0.75 : 0, pointerEvents: "none", zIndex: 2, transition: `opacity ${duracion(movimiento.obturador.velo)}ms linear` }} />
 
       {/* Arriba: saldo y estado. Nada más. */}
@@ -167,13 +167,14 @@ export function Visor({
           <div onClick={e => e.stopPropagation()} onTouchStart={alTocar} onTouchEnd={alSoltar} role="dialog" aria-label={t("visor.datosDelUltimo")} style={{ position: "absolute", left: 12, right: 12, bottom: abajo, zIndex: 5, background: "rgba(255,255,255,0.97)", color: "#0F172A", borderRadius: 16, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6, boxShadow: "0 10px 30px -12px rgba(0,0,0,0.45)" }}>
             <div aria-label={t("visor.agarradera")} style={{ width: 36, height: 4, borderRadius: 2, background: "#CBD5E1", margin: "-2px auto 0" }} />
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <label style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, minHeight: 44, background: "#F1F5F9", borderRadius: 12, padding: "0 12px" }}>
+              <label style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, minHeight: 44, background: campoGuardado === campo ? "#DCFCE7" : "#F1F5F9", borderRadius: 12, padding: "0 12px", transition: "background 250ms ease" }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#64748B", whiteSpace: "nowrap" }}>{campo === "price" ? moneda : etiquetaDe[campo]}</span>
                 <input ref={inputDatoRef} type="text" inputMode="decimal" enterKeyHint="done" value={valor} placeholder={campo === "price" ? t("visor.aCuanto") : ""} aria-label={campo === "price" ? t("visor.aCuantoEstaba") : etiquetaDe[campo]}
                   onChange={e => onEscribirDato?.(campo, e.target.value.replace(/,/g, ".").replace(/[^0-9.]/g, "").slice(0, 8))}
                   onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
                   style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", fontSize: 18, fontWeight: 700, color: "#0F172A", fontFamily: "inherit", outline: "none", fontVariantNumeric: "tabular-nums" }} />
                 {campo === "cbmPorCaja" && <span style={{ fontSize: 12, color: "#64748B" }}>CBM</span>}
+                {campoGuardado === campo && <span role="status" aria-label={t("visor.guardado")} style={{ display: "grid", placeItems: "center", width: 22, height: 22, borderRadius: 11, background: "#15803D", animation: "fairscanGuardado 1.2s ease-out both" }}><Icono nombre="listo" tamano={14} color="#fff" /></span>}
               </label>
               <button type="button" onClick={cerrarBarra} aria-label={t("visor.cerrarBarra")} style={{ width: 36, height: 44, border: "none", background: "transparent", display: "grid", placeItems: "center", cursor: "pointer", padding: 0, order: 3 }}><Icono nombre="cerrar" tamano={20} color="#94A3B8" /></button>
               {(
@@ -209,13 +210,10 @@ export function Visor({
             <button type="button" onClick={onVolverAProductos || onCancelar} style={{ minWidth: alturas.miniatura, height: alturas.miniatura, padding: "0 10px", borderRadius: 14, border: "none", background: "rgba(241,245,249,0.14)", color: BLANCO, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 6 }}><Icono nombre="camara" tamano={16} color={BLANCO} />{t("visor.productos")}</button>
           ) : ultimaCaptura || ultimas.length ? (
             <>
-              <button type="button" onClick={() => setUltimasAbiertas(true)} aria-label={t("visor.ultimasFotos")} style={{ width: alturas.miniatura, height: alturas.miniatura, borderRadius: 12, border: modoAngulo ? `2px solid ${MARCA.naranja}` : avisoGuardado ? "2px solid #22C55E" : "2px solid #fff", padding: 0, overflow: "hidden", background: "#111", cursor: "pointer", transform: miniaturaVuela && !reducido ? "scale(1.12)" : "scale(1)", transition: `transform ${duracion(movimiento.obturador.miniatura)}ms ${curvas.entra}` }}>
+              <button type="button" onClick={() => setUltimasAbiertas(true)} aria-label={t("visor.ultimasFotos")} style={{ width: alturas.miniatura, height: alturas.miniatura, borderRadius: 12, border: modoAngulo ? `2px solid ${MARCA.naranja}` : "2px solid #fff", padding: 0, overflow: "hidden", background: "#111", cursor: "pointer", transform: miniaturaVuela && !reducido ? "scale(1.12)" : "scale(1)", transition: `transform ${duracion(movimiento.obturador.miniatura)}ms ${curvas.entra}` }}>
                 <img src={ultimaCaptura || ultimas[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               </button>
-              {avisoGuardado && !datos && (
-                <span role="status" aria-label={t("visor.guardado")} style={{ position: "absolute", top: -10, right: 2, width: 28, height: 28, borderRadius: 14, background: "#15803D", border: "2px solid #fff", display: "grid", placeItems: "center", animation: "fairscanGuardado 1.4s ease-out both", pointerEvents: "none" }}><Icono nombre="listo" tamano={16} color="#fff" /></span>
-              )}
-              {puedeAgregarAngulo && !esTarjeta && !modoAngulo && !avisoGuardado && (
+              {puedeAgregarAngulo && !esTarjeta && !modoAngulo && (
                 <button type="button" onClick={onAgregarAngulo} aria-label={t("visor.agregarAngulo")} style={{ position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)", minHeight: 24, padding: "0 8px", borderRadius: 999, border: "1.5px solid #fff", background: MARCA.naranja, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit" }}>{t("visor.otraFoto")}</button>
               )}
             </>
