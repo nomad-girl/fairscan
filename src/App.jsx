@@ -888,9 +888,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   const precioTimerRef = useRef(null); // ya no hay temporizador; queda por si vuelve
   const ofrecerPrecio = (id) => {
     clearTimeout(precioTimerRef.current);
-    const vistas = settings?.pistaBarraVista || 0;
-    setDatosRapidos({ id, campo: "price", valores: {}, moqBase: null, favorito: false, tocado: false, listos: {}, pista: vistas < 3 });
-    if (vistas < 3) dbSaveSettings({ pistaBarraVista: vistas + 1 }).catch(() => {});
+    setDatosRapidos({ id, campo: "price", valores: {}, moqBase: null, favorito: false, tocado: false, listos: {} });
   };
   const tocarPrecio = (tecla) => {
     clearTimeout(precioTimerRef.current);
@@ -970,10 +968,10 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
           setItems(prev => prev.map(it => it.id === d.id ? { ...it, ...cambios } : it));
           onProductoCambio?.(d.id, cambios);
           // "Listo es listo": la barra se cierra y un aviso corto dice qué quedó guardado (Nati, 23/09)
-          const partes = [cambios.price ? `${CURRENCIES[settings?.currency]?.symbol || "USD"} ${cambios.price}` : null, cambios.moq ? `MOQ ${cambios.moq}` : null, cambios.piezasPorCaja ? `${cambios.piezasPorCaja}/caja` : null, cambios.cbmPorCaja ? `${cambios.cbmPorCaja} CBM` : null].filter(Boolean);
+          // La confirmación es una tilde que aparece sobre la miniatura (Nati, 23/09: "una animación que denote guardado", sin texto)
           clearTimeout(avisoTimerRef.current);
-          setAvisoGuardado(partes.join(" · "));
-          avisoTimerRef.current = setTimeout(() => setAvisoGuardado(null), 2200);
+          setAvisoGuardado(true);
+          avisoTimerRef.current = setTimeout(() => setAvisoGuardado(null), 1400);
         }
       }
       return null;

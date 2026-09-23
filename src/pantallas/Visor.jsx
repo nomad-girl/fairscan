@@ -88,6 +88,7 @@ export function Visor({
       <video ref={videoRef} autoPlay playsInline muted style={{ flex: 1, objectFit: "cover", width: "100%" }} />
 
       {/* Velo blanco del obturador (80 ms) */}
+      <style>{`@keyframes fairscanGuardado { 0% { transform: scale(0.4); opacity: 0 } 25% { transform: scale(1.15); opacity: 1 } 40% { transform: scale(1) } 75% { opacity: 1 } 100% { transform: scale(0.9); opacity: 0 } }`}</style>
       <div aria-hidden style={{ position: "absolute", inset: 0, background: "#fff", opacity: flash ? 0.75 : 0, pointerEvents: "none", zIndex: 2, transition: `opacity ${duracion(movimiento.obturador.velo)}ms linear` }} />
 
       {/* Arriba: saldo y estado. Nada más. */}
@@ -188,7 +189,6 @@ export function Visor({
                 ))}
               </div>
             )}
-            {datos.pista && <p style={{ margin: 0, fontSize: 12, color: "#64748B", textAlign: "center" }}>{t("visor.pistaCerrar")}</p>}
             {mostrarChips && (
               <div role="tablist" aria-label={t("visor.otrosDatos")} style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {campos.map(([k, etiqueta]) => {
@@ -209,11 +209,11 @@ export function Visor({
             <button type="button" onClick={onVolverAProductos || onCancelar} style={{ minWidth: alturas.miniatura, height: alturas.miniatura, padding: "0 10px", borderRadius: 14, border: "none", background: "rgba(241,245,249,0.14)", color: BLANCO, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 6 }}><Icono nombre="camara" tamano={16} color={BLANCO} />{t("visor.productos")}</button>
           ) : ultimaCaptura || ultimas.length ? (
             <>
-              <button type="button" onClick={() => setUltimasAbiertas(true)} aria-label={t("visor.ultimasFotos")} style={{ width: alturas.miniatura, height: alturas.miniatura, borderRadius: 12, border: modoAngulo ? `2px solid ${MARCA.naranja}` : "2px solid #fff", padding: 0, overflow: "hidden", background: "#111", cursor: "pointer", transform: miniaturaVuela && !reducido ? "scale(1.12)" : "scale(1)", transition: `transform ${duracion(movimiento.obturador.miniatura)}ms ${curvas.entra}` }}>
+              <button type="button" onClick={() => setUltimasAbiertas(true)} aria-label={t("visor.ultimasFotos")} style={{ width: alturas.miniatura, height: alturas.miniatura, borderRadius: 12, border: modoAngulo ? `2px solid ${MARCA.naranja}` : avisoGuardado ? "2px solid #22C55E" : "2px solid #fff", padding: 0, overflow: "hidden", background: "#111", cursor: "pointer", transform: miniaturaVuela && !reducido ? "scale(1.12)" : "scale(1)", transition: `transform ${duracion(movimiento.obturador.miniatura)}ms ${curvas.entra}` }}>
                 <img src={ultimaCaptura || ultimas[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               </button>
               {avisoGuardado && !datos && (
-                <span role="status" style={{ position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)", minHeight: 24, padding: "0 8px", borderRadius: 999, background: "#15803D", color: "#fff", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 4 }}><Icono nombre="listo" tamano={12} color="#fff" />{avisoGuardado}</span>
+                <span role="status" aria-label={t("visor.guardado")} style={{ position: "absolute", top: -10, right: 2, width: 28, height: 28, borderRadius: 14, background: "#15803D", border: "2px solid #fff", display: "grid", placeItems: "center", animation: "fairscanGuardado 1.4s ease-out both", pointerEvents: "none" }}><Icono nombre="listo" tamano={16} color="#fff" /></span>
               )}
               {puedeAgregarAngulo && !esTarjeta && !modoAngulo && !avisoGuardado && (
                 <button type="button" onClick={onAgregarAngulo} aria-label={t("visor.agregarAngulo")} style={{ position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)", minHeight: 24, padding: "0 8px", borderRadius: 999, border: "1.5px solid #fff", background: MARCA.naranja, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit" }}>{t("visor.otraFoto")}</button>

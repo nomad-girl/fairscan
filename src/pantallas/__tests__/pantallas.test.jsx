@@ -66,7 +66,6 @@ describe("Visor", () => {
     rerender(<SistemaProvider modo="claro"><Visor videoRef={{ current: null }} datos={{ id: 1, campo: "moq", valores: { price: "0.85" }, moqBase: null, favorito: false, tocado: true, listos: {}, pista: true }} onEscribirDato={onEscribir} onListoDato={onListo} onConfirmarPrecio={onConfirmar} onCampo={onCampo} /></SistemaProvider>);
     expect(screen.queryByRole("button", { name: "Listo" })).toBeNull(); // no existe el botón Guardar: se guarda al escribir
     expect(screen.getByRole("tab", { name: "Precio" })).toBeTruthy(); // sin valores ni tildes, solo un puntito
-    expect(screen.getByText("Se guarda solo. Para cerrar: deslizá hacia abajo o tocá la cámara.")).toBeTruthy(); // la pista, las primeras veces
     fireEvent.click(screen.getByRole("button", { name: "Cerrar" }));
     expect(onConfirmar).toHaveBeenCalledTimes(2); // una por tocar afuera (el consejo, más arriba) y otra por la X
     fireEvent.click(screen.getByRole("tab", { name: "MOQ" }));
