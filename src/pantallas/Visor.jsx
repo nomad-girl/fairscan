@@ -184,16 +184,16 @@ export function Visor({
               )}
             </div>
             {campo === "moq" && (
-              <div role="radiogroup" aria-label={t("visor.campoMoq")} style={{ display: "flex", gap: 6 }}>
+              <div role="radiogroup" aria-label={t("visor.campoMoq")} style={{ display: "flex", gap: 2, padding: 3, borderRadius: 10, background: "#E5E7EB" }}>
                 {[["producto", t("visor.basePorProducto")], ["caja", t("visor.basePorCaja")], ["pedido", t("visor.basePorPedido")]].map(([b, etiqueta]) => (
-                  <button key={b} type="button" role="radio" aria-checked={datos.moqBase === b} onClick={() => onMoqBase?.(b)} style={{ flex: 1, minHeight: 32, borderRadius: 999, border: `1px solid ${datos.moqBase === b ? MARCA.naranja : "#DCE3EC"}`, background: datos.moqBase === b ? "rgba(234,90,34,0.12)" : "#FFFFFF", color: datos.moqBase === b ? MARCA.naranja : "#475569", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>{etiqueta}</button>
+                  <button key={b} type="button" role="radio" aria-checked={datos.moqBase === b} onClick={() => onMoqBase?.(b)} style={{ flex: 1, minHeight: 30, borderRadius: 8, border: "none", background: datos.moqBase === b ? "#FFFFFF" : "transparent", boxShadow: datos.moqBase === b ? "0 1px 3px rgba(0,0,0,0.15)" : "none", color: datos.moqBase === b ? "#0F172A" : "#64748B", fontSize: 12, fontWeight: datos.moqBase === b ? 700 : 500, cursor: "pointer", fontFamily: "inherit" }}>{etiqueta}</button>
                 ))}
               </div>
             )}
             {mostrarChips && (
               <div role="tablist" aria-label={t("visor.otrosDatos")} style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {campos.map(([k, etiqueta]) => {
-                  const activo = k === campo; const ok = hecho(k);
+                {campos.filter(([k]) => k !== campo).map(([k, etiqueta]) => {
+                  const activo = false; const ok = hecho(k);
                   return <button key={k} type="button" role="tab" aria-selected={activo} onClick={() => elegir(k)} style={{ minHeight: 34, padding: "0 12px", borderRadius: 999, border: `1px solid ${activo ? MARCA.naranja : "#DCE3EC"}`, background: activo ? MARCA.naranja : "#FFFFFF", color: activo ? "#fff" : "#475569", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>{etiqueta}{ok && !activo && <span aria-hidden style={{ display: "inline-block", width: 6, height: 6, borderRadius: 3, background: "#15803D", marginLeft: 6, verticalAlign: "middle" }} />}</button>;
                 })}
               </div>
