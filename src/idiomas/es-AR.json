@@ -111,7 +111,9 @@
     "aCuanto": "¿A cuánto?",
     "otraFotoMismo": "Otra foto del mismo producto: encuadrá y dispará",
     "otraFoto": "+ otra foto",
-    "cerrarBarra": "Cerrar"
+    "cerrarBarra": "Cerrar",
+    "pistaCerrar": "Se guarda solo. Para cerrar: deslizá hacia abajo o tocá la cámara.",
+    "agarradera": "Deslizá hacia abajo para cerrar"
   },
   "cerrarStand": {
     "titulo": "Cerrar stand",

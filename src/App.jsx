@@ -888,7 +888,9 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   const precioTimerRef = useRef(null); // ya no hay temporizador; queda por si vuelve
   const ofrecerPrecio = (id) => {
     clearTimeout(precioTimerRef.current);
-    setDatosRapidos({ id, campo: "price", valores: {}, moqBase: null, favorito: false, tocado: false, listos: {} });
+    const vistas = settings?.pistaBarraVista || 0;
+    setDatosRapidos({ id, campo: "price", valores: {}, moqBase: null, favorito: false, tocado: false, listos: {}, pista: vistas < 3 });
+    if (vistas < 3) dbSaveSettings({ pistaBarraVista: vistas + 1 }).catch(() => {});
   };
   const tocarPrecio = (tecla) => {
     clearTimeout(precioTimerRef.current);
@@ -903,7 +905,29 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   };
   // La barra del pulgar (wireframe del 23/09): se escribe con el teclado del iPhone y Listo guarda ese dato
   // sin cerrar la barra; los demás datos quedan como chips, de a uno.
-  const escribirDato = (campo, texto) => { clearTimeout(precioTimerRef.current); setDatosRapidos(d => d ? { ...d, tocado: true, valores: { ...d.valores, [campo]: texto } } : d); };
+  const persistirTimerRef = useRef(null);
+  const persistirCampo = (d, campo) => {
+    const v = (d.valores[campo] || "").replace(/\.$/, "");
+    const cambios = {};
+    if (campo === "price") cambios.price = v || null;
+    if (campo === "moq") { cambios.moq = v || null; if (v && d.moqBase) cambios.moqBase = d.moqBase; }
+    if (campo === "piezasPorCaja") cambios.piezasPorCaja = v ? Number(v) : null;
+    if (campo === "cbmPorCaja") cambios.cbmPorCaja = v ? Number(v) : null;
+    setItems(prev => prev.map(it => it.id === d.id ? { ...it, ...cambios } : it));
+    onProductoCambio?.(d.id, cambios);
+  };
+  // Se guarda mientras escribís (Nati, 23/09: "no existe el botón Guardar"): 400 ms después de la última tecla.
+  const escribirDato = (campo, texto) => {
+    clearTimeout(precioTimerRef.current);
+    setDatosRapidos(d => {
+      if (!d) return d;
+      const nuevo = { ...d, tocado: true, valores: { ...d.valores, [campo]: texto } };
+      clearTimeout(persistirTimerRef.current);
+      persistirTimerRef.current = setTimeout(() => persistirCampo(nuevo, campo), 400);
+      return nuevo;
+    });
+  };
+  useEffect(() => () => clearTimeout(persistirTimerRef.current), []);
   const guardarDatoRapido = () => {
     clearTimeout(precioTimerRef.current);
     setDatosRapidos(d => {

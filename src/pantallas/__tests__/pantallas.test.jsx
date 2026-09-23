@@ -51,7 +51,7 @@ describe("Visor", () => {
     fireEvent.click(screen.getByText("Productos"));
     expect(onVolver).toHaveBeenCalled();
   });
-  it("la barra del pulgar: chips a la vista, se escribe con el teclado del sistema, Listo guarda todo y cierra", () => {
+  it("la barra del pulgar: chips a la vista, se escribe con el teclado del sistema y se guarda solo; se cierra con la X, un gesto o la cámara", () => {
     const onConsejoVisto = vi.fn(), onEscribir = vi.fn(), onListo = vi.fn(), onConfirmar = vi.fn(), onCampo = vi.fn(), onFavorito = vi.fn();
     const { rerender } = con(<Visor videoRef={{ current: null }} consejoVisible onConsejoVisto={onConsejoVisto} datos={{ id: 1, campo: "price", valores: {}, moqBase: null, favorito: false, tocado: false, listos: {} }} onEscribirDato={onEscribir} onListoDato={onListo} onConfirmarPrecio={onConfirmar} onCampo={onCampo} onFavorito={onFavorito} />);
     fireEvent.click(screen.getByRole("status"));
@@ -63,15 +63,15 @@ describe("Visor", () => {
     expect(screen.getByRole("tab", { name: "MOQ" })).toBeTruthy(); // los chips siempre a la vista; precio por defecto
     fireEvent.click(screen.getByRole("button", { name: "Marcar como favorito" }));
     expect(onFavorito).toHaveBeenCalled();
-    rerender(<SistemaProvider modo="claro"><Visor videoRef={{ current: null }} datos={{ id: 1, campo: "price", valores: { price: "0.85" }, moqBase: null, favorito: false, tocado: true, listos: {} }} onEscribirDato={onEscribir} onListoDato={onListo} onConfirmarPrecio={onConfirmar} onCampo={onCampo} /></SistemaProvider>);
-    fireEvent.click(screen.getByRole("button", { name: "Listo" })); // Listo es listo: guarda todo y cierra
-    expect(onConfirmar).toHaveBeenCalledTimes(2); // una por tocar afuera (el consejo, más arriba) y otra por Listo
-    rerender(<SistemaProvider modo="claro"><Visor videoRef={{ current: null }} datos={{ id: 1, campo: "price", valores: { price: "0.85" }, moqBase: null, favorito: false, tocado: true, listos: { price: true } }} onEscribirDato={onEscribir} onListoDato={onListo} onCampo={onCampo} /></SistemaProvider>);
-    expect(screen.getByRole("tab", { name: "✓ Precio 0.85" })).toBeTruthy(); // lo cargado, con tilde
+    rerender(<SistemaProvider modo="claro"><Visor videoRef={{ current: null }} datos={{ id: 1, campo: "moq", valores: { price: "0.85" }, moqBase: null, favorito: false, tocado: true, listos: {}, pista: true }} onEscribirDato={onEscribir} onListoDato={onListo} onConfirmarPrecio={onConfirmar} onCampo={onCampo} /></SistemaProvider>);
+    expect(screen.queryByRole("button", { name: "Listo" })).toBeNull(); // no existe el botón Guardar: se guarda al escribir
+    expect(screen.getByRole("tab", { name: "Precio" })).toBeTruthy(); // sin valores ni tildes, solo un puntito
+    expect(screen.getByText("Se guarda solo. Para cerrar: deslizá hacia abajo o tocá la cámara.")).toBeTruthy(); // la pista, las primeras veces
+    fireEvent.click(screen.getByRole("button", { name: "Cerrar" }));
+    expect(onConfirmar).toHaveBeenCalledTimes(2); // una por tocar afuera (el consejo, más arriba) y otra por la X
     fireEvent.click(screen.getByRole("tab", { name: "MOQ" }));
     expect(onCampo).toHaveBeenCalledWith("moq");
     expect(screen.queryByText("Cerrar sin cargar nada")).toBeNull(); // sin segundo "cerrar"
-    expect(screen.getByRole("button", { name: "Cerrar" })).toBeTruthy(); // pero sí una X: la barra se saca cuando querés
   });
   it("en MOQ aparece la base por producto / caja / pedido", () => {
     const onMoqBase = vi.fn();

@@ -164,19 +164,18 @@ export function Visor({
         const alSoltar = e => { const y1 = e.changedTouches?.[0]?.clientY; if (y0 !== null && y1 !== undefined && y1 - y0 > 40) cerrarBarra(); y0 = null; };
         return (
           <div onClick={e => e.stopPropagation()} onTouchStart={alTocar} onTouchEnd={alSoltar} role="dialog" aria-label={t("visor.datosDelUltimo")} style={{ position: "absolute", left: 12, right: 12, bottom: abajo, zIndex: 5, background: "rgba(255,255,255,0.97)", color: "#0F172A", borderRadius: 16, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6, boxShadow: "0 10px 30px -12px rgba(0,0,0,0.45)" }}>
+            <div aria-label={t("visor.agarradera")} style={{ width: 36, height: 4, borderRadius: 2, background: "#CBD5E1", margin: "-2px auto 0" }} />
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <label style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, minHeight: 44, background: "#F1F5F9", borderRadius: 12, padding: "0 12px" }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#64748B", whiteSpace: "nowrap" }}>{campo === "price" ? moneda : etiquetaDe[campo]}</span>
                 <input ref={inputDatoRef} type="text" inputMode="decimal" enterKeyHint="done" value={valor} placeholder={campo === "price" ? t("visor.aCuanto") : ""} aria-label={campo === "price" ? t("visor.aCuantoEstaba") : etiquetaDe[campo]}
                   onChange={e => onEscribirDato?.(campo, e.target.value.replace(/,/g, ".").replace(/[^0-9.]/g, "").slice(0, 8))}
-                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); cerrarBarra(); } }}
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
                   style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", fontSize: 18, fontWeight: 700, color: "#0F172A", fontFamily: "inherit", outline: "none", fontVariantNumeric: "tabular-nums" }} />
                 {campo === "cbmPorCaja" && <span style={{ fontSize: 12, color: "#64748B" }}>CBM</span>}
               </label>
               <button type="button" onClick={cerrarBarra} aria-label={t("visor.cerrarBarra")} style={{ width: 36, height: 44, border: "none", background: "transparent", display: "grid", placeItems: "center", cursor: "pointer", padding: 0, order: 3 }}><Icono nombre="cerrar" tamano={20} color="#94A3B8" /></button>
-              {valor && !listos[campo] ? (
-                <button type="button" onClick={cerrarBarra} style={{ minHeight: 44, padding: "0 14px", borderRadius: 12, border: "none", background: MARCA.naranja, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{t("visor.listo")}</button>
-              ) : (
+              {(
                 <button type="button" onClick={onFavorito} aria-pressed={!!datos.favorito} aria-label={datos.favorito ? t("visor.quitarFavorito") : t("visor.marcarFavorito")} style={{ width: 44, height: 44, borderRadius: 12, border: `1px solid ${datos.favorito ? MARCA.naranja : "#DCE3EC"}`, background: datos.favorito ? "rgba(234,90,34,0.12)" : "#FFFFFF", display: "grid", placeItems: "center", cursor: "pointer" }}>
                   <Icono nombre="favorito" tamano={20} color={datos.favorito ? MARCA.naranja : "#475569"} />
                 </button>
@@ -189,11 +188,12 @@ export function Visor({
                 ))}
               </div>
             )}
+            {datos.pista && <p style={{ margin: 0, fontSize: 12, color: "#64748B", textAlign: "center" }}>{t("visor.pistaCerrar")}</p>}
             {mostrarChips && (
               <div role="tablist" aria-label={t("visor.otrosDatos")} style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {campos.map(([k, etiqueta]) => {
                   const activo = k === campo; const ok = hecho(k);
-                  return <button key={k} type="button" role="tab" aria-selected={activo} onClick={() => elegir(k)} style={{ minHeight: 34, padding: "0 12px", borderRadius: 999, border: `1px solid ${activo ? MARCA.naranja : ok ? "rgba(21,128,61,0.5)" : "#DCE3EC"}`, background: activo ? MARCA.naranja : ok ? "rgba(21,128,61,0.10)" : "#FFFFFF", color: activo ? "#fff" : ok ? "#15803D" : "#475569", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>{ok ? "✓ " : ""}{etiqueta}{ok && datos.valores[k] ? ` ${datos.valores[k]}` : ""}</button>;
+                  return <button key={k} type="button" role="tab" aria-selected={activo} onClick={() => elegir(k)} style={{ minHeight: 34, padding: "0 12px", borderRadius: 999, border: `1px solid ${activo ? MARCA.naranja : "#DCE3EC"}`, background: activo ? MARCA.naranja : "#FFFFFF", color: activo ? "#fff" : "#475569", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>{etiqueta}{ok && !activo && <span aria-hidden style={{ display: "inline-block", width: 6, height: 6, borderRadius: 3, background: "#15803D", marginLeft: 6, verticalAlign: "middle" }} />}</button>;
                 })}
               </div>
             )}
