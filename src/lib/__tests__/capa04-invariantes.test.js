@@ -24,7 +24,7 @@ describe('capa 04 · un solo modo, abrir es capturar', () => {
     expect(app.includes("from './pantallas/Visor.jsx'")).toBe(true);
     expect(app.includes("from './pantallas/CerrarStand.jsx'")).toBe(true);
     const idioma = JSON.parse(fs.readFileSync(path.join(raiz, 'src/idiomas/es-AR.json'), 'utf8'));
-    expect(idioma.visor.cerrarStand).toBe('Cerrar stand');
+    expect(idioma.visor.cerrarStand).toBe('Terminar'); // 23/09: sin la palabra stand ni cerrar (Nati: se confundía con el otro cerrar)
     expect(idioma.visor.catalogo).toBe('Catálogo');
     expect(app.includes('function Bienvenida(')).toBe(true);
   });

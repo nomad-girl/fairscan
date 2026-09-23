@@ -52,7 +52,7 @@
     "sincronizando_one": "Sincronizando {{count}}",
     "sincronizando_other": "Sincronizando {{count}}",
     "enLaNube": "Todo en la nube",
-    "cerrarStand": "Cerrar stand",
+    "cerrarStand": "Terminar",
     "catalogo": "Catálogo",
     "cancelar": "Cancelar",
     "tarjetaDelProveedor": "Tarjeta del proveedor",
@@ -70,7 +70,7 @@
     "sinCamara": "Sin cámara no hay FairScan",
     "abrirAjustes": "Abrir ajustes",
     "elegirDeGaleria": "Elegir de la galería",
-    "datosDelUltimo": "Último producto",
+    "datosDelUltimo": "Datos del último producto",
     "campoPrecio": "Precio",
     "campoMoq": "MOQ",
     "campoPiezas": "Piezas por caja",
@@ -107,7 +107,9 @@
     "escanearTarjeta": "Escanear tarjeta del proveedor",
     "escanearTarjetaConFotos_one": "Escanear tarjeta · {{count}} foto",
     "escanearTarjetaConFotos_other": "Escanear tarjeta · {{count}} fotos",
-    "agregarAngulo": "Otro ángulo"
+    "agregarAngulo": "Otra foto del mismo producto",
+    "aCuanto": "¿A cuánto?",
+    "otraFotoMismo": "Otra foto del mismo producto: encuadrá y dispará"
   },
   "cerrarStand": {
     "titulo": "Cerrar stand",

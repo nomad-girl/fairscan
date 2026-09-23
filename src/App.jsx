@@ -888,7 +888,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   const precioTimerRef = useRef(null); // ya no hay temporizador; queda por si vuelve
   const ofrecerPrecio = (id) => {
     clearTimeout(precioTimerRef.current);
-    setDatosRapidos({ id, campo: "price", valores: {}, moqBase: null, favorito: false, tocado: false });
+    setDatosRapidos({ id, campo: "price", valores: {}, moqBase: null, favorito: false, tocado: false, listos: {} });
   };
   const tocarPrecio = (tecla) => {
     clearTimeout(precioTimerRef.current);
@@ -899,6 +899,24 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
       else if (tecla === "." || tecla === ",") { if (!v.includes(".")) v = (v || "0") + "."; }
       else if (v.replace(".", "").length < 7) v = v + tecla;
       return { ...d, tocado: true, valores: { ...d.valores, [d.campo]: v } };
+    });
+  };
+  // La barra del pulgar (wireframe del 23/09): se escribe con el teclado del iPhone y Listo guarda ese dato
+  // sin cerrar la barra; los demás datos quedan como chips, de a uno.
+  const escribirDato = (campo, texto) => { clearTimeout(precioTimerRef.current); setDatosRapidos(d => d ? { ...d, tocado: true, valores: { ...d.valores, [campo]: texto } } : d); };
+  const guardarDatoRapido = () => {
+    clearTimeout(precioTimerRef.current);
+    setDatosRapidos(d => {
+      if (!d) return d;
+      const limpiar = x => (x || "").replace(/\.$/, "");
+      const cambios = {};
+      const v = limpiar(d.valores[d.campo]);
+      if (d.campo === "price" && v) cambios.price = v;
+      if (d.campo === "moq" && v) { cambios.moq = v; if (d.moqBase) cambios.moqBase = d.moqBase; }
+      if (d.campo === "piezasPorCaja" && v) cambios.piezasPorCaja = Number(v);
+      if (d.campo === "cbmPorCaja" && v) cambios.cbmPorCaja = Number(v);
+      if (Object.keys(cambios).length) { setItems(prev => prev.map(it => it.id === d.id ? { ...it, ...cambios } : it)); onProductoCambio?.(d.id, cambios); }
+      return { ...d, tocado: true, listos: { ...(d.listos || {}), [d.campo]: !!v } };
     });
   };
   const cambiarCampoRapido = (campo) => { clearTimeout(precioTimerRef.current); setDatosRapidos(d => d ? { ...d, campo, tocado: true } : d); };
@@ -1160,7 +1178,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
           videoRef={videoRef} modo={cameraMode} feria={activeDistrict?.name || null}
           itemsCount={items.length} saldo={saldoCreditos} esperando={esperando} estadoSync={estadoSync} pendientesSync={queueCount}
           flash={flashVisible} ultimaCaptura={lastCapture} ultimas={ultimas} puedeAgregarAngulo={anguloDisponible && items.length > 0 && !addPhotoToItemId}
-          datos={datosRapidos} datosActivos={settings?.datosDeCompra} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"} onTeclaPrecio={tocarPrecio} onConfirmarPrecio={confirmarPrecio} onCampo={cambiarCampoRapido} onMoqBase={cambiarMoqBase} onFavorito={alternarFavoritoRapido}
+          datos={datosRapidos} datosActivos={settings?.datosDeCompra} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"} onTeclaPrecio={tocarPrecio} onConfirmarPrecio={confirmarPrecio} onEscribirDato={escribirDato} onListoDato={guardarDatoRapido} modoAngulo={!!addPhotoToItemId} onCampo={cambiarCampoRapido} onMoqBase={cambiarMoqBase} onFavorito={alternarFavoritoRapido}
           onDisparar={handleCameraShutter}
           standAbierto={{ nombre: supplierName, fotos: items.length, tieneTarjeta: !!cardPhoto, leyendo: cardProcessing }}
           onStand={() => closeCamera()} onTarjeta={() => openCamera("card")}

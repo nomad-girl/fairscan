@@ -16,7 +16,7 @@ const con = (ui) => render(<SistemaProvider modo="claro">{ui}</SistemaProvider>)
 const FOTO = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 
 describe("Visor", () => {
-  it("sin saldo ni nube a la vista; el contador del stand y Cerrar stand; el obturador mide 72", () => {
+  it("sin saldo ni nube a la vista; el contador del stand y Terminar; el obturador mide 72", () => {
     const onDisparar = vi.fn(), onCerrarStand = vi.fn();
     con(<Visor videoRef={{ current: null }} modo="product" feria="🇨🇳 Cantón" itemsCount={3} saldo={12} estadoSync="sincronizando" pendientesSync={2} onDisparar={onDisparar} onStand={onCerrarStand} />);
     // El saldo y la nube ya no se muestran en la cámara (Nati, 22/09: distraen); el saldo vuelve solo cuando está por acabarse
@@ -27,17 +27,17 @@ describe("Visor", () => {
     expect(obturador.style.width).toBe("72px");
     fireEvent.click(obturador);
     expect(onDisparar).toHaveBeenCalled();
-    fireEvent.click(screen.getByText("Cerrar stand"));
+    fireEvent.click(screen.getByText("Terminar"));
     expect(onCerrarStand).toHaveBeenCalled();
   });
   it("en cero muestra cuántas fotos esperan y en naranja", () => {
     con(<Visor videoRef={{ current: null }} saldo={0} esperando={2} />);
     expect(screen.getByText("0 escaneos · 2 esperando")).toBeTruthy();
   });
-  it("con la última captura ofrece '+ ángulo' y abre las últimas fotos para borrar", () => {
+  it("con la última captura ofrece otra foto del mismo producto y abre las últimas fotos para borrar", () => {
     const onAgregarAngulo = vi.fn(), onBorrarFoto = vi.fn();
     con(<Visor videoRef={{ current: null }} itemsCount={1} ultimaCaptura={FOTO} ultimas={[{ id: 7, foto: FOTO }]} puedeAgregarAngulo onAgregarAngulo={onAgregarAngulo} onBorrarFoto={onBorrarFoto} />);
-    fireEvent.click(screen.getByText("Otro ángulo"));
+    fireEvent.click(screen.getByRole("button", { name: "Otra foto del mismo producto" }));
     expect(onAgregarAngulo).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Últimas fotos" }));
     fireEvent.click(screen.getByText("Borrar"));
@@ -51,54 +51,57 @@ describe("Visor", () => {
     fireEvent.click(screen.getByText("Productos"));
     expect(onVolver).toHaveBeenCalled();
   });
-  it("el consejo aparece una vez y se marca visto al tocarlo; el teclado ampliado tiene los cuatro datos y la estrella", () => {
-    const onConsejoVisto = vi.fn(), onTecla = vi.fn(), onConfirmar = vi.fn(), onCampo = vi.fn(), onFavorito = vi.fn();
-    con(<Visor videoRef={{ current: null }} consejoVisible onConsejoVisto={onConsejoVisto} datos={{ id: 1, campo: "price", valores: { price: "0.85" }, moqBase: null, favorito: false, tocado: false }} onTeclaPrecio={onTecla} onConfirmarPrecio={onConfirmar} onCampo={onCampo} onFavorito={onFavorito} />);
+  it("la barra del pulgar: se escribe el precio con el teclado del sistema, Listo guarda y aparecen los chips", () => {
+    const onConsejoVisto = vi.fn(), onEscribir = vi.fn(), onListo = vi.fn(), onCampo = vi.fn(), onFavorito = vi.fn();
+    const { rerender } = con(<Visor videoRef={{ current: null }} consejoVisible onConsejoVisto={onConsejoVisto} datos={{ id: 1, campo: "price", valores: {}, moqBase: null, favorito: false, tocado: false, listos: {} }} onEscribirDato={onEscribir} onListoDato={onListo} onCampo={onCampo} onFavorito={onFavorito} />);
     fireEvent.click(screen.getByRole("status"));
     expect(onConsejoVisto).toHaveBeenCalled();
-    expect(screen.getByText("USD 0.85")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "5" }));
-    expect(onTecla).toHaveBeenCalledWith("5");
-    fireEvent.click(screen.getByRole("tab", { name: "MOQ" }));
-    expect(onCampo).toHaveBeenCalledWith("moq");
+    const campo = screen.getByRole("textbox", { name: "¿A cuánto estaba?" });
+    expect(campo.getAttribute("inputmode")).toBe("decimal"); // el teclado del iPhone, no uno propio
+    fireEvent.change(campo, { target: { value: "0,85" } });
+    expect(onEscribir).toHaveBeenCalledWith("price", "0.85");
+    expect(screen.queryByRole("tab", { name: "MOQ" })).toBeNull(); // sin chips hasta el primer Listo
     fireEvent.click(screen.getByRole("button", { name: "Marcar como favorito" }));
     expect(onFavorito).toHaveBeenCalled();
-    expect(screen.getByText("¿A cuánto estaba?")).toBeTruthy(); // dice qué pide
-    fireEvent.click(screen.getByText("Guardar")); // hay un precio cargado: el botón grande guarda y cierra
-    expect(onConfirmar).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("button", { name: "Cerrar" })).toBeNull(); // sin equis
+    rerender(<SistemaProvider modo="claro"><Visor videoRef={{ current: null }} datos={{ id: 1, campo: "price", valores: { price: "0.85" }, moqBase: null, favorito: false, tocado: true, listos: {} }} onEscribirDato={onEscribir} onListoDato={onListo} onCampo={onCampo} /></SistemaProvider>);
+    fireEvent.click(screen.getByRole("button", { name: "Listo" }));
+    expect(onListo).toHaveBeenCalledTimes(1);
+    rerender(<SistemaProvider modo="claro"><Visor videoRef={{ current: null }} datos={{ id: 1, campo: "price", valores: { price: "0.85" }, moqBase: null, favorito: false, tocado: true, listos: { price: true } }} onEscribirDato={onEscribir} onListoDato={onListo} onCampo={onCampo} /></SistemaProvider>);
+    expect(screen.getByRole("tab", { name: "✓ Precio 0.85" })).toBeTruthy(); // lo cargado, con tilde
+    fireEvent.click(screen.getByRole("tab", { name: "MOQ" }));
+    expect(onCampo).toHaveBeenCalledWith("moq");
+    expect(screen.queryByText("Cerrar sin cargar nada")).toBeNull(); // sin segundo "cerrar"
   });
-  it("en MOQ aparece la base por producto / caja / pedido y los datos cargados se ven con tilde", () => {
+  it("en MOQ aparece la base por producto / caja / pedido", () => {
     const onMoqBase = vi.fn();
-    con(<Visor videoRef={{ current: null }} datos={{ id: 1, campo: "moq", valores: { price: "0.85", moq: "500" }, moqBase: "caja", favorito: true, tocado: true }} onMoqBase={onMoqBase} />);
+    con(<Visor videoRef={{ current: null }} datos={{ id: 1, campo: "moq", valores: { price: "0.85", moq: "500" }, moqBase: "caja", favorito: true, tocado: true, listos: { price: true } }} onMoqBase={onMoqBase} />);
     expect(screen.getByRole("radio", { name: "por caja", checked: true })).toBeTruthy();
     fireEvent.click(screen.getByRole("radio", { name: "por pedido" }));
     expect(onMoqBase).toHaveBeenCalledWith("pedido");
-    expect(screen.getByRole("tab", { name: "✓ Precio" })).toBeTruthy(); // lo cargado se ve con tilde
     expect(screen.getByRole("tab", { name: "MOQ", selected: true })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Quitar de favoritos" })).toBeTruthy();
   });
 });
 
-describe("Visor · teclado vacío", () => {
-  it("sin nada cargado el botón grande dice que cierra, y es lo último de la tarjeta", () => {
-    const onConfirmar = vi.fn();
-    con(<Visor videoRef={{ current: null }} datos={{ id: 1, campo: "price", valores: {}, moqBase: null, favorito: false, tocado: false }} onConfirmarPrecio={onConfirmar} />);
-    const boton = screen.getByText("Cerrar sin cargar nada");
-    expect(boton.closest("[role=dialog]").lastElementChild).toBe(boton.closest("button"));
-    fireEvent.click(boton);
-    expect(onConfirmar).toHaveBeenCalled();
+describe("Visor · otra foto del mismo producto", () => {
+  it("el + va sobre la miniatura y, en modo otra foto, el cartel lo dice", () => {
+    const onAgregarAngulo = vi.fn();
+    const { unmount } = con(<Visor videoRef={{ current: null }} itemsCount={1} ultimaCaptura={FOTO} ultimas={[{ id: 7, foto: FOTO }]} puedeAgregarAngulo onAgregarAngulo={onAgregarAngulo} />);
+    fireEvent.click(screen.getByRole("button", { name: "Otra foto del mismo producto" }));
+    expect(onAgregarAngulo).toHaveBeenCalled();
+    unmount();
+    con(<Visor videoRef={{ current: null }} itemsCount={1} ultimaCaptura={FOTO} ultimas={[{ id: 7, foto: FOTO }]} modoAngulo standAbierto={{ nombre: "", fotos: 1, tieneTarjeta: false, leyendo: false }} />);
+    expect(screen.getByText("Otra foto del mismo producto: encuadrá y dispará")).toBeTruthy();
   });
 });
 
 describe("Visor · stand abierto", () => {
-  it("sin tarjeta la pastilla invita a escanearla y abre la cámara de tarjeta; Cerrar stand abre el stand", () => {
+  it("sin tarjeta la pastilla invita a escanearla y abre la cámara de tarjeta; Terminar abre el stand", () => {
     const onStand = vi.fn(), onTarjeta = vi.fn(), onCerrarStand = vi.fn();
     con(<Visor videoRef={{ current: null }} modo="product" itemsCount={0} standAbierto={{ nombre: "", fotos: 0, tieneTarjeta: false, leyendo: false }} onStand={onStand} onTarjeta={onTarjeta} onCerrarStand={onCerrarStand} />);
     fireEvent.click(screen.getByText("Escanear tarjeta del proveedor"));
     expect(onTarjeta).toHaveBeenCalled();
     expect(screen.queryByText("Tarjeta")).toBeNull();
-    fireEvent.click(screen.getByText("Cerrar stand"));
+    fireEvent.click(screen.getByText("Terminar"));
     expect(onStand).toHaveBeenCalled();
     expect(onCerrarStand).not.toHaveBeenCalled();
   });
