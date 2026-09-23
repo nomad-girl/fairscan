@@ -7,7 +7,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Bloque, Campo, Fila, Icono, Hoja } from "../componentes/index.js";
+import { Boton, Bloque, Campo, Fila, Icono, Hoja, Celda } from "../componentes/index.js";
 import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
 import { cantidadDe, conCantidad, lineaDePedido, productosParaPedido, totalesDePedido, porcentajeDeContenedor } from "../lib/pedidos.js";
 import { numero as fNumero, cbm as fCbm, fechaCorta } from "../idiomas/formato.js";
@@ -26,7 +26,7 @@ function useAncho(minimo = 900) {
   return ancho;
 }
 
-export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD", feria = null, Foto, tLegacy, primero = null, onBack, onGuardar, onEnviar, onNavigateProduct }) {
+export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD", feria = null, Foto, tLegacy, primero = null, onBack, onGuardar, onEnviar, onNavigateProduct, onActualizarProducto = null }) {
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
   const escritorio = useAncho(900);
@@ -119,20 +119,27 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
         /* Computadora: la tabla a la izquierda, totales y envío a la derecha */
         <div style={{ flex: 1, overflowY: "auto", padding: `0 ${espacios.margenLateral}px 40px` }}>
           <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", gap: 20, alignItems: "flex-start" }}>
-            <div style={{ flex: 2, minWidth: 0, background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, overflow: "hidden" }}>
+            <div style={{ flex: 2, minWidth: 0, background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, overflow: "auto" }}>
               <div role="table" aria-label={t("pedido.titulo")}>
-                <div role="row" style={{ display: "grid", gridTemplateColumns: "64px minmax(160px, 1fr) 90px 90px 90px 160px 90px 90px 110px", gap: 8, padding: "10px 12px", borderBottom: `1px solid ${paleta.border}`, ...texto("pie", { fontWeight: 600 }), color: paleta.dim, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <div role="row" style={{ display: "grid", gridTemplateColumns: "52px minmax(140px, 1fr) 84px 72px 78px 148px 78px 78px 96px", gap: 8, padding: "10px 12px", borderBottom: `1px solid ${paleta.border}`, ...texto("pie", { fontWeight: 600 }), color: paleta.dim, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                   {[t("pedido.foto"), t("pedido.producto"), t("pedido.precio"), t("pedido.piezasPorCaja"), t("pedido.cbmPorCaja"), t("pedido.cantidad"), t("pedido.unidades"), t("pedido.cbm"), t("pedido.total")].map(h => <span key={h} role="columnheader">{h}</span>)}
                 </div>
                 {suyos.map(p => {
                   const cant = cantidadDe(pedido, p.id); const l = lineaDePedido(p, cant);
                   return (
-                    <div key={p.id} role="row" style={{ display: "grid", gridTemplateColumns: "64px minmax(160px, 1fr) 90px 90px 90px 160px 90px 90px 110px", gap: 8, alignItems: "center", padding: "8px 12px", borderBottom: `1px solid ${paleta.border}`, background: cant > 0 ? paleta.accentSoft : "transparent", ...texto("cuerpo", { fontWeight: 400 }), fontVariantNumeric: "tabular-nums" }}>
+                    <div key={p.id} role="row" style={{ display: "grid", gridTemplateColumns: "52px minmax(140px, 1fr) 84px 72px 78px 148px 78px 78px 96px", gap: 8, alignItems: "center", padding: "8px 12px", borderBottom: `1px solid ${paleta.border}`, background: cant > 0 ? paleta.accentSoft : "transparent", ...texto("cuerpo", { fontWeight: 400 }), fontVariantNumeric: "tabular-nums" }}>
                       <button type="button" onClick={() => onNavigateProduct?.(p)} aria-label={t("pedido.verProducto")} style={{ padding: 0, border: "none", background: "none", cursor: "pointer" }}>{miniatura(p, 56)}</button>
                       <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 500 }}>{p.favorito ? <><Icono nombre="favorito" tamano={12} color={paleta.accentTexto} /> </> : null}{p.name || t("pedido.sinNombre")}</span>
-                      <span>{p.price ? `${moneda} ${p.price}` : "—"}</span>
-                      <span>{l.porCaja ? fNumero(l.piezas) : "—"}</span>
-                      <span>{p.cbmPorCaja ? fNumero(p.cbmPorCaja, { maximumFractionDigits: 3 }) : "—"}</span>
+                      {/* En el escritorio (23/09) el precio, las piezas y el CBM se corrigen en la misma fila, sin salir del pedido */}
+                      {onActualizarProducto
+                        ? <Celda id={p.id} nombre={p.name} campo="price" etiqueta={t("pedido.precio")} valor={p.price} mostrar={`${moneda} ${p.price}`} numerico onGuardar={onActualizarProducto} />
+                        : <span>{p.price ? `${moneda} ${p.price}` : "—"}</span>}
+                      {onActualizarProducto
+                        ? <Celda id={p.id} nombre={p.name} campo="piezasPorCaja" etiqueta={t("pedido.piezasPorCaja")} valor={p.piezasPorCaja} numerico onGuardar={onActualizarProducto} />
+                        : <span>{l.porCaja ? fNumero(l.piezas) : "—"}</span>}
+                      {onActualizarProducto
+                        ? <Celda id={p.id} nombre={p.name} campo="cbmPorCaja" etiqueta={t("pedido.cbmPorCaja")} valor={p.cbmPorCaja} numerico onGuardar={onActualizarProducto} />
+                        : <span>{p.cbmPorCaja ? fNumero(p.cbmPorCaja, { maximumFractionDigits: 3 }) : "—"}</span>}
                       {contador(p, cant, p.id === primero)}
                       <span>{cant ? fNumero(l.unidades) : "—"}</span>
                       <span>{l.cbm != null ? fNumero(l.cbm, { maximumFractionDigits: 3 }) : "—"}</span>

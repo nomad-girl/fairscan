@@ -102,6 +102,8 @@ import { RevisarDia } from './pantallas/RevisarDia.jsx';
 import { FichaProducto } from './pantallas/FichaProducto.jsx';
 import { FichaProveedor } from './pantallas/FichaProveedor.jsx';
 import { Icono, Hoja, Boton } from './componentes/index.js';
+import { Escritorio } from './escritorio/Escritorio.jsx';
+import { useEsEscritorio } from './escritorio/util.jsx';
 import { useSistema } from './sistema/SistemaProvider.jsx';
 import { ArmarPedido } from './pantallas/ArmarPedido.jsx';
 import { Pedidos } from './pantallas/Pedidos.jsx';
@@ -2781,6 +2783,8 @@ export default function App() {
   // ─── Auth ─── (arriba de todo: los efectos de créditos lo leen en su lista de dependencias;
   // más abajo, el bundle de producción rompía al arrancar con "Cannot access before initialization")
   const auth = useAuth();
+  // La versión de computadora (Nati, 23/09): con 900 px o más y fuera de la app instalada. En el teléfono no cambia nada.
+  const esEscritorio = useEsEscritorio();
   // Negocio (5.1) y créditos (5.2): la config viene del servidor; el saldo vive en
   // el teléfono y se reconcilia con el servidor cuando hay señal (gana el servidor).
   const [negocio, setNegocio] = useState(NEGOCIO_POR_DEFECTO);
@@ -3062,8 +3066,9 @@ export default function App() {
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
   // ─── Pedidos (decisión 4 del 16/09): un pedido por proveedor, tres entradas ───
   const monedaActual = CURRENCIES[settings?.currency]?.symbol || "USD";
-  const abrirPedido = async (supplier, productoId = null) => {
-    if (!supplier) return;
+  // El pedido de un proveedor: el que está en curso, o uno nuevo. Lo usan el teléfono (abrirPedido) y el escritorio.
+  const asegurarPedido = async (supplier) => {
+    if (!supplier) return null;
     let pedido = pedidoDeProveedor(orders, supplier.id);
     if (!pedido) {
       const nuevo = pedidoNuevo(supplier, activeDistrictId);
@@ -3071,6 +3076,11 @@ export default function App() {
       pedido = { ...nuevo, id };
       setOrders(prev => [...prev, pedido]);
     }
+    return pedido;
+  };
+  const abrirPedido = async (supplier, productoId = null) => {
+    const pedido = await asegurarPedido(supplier);
+    if (!pedido) return;
     navigate("pedido", { supplierId: supplier.id, pedidoId: pedido.id, primero: productoId });
   };
   const handleUpdateOrder = async (id, changes) => {
@@ -3134,7 +3144,7 @@ export default function App() {
     setSettings(prev => ({ ...prev, activeDistrictId: id }));
     scrollPositionRef.current = { products: 0, suppliers: 0 };
     const d = districts.find(d => d.id === id);
-    showToast(`→ ${d?.name}`);
+    showToast(id == null ? "Todas las ferias" : `→ ${d?.name}`);
   };
 
   // Upload photos to R2 in background, update product record with URLs
@@ -3581,11 +3591,14 @@ export default function App() {
     </div>
   );
 
-  if (!auth.user) return <LoginScreen t={t} onAuth={auth} />;
+  // En la compu, el login del teléfono va centrado en una columna (la pantalla de escritorio propia se diseña después).
+  const enColumna = (nodo) => (esEscritorio ? <div style={{ height:"100%", background:"#0B0E17", display:"flex", justifyContent:"center" }}><div style={{ width:460, height:"100%", position:"relative" }}>{nodo}</div></div> : nodo);
+  if (!auth.user) return enColumna(<LoginScreen t={t} onAuth={auth} />);
 
-  if (mostrarLogin) return <LoginScreen t={t} onAuth={auth} onCancel={() => setMostrarLogin(false)} />;
+  if (mostrarLogin) return enColumna(<LoginScreen t={t} onAuth={auth} onCancel={() => setMostrarLogin(false)} />);
   if (!ready) return <EsqueletoCatalogo t={t} />;
-  if (!settings.bienvenidaVista) return (
+  // La bienvenida habla de sacar fotos: en la compu no hay cámara, se pasa directo al escritorio.
+  if (!settings.bienvenidaVista && !esEscritorio) return (
     <Bienvenida sinCuenta={auth.esAnonima}
       onEmpezar={async () => { await dbSaveSettings({ bienvenidaVista: true }); setSettings(prev => ({ ...prev, bienvenidaVista: true })); }}
       onEntrar={async () => { await dbSaveSettings({ bienvenidaVista: true }); setSettings(prev => ({ ...prev, bienvenidaVista: true })); setMostrarLogin(true); }} />
@@ -3665,7 +3678,21 @@ export default function App() {
         </div>
       )}
 
-      {screen === "list" && (
+      {esEscritorio && (
+        <Escritorio products={products} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} orders={orders} moneda={monedaActual} settings={settings} Foto={FotoDeProducto} tLegacy={t}
+          cuenta={{ email: auth.user?.email, esAnonima: !!auth.esAnonima }} onEntrar={() => setMostrarLogin(true)}
+          onSwitchDistrict={switchDistrict} onActualizarProducto={handleUpdateProduct} onActualizarProveedor={(id, cambios) => handleUpdateSupplier(id, cambios, true)}
+          onEliminarProducto={(id) => handleDeleteProduct(id, { quedarse: true })}
+          onPedidoPara={asegurarPedido} onGuardarPedido={handleUpdateOrder} onEnviarProforma={enviarProforma} onDescargarExcelFeria={descargarExcelFeria}
+          renderExportar={(onVolver) => <ExportScreen products={products} suppliers={suppliers} districts={districts} onBack={onVolver} onExported={msg => { onVolver(); showToast(msg); }} onUpdateProduct={handleUpdateProduct} onUpdateSupplier={handleUpdateSupplier} t={t} />}
+          renderAjustes={(onVolver, irAExportar) => <SettingsScreen settings={settings} onSave={(s, silent) => handleSaveSettings(s, true).then(() => { if (!silent) { showToast("Config guardada"); onVolver(); } })} onBack={onVolver} sync={sync} t={t} isDark={isDark} onToggleTheme={toggleTheme}
+            products={products} suppliers={suppliers} districts={districts} onReload={reloadAll}
+            teams={teamsHook.teams} activeTeam={teamsHook.teams.find(tm => tm.id === sync.teamId)} teamMembers={teamsHook.teamMembers}
+            isAdmin={teamsHook.isAdmin} fetchMembers={teamsHook.fetchMembers} inviteMember={teamsHook.inviteMember}
+            onSwitchTeam={handleSwitchTeam} userEmail={auth.user?.email} esAnonima={auth.esAnonima} auth={auth} userId={auth.user?.id} onSignOut={auth.signOut}
+            onGoExport={irAExportar} onAccountDeleted={handleAccountDeleted} />} />
+      )}
+      {!esEscritorio && screen === "list" && (
         <Catalogo products={products} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} activeDistrict={activeDistrict} bajando={sync.bajando}
           queueCount={queueCount} enLinea={typeof navigator === "undefined" ? true : navigator.onLine !== false}
           Foto={FotoDeProducto} t={t}
@@ -3675,14 +3702,14 @@ export default function App() {
           onRevisarDia={() => navigate("revisar")} onEliminarVarios={handleBatchDelete}
           pestana={listTab} onPestana={setListTab} />
       )}
-      {(screen === "capture" || screen === "capture-supplier") && (
+      {!esEscritorio && (screen === "capture" || screen === "capture-supplier") && (
         <QuickCapture key={`${screen}-${standKey}`} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings} products={products}
           onProductoNuevo={crearProductoDesdeCaptura} onProductoCambio={handleUpdateProduct} onProductoBorrar={borrarProductoDesdeCaptura}
           onSave={(data) => handleCaptureSave({ ...data, soloProveedor: screen === "capture-supplier" })} onClose={() => navigate("list")} onCatalogo={() => navigate("list")} t={t} isDark={isDark}
           soloProveedor={screen === "capture-supplier"} saldoCreditos={creditos ? saldoVisible(creditos) : null} queueCount={queueCount}
           initialSupplier={screenData?.fromSupplierId != null ? suppliers.find(s => s.id === screenData.fromSupplierId) || null : null} />
       )}
-      {screen === "detail" && screenData && (
+      {!esEscritorio && screen === "detail" && screenData && (
         <FichaProducto product={products.find(p => p.id === screenData.id) || screenData} allProducts={ordenFicha ? ordenFicha.map(id => products.find(p => p.id === id)).filter(Boolean) : products} suppliers={suppliers} districts={districts}
           settings={settings} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"}
           Foto={FotoDeProducto} tLegacy={t}
@@ -3690,7 +3717,7 @@ export default function App() {
           onNavigateSupplier={s => navigate("supplier", s)} onNavigateProduct={p => { setScreenData(p); }}
           onPedir={(p) => abrirPedido(suppliers.find(x => x.id === p.supplierId), p.id)} />
       )}
-      {screen === "revisar" && (
+      {!esEscritorio && screen === "revisar" && (
         <RevisarDia productosDeHoy={soloDeHoy(activeDistrictId ? products.filter(p => p.districtId === activeDistrictId) : products)} suppliers={suppliers}
           feria={activeDistrict?.name || null} esAnonima={!!auth.esAnonima} pendientesSync={queueCount}
           Foto={FotoDeProducto} t={t} onActualizarProducto={handleUpdateProduct}
@@ -3698,29 +3725,29 @@ export default function App() {
           onEliminar={(p) => handleDeleteProduct(p.id, { quedarse: true })}
           onCerrar={() => navigate("list")} onCrearCuenta={() => navigate("settings")} onVerLosDeHoy={() => { setListTab("todo"); navigate("list"); }} />
       )}
-      {screen === "supplier" && screenData && (
+      {!esEscritorio && screen === "supplier" && screenData && (
         <FichaProveedor supplier={suppliers.find(s => s.id === screenData.id) || screenData} allSuppliers={ordenProveedores ? ordenProveedores.map(id => suppliers.find(s => s.id === id)).filter(Boolean) : suppliers.filter(s => !proveedorVacio(s, products))} products={products} pedidos={orders} districts={districts} moneda={monedaActual} Foto={FotoDeProducto} tLegacy={t}
           onBack={goBack} onUpdate={handleUpdateSupplier} onDelete={handleDeleteSupplier} onNavigateSupplier={s => setScreenData(s)}
           onAddProduct={() => navigate("capture", { fromSupplierId: screenData.id })}
           onNavigateProduct={p => navigate("detail", p)} onArmarPedido={(s) => abrirPedido(s)} />
       )}
-      {screen === "pedidos" && (
+      {!esEscritorio && screen === "pedidos" && (
         <Pedidos pedidos={orders} suppliers={suppliers} products={products} districts={districts} activeDistrictId={activeDistrictId} moneda={monedaActual} Foto={FotoDeProducto} tLegacy={t}
           onBack={goBack} onAbrirPedido={(s) => abrirPedido(s)} onDescargarExcelFeria={descargarExcelFeria} />
       )}
-      {screen === "pedido" && screenData && (() => {
+      {!esEscritorio && screen === "pedido" && screenData && (() => {
         const supplier = suppliers.find(s => s.id === screenData.supplierId);
         const pedido = orders.find(o => o.id === screenData.pedidoId);
         if (!supplier || !pedido) return null;
         return <ArmarPedido supplier={supplier} pedido={pedido} products={products} moneda={monedaActual} feria={districts.find(d => d.id === pedido.districtId) || null} Foto={FotoDeProducto} tLegacy={t} primero={screenData.primero || null}
           onBack={goBack} onGuardar={(cambios) => handleUpdateOrder(pedido.id, cambios)} onEnviar={(via) => enviarProforma(pedido, supplier, via)} onNavigateProduct={p => navigate("detail", p)} />;
       })()}
-      {screen === "districts" && (
+      {!esEscritorio && screen === "districts" && (
         <DistrictsScreen districts={districts} activeDistrictId={activeDistrictId} products={products}
           onActivate={switchDistrict} onAdd={handleAddDistrict} onUpdate={handleUpdateDistrict} onDelete={handleDeleteDistrict}
           onBack={() => navigate("list")} t={t} />
       )}
-      {screen === "settings" && (
+      {!esEscritorio && screen === "settings" && (
         <SettingsScreen settings={settings} onSave={handleSaveSettings} onBack={() => navigate("list")} sync={sync} t={t} isDark={isDark} onToggleTheme={toggleTheme}
           products={products} suppliers={suppliers} districts={districts} onReload={reloadAll}
           teams={teamsHook.teams} activeTeam={teamsHook.teams.find(tm => tm.id === sync.teamId)} teamMembers={teamsHook.teamMembers}
@@ -3728,7 +3755,7 @@ export default function App() {
           onSwitchTeam={handleSwitchTeam} userEmail={auth.user?.email} esAnonima={auth.esAnonima} auth={auth} userId={auth.user?.id} onSignOut={auth.signOut}
           onGoExport={() => navigate("export")} onAccountDeleted={handleAccountDeleted} />
       )}
-      {screen === "export" && (
+      {!esEscritorio && screen === "export" && (
         <ExportScreen products={products} suppliers={suppliers} districts={districts}
           onBack={() => navigate("list")} onExported={msg => { navigate("list"); showToast(msg); }}
           onUpdateProduct={handleUpdateProduct} onUpdateSupplier={handleUpdateSupplier} t={t} initialDateFilter={screenData?.dateFilter} />

@@ -25,7 +25,8 @@
     /* En computadora (Nati, 22/09: "hay que pensar la adaptación"): lo que en el teléfono ocupa la pantalla
        entera se acota a un ancho de teléfono, centrado, sobre fondo oscuro. Es el mínimo para que una ficha
        no sea una foto gigante; la adaptación de verdad se decide con wireframe. */
-    @media (min-width: 760px) {
+    /* Tablet en vertical: la app del teléfono acotada. De 900 px en adelante aparece el escritorio (23/09). */
+    @media (min-width: 760px) and (max-width: 899px) {
       body { background: #0B0E17; }
       #root { max-width: 460px; margin: 0 auto; box-shadow: 0 0 0 1px rgba(255,255,255,0.08); }
       .pantalla-fija { left: 50% !important; right: auto !important; width: 460px !important; transform: translateX(-50%); }
