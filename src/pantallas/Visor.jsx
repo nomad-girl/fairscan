@@ -98,7 +98,7 @@ export function Visor({
       {/* Arriba: saldo y estado. Nada más. */}
       <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 12px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <div style={{ display: "flex", gap: 6, alignItems: "center", minWidth: 0 }}>
-          {/* La feria no va en la cámara (Nati, 23/09): es información del catálogo */}
+          {feria && <Pastilla estilo={{ maxWidth: "46vw", overflow: "hidden", textOverflow: "ellipsis", display: "block", lineHeight: "32px" }}>{feria}</Pastilla>}
           {/* El saldo solo cuando está por acabarse; la nube no se muestra: en la cámara distrae (Nati, 22/09) */}
           {textoSaldo && saldoBajo && !esTarjeta && <Pastilla tono="alerta">{textoSaldo}</Pastilla>}
         </div>
