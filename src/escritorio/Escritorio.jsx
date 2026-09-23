@@ -11,7 +11,7 @@
  * La compu no saca fotos: la cámara queda en el teléfono. Capa visible: los datos y sus
  * cambios llegan por props desde App, igual que en las pantallas del teléfono.
  */
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { Boton, Chip, Icono } from "../componentes/index.js";
@@ -27,6 +27,10 @@ import { SeccionPedidos } from "./SeccionPedidos.jsx";
 
 const ANCHO_LATERAL = 220;
 const ANCHO_PANEL = 360;
+const ANCHO_PANEL_MIN = 320;
+const CLAVE_ANCHO = "fairscan.escritorio.anchoPanel";
+const leerAncho = () => { try { const n = Number(localStorage.getItem(CLAVE_ANCHO)); return n >= ANCHO_PANEL_MIN ? n : ANCHO_PANEL; } catch { return ANCHO_PANEL; } };
+const guardarAncho = (n) => { try { localStorage.setItem(CLAVE_ANCHO, String(n)); } catch { /* modo privado */ } };
 
 export function Escritorio({
   products = [], suppliers = [], districts = [], activeDistrictId = null, orders = [], moneda = "USD", settings, Foto, tLegacy,
@@ -53,6 +57,20 @@ export function Escritorio({
   const [seleccion, setSeleccion] = useState(null); // id de producto en el panel
   const [proveedorSel, setProveedorSel] = useState(null); // id de proveedor en el panel
   const [pedidoAbierto, setPedidoAbierto] = useState(null); // { supplierId, pedidoId, primero }
+  // El panel de la derecha se agranda (Nati, 23/09: la foto más protagonista): botón, o arrastrando el borde. Se recuerda.
+  const [anchoPanel, setAnchoPanel] = useState(leerAncho);
+  const [fotoGrande, setFotoGrande] = useState(null); // índice de la foto del producto elegido a pantalla completa
+  const arrastre = useRef(null);
+  const maxAncho = () => Math.max(ANCHO_PANEL_MIN, Math.round((typeof window !== "undefined" ? window.innerWidth : 1400) * 0.62));
+  const panelAmplio = anchoPanel >= ANCHO_PANEL + 120;
+  const alternarPanel = () => { const n = panelAmplio ? ANCHO_PANEL : Math.min(maxAncho(), 620); setAnchoPanel(n); guardarAncho(n); };
+  const empezarArrastre = (e) => {
+    e.preventDefault();
+    arrastre.current = true;
+    const mover = (ev) => { const n = Math.min(maxAncho(), Math.max(ANCHO_PANEL_MIN, Math.round(window.innerWidth - ev.clientX))); setAnchoPanel(n); };
+    const soltar = () => { arrastre.current = false; window.removeEventListener("mousemove", mover); window.removeEventListener("mouseup", soltar); setAnchoPanel(n => { guardarAncho(n); return n; }); };
+    window.addEventListener("mousemove", mover); window.addEventListener("mouseup", soltar);
+  };
 
   const irA = (s) => { setSeccion(s); setSeleccion(null); setProveedorSel(null); setPedidoAbierto(null); };
 
@@ -76,13 +94,20 @@ export function Escritorio({
   const elegido = seleccion != null ? products.find(p => p.id === seleccion) || null : null;
   const proveedorElegido = proveedorSel != null ? suppliers.find(s => s.id === proveedorSel) || null : null;
   const idx = elegido ? filtrados.findIndex(p => p.id === elegido.id) : -1;
-  const mover = (delta) => { if (!filtrados.length) return; const i = idx < 0 ? 0 : Math.min(filtrados.length - 1, Math.max(0, idx + delta)); setSeleccion(filtrados[i].id); };
+  const mover = (delta) => { setFotoGrande(null); if (!filtrados.length) return; const i = idx < 0 ? 0 : Math.min(filtrados.length - 1, Math.max(0, idx + delta)); setSeleccion(filtrados[i].id); };
 
   // Flechas del teclado recorren la grilla; Escape cierra el panel. Nunca mientras se escribe en un campo.
   useEffect(() => {
     const al = (e) => {
       const tag = (e.target?.tagName || "").toLowerCase();
       if (tag === "input" || tag === "textarea" || tag === "select" || e.target?.isContentEditable) return;
+      if (fotoGrande != null && elegido) {
+        const total = (elegido.photos?.length || elegido.photoUrls?.length || 1);
+        if (e.key === "Escape") setFotoGrande(null);
+        else if (e.key === "ArrowRight") setFotoGrande(i => (i + 1) % total);
+        else if (e.key === "ArrowLeft") setFotoGrande(i => (i - 1 + total) % total);
+        return;
+      }
       if (seccion !== "catalogo" && seccion !== "revisar" && seccion !== "proveedores") return;
       if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); mover(1); }
       else if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); mover(-1); }
@@ -168,6 +193,12 @@ export function Escritorio({
           {proveedores.map(s => <option key={s.id} value={s.id}>{s.company || `#${s.id}`}</option>)}
         </select>
       </div>
+      {enFeria.length === 0 && products.length > 0 && activeDistrictId != null && (
+        <div style={{ display: "flex", alignItems: "center", gap: 12, background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.medio, padding: "10px 14px" }}>
+          <span style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted, flex: 1 }}>{t("escritorio.feriaVacia")} {t("escritorio.productos", { count: products.length })} en otras ferias.</span>
+          <Boton variante="secundario" icono="feria" onClick={() => onSwitchDistrict?.(null)}>{t("escritorio.verTodasLasFerias")}</Boton>
+        </div>
+      )}
       {filtrados.length === 0 ? (
         <p style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted, margin: "24px 0" }}>
           {palabras.length ? t("escritorio.sinResultados") : seccion === "revisar" ? t("escritorio.revisarVacio") : t("escritorio.vacio")}
@@ -220,7 +251,8 @@ export function Escritorio({
       posicion={idx >= 0 ? { n: idx + 1, total: filtrados.length } : null}
       onAnterior={idx > 0 ? () => mover(-1) : undefined} onSiguiente={idx >= 0 && idx < filtrados.length - 1 ? () => mover(1) : undefined}
       onCerrar={() => setSeleccion(null)} onActualizar={onActualizarProducto} onEliminar={(p) => { setSeleccion(null); onEliminarProducto?.(p.id); }}
-      onAgregarAlPedido={agregarAlPedido} onVerProveedor={verProveedor} />
+      onAgregarAlPedido={agregarAlPedido} onVerProveedor={verProveedor}
+      onVerFoto={(i) => setFotoGrande(i)} panelAmplio={panelAmplio} onAlternarPanel={alternarPanel} />
   ) : seccion === "proveedores" && proveedorElegido ? (
     <PanelProveedor proveedor={proveedorElegido} products={products} moneda={moneda} Foto={Foto} tLegacy={tLegacy} onCerrar={() => setProveedorSel(null)}
       onActualizar={onActualizarProveedor} onVerProducto={(p) => setSeleccion(p.id)} onArmarPedido={abrirPedidoDe} />
@@ -285,11 +317,38 @@ export function Escritorio({
           {seccion === "ajustes" && <div style={{ maxWidth: 720, margin: "0 auto", height: "100%" }}>{renderAjustes?.(() => irA("catalogo"), () => irA("exportar"))}</div>}
         </main>
         {conPanel && (
-          <aside aria-label={elegido ? t("ficha.datos") : proveedorElegido ? t("proveedor.datos") : t("escritorio.elegiUno")} style={{ width: ANCHO_PANEL, flexShrink: 0, overflowY: "auto", background: paleta.card, borderLeft: `1px solid ${paleta.border}` }}>
+          <aside aria-label={elegido ? t("ficha.datos") : proveedorElegido ? t("proveedor.datos") : t("escritorio.elegiUno")} style={{ width: anchoPanel, flexShrink: 0, overflowY: "auto", background: paleta.card, borderLeft: `1px solid ${paleta.border}`, position: "relative", transition: arrastre.current ? "none" : "width 180ms ease" }}>
+            <div role="separator" aria-orientation="vertical" aria-label={t("escritorio.arrastrarPanel")} title={t("escritorio.arrastrarPanel")} onMouseDown={empezarArrastre} onDoubleClick={alternarPanel}
+              style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 8, cursor: "col-resize", zIndex: 2 }} />
             {panel}
           </aside>
         )}
       </div>
+
+      {/* La foto a pantalla completa: clic en la foto del panel; flechas para las otras tomas; Escape o X para cerrar */}
+      {fotoGrande != null && elegido && (() => {
+        const fs = elegido.photos?.length ? elegido.photos : (elegido.photoUrls || []);
+        const i = Math.min(fotoGrande, Math.max(0, fs.length - 1));
+        return (
+          <div role="dialog" aria-modal="true" aria-label={elegido.name || t("ficha.producto")} onClick={() => setFotoGrande(null)}
+            style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(5,8,15,0.94)", display: "grid", placeItems: "center" }}>
+            <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", padding: "56px 80px" }}>
+              <Miniatura p={elegido} i={i} Foto={Foto} tLegacy={tLegacy} paleta={paleta} estilo={{ objectFit: "contain", width: "100%", height: "100%" }} />
+            </div>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, color: "#fff" }} onClick={e => e.stopPropagation()}>
+              <span style={{ fontSize: 16, fontWeight: 600, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{elegido.name || t("catalogo.procesandoNombre")}{elegido.price ? <span style={{ fontWeight: 400, opacity: 0.8 }}> · {moneda} {elegido.price}</span> : null}</span>
+              {fs.length > 1 && <span style={{ fontSize: 13, opacity: 0.8 }}>{t("escritorio.fotoDe", { n: i + 1, total: fs.length })}</span>}
+              <button type="button" onClick={() => setFotoGrande(null)} aria-label={t("escritorio.cerrarFoto")} style={{ width: 40, height: 40, borderRadius: 20, border: "none", background: "rgba(255,255,255,0.15)", display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="cerrar" tamano={20} color="#fff" /></button>
+            </div>
+            {fs.length > 1 && (
+              <>
+                <button type="button" onClick={e => { e.stopPropagation(); setFotoGrande((i - 1 + fs.length) % fs.length); }} aria-label={t("escritorio.fotoAnterior")} style={{ position: "absolute", left: 20, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: 22, border: "none", background: "rgba(255,255,255,0.15)", display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="anterior" tamano={22} color="#fff" /></button>
+                <button type="button" onClick={e => { e.stopPropagation(); setFotoGrande((i + 1) % fs.length); }} aria-label={t("escritorio.fotoSiguiente")} style={{ position: "absolute", right: 20, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: 22, border: "none", background: "rgba(255,255,255,0.15)", display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="siguiente" tamano={22} color="#fff" /></button>
+              </>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

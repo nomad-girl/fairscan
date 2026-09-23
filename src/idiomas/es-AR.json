@@ -553,6 +553,16 @@
     "eliminarSeguro": "¿Eliminar este producto?",
     "eliminarTexto": "Se puede deshacer durante unos segundos desde el aviso.",
     "proveedorProductos": "Productos de este proveedor",
-    "volverAlProveedor": "Volver al proveedor"
+    "volverAlProveedor": "Volver al proveedor",
+    "agrandarPanel": "Agrandar el panel",
+    "achicarPanel": "Achicar el panel",
+    "arrastrarPanel": "Arrastrá para cambiar el ancho del panel",
+    "verFotoGrande": "Ver la foto grande",
+    "cerrarFoto": "Cerrar la foto",
+    "fotoAnterior": "Foto anterior",
+    "fotoSiguiente": "Foto siguiente",
+    "fotoDe": "Foto {{n}} de {{total}}",
+    "feriaVacia": "Esta feria todavía no tiene productos.",
+    "verTodasLasFerias": "Ver todas las ferias"
   }
 }

@@ -139,6 +139,28 @@ describe("El escritorio (la versión de computadora)", () => {
   });
 });
 
+describe("El panel se agranda y la foto se ve a pantalla completa", () => {
+  it("el botón agranda el panel y lo vuelve a achicar", () => {
+    con(<Escritorio {...base()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Taza de cerámica" }));
+    const panel = screen.getByRole("complementary");
+    expect(panel.style.width).toBe("360px");
+    fireEvent.click(within(panel).getByRole("button", { name: "Agrandar el panel" }));
+    expect(parseInt(panel.style.width)).toBeGreaterThan(360);
+    fireEvent.click(within(panel).getByRole("button", { name: "Achicar el panel" }));
+    expect(panel.style.width).toBe("360px");
+  });
+  it("clic en la foto la abre grande; Escape la cierra", () => {
+    con(<Escritorio {...base()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Taza de cerámica" }));
+    fireEvent.click(within(screen.getByRole("complementary")).getByRole("button", { name: "Ver la foto grande" }));
+    expect(screen.getByRole("dialog", { name: "Taza de cerámica" })).toBeTruthy();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByRole("complementary")).toBeTruthy(); // el panel sigue abierto
+  });
+});
+
 describe("useEsEscritorio", () => {
   it("es verdadero con 900 px o más y falso en un teléfono", () => {
     const Sonda = () => <span>{useEsEscritorio() ? "escritorio" : "telefono"}</span>;

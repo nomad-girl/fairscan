@@ -12,7 +12,7 @@ import { Miniatura } from "./util.jsx";
 
 export function PanelProducto({
   producto: p, suppliers = [], districts = [], moneda = "USD", settings, Foto, tLegacy,
-  posicion = null, onAnterior, onSiguiente, onCerrar,
+  posicion = null, onAnterior, onSiguiente, onCerrar, onVerFoto, panelAmplio = false, onAlternarPanel,
   onActualizar, onEliminar, onAgregarAlPedido, onVerProveedor,
 }) {
   const { t } = useTranslation();
@@ -41,12 +41,17 @@ export function PanelProducto({
         {redondo("anterior", t("escritorio.anterior"), onAnterior, !onAnterior)}
         {redondo("siguiente", t("escritorio.siguiente"), onSiguiente, !onSiguiente)}
         <span style={{ ...texto("pie"), color: paleta.dim, flex: 1, textAlign: "center" }}>{posicion ? t("ficha.posicion", posicion) : ""}</span>
+        {onAlternarPanel && redondo(panelAmplio ? "siguiente" : "anterior", panelAmplio ? t("escritorio.achicarPanel") : t("escritorio.agrandarPanel"), onAlternarPanel)}
         {redondo("cerrar", t("escritorio.cerrarPanel"), onCerrar)}
       </div>
 
       {/* La foto manda: cuadrada, grande; abajo las otras tomas */}
       <div style={{ borderRadius: radios.grande, overflow: "hidden", aspectRatio: "1", background: "#000", position: "relative" }}>
-        {fotos.length ? <Miniatura p={p} i={foto} Foto={Foto} tLegacy={tLegacy} paleta={paleta} /> : <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center" }}><Icono nombre="foto" tamano={40} color="rgba(255,255,255,0.6)" /></div>}
+        {/* Clic en la foto: a pantalla completa (Nati, 23/09: "que las fotos se puedan ver más grandes") */}
+        <button type="button" onClick={() => fotos.length && onVerFoto?.(foto)} aria-label={t("escritorio.verFotoGrande")} disabled={!fotos.length}
+          style={{ position: "absolute", inset: 0, padding: 0, border: "none", background: "#000", cursor: fotos.length ? "zoom-in" : "default" }}>
+          {fotos.length ? <Miniatura p={p} i={foto} Foto={Foto} tLegacy={tLegacy} paleta={paleta} /> : <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center" }}><Icono nombre="foto" tamano={40} color="rgba(255,255,255,0.6)" /></div>}
+        </button>
         <button type="button" onClick={() => guardar({ favorito: p.favorito ? 0 : 1 })} aria-pressed={!!p.favorito} aria-label={p.favorito ? t("ficha.quitarFavorito") : t("ficha.marcarFavorito")}
           style={{ position: "absolute", top: 10, right: 10, width: 36, height: 36, borderRadius: 18, border: "none", background: p.favorito ? paleta.accent : "rgba(10,14,23,0.55)", display: "grid", placeItems: "center", cursor: "pointer" }}>
           <Icono nombre="favorito" tamano={18} color="#fff" />
