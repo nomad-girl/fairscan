@@ -1230,11 +1230,12 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   const ultimas = items.slice(0, 3).map(it => ({ id: it.id, foto: it.photos?.[0] })).filter(u => u.foto);
   const esperando = products.filter(p => p.bloqueado).length;
   const hojaTarjetaNueva = (
-    <Hoja abierta={!!tarjetaPendiente} onCerrar={esLaMismaTarjeta} titulo={t("visor.tarjetaNueva")}>
-      <p style={{ fontSize: 15, lineHeight: 1.45, margin: "0 0 14px" }}>{supplierName ? t("visor.cerrarYArrancar", { empresa: supplierName, fotos: t("cantidades.fotos", { count: items.length }) }) : t("visor.cerrarYArrancarSinNombre", { fotos: t("cantidades.fotos", { count: items.length }) })}</p>
+    // Ojo: en QuickCapture `t` es el tema de colores, no la función de textos (el 23/09 la app arrancó en negro por esto).
+    <Hoja abierta={!!tarjetaPendiente} onCerrar={esLaMismaTarjeta} titulo="Tarjeta nueva">
+      <p style={{ fontSize: 15, lineHeight: 1.45, margin: "0 0 14px" }}>{supplierName ? `¿Cerramos ${supplierName} (${items.length} ${items.length === 1 ? "foto" : "fotos"}) y arrancamos con esta?` : `¿Cerramos el stand anterior (${items.length} ${items.length === 1 ? "foto" : "fotos"}) y arrancamos con esta tarjeta?`}</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <Boton variante="principal" ancho="total" icono="listo" onClick={cerrarYArrancar}>{t("visor.siCerrar")}</Boton>
-        <Boton variante="secundario" ancho="total" onClick={esLaMismaTarjeta}>{t("visor.noEsLaMisma")}</Boton>
+        <Boton variante="principal" ancho="total" icono="listo" onClick={cerrarYArrancar}>Sí, cerrar y seguir</Boton>
+        <Boton variante="secundario" ancho="total" onClick={esLaMismaTarjeta}>No, es la misma tarjeta de nuevo</Boton>
       </div>
     </Hoja>
   );
