@@ -7,8 +7,7 @@ import React from "react";
 import {
   ArrowLeft, X, Search, Settings, Trash2, Camera, Image, Plus, Share, Upload, RotateCw, Cloud, CloudOff, Users,
   Check, AlertTriangle, Pencil, ChevronRight, Star, Store, Tent, MoreHorizontal, Download, FileSpreadsheet, Minus,
-  ClipboardList, MessageCircle, Phone, Mail, Copy, Contact, Globe, MapPin, Mic, ChevronLeft, ChevronDown, Eye, EyeOff,
-} from "lucide-react";
+  ClipboardList, MessageCircle, Phone, Mail, Copy, Contact, Globe, MapPin, Mic, ChevronLeft, ChevronDown, Eye, EyeOff, Maximize2, Minimize2 } from 'lucide-react';
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 
 /** Los nombres que usa la app → el dibujo. Agregar acá antes de usar uno nuevo. */
@@ -17,7 +16,7 @@ const ICONOS = {
   compartir: Share, exportar: Upload, reintentar: RotateCw, nube: Cloud, sinNube: CloudOff, equipo: Users, listo: Check,
   error: AlertTriangle, editar: Pencil, siguiente: ChevronRight, favorito: Star, proveedor: Store, feria: Tent, opciones: MoreHorizontal,
   descargar: Download, excel: FileSpreadsheet,
-  pedido: ClipboardList, mensaje: MessageCircle, telefono: Phone, correo: Mail, copiar: Copy, tarjeta: Contact, web: Globe, direccion: MapPin, voz: Mic, anterior: ChevronLeft, abajo: ChevronDown, ojo: Eye, ojoCerrado: EyeOff,
+  pedido: ClipboardList, mensaje: MessageCircle, telefono: Phone, correo: Mail, copiar: Copy, tarjeta: Contact, web: Globe, direccion: MapPin, voz: Mic, anterior: ChevronLeft, abajo: ChevronDown, ojo: Eye, ojoCerrado: EyeOff, expandir: Maximize2, contraer: Minimize2,
 };
 
 export const NOMBRES_DE_ICONOS = Object.keys(ICONOS);

@@ -41,7 +41,7 @@ export function PanelProducto({
         {redondo("anterior", t("escritorio.anterior"), onAnterior, !onAnterior)}
         {redondo("siguiente", t("escritorio.siguiente"), onSiguiente, !onSiguiente)}
         <span style={{ ...texto("pie"), color: paleta.dim, flex: 1, textAlign: "center" }}>{posicion ? t("ficha.posicion", posicion) : ""}</span>
-        {onAlternarPanel && redondo(panelAmplio ? "siguiente" : "anterior", panelAmplio ? t("escritorio.achicarPanel") : t("escritorio.agrandarPanel"), onAlternarPanel)}
+        {onAlternarPanel && redondo(panelAmplio ? "contraer" : "expandir", panelAmplio ? t("escritorio.achicarPanel") : t("escritorio.agrandarPanel"), onAlternarPanel)}
         {redondo("cerrar", t("escritorio.cerrarPanel"), onCerrar)}
       </div>
 
@@ -56,6 +56,13 @@ export function PanelProducto({
           style={{ position: "absolute", top: 10, right: 10, width: 36, height: 36, borderRadius: 18, border: "none", background: p.favorito ? paleta.accent : "rgba(10,14,23,0.55)", display: "grid", placeItems: "center", cursor: "pointer" }}>
           <Icono nombre="favorito" tamano={18} color="#fff" />
         </button>
+        {/* El símbolo de expandir sobre la foto (Nati, 23/09): que se vea que se puede agrandar */}
+        {fotos.length > 0 && (
+          <button type="button" onClick={() => onVerFoto?.(foto)} aria-label={t("escritorio.verFotoGrande")} title={t("escritorio.verFotoGrande")}
+            style={{ position: "absolute", right: 10, bottom: 10, width: 36, height: 36, borderRadius: 18, border: "none", background: "rgba(10,14,23,0.55)", display: "grid", placeItems: "center", cursor: "zoom-in" }}>
+            <Icono nombre="expandir" tamano={18} color="#fff" />
+          </button>
+        )}
       </div>
       {fotos.length > 1 && (
         <div style={{ display: "flex", gap: 6, overflowX: "auto" }}>

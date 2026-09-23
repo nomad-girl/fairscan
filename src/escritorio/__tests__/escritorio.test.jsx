@@ -153,7 +153,7 @@ describe("El panel se agranda y la foto se ve a pantalla completa", () => {
   it("clic en la foto la abre grande; Escape la cierra", () => {
     con(<Escritorio {...base()} />);
     fireEvent.click(screen.getByRole("button", { name: "Taza de cerámica" }));
-    fireEvent.click(within(screen.getByRole("complementary")).getByRole("button", { name: "Ver la foto grande" }));
+    fireEvent.click(within(screen.getByRole("complementary")).getAllByRole("button", { name: "Ver la foto grande" })[1]); // el símbolo de expandir
     expect(screen.getByRole("dialog", { name: "Taza de cerámica" })).toBeTruthy();
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
