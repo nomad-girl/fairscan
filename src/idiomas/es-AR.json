@@ -60,7 +60,7 @@
     "fotoAdicional": "Otro ángulo del último producto",
     "masAngulo": "+ ángulo",
     "consejoTarjeta": "Cuando termines con este proveedor, tocá Cerrar stand y escaneá su tarjeta",
-    "ultimasFotos": "Últimas fotos",
+    "ultimasFotos": "Este stand",
     "borrarFoto": "Borrar",
     "precio": "Precio",
     "precioDelUltimo": "Precio del último producto",
@@ -118,7 +118,12 @@
     "cerrarYArrancar": "¿Cerramos {{empresa}} ({{fotos}}) y arrancamos con esta?",
     "cerrarYArrancarSinNombre": "¿Cerramos el stand anterior ({{fotos}}) y arrancamos con esta tarjeta?",
     "siCerrar": "Sí, cerrar y seguir",
-    "noEsLaMisma": "No, es la misma tarjeta de nuevo"
+    "noEsLaMisma": "No, es la misma tarjeta de nuevo",
+    "sinPrecioCorto": "Sin precio",
+    "masFoto": "+ foto",
+    "listoStand": "Listo con este proveedor",
+    "verProveedor": "Ver el proveedor",
+    "irAlCatalogo": "Ir al catálogo"
   },
   "cerrarStand": {
     "titulo": "Cerrar stand",

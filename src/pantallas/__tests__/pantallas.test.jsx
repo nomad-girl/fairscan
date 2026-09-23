@@ -38,8 +38,8 @@ describe("Visor", () => {
     con(<Visor videoRef={{ current: null }} itemsCount={1} ultimaCaptura={FOTO} ultimas={[{ id: 7, foto: FOTO }]} puedeAgregarAngulo onAgregarAngulo={onAgregarAngulo} onBorrarFoto={onBorrarFoto} />);
     fireEvent.click(screen.getByRole("button", { name: "Otra foto del mismo producto" }));
     expect(onAgregarAngulo).toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Últimas fotos" }));
-    fireEvent.click(screen.getByText("Borrar"));
+    fireEvent.click(screen.getByRole("button", { name: "Este stand" }));
+    fireEvent.click(screen.getByRole("button", { name: "Borrar" }));
     expect(onBorrarFoto).toHaveBeenCalledWith(7);
   });
   it("en modo tarjeta guía el encuadre y vuelve a productos; ya no hay 'Sin tarjeta' (la tarjeta se saca cuando aparece)", () => {

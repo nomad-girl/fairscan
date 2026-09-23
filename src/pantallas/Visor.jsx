@@ -36,7 +36,8 @@ export function Visor({
   flash = false, ultimaCaptura = null, ultimas = [], puedeAgregarAngulo = false,
   datos = null, moneda = "USD", onTeclaPrecio, onConfirmarPrecio, onCampo, onMoqBase, onFavorito,
   onDisparar, onCatalogo, onCancelar, onVolverAProductos, onAgregarAngulo, onBorrarFoto,
-  onEscribirDato, onListoDato, modoAngulo = false, avisoGuardado = null, campoGuardado = null, // la barra del pulgar y el modo "otra foto del mismo producto"
+  onEscribirDato, onListoDato, modoAngulo = false, avisoGuardado = null, campoGuardado = null,
+  onAgregarFotoA, onPrecioDe, onListoStand, // la hoja "Este stand": por producto, otra foto, precio, borrar; y cerrar el stand // la barra del pulgar y el modo "otra foto del mismo producto"
   standAbierto = null, onStand, onTarjeta, // el stand: { nombre, fotos, tieneTarjeta, leyendo }; la pastilla lo abre, Cerrar stand también
   consejoVisible = false, onConsejoVisto,
   onTouchStart, onTouchEnd,
@@ -98,7 +99,11 @@ export function Visor({
           {/* El saldo solo cuando está por acabarse; la nube no se muestra: en la cámara distrae (Nati, 22/09) */}
           {textoSaldo && saldoBajo && !esTarjeta && <Pastilla tono="alerta">{textoSaldo}</Pastilla>}
         </div>
-        {estadoSync === "falla" && <Pastilla><span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, background: colorPunto, display: "inline-block" }} /><span style={{ fontSize: 12, fontWeight: 500, color: BLANCO_SUAVE }}>{textoSync}</span></Pastilla>}
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {estadoSync === "falla" && <Pastilla><span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, background: colorPunto, display: "inline-block" }} /><span style={{ fontSize: 12, fontWeight: 500, color: BLANCO_SUAVE }}>{textoSync}</span></Pastilla>}
+          {/* Volver al catálogo, siempre a mano (Nati, 23/09) */}
+          <button type="button" onClick={onCatalogo} aria-label={t("visor.irAlCatalogo")} style={{ width: 36, height: 36, borderRadius: 18, border: "none", background: "rgba(10,14,23,0.55)", display: "grid", placeItems: "center", cursor: "pointer", backdropFilter: "blur(8px)" }}><Icono nombre="foto" tamano={18} color={BLANCO} /></button>
+        </div>
       </div>
 
       {/* Stand abierto: la pastilla dice qué hacer ahora. Sin tarjeta invita a escanearla (eso empieza el
@@ -250,17 +255,30 @@ export function Visor({
         </div>
       </div>
 
-      {/* Últimas fotos: ver o borrar sin salir del visor */}
-      <Hoja abierta={ultimasAbiertas} onCerrar={() => setUltimasAbiertas(false)} titulo={t("visor.ultimasFotos")}>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          {ultimas.slice(0, 3).map((u, i) => (
-            <div key={u.id ?? i} style={{ width: "calc(33.33% - 7px)", display: "flex", flexDirection: "column", gap: 6 }}>
-              <img src={u.foto} alt="" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", borderRadius: 12, display: "block" }} />
-              <Boton variante="peligro" icono="borrar" onClick={() => { onBorrarFoto?.(u.id); if (ultimas.length <= 1) setUltimasAbiertas(false); }}>{t("visor.borrarFoto")}</Boton>
+      {/* Este stand (Nati, 23/09): los últimos productos, y por cada uno otra foto, precio o borrar; abajo, cerrar el stand */}
+      <Hoja abierta={ultimasAbiertas} onCerrar={() => setUltimasAbiertas(false)} titulo={standAbierto?.nombre ? `${standAbierto.nombre} · ${t("cantidades.fotos", { count: itemsCount })}` : t("visor.ultimasFotos")} altura="completa">
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {ultimas.map((u, i) => (
+            <div key={u.id ?? i} style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <img src={u.foto} alt="" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 12, display: "block", flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: u.precio ? "#0F172A" : "#64748B" }}>{u.precio ? `${moneda} ${u.precio}` : t("visor.sinPrecioCorto")}{u.fotos > 1 ? <span style={{ fontWeight: 400, color: "#64748B" }}> · {t("cantidades.fotos", { count: u.fotos })}</span> : null}</span>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <Boton variante="secundario" icono="camara" onClick={() => { setUltimasAbiertas(false); onAgregarFotoA?.(u.id); }}>{t("visor.masFoto")}</Boton>
+                  <Boton variante="secundario" onClick={() => { setUltimasAbiertas(false); onPrecioDe?.(u.id); }}>{t("visor.precio")}</Boton>
+                  <Boton variante="fantasma" icono="borrar" etiqueta={t("visor.borrarFoto")} onClick={() => { onBorrarFoto?.(u.id); if (ultimas.length <= 1) setUltimasAbiertas(false); }} />
+                </div>
+              </div>
             </div>
           ))}
         </div>
-        <div style={{ marginTop: 14 }}><Boton variante="secundario" ancho="total" icono="foto" onClick={() => { setUltimasAbiertas(false); onCatalogo?.(); }}>{t("visor.catalogo")}</Boton></div>
+        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+          {onListoStand && <Boton variante="principal" ancho="total" icono="listo" onClick={() => { setUltimasAbiertas(false); onListoStand(); }}>{t("visor.listoStand")}</Boton>}
+          <div style={{ display: "flex", gap: 8 }}>
+            <Boton variante="secundario" ancho="total" icono="proveedor" onClick={() => { setUltimasAbiertas(false); onStand?.(); }} estilo={{ flex: 1 }}>{t("visor.verProveedor")}</Boton>
+            <Boton variante="secundario" ancho="total" icono="foto" onClick={() => { setUltimasAbiertas(false); onCatalogo?.(); }} estilo={{ flex: 1 }}>{t("visor.catalogo")}</Boton>
+          </div>
+        </div>
       </Hoja>
     </div>
   );

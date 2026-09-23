@@ -1227,7 +1227,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
 
   // === El visor (pantallas/Visor.jsx): solo la capa visible; la lógica queda acá ===
   const estadoSync = typeof navigator !== "undefined" && navigator.onLine === false ? "guardado" : queueCount > 0 ? "sincronizando" : "nube";
-  const ultimas = items.slice(0, 3).map(it => ({ id: it.id, foto: it.photos?.[0] })).filter(u => u.foto);
+  const ultimas = items.slice(0, 8).map(it => ({ id: it.id, foto: it.photos?.[0], precio: it.price || null, fotos: it.photos?.length || 1 })).filter(u => u.foto);
   const esperando = products.filter(p => p.bloqueado).length;
   const hojaTarjetaNueva = (
     // Ojo: en QuickCapture `t` es el tema de colores, no la función de textos (el 23/09 la app arrancó en negro por esto).
@@ -1247,7 +1247,10 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
           videoRef={videoRef} modo={cameraMode} feria={activeDistrict?.name || null}
           itemsCount={items.length} saldo={saldoCreditos} esperando={esperando} estadoSync={estadoSync} pendientesSync={queueCount}
           flash={flashVisible} ultimaCaptura={lastCapture} ultimas={ultimas} puedeAgregarAngulo={anguloDisponible && items.length > 0 && !addPhotoToItemId}
-          datos={datosRapidos} datosActivos={settings?.datosDeCompra} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"} onTeclaPrecio={tocarPrecio} onConfirmarPrecio={confirmarPrecio} onEscribirDato={escribirDato} onListoDato={guardarDatoRapido} modoAngulo={!!addPhotoToItemId} avisoGuardado={avisoGuardado} campoGuardado={campoGuardado} onCampo={cambiarCampoRapido} onMoqBase={cambiarMoqBase} onFavorito={alternarFavoritoRapido}
+          datos={datosRapidos} datosActivos={settings?.datosDeCompra} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"} onTeclaPrecio={tocarPrecio} onConfirmarPrecio={confirmarPrecio} onEscribirDato={escribirDato} onListoDato={guardarDatoRapido} modoAngulo={!!addPhotoToItemId} avisoGuardado={avisoGuardado} campoGuardado={campoGuardado}
+          onAgregarFotoA={(id) => { anguloDesdeVisorRef.current = true; setAddPhotoToItemId(id); setAnguloDisponible(false); }}
+          onPrecioDe={(id) => { const it = items.find(x => x.id === id); if (!it) return; clearTimeout(precioTimerRef.current); setDatosRapidos({ id, campo: "price", valores: { price: it.price || "", moq: it.moq || "", piezasPorCaja: it.piezasPorCaja ? String(it.piezasPorCaja) : "", cbmPorCaja: it.cbmPorCaja ? String(it.cbmPorCaja) : "" }, moqBase: it.moqBase || null, favorito: !!it.favorito, tocado: true, listos: {} }); }}
+          onListoStand={handleSave} onCampo={cambiarCampoRapido} onMoqBase={cambiarMoqBase} onFavorito={alternarFavoritoRapido}
           onDisparar={handleCameraShutter}
           standAbierto={{ nombre: supplierName, fotos: items.length, tieneTarjeta: !!cardPhoto, leyendo: cardProcessing }}
           onStand={() => closeCamera()} onTarjeta={() => openCamera("card")}
