@@ -904,6 +904,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   // La barra del pulgar (wireframe del 23/09): se escribe con el teclado del iPhone y Listo guarda ese dato
   // sin cerrar la barra; los demás datos quedan como chips, de a uno.
   const persistirTimerRef = useRef(null);
+  const precioDeTimerRef = useRef(null);
   const [campoGuardado, setCampoGuardado] = useState(null);
   const campoGuardadoTimerRef = useRef(null);
   const persistirCampo = (d, campo) => {
@@ -1250,7 +1251,8 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
           datos={datosRapidos} datosActivos={settings?.datosDeCompra} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"} onTeclaPrecio={tocarPrecio} onConfirmarPrecio={confirmarPrecio} onEscribirDato={escribirDato} onListoDato={guardarDatoRapido} modoAngulo={!!addPhotoToItemId} avisoGuardado={avisoGuardado} campoGuardado={campoGuardado}
           onAgregarFotoA={(id) => { anguloDesdeVisorRef.current = true; setAddPhotoToItemId(id); setAnguloDisponible(false); }}
           onPrecioDe={(id) => { const it = items.find(x => x.id === id); if (!it) return; clearTimeout(precioTimerRef.current); setDatosRapidos({ id, campo: "price", valores: { price: it.price || "", moq: it.moq || "", piezasPorCaja: it.piezasPorCaja ? String(it.piezasPorCaja) : "", cbmPorCaja: it.cbmPorCaja ? String(it.cbmPorCaja) : "" }, moqBase: it.moqBase || null, favorito: !!it.favorito, tocado: true, listos: {} }); }}
-          onListoStand={handleSave} onCampo={cambiarCampoRapido} onMoqBase={cambiarMoqBase} onFavorito={alternarFavoritoRapido}
+          onListoStand={handleSave}
+          onCambiarPrecioDe={(id, texto) => { const v = texto.replace(/\.$/, ""); setItems(prev => prev.map(it => it.id === id ? { ...it, price: v || null } : it)); clearTimeout(precioDeTimerRef.current); precioDeTimerRef.current = setTimeout(() => onProductoCambio?.(id, { price: v || null }), 450); }} onCampo={cambiarCampoRapido} onMoqBase={cambiarMoqBase} onFavorito={alternarFavoritoRapido}
           onDisparar={handleCameraShutter}
           standAbierto={{ nombre: supplierName, fotos: items.length, tieneTarjeta: !!cardPhoto, leyendo: cardProcessing }}
           onStand={() => closeCamera()} onTarjeta={() => openCamera("card")}

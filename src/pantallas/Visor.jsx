@@ -37,7 +37,7 @@ export function Visor({
   datos = null, moneda = "USD", onTeclaPrecio, onConfirmarPrecio, onCampo, onMoqBase, onFavorito,
   onDisparar, onCatalogo, onCancelar, onVolverAProductos, onAgregarAngulo, onBorrarFoto,
   onEscribirDato, onListoDato, modoAngulo = false, avisoGuardado = null, campoGuardado = null,
-  onAgregarFotoA, onPrecioDe, onListoStand, // la hoja "Este stand": por producto, otra foto, precio, borrar; y cerrar el stand // la barra del pulgar y el modo "otra foto del mismo producto"
+  onAgregarFotoA, onPrecioDe, onListoStand, onCambiarPrecioDe, // la hoja "Este stand": por producto, otra foto, precio, borrar; y cerrar el stand // la barra del pulgar y el modo "otra foto del mismo producto"
   standAbierto = null, onStand, onTarjeta, // el stand: { nombre, fotos, tieneTarjeta, leyendo }; la pastilla lo abre, Cerrar stand también
   consejoVisible = false, onConsejoVisto,
   onTouchStart, onTouchEnd,
@@ -46,6 +46,9 @@ export function Visor({
   const { alturas, movimiento, curvas, duracion, reducido } = useSistema();
   const [presionado, setPresionado] = useState(false);
   const [ultimasAbiertas, setUltimasAbiertas] = useState(false);
+  const [precioEditando, setPrecioEditando] = useState(null); // en la hoja "Este stand": qué producto tiene el precio abierto
+  const [precioGuardado, setPrecioGuardado] = useState(null);
+  const precioGuardadoTimer = useRef(null);
   const [miniaturaVuela, setMiniaturaVuela] = useState(false);
   const consejoTimer = useRef(null);
 
@@ -95,22 +98,22 @@ export function Visor({
       {/* Arriba: saldo y estado. Nada más. */}
       <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 12px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <div style={{ display: "flex", gap: 6, alignItems: "center", minWidth: 0 }}>
-          {feria && <Pastilla estilo={{ maxWidth: "46vw", overflow: "hidden", textOverflow: "ellipsis", display: "block", lineHeight: "32px" }}>{feria}</Pastilla>}
+          {/* La feria no va en la cámara (Nati, 23/09): es información del catálogo */}
           {/* El saldo solo cuando está por acabarse; la nube no se muestra: en la cámara distrae (Nati, 22/09) */}
           {textoSaldo && saldoBajo && !esTarjeta && <Pastilla tono="alerta">{textoSaldo}</Pastilla>}
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           {estadoSync === "falla" && <Pastilla><span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, background: colorPunto, display: "inline-block" }} /><span style={{ fontSize: 12, fontWeight: 500, color: BLANCO_SUAVE }}>{textoSync}</span></Pastilla>}
           {/* Volver al catálogo, siempre a mano (Nati, 23/09) */}
-          <button type="button" onClick={onCatalogo} aria-label={t("visor.irAlCatalogo")} style={{ width: 36, height: 36, borderRadius: 18, border: "none", background: "rgba(10,14,23,0.55)", display: "grid", placeItems: "center", cursor: "pointer", backdropFilter: "blur(8px)" }}><Icono nombre="foto" tamano={18} color={BLANCO} /></button>
+          <button type="button" onClick={onCatalogo} aria-label={t("visor.irAlCatalogo")} style={{ minHeight: 40, padding: "0 14px 0 12px", borderRadius: 999, border: "none", background: "rgba(10,14,23,0.55)", color: BLANCO, fontSize: 14, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontFamily: "inherit", backdropFilter: "blur(8px)" }}><Icono nombre="foto" tamano={18} color={BLANCO} />{t("visor.catalogo")}</button>
         </div>
       </div>
 
       {/* Stand abierto: la pastilla dice qué hacer ahora. Sin tarjeta invita a escanearla (eso empieza el
           stand); con tarjeta dice la empresa y abre el stand. Nati, 21/09: "la tarjeta es sinónimo de nuevo stand". */}
       {modoAngulo && !esTarjeta && (
-        <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 56px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "center" }}>
-          <span style={{ background: MARCA.naranja, color: "#fff", borderRadius: 999, padding: "10px 16px", fontSize: 14, fontWeight: 600, textAlign: "center" }}>{t("visor.otraFotoMismo")}</span>
+        <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 68px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "center" }}>
+          <span style={{ background: MARCA.naranja, color: "#fff", borderRadius: 999, padding: "12px 18px", fontSize: 15, fontWeight: 600, textAlign: "center" }}>{t("visor.otraFotoMismo")}</span>
         </div>
       )}
       {standAbierto && !esTarjeta && !modoAngulo && (() => {
@@ -123,9 +126,9 @@ export function Visor({
           : n === 0 ? t("visor.escanearTarjeta")
           : t("visor.escanearTarjetaConFotos", { count: n });
         return (
-          <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 56px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "center" }}>
-            <button type="button" onClick={sinTarjeta ? onTarjeta : onStand} aria-label={sinTarjeta ? t("visor.escanearTarjeta") : t("visor.abrirStand")} style={{ maxWidth: "100%", minHeight: 44, padding: "0 16px", borderRadius: 999, border: sinTarjeta ? "1.5px solid rgba(255,255,255,0.55)" : "none", background: conNombre ? MARCA.naranja : "rgba(10,14,23,0.7)", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", overflow: "hidden", backdropFilter: "blur(8px)" }}>
-              <Icono nombre={conNombre ? "proveedor" : sinTarjeta ? "camara" : "tarjeta"} tamano={16} color="#fff" /><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{texto}</span>{!sinTarjeta && <Icono nombre="siguiente" tamano={14} color="rgba(255,255,255,0.8)" />}
+          <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 68px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "center" }}>
+            <button type="button" onClick={sinTarjeta ? onTarjeta : onStand} aria-label={sinTarjeta ? t("visor.escanearTarjeta") : t("visor.abrirStand")} style={{ maxWidth: "100%", minHeight: 50, padding: "0 20px", borderRadius: 999, border: sinTarjeta ? "1.5px solid rgba(255,255,255,0.55)" : "none", background: conNombre ? MARCA.naranja : "rgba(10,14,23,0.7)", color: "#fff", fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", overflow: "hidden", backdropFilter: "blur(8px)" }}>
+              <Icono nombre={conNombre ? "proveedor" : sinTarjeta ? "camara" : "tarjeta"} tamano={18} color="#fff" /><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{texto}</span>{!sinTarjeta && <Icono nombre="siguiente" tamano={14} color="rgba(255,255,255,0.8)" />}
             </button>
           </div>
         );
@@ -262,10 +265,22 @@ export function Visor({
             <div key={u.id ?? i} style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <img src={u.foto} alt="" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 12, display: "block", flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-                <span style={{ fontSize: 14, fontWeight: 600, color: u.precio ? "#0F172A" : "#64748B" }}>{u.precio ? `${moneda} ${u.precio}` : t("visor.sinPrecioCorto")}{u.fotos > 1 ? <span style={{ fontWeight: 400, color: "#64748B" }}> · {t("cantidades.fotos", { count: u.fotos })}</span> : null}</span>
+                {precioEditando === u.id ? (
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 40, background: precioGuardado === u.id ? "#DCFCE7" : "#F1F5F9", borderRadius: 10, padding: "0 10px", transition: "background 250ms ease" }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#64748B" }}>{moneda}</span>
+                    <input autoFocus type="text" inputMode="decimal" enterKeyHint="done" defaultValue={u.precio || ""} aria-label={t("visor.aCuantoEstaba")}
+                      onChange={e => { const v = e.target.value.replace(/,/g, ".").replace(/[^0-9.]/g, "").slice(0, 8); e.target.value = v; onCambiarPrecioDe?.(u.id, v); clearTimeout(precioGuardadoTimer.current); precioGuardadoTimer.current = setTimeout(() => { setPrecioGuardado(u.id); setTimeout(() => setPrecioGuardado(null), 1200); }, 450); }}
+                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); setPrecioEditando(null); } }}
+                      onBlur={() => setPrecioEditando(null)}
+                      style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", fontSize: 17, fontWeight: 700, color: "#0F172A", fontFamily: "inherit", outline: "none" }} />
+                    {precioGuardado === u.id && <Icono nombre="listo" tamano={16} color="#15803D" />}
+                  </label>
+                ) : (
+                  <span style={{ fontSize: 14, fontWeight: 600, color: u.precio ? "#0F172A" : "#64748B" }}>{u.precio ? `${moneda} ${u.precio}` : t("visor.sinPrecioCorto")}{u.fotos > 1 ? <span style={{ fontWeight: 400, color: "#64748B" }}> · {t("cantidades.fotos", { count: u.fotos })}</span> : null}</span>
+                )}
                 <div style={{ display: "flex", gap: 6 }}>
                   <Boton variante="secundario" icono="camara" onClick={() => { setUltimasAbiertas(false); onAgregarFotoA?.(u.id); }}>{t("visor.masFoto")}</Boton>
-                  <Boton variante="secundario" onClick={() => { setUltimasAbiertas(false); onPrecioDe?.(u.id); }}>{t("visor.precio")}</Boton>
+                  <Boton variante="secundario" onClick={() => setPrecioEditando(u.id)}>{t("visor.precio")}</Boton>
                   <Boton variante="fantasma" icono="borrar" etiqueta={t("visor.borrarFoto")} onClick={() => { onBorrarFoto?.(u.id); if (ultimas.length <= 1) setUltimasAbiertas(false); }} />
                 </div>
               </div>
