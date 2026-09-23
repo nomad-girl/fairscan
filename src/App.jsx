@@ -919,6 +919,12 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     clearTimeout(campoGuardadoTimerRef.current);
     setCampoGuardado(v ? campo : null);
     campoGuardadoTimerRef.current = setTimeout(() => setCampoGuardado(null), 1200);
+    // Si con este dato quedaron todos cargados, la barra se va sola después de la tilde (Nati, 23/09)
+    const activos = ["price", ...["moq", "piezasPorCaja", "cbmPorCaja"].filter(k => settings?.datosDeCompra?.[k] !== false)];
+    if (v && activos.every(k => (d.valores[k] || "").replace(/\.$/, ""))) {
+      clearTimeout(precioTimerRef.current);
+      precioTimerRef.current = setTimeout(() => { document.activeElement?.blur?.(); confirmarPrecio(); }, 900);
+    }
   };
   // Se guarda mientras escribís (Nati, 23/09: "no existe el botón Guardar"): 400 ms después de la última tecla.
   const escribirDato = (campo, texto) => {
