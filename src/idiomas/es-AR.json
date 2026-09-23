@@ -109,7 +109,9 @@
     "escanearTarjetaConFotos_other": "Escanear tarjeta · {{count}} fotos",
     "agregarAngulo": "Otra foto del mismo producto",
     "aCuanto": "¿A cuánto?",
-    "otraFotoMismo": "Otra foto del mismo producto: encuadrá y dispará"
+    "otraFotoMismo": "Otra foto del mismo producto: encuadrá y dispará",
+    "otraFoto": "+ otra foto",
+    "cerrarBarra": "Cerrar"
   },
   "cerrarStand": {
     "titulo": "Cerrar stand",

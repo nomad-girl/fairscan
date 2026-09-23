@@ -158,8 +158,12 @@ export function Visor({
         const mostrarChips = campos.length > 1 && (Object.values(listos).some(Boolean) || campo !== "price");
         const elegir = (k) => { inputDatoRef.current?.focus(); onCampo?.(k); };
         const abajo = alturaTeclado > 0 ? `calc(${alturaTeclado + 10}px)` : `calc(150px + env(safe-area-inset-bottom, 0px))`;
+        const cerrarBarra = () => { inputDatoRef.current?.blur(); onConfirmarPrecio?.(); };
+        let y0 = null;
+        const alTocar = e => { y0 = e.touches?.[0]?.clientY ?? null; };
+        const alSoltar = e => { const y1 = e.changedTouches?.[0]?.clientY; if (y0 !== null && y1 !== undefined && y1 - y0 > 40) cerrarBarra(); y0 = null; };
         return (
-          <div onClick={e => e.stopPropagation()} role="dialog" aria-label={t("visor.datosDelUltimo")} style={{ position: "absolute", left: 12, right: 12, bottom: abajo, zIndex: 5, background: "rgba(255,255,255,0.97)", color: "#0F172A", borderRadius: 16, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6, boxShadow: "0 10px 30px -12px rgba(0,0,0,0.45)" }}>
+          <div onClick={e => e.stopPropagation()} onTouchStart={alTocar} onTouchEnd={alSoltar} role="dialog" aria-label={t("visor.datosDelUltimo")} style={{ position: "absolute", left: 12, right: 12, bottom: abajo, zIndex: 5, background: "rgba(255,255,255,0.97)", color: "#0F172A", borderRadius: 16, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6, boxShadow: "0 10px 30px -12px rgba(0,0,0,0.45)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <label style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, minHeight: 44, background: "#F1F5F9", borderRadius: 12, padding: "0 12px" }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#64748B", whiteSpace: "nowrap" }}>{campo === "price" ? moneda : etiquetaDe[campo]}</span>
@@ -169,6 +173,7 @@ export function Visor({
                   style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", fontSize: 18, fontWeight: 700, color: "#0F172A", fontFamily: "inherit", outline: "none", fontVariantNumeric: "tabular-nums" }} />
                 {campo === "cbmPorCaja" && <span style={{ fontSize: 12, color: "#64748B" }}>CBM</span>}
               </label>
+              <button type="button" onClick={cerrarBarra} aria-label={t("visor.cerrarBarra")} style={{ width: 36, height: 44, border: "none", background: "transparent", display: "grid", placeItems: "center", cursor: "pointer", padding: 0, order: 3 }}><Icono nombre="cerrar" tamano={20} color="#94A3B8" /></button>
               {valor && !listos[campo] ? (
                 <button type="button" onClick={() => { onListoDato?.(); inputDatoRef.current?.blur(); }} style={{ minHeight: 44, padding: "0 14px", borderRadius: 12, border: "none", background: MARCA.naranja, color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{t("visor.listo")}</button>
               ) : (
@@ -190,6 +195,7 @@ export function Visor({
                   const activo = k === campo; const ok = hecho(k);
                   return <button key={k} type="button" role="tab" aria-selected={activo} onClick={() => elegir(k)} style={{ minHeight: 34, padding: "0 12px", borderRadius: 999, border: `1px solid ${activo ? MARCA.naranja : ok ? "rgba(21,128,61,0.5)" : "#DCE3EC"}`, background: activo ? MARCA.naranja : ok ? "rgba(21,128,61,0.10)" : "#FFFFFF", color: activo ? "#fff" : ok ? "#15803D" : "#475569", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>{ok ? "✓ " : ""}{etiqueta}{ok && datos.valores[k] ? ` ${datos.valores[k]}` : ""}</button>;
                 })}
+                {puedeAgregarAngulo && onAgregarAngulo && <button type="button" onClick={() => { cerrarBarra(); onAgregarAngulo(); }} style={{ minHeight: 34, padding: "0 12px", borderRadius: 999, border: "1px dashed #94A3B8", background: "#FFFFFF", color: "#475569", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>{t("visor.otraFoto")}</button>}
               </div>
             )}
           </div>
@@ -208,7 +214,7 @@ export function Visor({
                 <img src={ultimaCaptura || ultimas[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               </button>
               {puedeAgregarAngulo && !esTarjeta && !modoAngulo && (
-                <button type="button" onClick={onAgregarAngulo} aria-label={t("visor.agregarAngulo")} style={{ position: "absolute", top: -8, right: -8, width: 26, height: 26, borderRadius: 13, border: "2px solid #fff", background: MARCA.naranja, color: "#fff", display: "grid", placeItems: "center", cursor: "pointer", padding: 0 }}><Icono nombre="mas" tamano={14} color="#fff" /></button>
+                <button type="button" onClick={onAgregarAngulo} aria-label={t("visor.agregarAngulo")} style={{ position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)", minHeight: 24, padding: "0 8px", borderRadius: 999, border: "1.5px solid #fff", background: MARCA.naranja, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit" }}>{t("visor.otraFoto")}</button>
               )}
             </>
           ) : (

@@ -71,6 +71,7 @@ describe("Visor", () => {
     fireEvent.click(screen.getByRole("tab", { name: "MOQ" }));
     expect(onCampo).toHaveBeenCalledWith("moq");
     expect(screen.queryByText("Cerrar sin cargar nada")).toBeNull(); // sin segundo "cerrar"
+    expect(screen.getByRole("button", { name: "Cerrar" })).toBeTruthy(); // pero sí una X: la barra se saca cuando querés
   });
   it("en MOQ aparece la base por producto / caja / pedido", () => {
     const onMoqBase = vi.fn();
