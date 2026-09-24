@@ -2927,10 +2927,14 @@ export default function App() {
   const activeDistrict = districts.find(d => d.id === activeDistrictId);
 
   // Reload all data from Dexie
+    // Ids en la papelera (borrados que todavía no se confirmaron en la base). Una recarga desde la base en esos
+    // 5 segundos los traía de vuelta a la pantalla (24/09, Nati: "eliminé imágenes y me las vuelve a mostrar").
+    const borrandoRef = useRef(new Set());
     const reloadAll = async () => {
     await ajustarFeriaAutomatica().catch(() => false); // la feria creada sola no tapa el catálogo real
     const [d, s, p, st, o] = await Promise.all([getDistricts(), getSuppliers(), getProducts(), getSettings(), getOrders().catch(() => [])]);
-    setDistricts(d); setSuppliers(s); setProducts(p); setSettings(st); setOrders(o);
+    const enPapelera = borrandoRef.current;
+    setDistricts(d); setSuppliers(s); setProducts(enPapelera.size ? p.filter(x => !enPapelera.has(x.id)) : p); setSettings(st); setOrders(o);
     return st;
   };
 
@@ -3112,19 +3116,6 @@ export default function App() {
     if (!sync.teamId) return { clave: "sinEquipo" };
     return { clave: "nube", count: products.length, equipo: teamsHook.teams.find(tm => tm.id === sync.teamId)?.name || "" };
   }, [auth.esAnonima, enLinea, sync.bajando, sync.teamId, sync.lastSyncAt, sync.isSyncing, sync.lastError, teamsHook.loading, teamsHook.teams, queueCount, products.length]);
-
-  // Protocolo (24/09), escenario 4: si la feria activa quedó vacía (la app creó una con la fecha del día) y otra
-  // tiene productos, al terminar de bajar la nube se pasa a la que tiene productos. Una vez por bajada.
-  const ultimaBajadaRef = useRef(null);
-  useEffect(() => {
-    if (!ready || !sync.lastSyncAt || sync.lastSyncAt === ultimaBajadaRef.current) return;
-    ultimaBajadaRef.current = sync.lastSyncAt;
-    if (!activeDistrictId || products.length === 0 || products.some(p => p.districtId === activeDistrictId)) return;
-    const cuenta = new Map();
-    for (const p of products) if (p.districtId != null) cuenta.set(p.districtId, (cuenta.get(p.districtId) || 0) + 1);
-    const mejor = [...cuenta.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
-    if (mejor != null && districts.some(d => d.id === mejor)) switchDistrict(mejor).catch(console.warn);
-  }, [ready, sync.lastSyncAt, products, activeDistrictId, districts]);
 
   const abrirPedido = async (supplier, productoId = null) => {
     const pedido = await asegurarPedido(supplier);
@@ -3509,17 +3500,32 @@ export default function App() {
     setProducts(prev => prev.map(p => p.id === id ? { ...p, ...changes } : p));
   };
 
+  // El borrado real en la base local, de a uno y con un reintento: el 24/09 Sentry registró
+  // "AbortError: Transaction aborted" en producción justo al borrar; si la base local aborta,
+  // se vuelve a intentar antes de dar la fila por borrada.
+  const borrarConReintento = async (ids) => {
+    for (const id of ids) {
+      try { await dbDeleteProduct(id); }
+      catch (err) {
+        console.warn("[borrar] la base local abortó, se reintenta:", err?.message || err);
+        await new Promise(r => setTimeout(r, 300));
+        try { await dbDeleteProduct(id); } catch (err2) { console.error("[borrar] no se pudo borrar", id, err2); showToast("No se pudo borrar uno de los productos. Probá de nuevo."); }
+      }
+    }
+  };
+
   // Los borrados pasan por la papelera: desaparecen de la pantalla ya, y de la
   // base 5 segundos después, salvo que se toque "Deshacer".
   const handleDeleteProduct = async (id, { quedarse = false } = {}) => {
     const borrado = products.find(p => p.id === id);
     if (!borrado) return;
     setProducts(prev => prev.filter(p => p.id !== id));
+    borrandoRef.current.add(id);
     if (!quedarse) navigate("list"); // desde Revisar el día se sigue con la próxima tarjeta
     await papeleraRef.current.programar({
       mensaje: "Producto eliminado",
-      confirmar: () => dbDeleteProduct(id),
-      restaurar: () => setProducts(prev => ordenarPorFecha([...prev, borrado])),
+      confirmar: async () => { await borrarConReintento([id]); borrandoRef.current.delete(id); setProducts(prev => prev.filter(p => p.id !== id)); },
+      restaurar: () => { borrandoRef.current.delete(id); setProducts(prev => ordenarPorFecha([...prev, borrado])); },
     });
   };
 
@@ -3527,10 +3533,11 @@ export default function App() {
     const set = new Set(ids);
     const borrados = products.filter(p => set.has(p.id));
     setProducts(prev => prev.filter(p => !set.has(p.id)));
+    for (const id of ids) borrandoRef.current.add(id);
     await papeleraRef.current.programar({
       mensaje: `${ids.length} productos eliminados`,
-      confirmar: async () => { for (const id of ids) await dbDeleteProduct(id); },
-      restaurar: () => setProducts(prev => ordenarPorFecha([...prev, ...borrados])),
+      confirmar: async () => { await borrarConReintento(ids); for (const id of ids) borrandoRef.current.delete(id); setProducts(prev => prev.filter(p => !set.has(p.id))); },
+      restaurar: () => { for (const id of ids) borrandoRef.current.delete(id); setProducts(prev => ordenarPorFecha([...prev, ...borrados])); },
     });
   };
 

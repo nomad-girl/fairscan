@@ -414,6 +414,8 @@ class SyncEngine {
         }
       }
 
+      for (const table of TABLAS_SYNC) await this._aplicarBorradosDeNube(table).catch(err => console.warn('⚠️ borrados:', err?.message || err));
+
       console.log(`☁️ Pulled: ${counts.districts}D, ${counts.suppliers}S, ${counts.products}P`);
 
       if (errors.length > 0) {
@@ -468,12 +470,39 @@ class SyncEngine {
         }
       }
 
+      for (const table of TABLAS_SYNC) {
+        const sacados = await this._aplicarBorradosDeNube(table, sinceISO).catch(() => 0);
+        if (sacados) anyChanges = true;
+      }
+
       this.lastSyncAt = Date.now();
       if (anyChanges && this._reloadCallback) await this._reloadCallback();
     } finally {
       this.isSyncing = false;
       this._notify();
     }
+  }
+
+  /**
+   * Los borrados en la nube se sacan del teléfono (protocolo de datos, 24/09). Hasta hoy solo llegaban
+   * por el canal en vivo, y nunca los del propio dispositivo: un producto borrado desde la compu seguía
+   * en el teléfono para siempre, y uno borrado acá mientras la app se reiniciaba volvía a aparecer.
+   * @param {string|null} sinceISO solo los borrados desde esa fecha (delta); null = todos (bajada completa)
+   */
+  async _aplicarBorradosDeNube(table, sinceISO = null) {
+    const { data, error } = await traerTodo((desde, hasta) => {
+      let q = supabase.from(table).select('id, deleted_at').eq('room_id', this.roomId).not('deleted_at', 'is', null).order('deleted_at', { ascending: true });
+      if (sinceISO) q = q.gt('deleted_at', sinceISO);
+      return q.range(desde, hasta);
+    });
+    if (error) { console.warn(`⚠️ borrados de ${table}:`, error.message); return 0; }
+    let sacados = 0;
+    for (const r of (data || [])) {
+      const local = await db.table(table).where('uuid').equals(r.id).first();
+      if (local) { await db.table(table).delete(local.id); sacados++; }
+    }
+    if (sacados) console.log(`🗑️ ${sacados} ${table} borrados en la nube, sacados del teléfono`);
+    return sacados;
   }
 
   /** Apply a single cloud record to local Dexie */
