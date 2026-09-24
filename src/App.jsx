@@ -3034,6 +3034,26 @@ export default function App() {
     }
   }, [ready, auth.user, teamsHook.loading, teamsHook.teams.length, sync.teamId]);
 
+  // 24/09 (caso Lucas): el teléfono había perdido la sesión, la app entró "sin cuenta" y quedó conectada al
+  // equipo vacío de esa sesión; al entrar con la cuenta real, esa conexión seguía viva y el catálogo se veía
+  // en cero. Si el equipo conectado no es de la cuenta actual, se suelta y se pasa al equipo de la cuenta.
+  // Al conectar, lo capturado sin cuenta en este teléfono sube al equipo (decisión 6 del 22/09).
+  const cambiandoEquipoRef = useRef(false);
+  useEffect(() => {
+    if (!ready || !auth.user || auth.esAnonima || teamsHook.loading || !sync.teamId || cambiandoEquipoRef.current) return;
+    if (teamsHook.teams.some(tm => tm.id === sync.teamId)) return;
+    cambiandoEquipoRef.current = true;
+    (async () => {
+      try {
+        console.warn(`[equipo] el equipo conectado (${sync.teamId}) no es de esta cuenta: se cambia`);
+        await sync.disconnectTeam();
+        if (teamsHook.teams.length === 1) await sync.connectTeam(teamsHook.teams[0].id);
+        await reloadAll();
+      } catch (err) { console.warn('[equipo] no se pudo cambiar:', err); }
+      finally { cambiandoEquipoRef.current = false; }
+    })();
+  }, [ready, auth.user, auth.esAnonima, teamsHook.loading, teamsHook.teams, sync.teamId]);
+
   // Miniaturas para los productos que no las tienen (3.1): de a pocas, en
   // segundo plano, directo en la base local (no viajan a la nube ni disparan sync).
   const miniaturasEnCursoRef = useRef(false);
