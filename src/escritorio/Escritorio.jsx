@@ -14,7 +14,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Chip, Icono } from "../componentes/index.js";
+import { Boton, Chip, Icono, EstadoDeDatos, esperandoNube } from "../componentes/index.js";
 import { palabrasDeBusqueda, coincideBusqueda } from "../lib/busqueda.js";
 import { soloDeHoy } from "../lib/porDia.js";
 import { proveedorVacio } from "../lib/proveedores.js";
@@ -34,7 +34,7 @@ const guardarAncho = (n) => { try { localStorage.setItem(CLAVE_ANCHO, String(n))
 
 export function Escritorio({
   products = [], suppliers = [], districts = [], activeDistrictId = null, orders = [], moneda = "USD", settings, Foto, tLegacy,
-  cuenta = {}, onEntrar,
+  cuenta = {}, onEntrar, estadoDatos = null, onReintentar,
   onSwitchDistrict, onActualizarProducto, onActualizarProveedor, onEliminarProducto,
   onPedidoPara, onGuardarPedido, onEnviarProforma, onDescargarExcelFeria,
   renderExportar, renderAjustes,
@@ -201,7 +201,7 @@ export function Escritorio({
       )}
       {filtrados.length === 0 ? (
         <p style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted, margin: "24px 0" }}>
-          {palabras.length ? t("escritorio.sinResultados") : seccion === "revisar" ? t("escritorio.revisarVacio") : t("escritorio.vacio")}
+          {esperandoNube(estadoDatos) ? t(`datos.${estadoDatos.clave}`, estadoDatos) : palabras.length ? t("escritorio.sinResultados") : seccion === "revisar" ? t("escritorio.revisarVacio") : t("escritorio.vacio")}
         </p>
       ) : vista === "tabla"
         ? <TablaDeProductos productos={filtrados} suppliers={suppliers} moneda={moneda} seleccionado={seleccion} settings={settings} Foto={Foto} tLegacy={tLegacy} onSeleccionar={p => setSeleccion(p.id)} onActualizar={onActualizarProducto} />
@@ -277,6 +277,7 @@ export function Escritorio({
             style={{ width: "100%", minHeight: 34, borderRadius: 999, border: `1px solid ${paleta.border}`, background: paleta.bg, color: paleta.text, fontFamily: "inherit", fontSize: 14, padding: "0 12px 0 32px", outline: "none" }} />
         </label>
         <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 8 }}>
+          {estadoDatos && <EstadoDeDatos estado={estadoDatos} onReintentar={onReintentar} compacto estilo={{ maxWidth: 360 }} />}
           <span style={{ ...texto("pie"), color: paleta.muted, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cuenta.esAnonima || !cuenta.email ? t("escritorio.sinCuenta") : cuenta.email}</span>
           {(cuenta.esAnonima || !cuenta.email) && onEntrar ? <Boton variante="principal" onClick={onEntrar}>{t("escritorio.entrar")}</Boton> : (
             <button type="button" onClick={() => irA("ajustes")} aria-label={t("escritorio.ajustes")} style={{ width: 34, height: 34, borderRadius: 17, border: `1px solid ${paleta.border}`, background: paleta.accentSoft, color: paleta.accentTexto, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>

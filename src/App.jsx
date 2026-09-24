@@ -3100,6 +3100,32 @@ export default function App() {
     }
     return pedido;
   };
+  // Protocolo de datos sagrados (24/09), medida 1: una frase que dice la verdad sobre dónde están los datos.
+  const enLinea = typeof navigator === "undefined" ? true : navigator.onLine !== false;
+  const estadoDatos = useMemo(() => {
+    if (auth.esAnonima) return { clave: "sinCuenta" };
+    if (!enLinea) return { clave: "sinSenal", count: queueCount };
+    if (sync.bajando) return { clave: "bajando", hechos: sync.bajando.hechos, total: sync.bajando.total };
+    if (teamsHook.loading || (teamsHook.teams.length > 0 && !sync.teamId) || (sync.teamId && !sync.lastSyncAt && sync.isSyncing)) return { clave: "conectando" };
+    if (sync.lastError) return { clave: "falla" };
+    if (queueCount > 0) return { clave: "subiendo", count: queueCount };
+    if (!sync.teamId) return { clave: "sinEquipo" };
+    return { clave: "nube", count: products.length, equipo: teamsHook.teams.find(tm => tm.id === sync.teamId)?.name || "" };
+  }, [auth.esAnonima, enLinea, sync.bajando, sync.teamId, sync.lastSyncAt, sync.isSyncing, sync.lastError, teamsHook.loading, teamsHook.teams, queueCount, products.length]);
+
+  // Protocolo (24/09), escenario 4: si la feria activa quedó vacía (la app creó una con la fecha del día) y otra
+  // tiene productos, al terminar de bajar la nube se pasa a la que tiene productos. Una vez por bajada.
+  const ultimaBajadaRef = useRef(null);
+  useEffect(() => {
+    if (!ready || !sync.lastSyncAt || sync.lastSyncAt === ultimaBajadaRef.current) return;
+    ultimaBajadaRef.current = sync.lastSyncAt;
+    if (!activeDistrictId || products.length === 0 || products.some(p => p.districtId === activeDistrictId)) return;
+    const cuenta = new Map();
+    for (const p of products) if (p.districtId != null) cuenta.set(p.districtId, (cuenta.get(p.districtId) || 0) + 1);
+    const mejor = [...cuenta.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+    if (mejor != null && districts.some(d => d.id === mejor)) switchDistrict(mejor).catch(console.warn);
+  }, [ready, sync.lastSyncAt, products, activeDistrictId, districts]);
+
   const abrirPedido = async (supplier, productoId = null) => {
     const pedido = await asegurarPedido(supplier);
     if (!pedido) return;
@@ -3702,7 +3728,7 @@ export default function App() {
 
       {esEscritorio && (
         <Escritorio products={products} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} orders={orders} moneda={monedaActual} settings={settings} Foto={FotoDeProducto} tLegacy={t}
-          cuenta={{ email: auth.user?.email, esAnonima: !!auth.esAnonima }} onEntrar={() => setMostrarLogin(true)}
+          cuenta={{ email: auth.user?.email, esAnonima: !!auth.esAnonima }} onEntrar={() => setMostrarLogin(true)} estadoDatos={estadoDatos} onReintentar={sync.forceSync}
           onSwitchDistrict={switchDistrict} onActualizarProducto={handleUpdateProduct} onActualizarProveedor={(id, cambios) => handleUpdateSupplier(id, cambios, true)}
           onEliminarProducto={(id) => handleDeleteProduct(id, { quedarse: true })}
           onPedidoPara={asegurarPedido} onGuardarPedido={handleUpdateOrder} onEnviarProforma={enviarProforma} onDescargarExcelFeria={descargarExcelFeria}
@@ -3722,7 +3748,7 @@ export default function App() {
           onToggleFavorito={(p) => handleUpdateProduct(p.id, { favorito: p.favorito ? 0 : 1 })}
           onToggleFavoritoProveedor={async (s) => { const favorito = s.favorito ? 0 : 1; await dbUpdateSupplier(s.id, { favorito }); setSuppliers(prev => prev.map(x => x.id === s.id ? { ...x, favorito } : x)); }}
           onRevisarDia={() => navigate("revisar")} onEliminarVarios={handleBatchDelete}
-          pestana={listTab} onPestana={setListTab} sinCuenta={!!auth.esAnonima} onEntrar={() => setMostrarLogin(true)} />
+          pestana={listTab} onPestana={setListTab} sinCuenta={!!auth.esAnonima} onEntrar={() => setMostrarLogin(true)} estadoDatos={estadoDatos} onReintentar={sync.forceSync} />
       )}
       {!esEscritorio && (screen === "capture" || screen === "capture-supplier") && (
         <QuickCapture key={`${screen}-${standKey}`} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings} products={products}

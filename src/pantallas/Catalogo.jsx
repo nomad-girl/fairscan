@@ -10,7 +10,7 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Chip, FilaDeChips, Segmentado, Fila, Precio, Icono, Esqueleto, Hoja, GrillaDeFotos, CeldaDeFoto, CarruselDeFotos } from "../componentes/index.js";
+import { Boton, Chip, FilaDeChips, Segmentado, Fila, Precio, Icono, Esqueleto, Hoja, GrillaDeFotos, CeldaDeFoto, CarruselDeFotos, EstadoDeDatos, esperandoNube } from "../componentes/index.js";
 import { palabrasDeBusqueda, coincideBusqueda } from "../lib/busqueda.js";
 import { soloDeHoy, resumenDelDia, conEncabezadosDeDia } from "../lib/porDia.js";
 import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
@@ -28,7 +28,7 @@ export function Catalogo({
   products = [], suppliers = [], districts = [], activeDistrictId, activeDistrict, bajando = null, queueCount = 0, enLinea = true,
   Foto, t: tLegacy,
   onNavigate, onSwitchDistrict, onToggleFavorito, onToggleFavoritoProveedor, onRevisarDia, onEliminarVarios,
-  pestana = "todo", onPestana, sinCuenta = false, onEntrar,
+  pestana = "todo", onPestana, sinCuenta = false, onEntrar, estadoDatos = null, onReintentar,
 }) {
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
@@ -125,6 +125,8 @@ export function Catalogo({
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit" }}>
       {/* Barra superior: título · feria · buscar · ajustes */}
       <div style={{ padding: `calc(0px + 8px) ${espacios.margenLateral}px 6px`, display: "flex", flexDirection: "column", gap: 8 }}>
+        {/* Protocolo de datos (24/09), medida 1: dónde están los datos, siempre a la vista */}
+        {estadoDatos && <EstadoDeDatos estado={estadoDatos} onReintentar={onReintentar} onEntrar={onEntrar} compacto />}
         <div style={{ display: "flex", alignItems: "center", gap: 8, minHeight: alturas.tocable }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <h1 style={{ ...texto("titulo"), margin: 0 }}>{t("catalogo.titulo")}</h1>
@@ -179,8 +181,9 @@ export function Catalogo({
               <div style={{ textAlign: "center", padding: "40px 16px", display: "flex", flexDirection: "column", gap: 12, alignItems: "center" }}>
                 {products.length === 0 ? (
                   <>
-                    <p style={{ ...texto("cuerpo"), color: paleta.muted, margin: 0 }}>{bajando ? t("catalogo.bajando") : t("catalogo.vacioTitulo")}</p>
-                    {!bajando && <Boton variante="principal" icono="camara" onClick={() => onNavigate?.("capture")}>{t("catalogo.vacioAccion")}</Boton>}
+                    <p style={{ ...texto("cuerpo"), color: paleta.muted, margin: 0 }}>{esperandoNube(estadoDatos) ? t(`datos.${estadoDatos.clave}`, estadoDatos) : bajando ? t("catalogo.bajando") : t("catalogo.vacioTitulo")}</p>
+                    {/* Regla 2 del protocolo: nunca "no tenés productos" mientras la app todavía no comprobó la nube */}
+                    {!bajando && !esperandoNube(estadoDatos) && <Boton variante="principal" icono="camara" onClick={() => onNavigate?.("capture")}>{t("catalogo.vacioAccion")}</Boton>}
                     {/* Sin cuenta y sin productos (24/09, caso Lucas): quien ya tiene cuenta entra y recupera su catálogo */}
                     {!bajando && sinCuenta && onEntrar && (
                       <div style={{ marginTop: 18, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>

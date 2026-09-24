@@ -566,5 +566,21 @@
     "fotoDe": "Foto {{n}} de {{total}}",
     "feriaVacia": "Esta feria todavía no tiene productos.",
     "verTodasLasFerias": "Ver todas las ferias"
+  },
+  "datos": {
+    "sinCuenta": "Sin cuenta · lo tuyo queda solo en este dispositivo",
+    "sinSenalSolo": "Sin señal · lo tuyo queda en el teléfono hasta que vuelva",
+    "sinSenal_one": "Sin señal · {{count}} por subir",
+    "sinSenal_other": "Sin señal · {{count}} por subir",
+    "conectando": "Conectando con tu equipo…",
+    "bajando": "Bajando tu catálogo · {{hechos}} de {{total}}",
+    "subiendo_one": "{{count}} por subir a la nube…",
+    "subiendo_other": "{{count}} por subir a la nube…",
+    "falla": "No se está sincronizando",
+    "sinEquipo": "Sin equipo · elegí uno en Configuración",
+    "nube_one": "Todo en la nube · {{count}} producto · {{equipo}}",
+    "nube_other": "Todo en la nube · {{count}} productos · {{equipo}}",
+    "reintentar": "Reintentar",
+    "entrar": "Entrar"
   }
 }
