@@ -1306,7 +1306,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
 // ═══════════════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════════════
-function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers, districts, onReload, teams, activeTeam, teamMembers, isAdmin, fetchMembers, inviteMember, onSwitchTeam, userEmail, userId, esAnonima = false, auth, onSignOut, onGoExport, onAccountDeleted, isDark = false, onToggleTheme }) {
+function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers, districts, onReload, teams, activeTeam, teamMembers, isAdmin, fetchMembers, inviteMember, onSwitchTeam, userEmail, userId, esAnonima = false, auth, onSignOut, onGoExport, onAccountDeleted, isDark = false, onToggleTheme, onEntrar }) {
   const handleSwitchTeam = async (teamId) => {
     if (onSwitchTeam) await onSwitchTeam(teamId);
   };
@@ -1949,6 +1949,8 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
               <p style={{ fontSize:13, fontWeight:700, color:t.text, margin:"0 0 4px" }}>Estás usando FairScan sin cuenta</p>
               <p style={{ fontSize:12, color:t.muted, margin:"0 0 10px", lineHeight:1.5 }}>Lo que capturás queda en este teléfono. Con una cuenta lo tenés en la nube, en otros dispositivos y compartido con tu equipo.</p>
               <button onClick={() => setSubScreen("crear-cuenta")} style={{ width:"100%", padding:"12px", borderRadius:12, border:"none", background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>Crear mi cuenta</button>
+              {/* 24/09 (caso Lucas): sin sesión la app entra sin cuenta; quien ya tiene cuenta necesita un camino para volver a la suya */}
+              {onEntrar && <button onClick={onEntrar} style={{ width:"100%", marginTop:8, padding:"12px", borderRadius:12, border:`1px solid ${t.border}`, background:t.card, color:t.text, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Ya tengo cuenta · Entrar</button>}
             </div>
           ) : (
           <button onClick={onSignOut} style={{
@@ -3690,7 +3692,7 @@ export default function App() {
             teams={teamsHook.teams} activeTeam={teamsHook.teams.find(tm => tm.id === sync.teamId)} teamMembers={teamsHook.teamMembers}
             isAdmin={teamsHook.isAdmin} fetchMembers={teamsHook.fetchMembers} inviteMember={teamsHook.inviteMember}
             onSwitchTeam={handleSwitchTeam} userEmail={auth.user?.email} esAnonima={auth.esAnonima} auth={auth} userId={auth.user?.id} onSignOut={auth.signOut}
-            onGoExport={irAExportar} onAccountDeleted={handleAccountDeleted} />} />
+            onGoExport={irAExportar} onAccountDeleted={handleAccountDeleted} onEntrar={() => setMostrarLogin(true)} />} />
       )}
       {!esEscritorio && screen === "list" && (
         <Catalogo products={products} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} activeDistrict={activeDistrict} bajando={sync.bajando}
@@ -3700,7 +3702,7 @@ export default function App() {
           onToggleFavorito={(p) => handleUpdateProduct(p.id, { favorito: p.favorito ? 0 : 1 })}
           onToggleFavoritoProveedor={async (s) => { const favorito = s.favorito ? 0 : 1; await dbUpdateSupplier(s.id, { favorito }); setSuppliers(prev => prev.map(x => x.id === s.id ? { ...x, favorito } : x)); }}
           onRevisarDia={() => navigate("revisar")} onEliminarVarios={handleBatchDelete}
-          pestana={listTab} onPestana={setListTab} />
+          pestana={listTab} onPestana={setListTab} sinCuenta={!!auth.esAnonima} onEntrar={() => setMostrarLogin(true)} />
       )}
       {!esEscritorio && (screen === "capture" || screen === "capture-supplier") && (
         <QuickCapture key={`${screen}-${standKey}`} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings} products={products}
@@ -3753,7 +3755,7 @@ export default function App() {
           teams={teamsHook.teams} activeTeam={teamsHook.teams.find(tm => tm.id === sync.teamId)} teamMembers={teamsHook.teamMembers}
           isAdmin={teamsHook.isAdmin} fetchMembers={teamsHook.fetchMembers} inviteMember={teamsHook.inviteMember}
           onSwitchTeam={handleSwitchTeam} userEmail={auth.user?.email} esAnonima={auth.esAnonima} auth={auth} userId={auth.user?.id} onSignOut={auth.signOut}
-          onGoExport={() => navigate("export")} onAccountDeleted={handleAccountDeleted} />
+          onGoExport={() => navigate("export")} onAccountDeleted={handleAccountDeleted} onEntrar={() => setMostrarLogin(true)} />
       )}
       {!esEscritorio && screen === "export" && (
         <ExportScreen products={products} suppliers={suppliers} districts={districts}

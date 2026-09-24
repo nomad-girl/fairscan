@@ -28,7 +28,7 @@ export function Catalogo({
   products = [], suppliers = [], districts = [], activeDistrictId, activeDistrict, bajando = null, queueCount = 0, enLinea = true,
   Foto, t: tLegacy,
   onNavigate, onSwitchDistrict, onToggleFavorito, onToggleFavoritoProveedor, onRevisarDia, onEliminarVarios,
-  pestana = "todo", onPestana,
+  pestana = "todo", onPestana, sinCuenta = false, onEntrar,
 }) {
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
@@ -181,6 +181,13 @@ export function Catalogo({
                   <>
                     <p style={{ ...texto("cuerpo"), color: paleta.muted, margin: 0 }}>{bajando ? t("catalogo.bajando") : t("catalogo.vacioTitulo")}</p>
                     {!bajando && <Boton variante="principal" icono="camara" onClick={() => onNavigate?.("capture")}>{t("catalogo.vacioAccion")}</Boton>}
+                    {/* Sin cuenta y sin productos (24/09, caso Lucas): quien ya tiene cuenta entra y recupera su catálogo */}
+                    {!bajando && sinCuenta && onEntrar && (
+                      <div style={{ marginTop: 18, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                        <p style={{ ...texto("pie"), color: paleta.muted, margin: 0, textAlign: "center" }}>{t("catalogo.sinCuentaTitulo")}</p>
+                        <Boton variante="secundario" onClick={onEntrar}>{t("catalogo.entrar")}</Boton>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <>

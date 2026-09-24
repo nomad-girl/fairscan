@@ -5,6 +5,12 @@ const CLAVE_CIERRE = 'fairscan_cerro_sesion';
 const recordarCierreDeSesion = () => { try { localStorage.setItem(CLAVE_CIERRE, '1'); } catch { /* modo privado */ } };
 const olvidarCierreDeSesion = () => { try { localStorage.removeItem(CLAVE_CIERRE); } catch { /* modo privado */ } };
 export const cerroSesionAProposito = () => { try { return localStorage.getItem(CLAVE_CIERRE) === '1'; } catch { return false; } };
+// Este dispositivo ya tuvo una cuenta real (24/09, caso Lucas): si la sesión se pierde (el token vence o iOS
+// limpia el almacenamiento), corresponde el login, no una sesión nueva sin cuenta que muestra el catálogo vacío
+// y hace creer que los datos desaparecieron.
+const CLAVE_TUVO_CUENTA = 'fairscan_tuvo_cuenta';
+export const tuvoCuenta = () => { try { return localStorage.getItem(CLAVE_TUVO_CUENTA) === '1'; } catch { return false; } };
+const recordarCuenta = (u) => { if (u && !u.is_anonymous) { try { localStorage.setItem(CLAVE_TUVO_CUENTA, '1'); } catch { /* modo privado */ } } };
 
 export default function useAuth() {
   const [user, setUser] = useState(null);
@@ -19,7 +25,8 @@ export default function useAuth() {
       // Pero NO después de que una cuenta real cerró sesión a propósito: en ese
       // caso corresponde el login, no una sesión nueva sin cuenta (hallazgo 3:
       // esa sesión anónima contaba como "otra usuaria" y vaciaba el teléfono).
-      if (!u && !cerroSesionAProposito()) {
+      recordarCuenta(u);
+      if (!u && !cerroSesionAProposito() && !tuvoCuenta()) {
         try { u = (await signInAnonymously()).user ?? null; } catch { u = null; }
       }
       setUser(u);
@@ -31,6 +38,7 @@ export default function useAuth() {
 
     // Listen for auth changes (login, logout, token refresh)
     const { data: { subscription } } = onAuthStateChange((_event, session) => {
+      recordarCuenta(session?.user ?? null);
       setUser(session?.user ?? null);
     });
 

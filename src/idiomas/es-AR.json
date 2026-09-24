@@ -251,7 +251,9 @@
     "eliminarVariosTexto": "Se puede deshacer durante unos segundos desde el aviso. Las fotos se borran del teléfono y de la nube.",
     "cancelar": "Cancelar",
     "listo": "Listo",
-    "tocaParaSeleccionar": "Tocá las fotos que querés borrar"
+    "tocaParaSeleccionar": "Tocá las fotos que querés borrar",
+    "sinCuentaTitulo": "¿Ya tenés cuenta? Al entrar, tu catálogo aparece acá.",
+    "entrar": "Entrar con mi cuenta"
   },
   "revisar": {
     "titulo": "Revisar el día",
