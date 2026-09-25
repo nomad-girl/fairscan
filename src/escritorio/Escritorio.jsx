@@ -10,7 +10,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Chip, Icono, EstadoDeDatos, esperandoNube } from "../componentes/index.js";
+import { Boton, Chip, Icono, EstadoDeDatos, esperandoNube, Segmentado } from "../componentes/index.js";
 import { soloDeHoy } from "../lib/porDia.js";
 import { proveedorVacio } from "../lib/proveedores.js";
 import { MARCA } from "../sistema/tokens.js";
@@ -476,13 +476,10 @@ export function Escritorio({
                     <form onSubmit={e => { e.preventDefault(); crearCampo(); }} style={{ display: "flex", flexDirection: "column", gap: 6, padding: "6px 8px" }}>
                       <input autoFocus value={nuevoCampo.nombre} onChange={e => setNuevoCampo(n => ({ ...n, nombre: e.target.value }))} placeholder={t("escritorio.nombreDelCampo")} aria-label={t("escritorio.nombreDelCampo")} onKeyDown={e => { if (e.key === "Escape") setNuevoCampo(null); }}
                         style={{ minHeight: 32, borderRadius: radios.chico, border: `1px solid ${paleta.accent}`, padding: "0 8px", fontFamily: "inherit", fontSize: 14, background: paleta.surface, color: paleta.text, outline: "none" }} />
-                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                        <select value={nuevoCampo.tipo} onChange={e => setNuevoCampo(n => ({ ...n, tipo: e.target.value }))} aria-label={t("escritorio.tipoTexto")} style={{ minHeight: 32, borderRadius: radios.chico, border: `1px solid ${paleta.border}`, fontFamily: "inherit", fontSize: 13, background: paleta.card, color: paleta.text, padding: "0 6px" }}>
-                          <option value="texto">{t("escritorio.tipoTexto")}</option>
-                          <option value="numero">{t("escritorio.tipoNumero")}</option>
-                        </select>
-                        <Boton variante="principal" tipo="submit">{t("escritorio.crearCampo")}</Boton>
-                      </div>
+                      <Segmentado etiqueta={t("escritorio.tipoDelCampo")} valor={nuevoCampo.tipo} onChange={v => setNuevoCampo(n => ({ ...n, tipo: v }))}
+                        opciones={[{ valor: "texto", texto: t("escritorio.tipoTexto") }, { valor: "numero", texto: t("escritorio.tipoNumero") }]} />
+                      <span style={{ ...texto("pie"), color: paleta.dim }}>{nuevoCampo.tipo === "numero" ? t("escritorio.tipoNumeroPista") : t("escritorio.tipoTextoPista")}</span>
+                      <Boton variante="principal" ancho="total" tipo="submit">{t("escritorio.crearCampo")}</Boton>
                     </form>
                   ) : (
                     <button type="button" onClick={() => setNuevoCampo({ nombre: "", tipo: "texto" })} style={{ textAlign: "left", border: "none", background: "transparent", color: paleta.accentTexto, fontFamily: "inherit", fontSize: 13, fontWeight: 600, padding: "6px 8px", cursor: "pointer" }}>{t("escritorio.nuevoCampo")}</button>

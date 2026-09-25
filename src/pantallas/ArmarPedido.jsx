@@ -26,6 +26,9 @@ function useAncho(minimo = 900) {
   return ancho;
 }
 
+/** Las columnas de la tabla del pedido en la compu: foto, nombre (crece), precio, piezas, CBM, cantidad, total. */
+const COLUMNAS = "88px minmax(150px, 2fr) 80px 76px 76px 148px 100px";
+
 export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD", feria = null, Foto, tLegacy, primero = null, onBack, onGuardar, onEnviar, onNavigateProduct, onActualizarProducto = null, onEliminar = null }) {
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
@@ -107,56 +110,83 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: `calc(0px + 8px) ${espacios.margenLateral}px 8px`, minHeight: alturas.tocable + 16, maxWidth: escritorio ? 1100 : undefined, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: `calc(0px + 8px) ${espacios.margenLateral}px 8px`, minHeight: alturas.tocable + 16, maxWidth: escritorio ? 1480 : undefined, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
         <button type="button" onClick={onBack} aria-label={t("comun.volver")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}><Icono nombre="volver" tamano={20} color={paleta.muted} /></button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h1 style={{ ...texto("titulo"), margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t("pedido.titulo")} · {s.company || t("proveedor.titulo")}</h1>
           <p style={{ ...texto("pie"), color: pedido?.estado === "enviado" ? paleta.green : paleta.muted, margin: 0 }}>{estado}{feria?.name ? ` · ${feria.name}` : ""}</p>
         </div>
+        {escritorio && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            {onEliminar && <Boton variante="fantasma" icono="borrar" etiqueta={t("escritorio.eliminarPedido")} onClick={() => { if (typeof window === "undefined" || typeof window.confirm !== "function" || window.confirm(t("escritorio.eliminarPedidoSeguro", { empresa: s.company || "" }))) onEliminar(); }} />}
+            <Boton variante="secundario" icono="excel" deshabilitado={tot.vacio} onClick={() => onEnviar?.("excel")}>{t("pedido.descargarExcel")}</Boton>
+            <Boton variante="principal" icono="compartir" deshabilitado={tot.vacio} onClick={() => setMandando(true)}>{t("pedido.mandarCorto")}</Boton>
+          </div>
+        )}
       </div>
 
       {escritorio ? (
-        /* Computadora: la tabla a la izquierda, totales y envío a la derecha */
+        /* Computadora (25/09, Nati: "está todo comprimido arriba y abajo todo vacío"): el resumen a lo ancho con los
+           números grandes, la tabla con filas altas, la foto de 96 y el nombre entero, y a la derecha solo lo que se
+           hace con el pedido (comentarios, mandar, Excel, eliminar). */
         <div style={{ flex: 1, overflowY: "auto", padding: `0 ${espacios.margenLateral}px 40px` }}>
-          <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", gap: 20, alignItems: "flex-start" }}>
-            <div style={{ flex: 2, minWidth: 0, background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, overflow: "auto" }}>
-              <div role="table" aria-label={t("pedido.titulo")}>
-                <div role="row" style={{ display: "grid", gridTemplateColumns: "92px minmax(140px, 1fr) 84px 72px 78px 148px 78px 78px 96px", gap: 8, padding: "10px 12px", borderBottom: `1px solid ${paleta.border}`, ...texto("pie", { fontWeight: 600 }), color: paleta.dim, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  {[t("pedido.foto"), t("pedido.producto"), t("pedido.precio"), t("pedido.piezasPorCaja"), t("pedido.cbmPorCaja"), t("pedido.cantidad"), t("pedido.unidades"), t("pedido.cbm"), t("pedido.total")].map(h => <span key={h} role="columnheader">{h}</span>)}
+          <div style={{ maxWidth: 1480, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
+            <div role="group" aria-label={t("pedido.resumen")} style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}>
+              {[
+                [t("pedido.bultos"), tot.bultos ? fNumero(tot.bultos) : "—", tot.sinCbm ? null : null],
+                [t("pedido.unidades"), tot.unidades ? fNumero(tot.unidades) : "—", t("pedido.lineasConCantidad", { count: items.filter(i => Number(i.cantidad) > 0).length })],
+                [t("pedido.cbm"), tot.cbm ? fNumero(tot.cbm, { maximumFractionDigits: 2 }) : "—", tot.cbm > 0 ? t("pedido.contenedor", { porcentaje: porcentajeDeContenedor(tot.cbm) }) : (tot.sinCbm ? t("pedido.sinCbmEnLineas", { count: tot.sinCbm }) : null)],
+                [t("pedido.total"), tot.total ? dinero(tot.total) : "—", estado],
+              ].map(([k, v, sub], i) => (
+                <div key={k} style={{ minWidth: 0, background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, padding: "14px 18px", boxShadow: paleta.sombraTarjeta, display: "flex", flexDirection: "column", gap: 2 }}>
+                  <p style={{ ...texto("pie", { fontWeight: 600 }), color: paleta.dim, margin: 0, textTransform: "uppercase", letterSpacing: "0.06em", fontSize: 11 }}>{k}</p>
+                  <p style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.15, color: i === 3 ? (tot.total ? paleta.green : paleta.dim) : (v === "—" ? paleta.dim : paleta.text), margin: 0, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{v}</p>
+                  {sub ? <p style={{ ...texto("pie"), color: paleta.muted, margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{sub}</p> : null}
+                </div>
+              ))}
+            </div>
+
+            <div style={{ background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, overflow: "auto", boxShadow: paleta.sombraTarjeta }}>
+              <div role="table" aria-label={t("pedido.titulo")} style={{ minWidth: 740 }}>
+                <div role="row" style={{ display: "grid", gridTemplateColumns: COLUMNAS, gap: 8, padding: "12px 14px", borderBottom: `1px solid ${paleta.border}`, alignItems: "end", ...texto("pie", { fontWeight: 600 }), fontSize: 11, color: paleta.dim, textTransform: "uppercase", letterSpacing: "0.06em", lineHeight: 1.2 }}>
+                  {[t("pedido.foto"), t("pedido.producto"), `${t("pedido.precio")} ${moneda}`, t("pedido.piezasPorCaja"), t("pedido.cbmPorCaja"), t("pedido.cantidad"), `${t("pedido.total")} ${moneda}`].map((h, k) => <span key={h} role="columnheader" style={{ textAlign: k >= 2 && k !== 5 ? "right" : k === 5 ? "center" : "left" }}>{h}</span>)}
                 </div>
                 {suyos.map(p => {
                   const cant = cantidadDe(pedido, p.id); const l = lineaDePedido(p, cant);
+                  const num = (v) => <span style={{ textAlign: "right", color: v === "—" ? paleta.dim : paleta.text }}>{v}</span>;
                   return (
-                    <div key={p.id} role="row" style={{ display: "grid", gridTemplateColumns: "92px minmax(140px, 1fr) 84px 72px 78px 148px 78px 78px 96px", gap: 8, alignItems: "center", padding: "8px 12px", borderBottom: `1px solid ${paleta.border}`, background: cant > 0 ? paleta.accentSoft : "transparent", ...texto("cuerpo", { fontWeight: 400 }), fontVariantNumeric: "tabular-nums" }}>
-                      <button type="button" onClick={() => onNavigateProduct?.(p)} aria-label={t("pedido.verProducto")} style={{ padding: 0, border: "none", background: "none", cursor: "pointer" }}>{miniatura(p, 84)}</button>
-                      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 500 }}>{p.favorito ? <><Icono nombre="favorito" tamano={12} color={paleta.accentTexto} /> </> : null}{p.name || t("pedido.sinNombre")}</span>
+                    <div key={p.id} role="row" style={{ display: "grid", gridTemplateColumns: COLUMNAS, gap: 8, alignItems: "center", minHeight: 112, padding: "8px 14px", borderBottom: `1px solid ${paleta.border}`, background: cant > 0 ? paleta.accentSoft : "transparent", ...texto("cuerpo", { fontWeight: 400 }), fontVariantNumeric: "tabular-nums", transition: "background 200ms ease" }}>
+                      <button type="button" onClick={() => onNavigateProduct?.(p)} aria-label={t("pedido.verProducto")} style={{ padding: 0, border: "none", background: "none", cursor: "pointer" }}>{miniatura(p, 88)}</button>
+                      <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                        <button type="button" onClick={() => onNavigateProduct?.(p)} style={{ textAlign: "left", padding: 0, border: "none", background: "none", cursor: "pointer", fontFamily: "inherit", color: paleta.text, fontSize: 15, fontWeight: 600, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                          {p.favorito ? <><Icono nombre="favorito" tamano={12} color={paleta.accentTexto} /> </> : null}{p.name || t("pedido.sinNombre")}
+                        </button>
+                        {/* Con cantidad, las cuentas de la línea (unidades, CBM) van acá, como en el teléfono; sin cantidad, MOQ y categoría */}
+                        {cant > 0
+                          ? <span style={{ ...texto("pie", { fontWeight: 600 }), color: paleta.green, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontVariantNumeric: "tabular-nums" }}>{[`${fNumero(l.unidades)} ${t("pedido.unidadesCorto")}`, l.cbm != null ? fCbm(l.cbm) : null].filter(Boolean).join(" · ")}</span>
+                          : <span style={{ ...texto("pie"), color: paleta.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{[p.moq ? `MOQ ${p.moq}` : null, p.category || null].filter(Boolean).join(" · ") || (l.porCaja ? t("pedido.porCaja", { n: fNumero(l.piezas) }) : t("pedido.sinDatosDeCaja"))}</span>}
+                      </div>
                       {/* En el escritorio (23/09) el precio, las piezas y el CBM se corrigen en la misma fila, sin salir del pedido */}
                       {onActualizarProducto
-                        ? <Celda id={p.id} nombre={p.name} campo="price" etiqueta={t("pedido.precio")} valor={p.price} mostrar={`${moneda} ${p.price}`} numerico onGuardar={onActualizarProducto} />
-                        : <span>{p.price ? `${moneda} ${p.price}` : "—"}</span>}
+                        ? <Celda id={p.id} nombre={p.name} campo="price" etiqueta={t("pedido.precio")} valor={p.price} mostrar={p.price} numerico alineado="right" onGuardar={onActualizarProducto} />
+                        : num(p.price ? p.price : "—")}
                       {onActualizarProducto
-                        ? <Celda id={p.id} nombre={p.name} campo="piezasPorCaja" etiqueta={t("pedido.piezasPorCaja")} valor={p.piezasPorCaja} numerico onGuardar={onActualizarProducto} />
-                        : <span>{l.porCaja ? fNumero(l.piezas) : "—"}</span>}
+                        ? <Celda id={p.id} nombre={p.name} campo="piezasPorCaja" etiqueta={t("pedido.piezasPorCaja")} valor={p.piezasPorCaja} numerico alineado="right" onGuardar={onActualizarProducto} />
+                        : num(l.porCaja ? fNumero(l.piezas) : "—")}
                       {onActualizarProducto
-                        ? <Celda id={p.id} nombre={p.name} campo="cbmPorCaja" etiqueta={t("pedido.cbmPorCaja")} valor={p.cbmPorCaja} numerico onGuardar={onActualizarProducto} />
-                        : <span>{p.cbmPorCaja ? fNumero(p.cbmPorCaja, { maximumFractionDigits: 3 }) : "—"}</span>}
-                      {contador(p, cant, p.id === primero)}
-                      <span>{cant ? fNumero(l.unidades) : "—"}</span>
-                      <span>{l.cbm != null ? fNumero(l.cbm, { maximumFractionDigits: 3 }) : "—"}</span>
-                      <span style={{ color: l.total ? paleta.green : paleta.dim, fontWeight: 600 }}>{l.total ? dinero(l.total) : "—"}</span>
+                        ? <Celda id={p.id} nombre={p.name} campo="cbmPorCaja" etiqueta={t("pedido.cbmPorCaja")} valor={p.cbmPorCaja} numerico alineado="right" onGuardar={onActualizarProducto} />
+                        : num(p.cbmPorCaja ? fNumero(p.cbmPorCaja, { maximumFractionDigits: 3 }) : "—")}
+                      <span style={{ display: "flex", justifyContent: "center" }}>{contador(p, cant, p.id === primero)}</span>
+                      <span style={{ textAlign: "right", color: l.total ? paleta.green : paleta.dim, fontWeight: 700, fontSize: 16 }}>{l.total ? dinero(l.total) : "—"}</span>
                     </div>
                   );
                 })}
               </div>
               {suyos.length === 0 && <p style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted, padding: 16, margin: 0 }}>{t("pedido.sinProductos")}</p>}
             </div>
-            <div style={{ flex: 1, minWidth: 280, position: "sticky", top: 0, display: "flex", flexDirection: "column", gap: espacios.entreFilas }}>
-              {totales()}
-              {comentarios()}
-              {botonMandar}
-              <Boton variante="secundario" ancho="total" icono="excel" deshabilitado={tot.vacio} onClick={() => onEnviar?.("excel")}>{t("pedido.descargarExcel")}</Boton>
-              {onEliminar && <Boton variante="fantasma" ancho="total" icono="borrar" onClick={() => { if (typeof window === "undefined" || typeof window.confirm !== "function" || window.confirm(t("escritorio.eliminarPedidoSeguro", { empresa: s.company || "" }))) onEliminar(); }}>{t("escritorio.eliminarPedido")}</Boton>}
-            </div>
+
+            {comentarios()}
+            {tot.vacio && <p style={{ ...texto("pie"), color: paleta.dim, margin: 0, textAlign: "center" }}>{t("pedido.vacio")}</p>}
           </div>
         </div>
       ) : (

@@ -110,6 +110,7 @@ import { Pedidos } from './pantallas/Pedidos.jsx';
 import { pedidoDeProveedor, pedidoNuevo, textoProforma, nombreDeArchivo, conCantidad } from './lib/pedidos.js';
 import { excelDeProforma, excelDeFeria } from './lib/proformaExcel.js';
 import { imagenDeProducto as imagenExcelDeProducto, pegarImagenEnCelda } from './lib/imagenesExcel.js';
+import { cargarCamposPropios } from './escritorio/camposPersonalizados.js';
 import { juntar } from './lib/repetidos.js';
 import { conDominioPropio } from './lib/fotosDominio.js';
 import { numero as fNumero } from './idiomas/formato.js';
@@ -2199,7 +2200,11 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       }
 
       // Header row
-      const headers = ["Foto","Nombre","Proveedor","Tarjeta","Contacto","Precio USD","MOQ","Categoría","Material","Rating","Viabilidad","Notas","Feria","Fecha","Foto (link)","Tarjeta (link)","MOQ base","Piezas por caja","CBM por caja","Favorito"];
+      // 25/09: los campos propios del equipo (columnas creadas en la compu) también van al Excel, al final.
+      // Los numéricos salen como número, no como texto: así se suman y entran en fórmulas (pedido de Nati).
+      const camposPropios = await cargarCamposPropios(sync.teamId);
+      const numeroExcel = (v) => { if (v === null || v === undefined || v === "") return ""; const n = Number(String(v).replace(",", ".")); return isNaN(n) ? v : n; };
+      const headers = ["Foto","Nombre","Proveedor","Tarjeta","Contacto","Precio USD","MOQ","Categoría","Material","Rating","Viabilidad","Notas","Feria","Fecha","Foto (link)","Tarjeta (link)","MOQ base","Piezas por caja","CBM por caja","Favorito", ...camposPropios.map(c => c.nombre)];
       const headerRow = ws.addRow(headers);
       headerRow.font = { bold: true, size: 11 };
       headerRow.alignment = { vertical: 'middle' };
@@ -2223,6 +2228,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       ws.getColumn(18).width = 14; // Piezas por caja
       ws.getColumn(19).width = 12; // CBM por caja
       ws.getColumn(20).width = 9;  // Favorito
+      camposPropios.forEach((c, k) => { ws.getColumn(21 + k).width = c.tipo === "numero" ? 12 : 18; });
 
       let done = 0;
       for (const p of deduped) {
@@ -2240,8 +2246,8 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
           sup?.company || p.supplierCompany || "",
           "",
           sup?.contact || "",
-          p.price || "",
-          p.moq || "",
+          numeroExcel(p.price),
+          numeroExcel(p.moq),
           p.category || "",
           (p.material || []).join("; "),
           p.rating || "",
@@ -2253,9 +2259,10 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
           tarjetaUrl || "",
           // Datos de compra (16/09): lo que pidió Lucas para armar el pedido desde la planilla.
           p.moqBase === "caja" ? "por caja" : p.moqBase === "pedido" ? "por pedido" : p.moqBase === "producto" ? "por producto" : "",
-          p.piezasPorCaja ?? "",
-          p.cbmPorCaja ?? "",
+          numeroExcel(p.piezasPorCaja),
+          numeroExcel(p.cbmPorCaja),
           p.favorito ? "" : "",
+          ...camposPropios.map(c => (c.tipo === "numero" ? numeroExcel(p.extras?.[c.clave]) : (p.extras?.[c.clave] ?? ""))),
         ]);
         row.height = 62;
         row.alignment = { vertical: 'middle', wrapText: true };
