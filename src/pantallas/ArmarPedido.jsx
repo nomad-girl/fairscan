@@ -27,7 +27,7 @@ function useAncho(minimo = 900) {
 }
 
 /** Las columnas de la tabla del pedido en la compu: foto, nombre (crece), precio, piezas, CBM, cantidad, total. */
-const COLUMNAS = "88px minmax(150px, 2fr) 80px 76px 76px 148px 100px";
+const COLUMNAS = "80px minmax(140px, 2fr) 72px 68px 68px 148px 96px"; // entra en una Mac de 13" con la barra lateral abierta (~1024 px)
 
 export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD", feria = null, Foto, tLegacy, primero = null, onBack, onGuardar, onEnviar, onNavigateProduct, onActualizarProducto = null, onEliminar = null }) {
   const { t } = useTranslation();
@@ -147,16 +147,16 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
             </div>
 
             <div style={{ background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, overflow: "auto", boxShadow: paleta.sombraTarjeta }}>
-              <div role="table" aria-label={t("pedido.titulo")} style={{ minWidth: 740 }}>
-                <div role="row" style={{ display: "grid", gridTemplateColumns: COLUMNAS, gap: 8, padding: "12px 14px", borderBottom: `1px solid ${paleta.border}`, alignItems: "end", ...texto("pie", { fontWeight: 600 }), fontSize: 11, color: paleta.dim, textTransform: "uppercase", letterSpacing: "0.06em", lineHeight: 1.2 }}>
+              <div role="table" aria-label={t("pedido.titulo")} style={{ minWidth: 700 }}>
+                <div role="row" style={{ display: "grid", gridTemplateColumns: COLUMNAS, gap: 8, padding: "12px 12px", borderBottom: `1px solid ${paleta.border}`, alignItems: "end", ...texto("pie", { fontWeight: 600 }), fontSize: 11, color: paleta.dim, textTransform: "uppercase", letterSpacing: "0.06em", lineHeight: 1.2 }}>
                   {[t("pedido.foto"), t("pedido.producto"), `${t("pedido.precio")} ${moneda}`, t("pedido.piezasPorCaja"), t("pedido.cbmPorCaja"), t("pedido.cantidad"), `${t("pedido.total")} ${moneda}`].map((h, k) => <span key={h} role="columnheader" style={{ textAlign: k >= 2 && k !== 5 ? "right" : k === 5 ? "center" : "left" }}>{h}</span>)}
                 </div>
                 {suyos.map(p => {
                   const cant = cantidadDe(pedido, p.id); const l = lineaDePedido(p, cant);
                   const num = (v) => <span style={{ textAlign: "right", color: v === "—" ? paleta.dim : paleta.text }}>{v}</span>;
                   return (
-                    <div key={p.id} role="row" style={{ display: "grid", gridTemplateColumns: COLUMNAS, gap: 8, alignItems: "center", minHeight: 112, padding: "8px 14px", borderBottom: `1px solid ${paleta.border}`, background: cant > 0 ? paleta.accentSoft : "transparent", ...texto("cuerpo", { fontWeight: 400 }), fontVariantNumeric: "tabular-nums", transition: "background 200ms ease" }}>
-                      <button type="button" onClick={() => onNavigateProduct?.(p)} aria-label={t("pedido.verProducto")} style={{ padding: 0, border: "none", background: "none", cursor: "pointer" }}>{miniatura(p, 88)}</button>
+                    <div key={p.id} role="row" style={{ display: "grid", gridTemplateColumns: COLUMNAS, gap: 8, alignItems: "center", minHeight: 104, padding: "8px 12px", borderBottom: `1px solid ${paleta.border}`, background: cant > 0 ? paleta.accentSoft : "transparent", ...texto("cuerpo", { fontWeight: 400 }), fontVariantNumeric: "tabular-nums", transition: "background 200ms ease" }}>
+                      <button type="button" onClick={() => onNavigateProduct?.(p)} aria-label={t("pedido.verProducto")} style={{ padding: 0, border: "none", background: "none", cursor: "pointer" }}>{miniatura(p, 80)}</button>
                       <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                         <button type="button" onClick={() => onNavigateProduct?.(p)} style={{ textAlign: "left", padding: 0, border: "none", background: "none", cursor: "pointer", fontFamily: "inherit", color: paleta.text, fontSize: 15, fontWeight: 600, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                           {p.favorito ? <><Icono nombre="favorito" tamano={12} color={paleta.accentTexto} /> </> : null}{p.name || t("pedido.sinNombre")}
