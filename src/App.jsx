@@ -107,7 +107,7 @@ import { useEsEscritorio } from './escritorio/util.jsx';
 import { useSistema } from './sistema/SistemaProvider.jsx';
 import { ArmarPedido } from './pantallas/ArmarPedido.jsx';
 import { Pedidos } from './pantallas/Pedidos.jsx';
-import { pedidoDeProveedor, pedidoNuevo, textoProforma, nombreDeArchivo } from './lib/pedidos.js';
+import { pedidoDeProveedor, pedidoNuevo, textoProforma, nombreDeArchivo, conCantidad } from './lib/pedidos.js';
 import { excelDeProforma, excelDeFeria } from './lib/proformaExcel.js';
 import { juntar } from './lib/repetidos.js';
 import { conDominioPropio } from './lib/fotosDominio.js';
@@ -3117,6 +3117,28 @@ export default function App() {
     return { clave: "nube", count: products.length, equipo: teamsHook.teams.find(tm => tm.id === sync.teamId)?.name || "" };
   }, [auth.esAnonima, enLinea, sync.bajando, sync.teamId, sync.lastSyncAt, sync.isSyncing, sync.lastError, teamsHook.loading, teamsHook.teams, queueCount, products.length]);
 
+  // Escritorio, tanda A: "Agregar al pedido" con varios elegidos. Un pedido por proveedor: se agregan con
+  // cantidad 1 los que no estaban; si todos son del mismo proveedor, se abre ese pedido.
+  const agregarVariosAlPedido = async (ids) => {
+    const set = new Set(ids);
+    const elegidos = products.filter(p => set.has(p.id) && p.supplierId);
+    const porProveedor = new Map();
+    for (const p of elegidos) porProveedor.set(p.supplierId, [...(porProveedor.get(p.supplierId) || []), p]);
+    let pedidos = 0, abrir = null;
+    for (const [supplierId, lista] of porProveedor) {
+      const s = suppliers.find(x => x.id === supplierId); if (!s) continue;
+      const pedido = await asegurarPedido(s); if (!pedido) continue;
+      let items = pedido.items || [];
+      for (const p of lista) if (!items.some(i => i.productId === p.id)) items = conCantidad(items, p.id, 1);
+      await handleUpdateOrder(pedido.id, { items, estado: pedido.estado === "enviado" ? "en_curso" : (pedido.estado || "en_curso") });
+      pedidos++;
+      if (porProveedor.size === 1) abrir = { supplierId: s.id, pedidoId: pedido.id };
+    }
+    if (elegidos.length) showToast(tx("escritorio.agregadosAPedidos", { count: elegidos.length, pedidos }));
+    else showToast(tx("ficha.sinProveedor"));
+    return { pedidos, abrir };
+  };
+
   const abrirPedido = async (supplier, productoId = null) => {
     const pedido = await asegurarPedido(supplier);
     if (!pedido) return;
@@ -3739,6 +3761,7 @@ export default function App() {
           onSwitchDistrict={switchDistrict} onActualizarProducto={handleUpdateProduct} onActualizarProveedor={(id, cambios) => handleUpdateSupplier(id, cambios, true)}
           onEliminarProducto={(id) => handleDeleteProduct(id, { quedarse: true })}
           onPedidoPara={asegurarPedido} onGuardarPedido={handleUpdateOrder} onEnviarProforma={enviarProforma} onDescargarExcelFeria={descargarExcelFeria}
+          equipoId={sync.teamId} onActualizarVarios={handleBatchUpdate} onEliminarVarios={handleBatchDelete} onAgregarAlPedidoVarios={agregarVariosAlPedido}
           renderExportar={(onVolver) => <ExportScreen products={products} suppliers={suppliers} districts={districts} onBack={onVolver} onExported={msg => { onVolver(); showToast(msg); }} onUpdateProduct={handleUpdateProduct} onUpdateSupplier={handleUpdateSupplier} t={t} />}
           renderAjustes={(onVolver, irAExportar) => <SettingsScreen settings={settings} onSave={(s, silent) => handleSaveSettings(s, true).then(() => { if (!silent) { showToast("Config guardada"); onVolver(); } })} onBack={onVolver} sync={sync} t={t} isDark={isDark} onToggleTheme={toggleTheme}
             products={products} suppliers={suppliers} districts={districts} onReload={reloadAll}

@@ -126,6 +126,7 @@ class IdMapper {
       cloud.moq_base = localRecord.moqBase || null;                 // 'producto' | 'caja' | 'pedido'
       cloud.pieces_per_carton = localRecord.piezasPorCaja ?? null;
       cloud.cbm_per_carton = localRecord.cbmPorCaja ?? null;
+      cloud.discarded = !!localRecord.descartado;                 // escritorio, tanda A (25/09): descartar no borra
     }
 
     return cloud;
@@ -204,6 +205,7 @@ class IdMapper {
       local.moqBase = cloudRecord.moq_base || null;
       local.piezasPorCaja = cloudRecord.pieces_per_carton ?? null;
       local.cbmPorCaja = cloudRecord.cbm_per_carton ?? null;
+      local.descartado = cloudRecord.discarded ? 1 : 0;
     }
 
     return local;

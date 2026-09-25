@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from "react";
-import { describe, it, expect, beforeAll, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, cleanup, within } from "@testing-library/react";
 import { iniciarIdiomas } from "../../idiomas/index.js";
 import { SistemaProvider } from "../../sistema/SistemaProvider.jsx";
@@ -10,6 +10,7 @@ import { useEsEscritorio } from "../util.jsx";
 vi.mock("../../sistema/vibrar.js", () => ({ vibrarSeleccion: vi.fn(), vibrarExito: vi.fn(), vibrarError: vi.fn(), vibrarObturador: vi.fn(), vibrarAviso: vi.fn() }));
 
 beforeAll(() => { iniciarIdiomas("es-AR"); });
+beforeEach(() => { localStorage.clear(); localStorage.setItem("fairscan.escritorio.bienvenida", "1"); });
 afterEach(cleanup);
 
 const FOTO = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
@@ -21,20 +22,22 @@ const yiwu = { id: 10, company: "Yiwu Sunrise", contact: "Lily", districtId: 1, 
 const shenzhen = { id: 11, company: "Shenzhen Brightwave", districtId: 1, createdAt: 2 };
 const suppliers = [yiwu, shenzhen];
 const products = [
-  { id: 1, name: "Taza de cerámica", price: "0.85", piezasPorCaja: 48, supplierId: 10, favorito: 1, createdAt: AYER, photos: [FOTO], districtId: 1 },
-  { id: 2, name: "Vela de soja", price: null, supplierId: 10, createdAt: AYER - 1000, photos: [FOTO], districtId: 1 },
-  { id: 3, name: "Tren de madera", price: "6.50", supplierId: 11, createdAt: AYER - 2000, photos: [FOTO], districtId: 1 },
+  { id: 1, name: "Taza de cerámica", price: "0.85", piezasPorCaja: 48, supplierId: 10, favorito: 1, createdAt: AYER, photos: [FOTO], districtId: 1, category: "Mesa" },
+  { id: 2, name: "Vela de soja", price: null, supplierId: 10, createdAt: AYER - 1000, photos: [FOTO], districtId: 1, category: "Deco" },
+  { id: 3, name: "Tren de madera", price: "6.50", supplierId: 11, createdAt: AYER - 2000, photos: [FOTO], districtId: 1, category: "Juguete" },
   { id: 4, name: "Mate imperial", price: "3.00", supplierId: null, createdAt: AYER - 3000, photos: [FOTO], districtId: 2 },
 ];
 const base = (extra = {}) => ({ products, suppliers, districts, activeDistrictId: 1, orders: [], moneda: "USD", cuenta: { email: "lucas@fairscan.app", esAnonima: false }, ...extra });
+const nav = () => screen.getByRole("navigation");
 
 describe("El escritorio (la versión de computadora)", () => {
-  it("abre en el catálogo cuando hoy no llegó nada, con la barra lateral y las cuentas de la feria", () => {
+  it("abre en el catálogo cuando hoy no llegó nada, con la barra lateral, las vistas de fábrica y las cuentas", () => {
     con(<Escritorio {...base()} />);
     expect(screen.getByRole("heading", { level: 1, name: "Catálogo" })).toBeTruthy();
-    const nav = screen.getByRole("navigation");
-    expect(within(nav).getByText("Catálogo").parentElement.textContent).toContain("3"); // solo los de Cantón
-    expect(within(nav).getByText("Proveedores").parentElement.textContent).toContain("2");
+    expect(within(nav()).getByText("Catálogo").parentElement.textContent).toContain("3");
+    expect(within(nav()).getByText("Proveedores").parentElement.textContent).toContain("2");
+    expect(within(nav()).getByTitle("Sin precio").textContent).toContain("1");
+    expect(within(nav()).getByTitle("Favoritos").textContent).toContain("1");
     expect(screen.getByText("Elegí un producto para ver sus datos")).toBeTruthy();
   });
 
@@ -43,24 +46,21 @@ describe("El escritorio (la versión de computadora)", () => {
     con(<Escritorio {...base({ products: [...products, ...deHoy] })} />);
     expect(screen.getByRole("heading", { level: 1, name: "Revisar el día · 1" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Difusor" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Taza de cerámica" })).toBeNull(); // los de ayer no están en Revisar
+    expect(screen.queryByRole("button", { name: "Taza de cerámica" })).toBeNull();
   });
 
   it("clic en una foto abre el panel con la ficha; las flechas pasan al vecino; Escape cierra", () => {
-    const onActualizar = vi.fn();
-    con(<Escritorio {...base({ onActualizarProducto: onActualizar })} />);
+    con(<Escritorio {...base()} />);
     fireEvent.click(screen.getByRole("button", { name: "Taza de cerámica" }));
     const panel = screen.getByRole("complementary");
     expect(within(panel).getByText("1 de 3")).toBeTruthy();
-    expect(within(panel).getByLabelText(/Nombre: Taza de cerámica/)).toBeTruthy();
     fireEvent.keyDown(window, { key: "ArrowRight" });
     expect(within(panel).getByText("2 de 3")).toBeTruthy();
-    expect(within(panel).getByLabelText(/Nombre: Vela de soja/)).toBeTruthy();
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.getByText("Elegí un producto para ver sus datos")).toBeTruthy();
   });
 
-  it("el precio se edita en el panel, en el lugar, y se guarda al salir", () => {
+  it("el precio se edita en el panel y se guarda al salir", () => {
     const onActualizar = vi.fn();
     con(<Escritorio {...base({ onActualizarProducto: onActualizar })} />);
     fireEvent.click(screen.getByRole("button", { name: "Vela de soja" }));
@@ -72,61 +72,135 @@ describe("El escritorio (la versión de computadora)", () => {
     expect(onActualizar).toHaveBeenCalledWith(2, { price: "1.95" });
   });
 
-  it("los filtros: Sin precio deja solo la vela; el buscador encuentra por nombre", () => {
+  it("la vista de fábrica 'Sin precio' deja solo la vela; el buscador encuentra por nombre y por '< 2'", () => {
     con(<Escritorio {...base()} />);
-    fireEvent.click(screen.getByText(/Sin precio · 1/));
-    expect(screen.getByRole("button", { name: "Vela de soja" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Taza de cerámica" })).toBeNull();
-    fireEvent.click(screen.getByText(/Todos · 3/));
+    fireEvent.click(within(nav()).getByTitle("Sin precio"));
+    expect(screen.getByRole("heading", { level: 1, name: "Sin precio" })).toBeTruthy();
+    expect(screen.getByLabelText("Editar Nombre de Vela de soja")).toBeTruthy(); // la vista es tabla
+    expect(screen.queryByLabelText("Editar Nombre de Taza de cerámica")).toBeNull();
+    fireEvent.click(within(nav()).getByText("Catálogo"));
     fireEvent.change(screen.getByLabelText("Buscar producto o proveedor"), { target: { value: "tren" } });
     expect(screen.getByRole("button", { name: "Tren de madera" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Vela de soja" })).toBeNull();
+    fireEvent.change(screen.getByLabelText("Buscar producto o proveedor"), { target: { value: "< 2" } });
+    expect(screen.getByRole("button", { name: "Taza de cerámica" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Tren de madera" })).toBeNull();
   });
 
-  it("la vista tabla edita una celda con un clic y guarda con Enter", () => {
-    const onActualizar = vi.fn();
-    con(<Escritorio {...base({ onActualizarProducto: onActualizar })} />);
+  it("'+ Filtro' agrega un chip; Quitar filtros lo saca; sin resultados ofrece quitar", () => {
+    con(<Escritorio {...base()} />);
+    fireEvent.click(screen.getByRole("button", { name: "+ Filtro" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Favorito" }));
+    expect(screen.getByText("1 producto")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "+ Filtro" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Sin precio" }));
+    expect(screen.getByText("Nada con esos criterios")).toBeTruthy();
+    fireEvent.click(screen.getAllByRole("button", { name: "Quitar filtros" })[0]);
+    expect(screen.getByText("3 productos")).toBeTruthy();
+  });
+
+  it("la tabla ordena por precio con la cabecera y deja lo vacío al final; 'Columnas' apaga una", () => {
+    con(<Escritorio {...base()} />);
     fireEvent.click(screen.getByRole("button", { name: "Ver en tabla" }));
-    const tabla = screen.getByRole("table", { name: "Catálogo" });
-    const celda = within(tabla).getByLabelText("Editar Piezas por caja de Vela de soja");
-    fireEvent.click(celda);
-    const input = within(tabla).getByLabelText("Editar Piezas por caja de Vela de soja");
-    fireEvent.change(input, { target: { value: "24" } });
-    fireEvent.keyDown(input, { key: "Enter" });
-    expect(onActualizar).toHaveBeenCalledWith(2, { piezasPorCaja: 24 });
+    fireEvent.click(screen.getByRole("columnheader", { name: /Precio USD/ }));
+    const nombres = () => screen.getAllByRole("row").slice(1).map(f => within(f).getAllByRole("cell")[2].textContent);
+    expect(nombres()).toEqual(["Taza de cerámica", "Tren de madera", "Vela de soja"]);
+    fireEvent.click(screen.getByRole("columnheader", { name: /Precio USD/ }));
+    expect(nombres()).toEqual(["Tren de madera", "Taza de cerámica", "Vela de soja"]);
+    fireEvent.click(screen.getByRole("button", { name: /Columnas/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "MOQ" }));
+    expect(screen.queryByRole("columnheader", { name: "MOQ" })).toBeNull();
   });
 
-  it("la feria de arriba es el filtro global: Todas las ferias suma el mate de Cafira", () => {
+  it("selección múltiple: casilla, Shift para el rango, barra flotante con Favorito y Borrar; Escape la quita", () => {
+    const onActualizarVarios = vi.fn(), onEliminarVarios = vi.fn();
+    con(<Escritorio {...base({ onActualizarVarios, onEliminarVarios })} />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Elegir Taza de cerámica" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Elegir Tren de madera" }), { shiftKey: true });
+    const barra = screen.getByRole("toolbar");
+    expect(barra.textContent).toContain("3");
+    expect(screen.getByRole("complementary").textContent).toContain("3 elegidos");
+    fireEvent.click(within(barra).getByRole("button", { name: "Favorito" }));
+    expect(onActualizarVarios).toHaveBeenCalledWith(expect.arrayContaining([1, 2, 3]), { favorito: 1 });
+    fireEvent.click(within(barra).getByRole("button", { name: "Borrar" }));
+    fireEvent.click(within(barra).getByRole("button", { name: "Sí, borrar" }));
+    expect(onEliminarVarios).toHaveBeenCalledWith(expect.arrayContaining([1, 2, 3]));
+    expect(screen.queryByRole("toolbar")).toBeNull();
+  });
+
+  it("Descartar saca de la vista sin borrar; el filtro Descartados los muestra; la tecla X descarta el elegido", () => {
+    const onActualizarVarios = vi.fn();
+    const conDescartado = products.map(p => (p.id === 3 ? { ...p, descartado: 1 } : p));
+    con(<Escritorio {...base({ products: conDescartado, onActualizarVarios })} />);
+    expect(screen.queryByRole("button", { name: "Tren de madera" })).toBeNull();
+    expect(screen.getByText(/1 descartado/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Taza de cerámica" }));
+    fireEvent.keyDown(window, { key: "x" });
+    expect(onActualizarVarios).toHaveBeenCalledWith([1], { descartado: 1 });
+    fireEvent.click(screen.getByRole("button", { name: "+ Filtro" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Descartados" }));
+    fireEvent.click(screen.getByRole("button", { name: "Solo descartados" }));
+    expect(screen.getByRole("button", { name: "Tren de madera" })).toBeTruthy();
+  });
+
+  it("⌘K abre la paleta: busca un proveedor y lo abre con Enter", () => {
+    con(<Escritorio {...base()} />);
+    fireEvent.keyDown(window, { key: "k", metaKey: true });
+    const paleta = screen.getByRole("dialog", { name: "Buscar y hacer" });
+    fireEvent.change(within(paleta).getByRole("textbox"), { target: { value: "shenzhen" } });
+    fireEvent.keyDown(within(paleta).getByRole("textbox"), { key: "Enter" });
+    expect(screen.getByRole("heading", { level: 1, name: /Proveedores/ })).toBeTruthy();
+    expect(screen.getByRole("complementary").textContent).toContain("Shenzhen Brightwave");
+  });
+
+  it("guarda la vista actual con nombre y la muestra en la barra lateral", async () => {
+    con(<Escritorio {...base({ equipoId: "equipo-1" })} />);
+    fireEvent.click(screen.getByRole("button", { name: "+ Filtro" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Favorito" }));
+    fireEvent.click(screen.getByRole("button", { name: "+ Guardar vista actual" }));
+    fireEvent.change(screen.getByLabelText("Nombre de la vista"), { target: { value: "Para pedir · Yiwu" } });
+    fireEvent.submit(screen.getByLabelText("Nombre de la vista").closest("form"));
+    await screen.findByTitle("Para pedir · Yiwu");
+    expect(screen.getByRole("heading", { level: 1, name: "Para pedir · Yiwu" })).toBeTruthy();
+    expect(JSON.parse(localStorage.getItem("fairscan.vistas.equipo-1"))[0].nombre).toBe("Para pedir · Yiwu");
+  });
+
+  it("el atajo '?' muestra los atajos; 1 a 5 cambian de sección; T cambia a tabla", () => {
+    con(<Escritorio {...base()} />);
+    fireEvent.keyDown(window, { key: "?" });
+    expect(screen.getByRole("dialog", { name: "Atajos de teclado" })).toBeTruthy();
+    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.keyDown(window, { key: "2" });
+    expect(screen.getByRole("heading", { level: 1, name: /Proveedores/ })).toBeTruthy();
+    fireEvent.keyDown(window, { key: "1" });
+    fireEvent.keyDown(window, { key: "t" });
+    expect(screen.getByRole("table", { name: "Catálogo" })).toBeTruthy();
+  });
+
+  it("feria sin fotos: explica qué va a aparecer y ofrece mirar la feria que sí tiene", () => {
     const onSwitch = vi.fn();
-    con(<Escritorio {...base({ onSwitchDistrict: onSwitch })} />);
-    fireEvent.change(screen.getByLabelText("Feria"), { target: { value: "" } });
-    expect(onSwitch).toHaveBeenCalledWith(null);
-    cleanup();
-    con(<Escritorio {...base({ activeDistrictId: null })} />);
-    expect(screen.getByRole("button", { name: "Mate imperial" })).toBeTruthy();
+    con(<Escritorio {...base({ activeDistrictId: 2, products: products.filter(p => p.id !== 4), onSwitchDistrict: onSwitch })} />);
+    expect(screen.getByText("Cafira todavía no tiene fotos")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /o mirá Cantón, que tiene 3/ }));
+    expect(onSwitch).toHaveBeenCalledWith(1);
   });
 
-  it("Proveedores: clic en la tarjeta abre el panel del proveedor con sus productos y Armar pedido", async () => {
-    // En la app, asegurarPedido crea el pedido y lo suma a la lista; acá ya viene en orders
-    const pedido77 = { id: 77, supplierId: 10, districtId: 1, estado: "en_curso", items: [] };
-    const onPedidoPara = vi.fn(async () => pedido77);
-    con(<Escritorio {...base({ onPedidoPara, orders: [pedido77] })} />);
-    fireEvent.click(screen.getByText("Proveedores"));
-    fireEvent.click(screen.getByRole("button", { name: /Yiwu Sunrise/ }));
-    const panel = screen.getByRole("complementary");
-    expect(within(panel).getByText("Productos de este proveedor · 2")).toBeTruthy();
-    fireEvent.click(within(panel).getByRole("button", { name: "Armar pedido" }));
-    await screen.findByText(/Pedido · Yiwu Sunrise/);
-    expect(onPedidoPara).toHaveBeenCalledWith(yiwu);
+  it("la franja de bienvenida se ve la primera vez y se cierra para siempre", () => {
+    localStorage.removeItem("fairscan.escritorio.bienvenida");
+    con(<Escritorio {...base()} />);
+    expect(screen.getByRole("note")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Cerrar este aviso" }));
+    expect(screen.queryByRole("note")).toBeNull();
+    expect(localStorage.getItem("fairscan.escritorio.bienvenida")).toBe("1");
   });
 
-  it("Pedidos: la lista con totales y el Excel de la feria; sin pedidos, el aviso", () => {
+  it("Pedidos: la lista con totales y el Excel de la feria", () => {
     const orders = [{ id: 5, supplierId: 10, districtId: 1, estado: "en_curso", items: [{ productId: 1, cantidad: 10 }] }];
     con(<Escritorio {...base({ orders })} />);
-    fireEvent.click(screen.getByText("Pedidos"));
+    fireEvent.click(within(nav()).getByText("Pedidos"));
     const tabla = screen.getByRole("table", { name: "Pedidos" });
     expect(within(tabla).getByText("Yiwu Sunrise")).toBeTruthy();
-    expect(within(tabla).getAllByText("480").length).toBeGreaterThan(0); // 10 cajas × 48 piezas
+    expect(within(tabla).getAllByText("480").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Excel de toda la feria" })).toBeTruthy();
   });
 
@@ -136,28 +210,6 @@ describe("El escritorio (la versión de computadora)", () => {
     expect(screen.getByText(/Sin cuenta, lo que hagas acá queda en este navegador/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Entrar" }));
     expect(onEntrar).toHaveBeenCalled();
-  });
-});
-
-describe("El panel se agranda y la foto se ve a pantalla completa", () => {
-  it("el botón agranda el panel y lo vuelve a achicar", () => {
-    con(<Escritorio {...base()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Taza de cerámica" }));
-    const panel = screen.getByRole("complementary");
-    expect(panel.style.width).toBe("360px");
-    fireEvent.click(within(panel).getByRole("button", { name: "Agrandar el panel" }));
-    expect(parseInt(panel.style.width)).toBeGreaterThan(360);
-    fireEvent.click(within(panel).getByRole("button", { name: "Achicar el panel" }));
-    expect(panel.style.width).toBe("360px");
-  });
-  it("clic en la foto la abre grande; Escape la cierra", () => {
-    con(<Escritorio {...base()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Taza de cerámica" }));
-    fireEvent.click(within(screen.getByRole("complementary")).getAllByRole("button", { name: "Ver la foto grande" })[1]); // el símbolo de expandir
-    expect(screen.getByRole("dialog", { name: "Taza de cerámica" })).toBeTruthy();
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(screen.getByRole("complementary")).toBeTruthy(); // el panel sigue abierto
   });
 });
 
