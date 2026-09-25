@@ -39,7 +39,6 @@ describe("El escritorio (la versión de computadora)", () => {
     fireEvent.click(within(nav()).getByRole("button", { name: "Mostrar las vistas" }));
     expect(within(nav()).getByTitle("Sin precio").textContent).toContain("1");
     expect(within(nav()).getByTitle("Favoritos").textContent).toContain("1");
-    expect(screen.queryByRole("complementary")).toBeNull(); // el panel no existe hasta que hay algo
   });
 
   it("abre en Revisar el día cuando hay fotos de hoy", () => {
@@ -50,25 +49,24 @@ describe("El escritorio (la versión de computadora)", () => {
     expect(screen.queryByRole("button", { name: "Taza de cerámica" })).toBeNull();
   });
 
-  it("clic en una foto abre el panel con la ficha; las flechas pasan al vecino; Escape cierra", () => {
+  it("clic en una foto abre la vista rápida encima de todo; las flechas pasan al vecino; Escape cierra", () => {
     con(<Escritorio {...base()} />);
     fireEvent.click(screen.getByRole("button", { name: "Taza de cerámica" }));
-    const panel = screen.getByRole("complementary");
-    expect(panel.style.flex).toContain("46%"); // la ficha toma protagonismo
-    expect(within(nav()).queryByText("Proveedores")).toBeNull(); // la barra lateral se plegó sola
-    expect(within(panel).getByText("1 de 3")).toBeTruthy();
+    const vista = screen.getByRole("dialog", { name: "Taza de cerámica" });
+    expect(within(vista).getByText("1 de 3")).toBeTruthy();
+    expect(within(vista).getByRole("button", { name: "Agregar al pedido" })).toBeTruthy(); // la acción principal, arriba
     fireEvent.keyDown(window, { key: "ArrowRight" });
-    expect(within(panel).getByText("2 de 3")).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Vela de soja" })).toBeTruthy();
+    expect(screen.getByText("2 de 3")).toBeTruthy();
     fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.queryByRole("complementary")).toBeNull();
-    expect(within(nav()).getByText("Proveedores")).toBeTruthy(); // y volvió
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("el precio se edita en el panel y se guarda al salir", () => {
     const onActualizar = vi.fn();
     con(<Escritorio {...base({ onActualizarProducto: onActualizar })} />);
     fireEvent.click(screen.getByRole("button", { name: "Vela de soja" }));
-    const panel = screen.getByRole("complementary");
+    const panel = screen.getByRole("dialog", { name: "Vela de soja" });
     fireEvent.click(within(panel).getByLabelText(/Precio USD: Agregar/));
     const input = within(panel).getByDisplayValue("");
     fireEvent.change(input, { target: { value: "1,95" } });
@@ -126,7 +124,6 @@ describe("El escritorio (la versión de computadora)", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "Elegir Tren de madera" }), { shiftKey: true });
     const barra = screen.getByRole("toolbar");
     expect(barra.textContent).toContain("3");
-    expect(screen.getByRole("complementary").textContent).toContain("3 elegidos");
     fireEvent.click(within(barra).getByRole("button", { name: "Favorito" }));
     expect(onActualizarVarios).toHaveBeenCalledWith(expect.arrayContaining([1, 2, 3]), { favorito: 1 });
     fireEvent.click(within(barra).getByRole("button", { name: "Borrar" }));
@@ -158,8 +155,9 @@ describe("El escritorio (la versión de computadora)", () => {
     const paleta = screen.getByRole("dialog", { name: "Buscar y hacer" });
     fireEvent.change(within(paleta).getByRole("textbox"), { target: { value: "shenzhen" } });
     fireEvent.keyDown(within(paleta).getByRole("textbox"), { key: "Enter" });
-    expect(screen.getByRole("heading", { level: 1, name: /Proveedores/ })).toBeTruthy();
-    expect(screen.getByRole("complementary").textContent).toContain("Shenzhen Brightwave");
+    expect(screen.getByRole("heading", { level: 1, name: "Shenzhen Brightwave" })).toBeTruthy(); // la home del proveedor
+    expect(screen.getByRole("button", { name: "Armar pedido" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Tren de madera" })).toBeTruthy(); // sus productos, la foto primero
   });
 
   it("guarda la vista actual con nombre y la muestra en la barra lateral", async () => {
@@ -204,9 +202,9 @@ describe("El escritorio (la versión de computadora)", () => {
     expect(localStorage.getItem("fairscan.escritorio.lateral")).toBe("1");
     fireEvent.keyDown(window, { key: "[" });
     fireEvent.click(screen.getByRole("button", { name: "Taza de cerámica" }));
-    expect(screen.getByRole("complementary")).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Taza de cerámica" })).toBeTruthy();
     fireEvent.keyDown(window, { key: "]" });
-    expect(screen.queryByRole("complementary")).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("la pista de la primera vez se ve una vez y se cierra para siempre", () => {
@@ -218,14 +216,21 @@ describe("El escritorio (la versión de computadora)", () => {
     expect(localStorage.getItem("fairscan.escritorio.bienvenida")).toBe("1");
   });
 
-  it("Pedidos: la lista con totales y el Excel de la feria", () => {
+  it("Pedidos: la lista con totales y el Excel de la feria; se puede borrar un pedido; Crear elige cualquier proveedor con productos", async () => {
     const orders = [{ id: 5, supplierId: 10, districtId: 1, estado: "en_curso", items: [{ productId: 1, cantidad: 10 }] }];
-    con(<Escritorio {...base({ orders })} />);
+    const onEliminarPedido = vi.fn(), onPedidoPara = vi.fn(async () => orders[0]);
+    con(<Escritorio {...base({ orders, onEliminarPedido, onPedidoPara })} />);
     fireEvent.click(within(nav()).getByText("Pedidos"));
     const tabla = screen.getByRole("table", { name: "Pedidos" });
     expect(within(tabla).getByText("Yiwu Sunrise")).toBeTruthy();
     expect(within(tabla).getAllByText("480").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Excel de toda la feria" })).toBeTruthy();
+    fireEvent.click(within(tabla).getByRole("button", { name: /Eliminar pedido/ }));
+    fireEvent.click(within(tabla).getByRole("button", { name: "Sí, borrar" }));
+    expect(onEliminarPedido).toHaveBeenCalledWith(5);
+    fireEvent.click(screen.getByRole("button", { name: "Crear nuevo pedido" }));
+    const opciones = screen.getByRole("combobox", { name: "¿De qué proveedor?" }).querySelectorAll("option");
+    expect([...opciones].map(o => o.textContent)).toEqual(expect.arrayContaining(["Shenzhen Brightwave", "Yiwu Sunrise"]));
   });
 
   it("sin cuenta: el aviso y el botón Entrar", () => {

@@ -26,8 +26,9 @@ export function useEsEscritorio(minimo = ANCHO_ESCRITORIO) {
 }
 
 /** La miniatura de un producto: la copia local o la dirección de la nube; sin foto, el ícono. */
-export function Miniatura({ p, i = 0, Foto, tLegacy, paleta, estilo }) {
-  const src = i === 0 ? (elegirMiniatura(p) || respaldoDe(p)) : (p.photos?.[i] || respaldoDe(p, i));
+export function Miniatura({ p, i = 0, completa = false, Foto, tLegacy, paleta, estilo }) {
+  // `completa`: la foto entera (vista rápida, foto grande); si no, la miniatura para la grilla y la tabla.
+  const src = completa ? (p.photos?.[i] || respaldoDe(p, i) || elegirMiniatura(p)) : i === 0 ? (elegirMiniatura(p) || respaldoDe(p)) : (p.photos?.[i] || respaldoDe(p, i));
   if (!src) return <div style={{ width: "100%", height: "100%", background: paleta.surface, display: "grid", placeItems: "center", ...estilo }}><Icono nombre="foto" tamano={20} color={paleta.dim} /></div>;
   return Foto
     ? <Foto src={src} respaldo={respaldoDe(p, i)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block", ...estilo }} />

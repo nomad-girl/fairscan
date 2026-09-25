@@ -26,7 +26,7 @@ function useAncho(minimo = 900) {
   return ancho;
 }
 
-export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD", feria = null, Foto, tLegacy, primero = null, onBack, onGuardar, onEnviar, onNavigateProduct, onActualizarProducto = null }) {
+export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD", feria = null, Foto, tLegacy, primero = null, onBack, onGuardar, onEnviar, onNavigateProduct, onActualizarProducto = null, onEliminar = null }) {
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
   const escritorio = useAncho(900);
@@ -155,6 +155,7 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
               {comentarios()}
               {botonMandar}
               <Boton variante="secundario" ancho="total" icono="excel" deshabilitado={tot.vacio} onClick={() => onEnviar?.("excel")}>{t("pedido.descargarExcel")}</Boton>
+              {onEliminar && <Boton variante="fantasma" ancho="total" icono="borrar" onClick={() => { if (typeof window === "undefined" || typeof window.confirm !== "function" || window.confirm(t("escritorio.eliminarPedidoSeguro", { empresa: s.company || "" }))) onEliminar(); }}>{t("escritorio.eliminarPedido")}</Boton>}
             </div>
           </div>
         </div>

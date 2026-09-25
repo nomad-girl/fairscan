@@ -109,6 +109,7 @@ import { ArmarPedido } from './pantallas/ArmarPedido.jsx';
 import { Pedidos } from './pantallas/Pedidos.jsx';
 import { pedidoDeProveedor, pedidoNuevo, textoProforma, nombreDeArchivo, conCantidad } from './lib/pedidos.js';
 import { excelDeProforma, excelDeFeria } from './lib/proformaExcel.js';
+import { imagenDeProducto as imagenExcelDeProducto, pegarImagenEnCelda } from './lib/imagenesExcel.js';
 import { juntar } from './lib/repetidos.js';
 import { conDominioPropio } from './lib/fotosDominio.js';
 import { numero as fNumero } from './idiomas/formato.js';
@@ -1992,7 +1993,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
 // ═══════════════════════════════════════════
 // EXPORT
 // ═══════════════════════════════════════════
-function ExportScreen({ products, suppliers, districts, onBack, onExported, onUpdateProduct, onUpdateSupplier, t, initialDateFilter = "all" }) {
+function ExportScreen({ products, suppliers, districts, onBack, onExported, onUpdateProduct, onUpdateSupplier, t, initialDateFilter = "all", compacto = false }) {
   const [scope, setScope] = useState("all");
   const [dateFilter, setDateFilter] = useState(initialDateFilter || "all"); // "all" | "today"
   const [format, setFormat] = useState("zip");
@@ -2187,6 +2188,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       // Pre-fetch supplier card images (one per supplier, reused across rows)
       setExportProgress("Descargando tarjetas...");
       const cardCache = new Map(); // supplierKey → base64 or null
+      const cacheFotos = new Map();
       for (const p of deduped) {
         const sup = suppliers.find(s => s.id === p.supplierId) || (p.supplierCompany ? suppliers.find(s => s.company === p.supplierCompany) : null);
         if (!sup) continue;
@@ -2233,10 +2235,10 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
         const fotoUrl = primeraUrl(p, subidas);
         const tarjetaUrl = sup?.cardPhotoUrl || null;
         const row = ws.addRow([
-          fotoUrl ? { formula: `IMAGE("${fotoUrl}")` } : "",
+          "",
           p.name || "",
           sup?.company || p.supplierCompany || "",
-          tarjetaUrl ? { formula: `IMAGE("${tarjetaUrl}")` } : "",
+          "",
           sup?.contact || "",
           p.price || "",
           p.moq || "",
@@ -2255,23 +2257,18 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
           p.cbmPorCaja ?? "",
           p.favorito ? "" : "",
         ]);
-        row.height = 65;
+        row.height = 62;
         row.alignment = { vertical: 'middle', wrapText: true };
 
-        // Sin dirección web: la foto pegada encima de la celda (respaldo sin señal)
-        const allPhotoSrcs = getProductPhotoSources(p);
-        const photoSrc = allPhotoSrcs[0] || null;
-        if (photoSrc && !fotoUrl) {
-          try {
-            const base64Data = await getImageBase64(photoSrc);
-            if (base64Data) {
-              const imgId = wb.addImage({ base64: base64Data, extension: 'jpeg' });
-              ws.addImage(imgId, {
-                tl: { col: 0.1, row: rowIndex - 1 + 0.1 },
-                ext: { width: 75, height: 56 },
-              });
-            }
-          } catch (e) { console.warn("Error embebiendo foto:", e); }
+        // 25/09: la foto pegada en la celda SIEMPRE (la fórmula =IMAGE salía vacía en Excel viejo y en Numbers).
+        // Miniatura local si hay; si no, la foto de la nube. El link queda en su columna.
+        try {
+          const imagen = await imagenExcelDeProducto(p, { cache: cacheFotos });
+          pegarImagenEnCelda(wb, ws, imagen, { col: 0, fila: rowIndex - 1, ancho: 78, alto: 78 });
+        } catch (e) { console.warn("Error embebiendo foto:", e); }
+        const tarjeta64 = cardCache.get(sup?.id || sup?.company);
+        if (tarjeta64) {
+          try { pegarImagenEnCelda(wb, ws, { base64: tarjeta64, extension: "jpeg" }, { col: 3, fila: rowIndex - 1, ancho: 78, alto: 50 }); } catch (e) { console.warn("Error embebiendo tarjeta:", e); }
         }
 
         // Tarjeta pegada encima solo si no hay dirección web
@@ -2600,7 +2597,10 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
       <Header title="Exportar datos" onBack={onBack} t={t} />
-      <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
+      <div style={{ flex:1, overflow:"auto", padding: compacto ? "16px 24px 24px" : "16px 20px 40px" }}>
+      {/* En la compu (25/09): dos columnas, todo a la vista sin desplazar (Nati: "nadie va a escrolear") */}
+      <div style={compacto ? { display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 28px", alignItems:"start" } : undefined}>
+      <div>
 
         {/* Scope */}
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>¿Qué exportar?</p>
@@ -2664,7 +2664,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
             { k:"excel", icon:"", name:"Excel", desc:"Tabla con fotos embebidas" },
           ].map(f => (
             <button key={f.k} onClick={() => setFormat(f.k)} style={{
-              flex:1, minWidth:f.k==="zip"?"100%":0, padding:"14px 10px", borderRadius:14, textAlign:"center",
+              flex:1, minWidth:(f.k==="zip" && !compacto)?"100%":0, padding: compacto ? "10px 8px" : "14px 10px", borderRadius:14, textAlign:"center",
               border:`1.5px solid ${format===f.k?t.accent:t.border}`,
               background:format===f.k?t.accentSoft:"transparent", cursor:"pointer",
             }}>
@@ -2675,6 +2675,8 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
           ))}
         </div>
 
+      </div>
+      <div>
         {/* Options */}
         <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px", background:t.card, borderRadius:12, border:`1px solid ${t.border}`, marginBottom:20 }}>
           <button onClick={() => setIncludeSuppliers(!includeSuppliers)} style={{
@@ -2751,6 +2753,8 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
             </div>
           </div>
         )}
+      </div>
+      </div>
       </div>
 
       <div style={{ padding:"12px 20px", paddingBottom:"calc(16px + env(safe-area-inset-bottom, 0px))", borderTop:`1px solid ${t.border}` }}>
@@ -3143,6 +3147,12 @@ export default function App() {
     const pedido = await asegurarPedido(supplier);
     if (!pedido) return;
     navigate("pedido", { supplierId: supplier.id, pedidoId: pedido.id, primero: productoId });
+  };
+  // Escritorio (25/09): borrar un pedido. Los productos no se tocan; el pedido se saca de acá y de la nube (borrado blando).
+  const handleDeleteOrder = async (id) => {
+    setOrders(prev => prev.filter(o => o.id !== id));
+    await deleteOrder(id);
+    showToast(tx("escritorio.pedidoEliminado"));
   };
   const handleUpdateOrder = async (id, changes) => {
     setOrders(prev => prev.map(o => o.id === id ? { ...o, ...changes } : o));
@@ -3761,8 +3771,8 @@ export default function App() {
           onSwitchDistrict={switchDistrict} onActualizarProducto={handleUpdateProduct} onActualizarProveedor={(id, cambios) => handleUpdateSupplier(id, cambios, true)}
           onEliminarProducto={(id) => handleDeleteProduct(id, { quedarse: true })}
           onPedidoPara={asegurarPedido} onGuardarPedido={handleUpdateOrder} onEnviarProforma={enviarProforma} onDescargarExcelFeria={descargarExcelFeria}
-          equipoId={sync.teamId} onActualizarVarios={handleBatchUpdate} onEliminarVarios={handleBatchDelete} onAgregarAlPedidoVarios={agregarVariosAlPedido}
-          renderExportar={(onVolver) => <ExportScreen products={products} suppliers={suppliers} districts={districts} onBack={onVolver} onExported={msg => { onVolver(); showToast(msg); }} onUpdateProduct={handleUpdateProduct} onUpdateSupplier={handleUpdateSupplier} t={t} />}
+          equipoId={sync.teamId} onActualizarVarios={handleBatchUpdate} onEliminarVarios={handleBatchDelete} onAgregarAlPedidoVarios={agregarVariosAlPedido} onEliminarPedido={handleDeleteOrder}
+          renderExportar={(onVolver) => <ExportScreen compacto products={products} suppliers={suppliers} districts={districts} onBack={onVolver} onExported={msg => { onVolver(); showToast(msg); }} onUpdateProduct={handleUpdateProduct} onUpdateSupplier={handleUpdateSupplier} t={t} />}
           renderAjustes={(onVolver, irAExportar) => <SettingsScreen settings={settings} onSave={(s, silent) => handleSaveSettings(s, true).then(() => { if (!silent) { showToast("Config guardada"); onVolver(); } })} onBack={onVolver} sync={sync} t={t} isDark={isDark} onToggleTheme={toggleTheme}
             products={products} suppliers={suppliers} districts={districts} onReload={reloadAll}
             teams={teamsHook.teams} activeTeam={teamsHook.teams.find(tm => tm.id === sync.teamId)} teamMembers={teamsHook.teamMembers}

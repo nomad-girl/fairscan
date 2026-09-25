@@ -1,12 +1,13 @@
 /**
  * FairScan en la computadora: "el escritorio de trabajo" (23/09) + tanda A (25/09) + "escritorio en calma"
  * (25/09, https://claude.ai/artifact/SWgrhrwj8o6zVpqz8fJ3KK): una sola franja arriba del contenido, cabecera
- * sin texto, barra lateral plegable (y Catálogo que pliega sus vistas), panel derecho que no existe hasta que
- * hay algo y que, con un producto, se abre grande con la foto protagonista; fotos limpias con el nombre debajo.
+ * sin texto, barra lateral plegable (y Catálogo que pliega sus vistas), fotos limpias con el nombre debajo.
+ * Y "la foto primero" como en el teléfono (Nati, 25/09): tocar un producto abre la vista rápida encima de
+ * todo, y tocar un proveedor abre su home en el centro. No hay panel a la derecha.
  *
  * La compu no saca fotos. Capa visible: los datos y sus cambios llegan por props desde App.
  */
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { Boton, Chip, Icono, EstadoDeDatos, esperandoNube } from "../componentes/index.js";
@@ -14,15 +15,15 @@ import { soloDeHoy } from "../lib/porDia.js";
 import { proveedorVacio } from "../lib/proveedores.js";
 import { MARCA } from "../sistema/tokens.js";
 import { Miniatura } from "./util.jsx";
-import { PanelProducto } from "./PanelProducto.jsx";
-import { PanelProveedor } from "./PanelProveedor.jsx";
-import { PanelSeleccion } from "./PanelSeleccion.jsx";
+import { VistaRapida } from "./VistaRapida.jsx";
+import { HomeProveedor } from "./HomeProveedor.jsx";
 import { TablaDeProductos } from "./TablaDeProductos.jsx";
 import { SeccionPedidos } from "./SeccionPedidos.jsx";
 import { BarraDeSeleccion } from "./BarraDeSeleccion.jsx";
 import { Paleta } from "./Paleta.jsx";
 import { aplicarFiltros, ordenarProductos, rangoEntre, CLAVES_FILTRO, COLUMNAS_OPCIONALES, COLUMNAS_DEFAULT } from "./filtros.js";
 import { VISTAS_DE_FABRICA, cargarVistas, guardarVista, borrarVista, vistaModificada } from "./vistas.js";
+import { pedidoDeProveedor } from "../lib/pedidos.js";
 
 const ANCHO_LATERAL = 220;
 const ANCHO_LATERAL_MINI = 56;
@@ -40,7 +41,7 @@ export function Escritorio({
   products = [], suppliers = [], districts = [], activeDistrictId = null, orders = [], moneda = "USD", settings, Foto, tLegacy,
   cuenta = {}, onEntrar, estadoDatos = null, onReintentar, equipoId = null,
   onSwitchDistrict, onActualizarProducto, onActualizarProveedor, onEliminarProducto,
-  onActualizarVarios, onEliminarVarios, onAgregarAlPedidoVarios, onInvitar,
+  onActualizarVarios, onEliminarVarios, onAgregarAlPedidoVarios, onInvitar, onEliminarPedido,
   onPedidoPara, onGuardarPedido, onEnviarProforma, onDescargarExcelFeria,
   renderExportar, renderAjustes,
 }) {
@@ -76,8 +77,6 @@ export function Escritorio({
   const [lateralPlegada, setLateralPlegada] = useState(() => leer(CLAVE_LATERAL, false));
   const [vistasAbiertas, setVistasAbiertas] = useState(() => leer(CLAVE_VISTAS, false));
   const [pista, setPista] = useState(() => !leer(CLAVE_BIENVENIDA, false));
-  const [fotoGrande, setFotoGrande] = useState(null);
-  const plegadaPorFicha = useRef(false);
 
   const plegarLateral = (v) => { setLateralPlegada(v); guardar(CLAVE_LATERAL, v); };
   const alternarVistas = () => { setVistasAbiertas(v => { guardar(CLAVE_VISTAS, !v); return !v; }); };
@@ -135,14 +134,10 @@ export function Escritorio({
   const hayVarios = seleccionados.size > 0;
   const proveedorElegido = proveedorSel != null ? suppliers.find(s => s.id === proveedorSel) || null : null;
   const idx = elegido ? filtrados.findIndex(p => p.id === elegido.id) : -1;
-  const mover = (delta) => { setFotoGrande(null); if (!filtrados.length) return; const i = idx < 0 ? 0 : Math.min(filtrados.length - 1, Math.max(0, idx + delta)); setSeleccion(filtrados[i].id); };
+  const mover = (delta) => { if (!filtrados.length) return; const i = idx < 0 ? 0 : Math.min(filtrados.length - 1, Math.max(0, idx + delta)); setSeleccion(filtrados[i].id); };
 
-  // La ficha protagonista: con un producto abierto, la barra lateral se pliega sola y vuelve al cerrar.
+  // La vista rápida: un producto elegido se abre encima de todo (la foto primero)
   const fichaAbierta = !!elegido && !hayVarios;
-  useEffect(() => {
-    if (fichaAbierta && !lateralPlegada) { plegadaPorFicha.current = true; setLateralPlegada(true); }
-    if (!fichaAbierta && plegadaPorFicha.current) { plegadaPorFicha.current = false; setLateralPlegada(leer(CLAVE_LATERAL, false)); }
-  }, [fichaAbierta]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Selección múltiple ──
   const alternar = (p, e) => {
@@ -157,7 +152,7 @@ export function Escritorio({
   const alternarTodos = () => setSeleccionados(prev => (filtrados.length && filtrados.every(p => prev.has(p.id)) ? new Set() : new Set(filtrados.map(p => p.id))));
   const deseleccionar = () => { setSeleccionados(new Set()); setUltimoTocado(null); };
   const tocarProducto = (p, e) => { if (hayVarios || e?.shiftKey) alternar(p, e); else setSeleccion(p.id); };
-  const cerrarPanel = () => { setSeleccion(null); deseleccionar(); setProveedorSel(null); setFotoGrande(null); };
+  const cerrarPanel = () => { setSeleccion(null); deseleccionar(); };
   const idsAccion = () => (hayVarios ? [...seleccionados] : elegido ? [elegido.id] : []);
   const objetivos = () => { const ids = new Set(idsAccion()); return products.filter(p => ids.has(p.id)); };
   const accionFavorito = () => { const ids = idsAccion(); if (!ids.length) return; const todos = objetivos().every(p => p.favorito); onActualizarVarios?.(ids, { favorito: todos ? 0 : 1 }); };
@@ -181,13 +176,6 @@ export function Escritorio({
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setPaletaAbierta(v => !v); return; }
       if (paletaAbierta) return;
       if (escribiendo) { if (e.key === "Escape") e.target.blur?.(); return; }
-      if (fotoGrande != null && elegido) {
-        const total = (elegido.photos?.length || elegido.photoUrls?.length || 1);
-        if (e.key === "Escape") setFotoGrande(null);
-        else if (e.key === "ArrowRight") setFotoGrande(i => (i + 1) % total);
-        else if (e.key === "ArrowLeft") setFotoGrande(i => (i - 1 + total) % total);
-        return;
-      }
       if (e.key === "?") { e.preventDefault(); setAtajosAbiertos(v => !v); return; }
       if (atajosAbiertos) { if (e.key === "Escape") setAtajosAbiertos(false); return; }
       if (e.key === "[") { plegarLateral(!lateralPlegada); return; }
@@ -201,7 +189,6 @@ export function Escritorio({
       switch (e.key) {
         case "ArrowRight": case "ArrowDown": e.preventDefault(); mover(1); break;
         case "ArrowLeft": case "ArrowUp": e.preventDefault(); mover(-1); break;
-        case " ": if (elegido) { e.preventDefault(); setFotoGrande(0); } break;
         case "f": case "F": accionFavorito(); break;
         case "x": case "X": accionDescartar(); break;
         case "p": case "P": accionPedido(); break;
@@ -225,7 +212,7 @@ export function Escritorio({
     setPedidoAbierto({ supplierId: s.id, pedidoId: pedido.id, primero: null }); setSeccion("pedidos"); setSeleccion(null); setProveedorSel(null);
   };
   const verProveedor = (s) => { setSeccion("proveedores"); setProveedorSel(s.id); setSeleccion(null); setPedidoAbierto(null); };
-  const verProducto = (p) => { setSeccion("catalogo"); setSeleccion(p.id); setProveedorSel(null); setPedidoAbierto(null); };
+  const verProducto = (p) => { if (seccion !== "proveedores") { setSeccion("catalogo"); setProveedorSel(null); } setSeleccion(p.id); setPedidoAbierto(null); };
   const invitar = onInvitar || (() => irA("ajustes"));
 
   // ── Filtros ──
@@ -295,7 +282,6 @@ export function Escritorio({
   const mostrarFilaDeFiltros = filtrosVisibles || filtrosActivos.length > 0;
 
   // ── Piezas ──
-  const conPanel = hayVarios || fichaAbierta || (seccion === "proveedores" && !!proveedorElegido);
   const enCatalogo = seccion === "catalogo" || seccion === "revisar";
   const feriaActiva = districts.find(d => d.id === activeDistrictId) || null;
   const otraFeria = useMemo(() => {
@@ -303,7 +289,7 @@ export function Escritorio({
     const mejor = [...cuenta.entries()].sort((a, b) => b[1] - a[1])[0]; if (!mejor) return null;
     const d = districts.find(x => x.id === mejor[0]); return d ? { ...d, cantidad: mejor[1] } : null;
   }, [products, districts, activeDistrictId]);
-  const columnasGrilla = fichaAbierta ? 3 : lateralPlegada ? 6 : 5;
+  const columnasGrilla = lateralPlegada ? 6 : 5;
   const anchoLateral = lateralPlegada ? ANCHO_LATERAL_MINI : ANCHO_LATERAL;
 
   const itemLateral = (clave, icono, textoItem, cantidad, onClick, { extra } = {}) => {
@@ -472,7 +458,10 @@ export function Escritorio({
   );
 
   // ── Centro: proveedores ──
-  const centroProveedores = (
+  const centroProveedores = proveedorElegido ? (
+    <HomeProveedor proveedor={proveedorElegido} products={products} pedido={pedidoDeProveedor(orders, proveedorElegido.id)} moneda={moneda} Foto={Foto} tLegacy={tLegacy} columnas={columnasGrilla}
+      onVolver={() => setProveedorSel(null)} onActualizar={onActualizarProveedor} onVerProducto={(p) => setSeleccion(p.id)} onArmarPedido={abrirPedidoDe} />
+  ) : (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}><h1 style={{ ...texto("titulo"), margin: 0 }}>{t("escritorio.proveedores")}</h1><span style={{ ...texto("titulo"), fontWeight: 400, color: paleta.dim }}>{proveedoresBuscados.length}</span></div>
       {proveedoresBuscados.length === 0 ? <p style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted, margin: "24px 0" }}>{consulta ? t("escritorio.sinResultados") : t("catalogo.sinProveedores")}</p> : (
@@ -482,8 +471,9 @@ export function Escritorio({
             return (
               <button key={s.id} type="button" onClick={() => { setProveedorSel(s.id); setSeleccion(null); }} aria-pressed={activo}
                 style={{ padding: 0, border: `1px solid ${activo ? paleta.accent : paleta.border}`, borderRadius: radios.grande, overflow: "hidden", background: paleta.card, cursor: "pointer", textAlign: "left", boxShadow: activo ? `0 0 0 2px ${paleta.accentSoft}` : paleta.sombraTarjeta, fontFamily: "inherit" }}>
-                <div style={{ aspectRatio: "1.6", background: paleta.surface, position: "relative" }}>
-                  {tarjeta ? <img src={tarjeta} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", background: "#0F172A" }} /> : suyos[0] ? <Miniatura p={suyos[0]} Foto={Foto} tLegacy={tLegacy} paleta={paleta} /> : <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center" }}><Icono nombre="proveedor" tamano={28} color={paleta.dim} /></div>}
+                <div style={{ aspectRatio: "1.3", background: paleta.surface, position: "relative" }}>
+                  {suyos[0] ? <Miniatura p={suyos[0]} Foto={Foto} tLegacy={tLegacy} paleta={paleta} /> : tarjeta ? <img src={tarjeta} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center" }}><Icono nombre="proveedor" tamano={28} color={paleta.dim} /></div>}
+                  {tarjeta && suyos[0] ? <span style={{ position: "absolute", left: 8, bottom: 8, width: 56, height: 36, borderRadius: 6, overflow: "hidden", border: "2px solid #fff", boxShadow: "0 2px 6px rgba(0,0,0,0.3)" }}><img src={tarjeta} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /></span> : null}
                   {s.favorito ? <span style={{ position: "absolute", top: 8, right: 8, width: 22, height: 22, borderRadius: 11, background: paleta.accent, display: "grid", placeItems: "center" }}><Icono nombre="favorito" tamano={12} color="#fff" /></span> : null}
                 </div>
                 <div style={{ padding: "8px 10px 10px" }}>
@@ -497,19 +487,6 @@ export function Escritorio({
       )}
     </div>
   );
-
-  // ── Panel derecho: no existe hasta que hay algo que mostrar ──
-  const panel = hayVarios ? (
-    <PanelSeleccion productos={productosElegidos} suppliers={suppliers} moneda={moneda} Foto={Foto} tLegacy={tLegacy} onFavorito={accionFavorito} onAgregarAlPedido={accionPedido} onDescartar={accionDescartar} onRestaurar={accionRestaurar} onBorrar={accionBorrar} onCerrar={deseleccionar} />
-  ) : fichaAbierta ? (
-    <PanelProducto producto={elegido} suppliers={suppliers} districts={districts} moneda={moneda} settings={settings} Foto={Foto} tLegacy={tLegacy} dosColumnas
-      posicion={idx >= 0 ? { n: idx + 1, total: filtrados.length } : null}
-      onAnterior={idx > 0 ? () => mover(-1) : undefined} onSiguiente={idx >= 0 && idx < filtrados.length - 1 ? () => mover(1) : undefined}
-      onCerrar={cerrarPanel} onActualizar={onActualizarProducto} onEliminar={(p) => { setSeleccion(null); onEliminarProducto?.(p.id); }}
-      onAgregarAlPedido={agregarAlPedido} onVerProveedor={verProveedor} onVerFoto={(i) => setFotoGrande(i)} />
-  ) : proveedorElegido ? (
-    <PanelProveedor proveedor={proveedorElegido} products={products} moneda={moneda} Foto={Foto} tLegacy={tLegacy} onCerrar={() => setProveedorSel(null)} onActualizar={onActualizarProveedor} onVerProducto={(p) => setSeleccion(p.id)} onArmarPedido={abrirPedidoDe} />
-  ) : null;
 
   // ── Acciones de la paleta ──
   const accionesPaleta = [
@@ -609,17 +586,11 @@ export function Escritorio({
           {seccion === "pedidos" && (
             <SeccionPedidos pedidos={orders} suppliers={suppliers} products={products} districts={districts} activeDistrictId={activeDistrictId} moneda={moneda} Foto={Foto} tLegacy={tLegacy}
               abierto={pedidoAbierto} onAbrir={abrirPedidoDe} onCerrar={() => setPedidoAbierto(null)} onGuardar={onGuardarPedido} onEnviar={onEnviarProforma}
-              onVerProducto={verProducto} onActualizarProducto={onActualizarProducto} onDescargarExcelFeria={onDescargarExcelFeria} />
+              onVerProducto={verProducto} onActualizarProducto={onActualizarProducto} onDescargarExcelFeria={onDescargarExcelFeria} onEliminar={onEliminarPedido} />
           )}
           {seccion === "exportar" && <div style={{ maxWidth: 720, margin: "0 auto", height: "100%" }}>{renderExportar?.(() => irA("catalogo"))}</div>}
           {seccion === "ajustes" && <div style={{ maxWidth: 720, margin: "0 auto", height: "100%" }}>{renderAjustes?.(() => irA("catalogo"), () => irA("exportar"))}</div>}
         </main>
-        {conPanel && (
-          <aside aria-label={hayVarios ? t("escritorio.elegidos", { count: seleccionados.size }) : fichaAbierta ? t("ficha.datos") : t("proveedor.datos")}
-            style={{ flex: fichaAbierta ? "0 0 46%" : "0 0 380px", minWidth: 0, overflowY: "auto", background: paleta.card, borderLeft: `1px solid ${paleta.border}`, position: "relative" }}>
-            {panel}
-          </aside>
-        )}
         {enCatalogo && hayVarios && (
           <BarraDeSeleccion cantidad={seleccionados.size} todosFavoritos={productosElegidos.every(p => p.favorito)} algunDescartado={productosElegidos.some(p => p.descartado)} proveedores={proveedores} categorias={categorias}
             onFavorito={accionFavorito} onProveedor={accionProveedor} onCategoria={accionCategoria} onAgregarAlPedido={accionPedido} onDescartar={accionDescartar} onRestaurar={accionRestaurar} onBorrar={accionBorrar} onCerrar={deseleccionar} />
@@ -633,7 +604,7 @@ export function Escritorio({
           <div onClick={e => e.stopPropagation()} style={{ width: 560, maxWidth: "92vw", background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, boxShadow: "0 24px 60px rgba(0,0,0,0.35)", padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ display: "flex", alignItems: "center" }}><h2 style={{ ...texto("titulo"), margin: 0, flex: 1 }}>{t("escritorio.atajosTitulo")}</h2>{botonRedondo("cerrar", t("comun.cerrar"), () => setAtajosAbiertos(false))}</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              {[["⌘K", "paleta"], ["← →", "navegar"], ["Espacio", "fotoGrande"], ["F", "favorito"], ["X", "descartar"], ["P", "pedido"], ["⇧ clic", "rango"], ["⌘A", "todos"], ["1 … 5", "secciones"], ["G / T", "vista"], ["[ ]", "paneles"], ["Esc", "cerrar"], ["?", "ayuda"]].map(([k, c]) => (
+              {[["⌘K", "paleta"], ["← →", "navegar"], ["F", "favorito"], ["X", "descartar"], ["P", "pedido"], ["⇧ clic", "rango"], ["⌘A", "todos"], ["1 … 5", "secciones"], ["G / T", "vista"], ["[ ]", "paneles"], ["Esc", "cerrar"], ["?", "ayuda"]].map(([k, c]) => (
                 <div key={c} style={{ display: "flex", alignItems: "center", gap: 10, background: paleta.bg, borderRadius: radios.chico, padding: "8px 10px", ...texto("pie"), color: paleta.muted }}><kbd style={{ fontFamily: "ui-monospace, monospace", fontSize: 12, background: paleta.card, border: `1px solid ${paleta.border}`, borderBottomWidth: 2, borderRadius: 5, padding: "1px 6px", color: paleta.text, whiteSpace: "nowrap" }}>{k}</kbd>{c === "paneles" ? `${t("escritorio.plegarLateral")} / ${t("escritorio.cerrarFicha")}` : t(`escritorio.atajo.${c}`)}</div>
               ))}
             </div>
@@ -641,24 +612,14 @@ export function Escritorio({
         </div>
       )}
 
-      {fotoGrande != null && elegido && (() => {
-        const fs = elegido.photos?.length ? elegido.photos : (elegido.photoUrls || []);
-        const i = Math.min(fotoGrande, Math.max(0, fs.length - 1));
-        return (
-          <div role="dialog" aria-modal="true" aria-label={elegido.name || t("ficha.producto")} onClick={() => setFotoGrande(null)} style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(5,8,15,0.94)", display: "grid", placeItems: "center" }}>
-            <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", padding: "56px 80px" }}><Miniatura p={elegido} i={i} Foto={Foto} tLegacy={tLegacy} paleta={paleta} estilo={{ objectFit: "contain", width: "100%", height: "100%" }} /></div>
-            <div style={{ position: "absolute", top: 0, left: 0, right: 0, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, color: "#fff" }} onClick={e => e.stopPropagation()}>
-              <span style={{ fontSize: 16, fontWeight: 600, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{elegido.name || t("catalogo.procesandoNombre")}{elegido.price ? <span style={{ fontWeight: 400, opacity: 0.8 }}> · {moneda} {elegido.price}</span> : null}</span>
-              {fs.length > 1 && <span style={{ fontSize: 13, opacity: 0.8 }}>{t("escritorio.fotoDe", { n: i + 1, total: fs.length })}</span>}
-              <button type="button" onClick={() => setFotoGrande(null)} aria-label={t("escritorio.cerrarFoto")} style={{ width: 40, height: 40, borderRadius: 20, border: "none", background: "rgba(255,255,255,0.15)", display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="cerrar" tamano={20} color="#fff" /></button>
-            </div>
-            {fs.length > 1 && (<>
-              <button type="button" onClick={e => { e.stopPropagation(); setFotoGrande((i - 1 + fs.length) % fs.length); }} aria-label={t("escritorio.fotoAnterior")} style={{ position: "absolute", left: 20, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: 22, border: "none", background: "rgba(255,255,255,0.15)", display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="anterior" tamano={22} color="#fff" /></button>
-              <button type="button" onClick={e => { e.stopPropagation(); setFotoGrande((i + 1) % fs.length); }} aria-label={t("escritorio.fotoSiguiente")} style={{ position: "absolute", right: 20, top: "50%", transform: "translateY(-50%)", width: 44, height: 44, borderRadius: 22, border: "none", background: "rgba(255,255,255,0.15)", display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="siguiente" tamano={22} color="#fff" /></button>
-            </>)}
-          </div>
-        );
-      })()}
+      {fichaAbierta && (
+        <VistaRapida producto={elegido} suppliers={suppliers} districts={districts} moneda={moneda} settings={settings} Foto={Foto} tLegacy={tLegacy}
+          posicion={idx >= 0 ? { n: idx + 1, total: filtrados.length } : null}
+          onAnterior={idx > 0 ? () => mover(-1) : undefined} onSiguiente={idx >= 0 && idx < filtrados.length - 1 ? () => mover(1) : undefined}
+          onCerrar={cerrarPanel} onActualizar={onActualizarProducto} onEliminar={(p) => { setSeleccion(null); onEliminarProducto?.(p.id); }}
+          onAgregarAlPedido={agregarAlPedido} onVerProveedor={verProveedor}
+          onFavorito={() => accionFavorito()} onDescartar={(p) => (p.descartado ? accionRestaurar() : accionDescartar())} />
+      )}
     </div>
   );
 }

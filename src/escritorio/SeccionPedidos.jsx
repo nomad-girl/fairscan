@@ -8,14 +8,15 @@ import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { Boton, Icono } from "../componentes/index.js";
 import { ArmarPedido } from "../pantallas/ArmarPedido.jsx";
-import { totalesDePedido, totalesDeFeria, proveedoresSinPedido } from "../lib/pedidos.js";
+import { totalesDePedido, totalesDeFeria } from "../lib/pedidos.js";
 import { numero as fNumero, cbm as fCbm, fechaCorta } from "../idiomas/formato.js";
 import { Miniatura } from "./util.jsx";
 
 export function SeccionPedidos({
   pedidos = [], suppliers = [], products = [], districts = [], activeDistrictId = null, moneda = "USD", Foto, tLegacy,
-  abierto = null, onAbrir, onCerrar, onGuardar, onEnviar, onVerProducto, onActualizarProducto, onDescargarExcelFeria,
+  abierto = null, onAbrir, onCerrar, onGuardar, onEnviar, onVerProducto, onActualizarProducto, onDescargarExcelFeria, onEliminar,
 }) {
+  const [confirmandoId, setConfirmandoId] = useState(null);
   const { t } = useTranslation();
   const { paleta, radios, texto } = useSistema();
   const [eligiendo, setEligiendo] = useState(false);
@@ -24,7 +25,10 @@ export function SeccionPedidos({
   const delaFeria = useMemo(() => pedidos.filter(o => activeDistrictId == null || o.districtId === activeDistrictId), [pedidos, activeDistrictId]);
   const conContenido = useMemo(() => delaFeria.filter(o => (o.items || []).some(i => Number(i.cantidad) > 0)).sort((a, b) => (b.actualizadoEl || b.enviadoEl || b.createdAt || 0) - (a.actualizadoEl || a.enviadoEl || a.createdAt || 0)), [delaFeria]);
   const tot = totalesDeFeria(conContenido, products);
-  const candidatos = useMemo(() => proveedoresSinPedido(suppliers, products, pedidos, activeDistrictId), [suppliers, products, pedidos, activeDistrictId]);
+  // Cualquier proveedor con productos en la feria (25/09: antes solo los que tenían favoritos y no tenían pedido, y la lista salía vacía)
+  const candidatos = useMemo(() => suppliers
+    .filter(s => (activeDistrictId == null || s.districtId === activeDistrictId) && products.some(p => p.supplierId === s.id))
+    .sort((a, b) => (a.company || "").localeCompare(b.company || "", "es")), [suppliers, products, activeDistrictId]);
   const dinero = (n) => `${moneda} ${fNumero(n, { maximumFractionDigits: 2 })}`;
 
   if (abierto) {
@@ -34,13 +38,14 @@ export function SeccionPedidos({
       return (
         <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
           <ArmarPedido supplier={supplier} pedido={pedido} products={products} moneda={moneda} feria={districts.find(d => d.id === pedido.districtId) || null} Foto={Foto} tLegacy={tLegacy} primero={abierto.primero || null}
-            onBack={onCerrar} onGuardar={(cambios) => onGuardar?.(pedido.id, cambios)} onEnviar={(via) => onEnviar?.(pedido, supplier, via)} onNavigateProduct={onVerProducto} onActualizarProducto={onActualizarProducto} />
+            onBack={onCerrar} onGuardar={(cambios) => onGuardar?.(pedido.id, cambios)} onEnviar={(via) => onEnviar?.(pedido, supplier, via)} onNavigateProduct={onVerProducto} onActualizarProducto={onActualizarProducto}
+            onEliminar={onEliminar ? () => { onEliminar(pedido.id); onCerrar?.(); } : undefined} />
         </div>
       );
     }
   }
 
-  const columnas = "minmax(180px, 1.4fr) minmax(120px, 1fr) 90px 100px 90px 120px minmax(140px, 1fr)";
+  const columnas = "minmax(180px, 1.4fr) minmax(120px, 1fr) 90px 100px 90px 120px minmax(140px, 1fr) 44px";
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "0 4px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -49,8 +54,8 @@ export function SeccionPedidos({
           ? <Boton variante="principal" icono="mas" onClick={() => setEligiendo(true)}>{t("escritorio.crearPedido")}</Boton>
           : (
             <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ ...texto("pie"), color: paleta.muted }}>{t("escritorio.elegirProveedor")}</span>
-              <select autoFocus defaultValue="" onChange={e => { const s = suppliers.find(x => x.id === Number(e.target.value)); setEligiendo(false); if (s) onAbrir?.(s); }} onBlur={() => setEligiendo(false)}
+              <span style={{ ...texto("pie"), color: paleta.muted }}>{t("escritorio.crearPedidoPista")}</span>
+              <select autoFocus defaultValue="" aria-label={t("escritorio.elegirProveedor")} onChange={e => { const s = suppliers.find(x => x.id === Number(e.target.value)); setEligiendo(false); if (s) onAbrir?.(s); }} onBlur={() => setEligiendo(false)}
                 style={{ minHeight: 36, borderRadius: radios.chico, border: `1px solid ${paleta.accent}`, background: paleta.card, color: paleta.text, fontFamily: "inherit", fontSize: 14, padding: "0 8px", minWidth: 220 }}>
                 <option value="" disabled>{t("escritorio.elegirProveedor")}</option>
                 {candidatos.map(s => <option key={s.id} value={s.id}>{s.company || `#${s.id}`}</option>)}
@@ -68,8 +73,8 @@ export function SeccionPedidos({
       ) : (
         <div role="table" aria-label={t("escritorio.pedidos")} style={{ background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, overflow: "auto" }}>
           <div role="row" style={{ display: "grid", gridTemplateColumns: columnas, gap: 8, padding: "8px 12px", borderBottom: `1px solid ${paleta.border}`, minWidth: 840 }}>
-            {[t("escritorio.columnaProveedor"), t("escritorio.columnaLineas"), t("escritorio.columnaBultos"), t("escritorio.columnaUnidades"), t("pedido.cbm"), t("escritorio.columnaTotal"), t("escritorio.columnaEstado")].map(h => (
-              <span key={h} role="columnheader" style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: paleta.dim, whiteSpace: "nowrap" }}>{h}</span>
+            {[t("escritorio.columnaProveedor"), t("escritorio.columnaLineas"), t("escritorio.columnaBultos"), t("escritorio.columnaUnidades"), t("pedido.cbm"), t("escritorio.columnaTotal"), t("escritorio.columnaEstado"), ""].map((h, k) => (
+              <span key={k} role="columnheader" style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: paleta.dim, whiteSpace: "nowrap" }}>{h}</span>
             ))}
           </div>
           {conContenido.map(o => {
@@ -91,6 +96,16 @@ export function SeccionPedidos({
                 <span role="cell" style={{ fontVariantNumeric: "tabular-nums" }}>{tp.cbm ? fCbm(tp.cbm) : "—"}</span>
                 <span role="cell" style={{ fontVariantNumeric: "tabular-nums", fontWeight: 600, color: tp.total ? paleta.green : paleta.dim }}>{tp.total ? dinero(tp.total) : "—"}</span>
                 <span role="cell" style={{ ...texto("pie"), color: o.estado === "enviado" ? paleta.green : paleta.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{estado}</span>
+                <span role="cell" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+                  {onEliminar && (confirmandoId === o.id ? (
+                    <span style={{ display: "inline-flex", gap: 4 }}>
+                      <button type="button" onClick={() => { setConfirmandoId(null); onEliminar(o.id); }} aria-label={t("escritorio.siBorrar")} title={t("escritorio.siBorrar")} style={{ minHeight: 30, padding: "0 8px", borderRadius: 999, border: "none", background: paleta.redSoft, color: paleta.red, fontFamily: "inherit", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{t("escritorio.siBorrar")}</button>
+                      <button type="button" onClick={() => setConfirmandoId(null)} aria-label={t("comun.cancelar")} style={{ width: 30, height: 30, borderRadius: 15, border: "none", background: "transparent", cursor: "pointer", display: "grid", placeItems: "center" }}><Icono nombre="cerrar" tamano={14} color={paleta.dim} /></button>
+                    </span>
+                  ) : (
+                    <button type="button" onClick={() => setConfirmandoId(o.id)} aria-label={`${t("escritorio.eliminarPedido")} · ${s?.company || ""}`.trim()} title={t("escritorio.eliminarPedido")} style={{ width: 32, height: 32, borderRadius: 16, border: "none", background: "transparent", cursor: "pointer", display: "grid", placeItems: "center" }}><Icono nombre="borrar" tamano={16} color={paleta.dim} /></button>
+                  ))}
+                </span>
               </div>
             );
           })}
@@ -102,6 +117,7 @@ export function SeccionPedidos({
             <span role="cell" style={{ fontVariantNumeric: "tabular-nums", fontWeight: 600 }}>{tot.cbm ? fCbm(tot.cbm) : "—"}</span>
             <span role="cell" style={{ fontVariantNumeric: "tabular-nums", fontWeight: 700, color: paleta.green }}>{tot.total ? dinero(tot.total) : "—"}</span>
             <span role="cell" style={{ ...texto("pie"), color: paleta.muted }}>{tot.cbm > 0 ? t("pedido.contenedor", { porcentaje: tot.porcentajeContenedor }) : ""}</span>
+            <span role="cell" />
           </div>
         </div>
       )}

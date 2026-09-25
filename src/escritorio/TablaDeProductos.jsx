@@ -23,7 +23,7 @@ export function TablaDeProductos({
   const { paleta, radios, texto } = useSistema();
   const empresaDe = (p) => suppliers.find(s => s.id === p.supplierId)?.company || p.supplierCompany || "";
   const visibles = (columnas || COLUMNAS_DEFAULT).filter(c => !(c === "piezasPorCaja" && settings?.datosDeCompra?.piezasPorCaja === false) && !(c === "cbmPorCaja" && settings?.datosDeCompra?.cbmPorCaja === false));
-  const plantilla = `28px 48px minmax(200px, 1.8fr) ${visibles.map(c => ANCHOS[c] || "110px").join(" ")}`;
+  const plantilla = `28px 84px minmax(200px, 1.8fr) ${visibles.map(c => ANCHOS[c] || "110px").join(" ")}`;
   const anchoMin = 380 + visibles.length * 110;
   const hay = seleccionados && seleccionados.size > 0;
   const todos = hay && productos.length > 0 && productos.every(p => seleccionados.has(p.id));
@@ -66,7 +66,7 @@ export function TablaDeProductos({
     }
   };
 
-  const fijaIzq = (i) => ({ position: "sticky", left: i === 0 ? 0 : i === 1 ? 38 : 88, zIndex: 1, background: "inherit" });
+  const fijaIzq = (i) => ({ position: "sticky", left: i === 0 ? 0 : i === 1 ? 38 : 130, zIndex: 1, background: "inherit" });
 
   return (
     <div role="table" aria-label={t("escritorio.catalogo")} className="fs-tabla" data-hay={hay ? "1" : "0"} style={{ background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, overflow: "auto" }}>
@@ -81,9 +81,9 @@ export function TablaDeProductos({
         const marcado = !!seleccionados?.has(p.id);
         return (
           <div key={p.id} role="row" aria-selected={elegido || marcado} onClick={(e) => onSeleccionar?.(p, e)} className="fs-fila" data-sel={marcado ? "1" : "0"}
-            style={{ display: "grid", gridTemplateColumns: plantilla, gap: 8, alignItems: "center", minHeight: 56, padding: "6px 12px", borderBottom: `1px solid ${paleta.border}`, background: marcado || elegido ? paleta.accentSoft : paleta.card, cursor: "pointer", minWidth: anchoMin, boxShadow: elegido ? `inset 3px 0 0 ${paleta.accent}` : "none", opacity: p.descartado ? 0.55 : 1, fontSize: 15 }}>
+            style={{ display: "grid", gridTemplateColumns: plantilla, gap: 8, alignItems: "center", minHeight: 88, padding: "6px 12px", borderBottom: `1px solid ${paleta.border}`, background: marcado || elegido ? paleta.accentSoft : paleta.card, cursor: "pointer", minWidth: anchoMin, boxShadow: elegido ? `inset 3px 0 0 ${paleta.accent}` : "none", opacity: p.descartado ? 0.55 : 1, fontSize: 15 }}>
             <span role="cell" className="fs-cb" style={fijaIzq(0)}>{casilla(marcado, (e) => onAlternar?.(p, e), `${t("escritorio.elegir")} ${p.name || ""}`.trim())}</span>
-            <span role="cell" style={{ ...fijaIzq(1), width: 44, height: 44, borderRadius: radios.chico, overflow: "hidden", background: paleta.surface, position: "sticky" }}>
+            <span role="cell" style={{ ...fijaIzq(1), width: 76, height: 76, borderRadius: radios.medio, overflow: "hidden", background: paleta.surface, position: "sticky" }}>
               <Miniatura p={p} Foto={Foto} tLegacy={tLegacy} paleta={paleta} />
               {p.favorito ? <span style={{ position: "absolute", top: 2, right: 2 }}><Icono nombre="favorito" tamano={11} color="#fff" /></span> : null}
             </span>

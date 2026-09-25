@@ -693,7 +693,14 @@
     "desplegarVistas": "Mostrar las vistas",
     "cerrarFicha": "Cerrar la ficha",
     "pistaPrimeraVez": "⌘K busca todo y hace · ? muestra los atajos",
-    "estadoDatos": "Estado de los datos"
+    "estadoDatos": "Estado de los datos",
+    "cerrarVistaRapida": "Cerrar la vista rápida",
+    "volverAProveedores": "Proveedores",
+    "datosDelProveedor": "Datos del proveedor",
+    "eliminarPedido": "Eliminar pedido",
+    "eliminarPedidoSeguro": "¿Eliminar el pedido de {{empresa}}? Los productos no se tocan.",
+    "pedidoEliminado": "Pedido eliminado",
+    "crearPedidoPista": "Elegí el proveedor: si ya tiene un pedido, se abre ese."
   },
   "datos": {
     "sinCuenta": "Sin cuenta · lo tuyo queda solo en este dispositivo",

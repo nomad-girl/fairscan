@@ -3,8 +3,11 @@
  * proveedor"). Una hoja por proveedor: foto en la celda (fórmula IMAGE, como el export
  * general), cantidades y las cuentas como fórmulas, así si en la planilla cambian un 10
  * por un 12 se recalcula. El Excel es la salida, no el lugar de trabajo.
+ * 25/09: la foto va pegada en la celda (bytes en el archivo), no como fórmula =IMAGE: en Excel viejo,
+ * Numbers y la vista previa del Mac la fórmula salía vacía. El link queda en la última columna.
  */
 import { totalesDePedido } from "./pedidos.js";
+import { imagenDeProducto, pegarImagenEnCelda } from "./imagenesExcel.js";
 
 const TIPO_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const urlDeFoto = (p) => (p?.photoUrls || []).find(u => typeof u === "string" && u.startsWith("http")) || null;
@@ -24,14 +27,14 @@ function nombreDeHoja(wb, base) {
   return nombre;
 }
 
-function hojaDeProveedor(wb, { pedido, proveedor, productos, moneda = "USD", feria = null, t }) {
+async function hojaDeProveedor(wb, { pedido, proveedor, productos, moneda = "USD", feria = null, t, cacheImagenes = new Map() }) {
   const ws = wb.addWorksheet(nombreDeHoja(wb, proveedor?.company));
   ws.addRow([`${t("pedido.proformaTitulo")} · ${proveedor?.company || ""}`.trim()]).font = { bold: true, size: 14 };
   if (proveedor?.contact) ws.addRow([`${t("pedido.atencion")}: ${proveedor.contact}`]);
   if (feria?.name) ws.addRow([feria.name]);
   ws.addRow([new Date().toLocaleDateString()]);
   ws.addRow([]);
-  const cab = ws.addRow([t("pedido.foto"), t("pedido.producto"), `${t("pedido.precio")} (${moneda})`, t("pedido.piezasPorCaja"), t("pedido.bultos"), t("pedido.unidades"), t("pedido.cbmPorCaja"), t("pedido.cbm"), `${t("pedido.total")} (${moneda})`]);
+  const cab = ws.addRow([t("pedido.foto"), t("pedido.producto"), `${t("pedido.precio")} (${moneda})`, t("pedido.piezasPorCaja"), t("pedido.bultos"), t("pedido.unidades"), t("pedido.cbmPorCaja"), t("pedido.cbm"), `${t("pedido.total")} (${moneda})`, t("pedido.foto") + " (link)"]);
   cab.font = { bold: true };
 
   const tot = totalesDePedido(pedido, productos);
@@ -41,7 +44,7 @@ function hojaDeProveedor(wb, { pedido, proveedor, productos, moneda = "USD", fer
     const url = urlDeFoto(l.producto);
     const cbmCaja = l.producto.cbmPorCaja != null && l.producto.cbmPorCaja !== "" ? Number(String(l.producto.cbmPorCaja).replace(",", ".")) : null;
     const fila = ws.addRow([
-      url ? { formula: `IMAGE("${url}")` } : "",
+      "",
       l.producto.name || "",
       l.precio ?? "",
       l.piezas ?? "",
@@ -50,9 +53,12 @@ function hojaDeProveedor(wb, { pedido, proveedor, productos, moneda = "USD", fer
       cbmCaja ?? "",
       l.porCaja && cbmCaja != null ? { formula: `E${r}*G${r}` } : "",
       l.precio != null ? { formula: `C${r}*F${r}` } : "",
+      url ? { text: url, hyperlink: url } : "",
     ]);
     fila.height = 64;
     fila.alignment = { vertical: "middle", wrapText: true };
+    const imagen = await imagenDeProducto(l.producto, { cache: cacheImagenes });
+    pegarImagenEnCelda(wb, ws, imagen, { col: 0, fila: r - 1, ancho: 78, alto: 78 });
   }
   const ultima = ws.rowCount;
   if (ultima >= primera) {
@@ -64,20 +70,21 @@ function hojaDeProveedor(wb, { pedido, proveedor, productos, moneda = "USD", fer
     ws.addRow([t("pedido.comentarios")]).font = { bold: true };
     ws.addRow([pedido.comentarios]);
   }
-  [14, 36, 12, 12, 10, 12, 12, 12, 14].forEach((ancho, i) => { ws.getColumn(i + 1).width = ancho; });
+  [15, 36, 12, 12, 10, 12, 12, 12, 14, 40].forEach((ancho, i) => { ws.getColumn(i + 1).width = ancho; });
   return ws;
 }
 
 /** La proforma de un proveedor: un archivo, una hoja. */
 export async function excelDeProforma(args) {
   const wb = await libro();
-  hojaDeProveedor(wb, args);
+  await hojaDeProveedor(wb, args);
   return new Blob([await wb.xlsx.writeBuffer()], { type: TIPO_XLSX });
 }
 
 /** Todos los pedidos de una feria: una hoja resumen y una por proveedor. */
 export async function excelDeFeria({ pedidos = [], suppliers = [], productos = [], moneda = "USD", feria = null, t }) {
   const wb = await libro();
+  const cacheImagenes = new Map();
   const resumen = wb.addWorksheet(t("pedidos.titulo"));
   resumen.addRow([`${t("pedidos.titulo")}${feria?.name ? ` · ${feria.name}` : ""}`]).font = { bold: true, size: 14 };
   resumen.addRow([]);
@@ -88,7 +95,7 @@ export async function excelDeFeria({ pedidos = [], suppliers = [], productos = [
     const tot = totalesDePedido(pedido, productos);
     if (tot.vacio) continue;
     resumen.addRow([proveedor?.company || "", tot.bultos, tot.unidades, tot.cbm, tot.total]);
-    hojaDeProveedor(wb, { pedido, proveedor, productos, moneda, feria, t });
+    await hojaDeProveedor(wb, { cacheImagenes, pedido, proveedor, productos, moneda, feria, t });
   }
   const ultima = resumen.rowCount;
   if (ultima >= primera) {
