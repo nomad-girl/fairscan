@@ -207,6 +207,36 @@ describe("El escritorio (la versión de computadora)", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
+  it("campos propios: se crea desde Columnas, aparece como columna y la celda guarda en extras", async () => {
+    const onActualizar = vi.fn();
+    con(<Escritorio {...base({ equipoId: "equipo-1", onActualizarProducto: onActualizar })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Ver en tabla" }));
+    fireEvent.click(screen.getByRole("button", { name: /Columnas/ }));
+    fireEvent.click(screen.getByRole("button", { name: "+ Campo nuevo" }));
+    fireEvent.change(screen.getByLabelText("Nombre del campo"), { target: { value: "Código interno" } });
+    fireEvent.submit(screen.getByLabelText("Nombre del campo").closest("form"));
+    await screen.findByRole("columnheader", { name: /Código interno/ });
+    fireEvent.keyDown(window, { key: "Escape" });
+    const celda = screen.getByLabelText("Editar Código interno de Taza de cerámica");
+    fireEvent.click(celda);
+    fireEvent.change(screen.getByLabelText("Editar Código interno de Taza de cerámica"), { target: { value: "TZ-01" } });
+    fireEvent.keyDown(screen.getByLabelText("Editar Código interno de Taza de cerámica"), { key: "Enter" });
+    expect(onActualizar).toHaveBeenCalledWith(1, { extras: { codigo_interno: "TZ-01" } });
+    expect(JSON.parse(localStorage.getItem("fairscan.camposPropios.equipo-1"))[0].nombre).toBe("Código interno");
+  });
+
+  it("abrir un producto desde un pedido no se va del pedido", async () => {
+    const orders = [{ id: 5, supplierId: 10, districtId: 1, estado: "en_curso", items: [{ productId: 1, cantidad: 10 }] }];
+    con(<Escritorio {...base({ orders, onPedidoPara: vi.fn(async () => orders[0]) })} />);
+    fireEvent.click(within(nav()).getByText("Pedidos"));
+    fireEvent.click(screen.getByText("Yiwu Sunrise"));
+    await screen.findByRole("heading", { level: 1, name: /Pedido · Yiwu Sunrise/ });
+    fireEvent.click(screen.getAllByRole("button", { name: "Ver producto" })[0]);
+    expect(screen.getByRole("dialog", { name: /Taza de cerámica|Vela de soja/ })).toBeTruthy();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.getByRole("heading", { level: 1, name: /Pedido · Yiwu Sunrise/ })).toBeTruthy(); // sigue en el pedido
+  });
+
   it("la pista de la primera vez se ve una vez y se cierra para siempre", () => {
     localStorage.removeItem("fairscan.escritorio.bienvenida");
     con(<Escritorio {...base()} />);

@@ -700,7 +700,18 @@
     "eliminarPedido": "Eliminar pedido",
     "eliminarPedidoSeguro": "¿Eliminar el pedido de {{empresa}}? Los productos no se tocan.",
     "pedidoEliminado": "Pedido eliminado",
-    "crearPedidoPista": "Elegí el proveedor: si ya tiene un pedido, se abre ese."
+    "crearPedidoPista": "Elegí el proveedor: si ya tiene un pedido, se abre ese.",
+    "fotos": "Fotos",
+    "tabla": "Tabla",
+    "camposPropios": "Campos propios",
+    "nuevoCampo": "+ Campo nuevo",
+    "nombreDelCampo": "Nombre del campo",
+    "tipoTexto": "Texto",
+    "tipoNumero": "Número",
+    "crearCampo": "Crear",
+    "borrarCampo": "Borrar el campo {{nombre}}",
+    "borrarCampoSeguro": "¿Borrar el campo “{{nombre}}”? Los valores cargados dejan de verse.",
+    "fotoGrande": "Foto grande"
   },
   "datos": {
     "sinCuenta": "Sin cuenta · lo tuyo queda solo en este dispositivo",

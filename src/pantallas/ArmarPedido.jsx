@@ -121,14 +121,14 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
           <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", gap: 20, alignItems: "flex-start" }}>
             <div style={{ flex: 2, minWidth: 0, background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, overflow: "auto" }}>
               <div role="table" aria-label={t("pedido.titulo")}>
-                <div role="row" style={{ display: "grid", gridTemplateColumns: "52px minmax(140px, 1fr) 84px 72px 78px 148px 78px 78px 96px", gap: 8, padding: "10px 12px", borderBottom: `1px solid ${paleta.border}`, ...texto("pie", { fontWeight: 600 }), color: paleta.dim, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <div role="row" style={{ display: "grid", gridTemplateColumns: "92px minmax(140px, 1fr) 84px 72px 78px 148px 78px 78px 96px", gap: 8, padding: "10px 12px", borderBottom: `1px solid ${paleta.border}`, ...texto("pie", { fontWeight: 600 }), color: paleta.dim, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                   {[t("pedido.foto"), t("pedido.producto"), t("pedido.precio"), t("pedido.piezasPorCaja"), t("pedido.cbmPorCaja"), t("pedido.cantidad"), t("pedido.unidades"), t("pedido.cbm"), t("pedido.total")].map(h => <span key={h} role="columnheader">{h}</span>)}
                 </div>
                 {suyos.map(p => {
                   const cant = cantidadDe(pedido, p.id); const l = lineaDePedido(p, cant);
                   return (
-                    <div key={p.id} role="row" style={{ display: "grid", gridTemplateColumns: "52px minmax(140px, 1fr) 84px 72px 78px 148px 78px 78px 96px", gap: 8, alignItems: "center", padding: "8px 12px", borderBottom: `1px solid ${paleta.border}`, background: cant > 0 ? paleta.accentSoft : "transparent", ...texto("cuerpo", { fontWeight: 400 }), fontVariantNumeric: "tabular-nums" }}>
-                      <button type="button" onClick={() => onNavigateProduct?.(p)} aria-label={t("pedido.verProducto")} style={{ padding: 0, border: "none", background: "none", cursor: "pointer" }}>{miniatura(p, 56)}</button>
+                    <div key={p.id} role="row" style={{ display: "grid", gridTemplateColumns: "92px minmax(140px, 1fr) 84px 72px 78px 148px 78px 78px 96px", gap: 8, alignItems: "center", padding: "8px 12px", borderBottom: `1px solid ${paleta.border}`, background: cant > 0 ? paleta.accentSoft : "transparent", ...texto("cuerpo", { fontWeight: 400 }), fontVariantNumeric: "tabular-nums" }}>
+                      <button type="button" onClick={() => onNavigateProduct?.(p)} aria-label={t("pedido.verProducto")} style={{ padding: 0, border: "none", background: "none", cursor: "pointer" }}>{miniatura(p, 84)}</button>
                       <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: 500 }}>{p.favorito ? <><Icono nombre="favorito" tamano={12} color={paleta.accentTexto} /> </> : null}{p.name || t("pedido.sinNombre")}</span>
                       {/* En el escritorio (23/09) el precio, las piezas y el CBM se corrigen en la misma fila, sin salir del pedido */}
                       {onActualizarProducto

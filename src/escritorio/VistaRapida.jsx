@@ -11,18 +11,22 @@ import { Boton, Campo, Segmentado, Icono } from "../componentes/index.js";
 import { haceCuanto } from "../idiomas/formato.js";
 import { respaldoDe } from "../lib/miniaturas.js";
 import { Miniatura } from "./util.jsx";
+import { PREFIJO_EXTRA, cambioDeExtra } from "./camposPersonalizados.js";
 
 export function VistaRapida({
   producto: p, suppliers = [], districts = [], moneda = "USD", settings, Foto, tLegacy,
   posicion = null, onAnterior, onSiguiente, onCerrar,
-  onActualizar, onEliminar, onAgregarAlPedido, onVerProveedor, onFavorito, onDescartar,
+  onActualizar, onEliminar, onAgregarAlPedido, onVerProveedor, onFavorito, onDescartar, camposPropios = [],
 }) {
   const { t } = useTranslation();
   const { paleta, radios, texto } = useSistema();
   const [foto, setFoto] = useState(0);
   const [confirmando, setConfirmando] = useState(false);
   const [editandoNombre, setEditandoNombre] = useState(false);
-  useEffect(() => { setFoto(0); setConfirmando(false); setEditandoNombre(false); }, [p?.id]);
+  const [fotoGrande, setFotoGrande] = useState(false);
+  useEffect(() => { setFoto(0); setConfirmando(false); setEditandoNombre(false); setFotoGrande(false); }, [p?.id]);
+  // Esc: primero cierra la foto grande, después la vista rápida (la maneja el escritorio)
+  useEffect(() => { if (!fotoGrande) return; const al = (e) => { if (e.key === "Escape") { e.stopPropagation(); setFotoGrande(false); } }; window.addEventListener("keydown", al, true); return () => window.removeEventListener("keydown", al, true); }, [fotoGrande]);
   if (!p) return null;
 
   const guardar = (cambios) => onActualizar?.(p.id, cambios);
@@ -49,7 +53,7 @@ export function VistaRapida({
       style={{ position: "fixed", inset: 0, zIndex: 58, background: "rgba(5,8,15,0.92)", display: "flex" }}>
       {/* La foto, protagonista */}
       <div style={{ flex: 1, minWidth: 0, position: "relative", display: "grid", placeItems: "center", padding: "64px 84px 96px" }}>
-        <div onClick={e => e.stopPropagation()} style={{ width: "100%", height: "100%", display: "grid", placeItems: "center" }}>
+        <div onClick={e => { e.stopPropagation(); if (fotos.length) setFotoGrande(true); }} title={fotos.length ? t("escritorio.fotoGrande") : undefined} style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", cursor: fotos.length ? "zoom-in" : "default" }}>
           {fotos.length ? <Miniatura p={p} i={i} completa Foto={Foto} tLegacy={tLegacy} paleta={paleta} estilo={{ objectFit: "contain", width: "100%", height: "100%", borderRadius: 8 }} />
             : <div style={{ color: "rgba(255,255,255,0.6)", display: "grid", placeItems: "center", gap: 8 }}><Icono nombre="foto" tamano={48} color="rgba(255,255,255,0.6)" /><span>{t("ficha.sinFoto")}</span></div>}
         </div>
@@ -78,7 +82,7 @@ export function VistaRapida({
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {chip("favorito", p.favorito ? t("escritorio.quitarFavorito") : t("escritorio.favorito"), () => (onFavorito ? onFavorito(p) : guardar({ favorito: p.favorito ? 0 : 1 })), !!p.favorito)}
             {chip(p.descartado ? "reintentar" : "ojoCerrado", p.descartado ? t("escritorio.restaurar") : t("escritorio.descartar"), () => (onDescartar ? onDescartar(p) : guardar({ descartado: p.descartado ? 0 : 1 })), !!p.descartado)}
-            {chip("expandir", t("escritorio.verFotoGrande"), () => window.open?.(fotos[i], "_blank", "noopener"))}
+            {fotos.length > 0 && chip("expandir", t("escritorio.fotoGrande"), () => setFotoGrande(true))}
           </div>
         </div>
 
@@ -118,6 +122,9 @@ export function VistaRapida({
               {[...suppliers].sort((a, b) => (a.company || "").localeCompare(b.company || "")).map(s => <option key={s.id} value={s.id}>{s.company || `#${s.id}`}</option>)}
             </select>
           </label>
+          {camposPropios.map(c => (
+            <Campo key={c.id} etiqueta={c.nombre} valor={p.extras?.[c.clave]} tipo={c.tipo === "numero" ? "numero" : "texto"} onChange={v => guardar(cambioDeExtra(p, `${PREFIJO_EXTRA}${c.clave}`, v, c.tipo))} />
+          ))}
           <Campo etiqueta={t("ficha.notas")} valor={p.notes} onChange={v => guardar({ notes: v })} multilinea apilado />
 
           <div style={{ marginTop: 18 }}>
@@ -136,6 +143,20 @@ export function VistaRapida({
           </div>
         </div>
       </aside>
+
+      {fotoGrande && fotos.length > 0 && (
+        <div role="dialog" aria-modal="true" aria-label={t("escritorio.fotoGrande")} onClick={e => { e.stopPropagation(); setFotoGrande(false); }} style={{ position: "fixed", inset: 0, zIndex: 62, background: "rgba(0,0,0,0.96)", display: "grid", placeItems: "center", padding: 24, cursor: "zoom-out" }}>
+          <Miniatura p={p} i={i} completa Foto={Foto} tLegacy={tLegacy} paleta={paleta} estilo={{ objectFit: "contain", width: "100%", height: "100%" }} />
+          <button type="button" onClick={e => { e.stopPropagation(); setFotoGrande(false); }} aria-label={t("escritorio.cerrarFoto")} title={`${t("escritorio.cerrarFoto")} · Esc`} style={{ position: "absolute", top: 14, right: 16, width: 44, height: 44, borderRadius: 22, border: "none", background: "rgba(255,255,255,0.14)", display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="cerrar" tamano={20} color="#fff" /></button>
+          {fotos.length > 1 && (
+            <div style={{ position: "absolute", left: 0, right: 0, bottom: 16, display: "flex", justifyContent: "center", gap: 8 }} onClick={e => e.stopPropagation()}>
+              <button type="button" onClick={() => setFoto((i - 1 + fotos.length) % fotos.length)} aria-label={t("escritorio.fotoAnterior")} style={{ width: 40, height: 40, borderRadius: 20, border: "none", background: "rgba(255,255,255,0.14)", display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="anterior" tamano={18} color="#fff" /></button>
+              <span style={{ color: "#fff", fontSize: 13, alignSelf: "center", opacity: 0.85 }}>{t("escritorio.fotoDe", { n: i + 1, total: fotos.length })}</span>
+              <button type="button" onClick={() => setFoto((i + 1) % fotos.length)} aria-label={t("escritorio.fotoSiguiente")} style={{ width: 40, height: 40, borderRadius: 20, border: "none", background: "rgba(255,255,255,0.14)", display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="siguiente" tamano={18} color="#fff" /></button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

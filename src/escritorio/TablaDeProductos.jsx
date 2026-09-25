@@ -10,6 +10,7 @@ import { Icono, Celda } from "../componentes/index.js";
 import { haceCuanto } from "../idiomas/formato.js";
 import { Miniatura } from "./util.jsx";
 import { COLUMNAS_DEFAULT } from "./filtros.js";
+import { esExtra, claveExtra, PREFIJO_EXTRA } from "./camposPersonalizados.js";
 
 const ANCHOS = { proveedor: "minmax(150px, 1fr)", price: "110px", moq: "90px", piezasPorCaja: "100px", cbmPorCaja: "100px", category: "minmax(120px, 0.9fr)", material: "minmax(130px, 0.9fr)", createdAt: "110px", notes: "minmax(160px, 1.2fr)" };
 const ORDENABLES = new Set(["name", "proveedor", "price", "moq", "piezasPorCaja", "cbmPorCaja", "category", "createdAt"]);
@@ -17,18 +18,19 @@ const ORDENABLES = new Set(["name", "proveedor", "price", "moq", "piezasPorCaja"
 export function TablaDeProductos({
   productos = [], suppliers = [], moneda = "USD", settings, Foto, tLegacy,
   seleccionado = null, seleccionados = null, orden = { campo: "createdAt", dir: "desc" }, columnas = null,
-  onSeleccionar, onAlternar, onAlternarTodos, onOrden, onActualizar,
+  onSeleccionar, onAlternar, onAlternarTodos, onOrden, onActualizar, camposPropios = [],
 }) {
   const { t } = useTranslation();
   const { paleta, radios, texto } = useSistema();
   const empresaDe = (p) => suppliers.find(s => s.id === p.supplierId)?.company || p.supplierCompany || "";
   const visibles = (columnas || COLUMNAS_DEFAULT).filter(c => !(c === "piezasPorCaja" && settings?.datosDeCompra?.piezasPorCaja === false) && !(c === "cbmPorCaja" && settings?.datosDeCompra?.cbmPorCaja === false));
-  const plantilla = `28px 84px minmax(200px, 1.8fr) ${visibles.map(c => ANCHOS[c] || "110px").join(" ")}`;
+  const plantilla = `28px 112px minmax(200px, 1.8fr) ${visibles.map(c => ANCHOS[c] || "120px").join(" ")}`;
   const anchoMin = 380 + visibles.length * 110;
   const hay = seleccionados && seleccionados.size > 0;
   const todos = hay && productos.length > 0 && productos.every(p => seleccionados.has(p.id));
 
-  const etiquetaCol = (c) => ({ name: t("escritorio.columnaProducto"), proveedor: t("escritorio.columnaProveedor"), price: `${t("escritorio.columnaPrecio")} ${moneda}`, moq: t("escritorio.columnaMoq"), piezasPorCaja: t("escritorio.columnaPiezas"), cbmPorCaja: t("escritorio.columnaCbm"), category: t("escritorio.columnaCategoria"), material: t("ficha.materiales"), createdAt: t("escritorio.columnaFecha"), notes: t("ficha.notas") }[c] || c);
+  const propio = (c) => camposPropios.find(x => `${PREFIJO_EXTRA}${x.clave}` === c);
+  const etiquetaCol = (c) => esExtra(c) ? (propio(c)?.nombre || claveExtra(c)) : ({ name: t("escritorio.columnaProducto"), proveedor: t("escritorio.columnaProveedor"), price: `${t("escritorio.columnaPrecio")} ${moneda}`, moq: t("escritorio.columnaMoq"), piezasPorCaja: t("escritorio.columnaPiezas"), cbmPorCaja: t("escritorio.columnaCbm"), category: t("escritorio.columnaCategoria"), material: t("ficha.materiales"), createdAt: t("escritorio.columnaFecha"), notes: t("ficha.notas") }[c] || c);
 
   const cabecera = (c, etiqueta) => {
     const activa = orden?.campo === c;
@@ -62,11 +64,14 @@ export function TablaDeProductos({
       case "material": return <span role="cell" key={c} style={{ ...texto("pie"), color: paleta.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", padding: "0 6px" }}>{Array.isArray(p.material) ? p.material.join(", ") : (p.material || "—")}</span>;
       case "createdAt": return <span role="cell" key={c} style={{ ...texto("pie"), color: paleta.dim, whiteSpace: "nowrap", padding: "0 6px" }}>{haceCuanto(p.createdAt)}</span>;
       case "notes": return <span role="cell" key={c}><Celda id={p.id} nombre={p.name} campo="notes" etiqueta={t("ficha.notas")} valor={p.notes} onGuardar={onActualizar} /></span>;
-      default: return <span role="cell" key={c} />;
+      default: {
+        if (esExtra(c)) { const def = propio(c); return <span role="cell" key={c}><Celda id={p.id} nombre={p.name} campo={c} etiqueta={def?.nombre || claveExtra(c)} valor={p.extras?.[claveExtra(c)]} numerico={def?.tipo === "numero"} alineado={def?.tipo === "numero" ? "right" : "left"} onGuardar={onActualizar} /></span>; }
+        return <span role="cell" key={c} />;
+      }
     }
   };
 
-  const fijaIzq = (i) => ({ position: "sticky", left: i === 0 ? 0 : i === 1 ? 38 : 130, zIndex: 1, background: "inherit" });
+  const fijaIzq = (i) => ({ position: "sticky", left: i === 0 ? 0 : i === 1 ? 38 : 158, zIndex: 1, background: "inherit" });
 
   return (
     <div role="table" aria-label={t("escritorio.catalogo")} className="fs-tabla" data-hay={hay ? "1" : "0"} style={{ background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, overflow: "auto" }}>
@@ -81,9 +86,9 @@ export function TablaDeProductos({
         const marcado = !!seleccionados?.has(p.id);
         return (
           <div key={p.id} role="row" aria-selected={elegido || marcado} onClick={(e) => onSeleccionar?.(p, e)} className="fs-fila" data-sel={marcado ? "1" : "0"}
-            style={{ display: "grid", gridTemplateColumns: plantilla, gap: 8, alignItems: "center", minHeight: 88, padding: "6px 12px", borderBottom: `1px solid ${paleta.border}`, background: marcado || elegido ? paleta.accentSoft : paleta.card, cursor: "pointer", minWidth: anchoMin, boxShadow: elegido ? `inset 3px 0 0 ${paleta.accent}` : "none", opacity: p.descartado ? 0.55 : 1, fontSize: 15 }}>
+            style={{ display: "grid", gridTemplateColumns: plantilla, gap: 8, alignItems: "center", minHeight: 118, padding: "7px 12px", borderBottom: `1px solid ${paleta.border}`, background: marcado || elegido ? paleta.accentSoft : paleta.card, cursor: "pointer", minWidth: anchoMin, boxShadow: elegido ? `inset 3px 0 0 ${paleta.accent}` : "none", opacity: p.descartado ? 0.55 : 1, fontSize: 15 }}>
             <span role="cell" className="fs-cb" style={fijaIzq(0)}>{casilla(marcado, (e) => onAlternar?.(p, e), `${t("escritorio.elegir")} ${p.name || ""}`.trim())}</span>
-            <span role="cell" style={{ ...fijaIzq(1), width: 76, height: 76, borderRadius: radios.medio, overflow: "hidden", background: paleta.surface, position: "sticky" }}>
+            <span role="cell" style={{ ...fijaIzq(1), width: 104, height: 104, borderRadius: radios.medio, overflow: "hidden", background: paleta.surface, position: "sticky" }}>
               <Miniatura p={p} Foto={Foto} tLegacy={tLegacy} paleta={paleta} />
               {p.favorito ? <span style={{ position: "absolute", top: 2, right: 2 }}><Icono nombre="favorito" tamano={11} color="#fff" /></span> : null}
             </span>

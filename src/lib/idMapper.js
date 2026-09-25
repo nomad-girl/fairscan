@@ -127,6 +127,7 @@ class IdMapper {
       cloud.pieces_per_carton = localRecord.piezasPorCaja ?? null;
       cloud.cbm_per_carton = localRecord.cbmPorCaja ?? null;
       cloud.discarded = !!localRecord.descartado;                 // escritorio, tanda A (25/09): descartar no borra
+      cloud.extras = localRecord.extras && typeof localRecord.extras === "object" ? localRecord.extras : {}; // campos propios del equipo (25/09)
     }
 
     return cloud;
@@ -206,6 +207,7 @@ class IdMapper {
       local.piezasPorCaja = cloudRecord.pieces_per_carton ?? null;
       local.cbmPorCaja = cloudRecord.cbm_per_carton ?? null;
       local.descartado = cloudRecord.discarded ? 1 : 0;
+      local.extras = cloudRecord.extras && typeof cloudRecord.extras === "object" ? cloudRecord.extras : {};
     }
 
     return local;
