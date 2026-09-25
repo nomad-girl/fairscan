@@ -4,6 +4,8 @@ apply plugin: 'com.android.application'
 // que NO se commitea. Ver android/keystore.properties.example para crearlo.
 def keystoreProps = new Properties()
 def keystoreFile = rootProject.file('keystore.properties')
+// 25/09: si no está acá, se busca en ~/.fairscan/keystore.properties (fuera del repo Y fuera de iCloud, decisión del roadmap A1).
+if (!keystoreFile.exists()) keystoreFile = new File(System.getProperty('user.home'), '.fairscan/keystore.properties')
 if (keystoreFile.exists()) keystoreProps.load(new FileInputStream(keystoreFile))
 
 android {
