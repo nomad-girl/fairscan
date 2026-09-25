@@ -103,7 +103,7 @@ export function ordenarProductos(productos = [], orden = { campo: "createdAt", d
 /** Las que no se pueden apagar y quedan fijas a la izquierda. */
 export const COLUMNAS_FIJAS = ["foto", "name"];
 export const COLUMNAS_OPCIONALES = ["proveedor", "price", "moq", "piezasPorCaja", "cbmPorCaja", "category", "material", "createdAt", "notes"];
-export const COLUMNAS_DEFAULT = ["proveedor", "price", "moq", "piezasPorCaja", "cbmPorCaja", "category", "createdAt"];
+export const COLUMNAS_DEFAULT = ["proveedor", "price", "moq", "piezasPorCaja"];
 
 // ── Selección con Shift ──
 /** Los ids entre el último tocado y este, en el orden de la lista visible. */

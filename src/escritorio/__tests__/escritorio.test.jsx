@@ -34,11 +34,12 @@ describe("El escritorio (la versión de computadora)", () => {
   it("abre en el catálogo cuando hoy no llegó nada, con la barra lateral, las vistas de fábrica y las cuentas", () => {
     con(<Escritorio {...base()} />);
     expect(screen.getByRole("heading", { level: 1, name: "Catálogo" })).toBeTruthy();
-    expect(within(nav()).getByText("Catálogo").parentElement.textContent).toContain("3");
-    expect(within(nav()).getByText("Proveedores").parentElement.textContent).toContain("2");
+    expect(screen.getByLabelText("3 productos")).toBeTruthy();
+    expect(within(nav()).queryByTitle("Sin precio")).toBeNull(); // las vistas, plegadas de fábrica
+    fireEvent.click(within(nav()).getByRole("button", { name: "Mostrar las vistas" }));
     expect(within(nav()).getByTitle("Sin precio").textContent).toContain("1");
     expect(within(nav()).getByTitle("Favoritos").textContent).toContain("1");
-    expect(screen.getByText("Elegí un producto para ver sus datos")).toBeTruthy();
+    expect(screen.queryByRole("complementary")).toBeNull(); // el panel no existe hasta que hay algo
   });
 
   it("abre en Revisar el día cuando hay fotos de hoy", () => {
@@ -53,11 +54,14 @@ describe("El escritorio (la versión de computadora)", () => {
     con(<Escritorio {...base()} />);
     fireEvent.click(screen.getByRole("button", { name: "Taza de cerámica" }));
     const panel = screen.getByRole("complementary");
+    expect(panel.style.flex).toContain("46%"); // la ficha toma protagonismo
+    expect(within(nav()).queryByText("Proveedores")).toBeNull(); // la barra lateral se plegó sola
     expect(within(panel).getByText("1 de 3")).toBeTruthy();
     fireEvent.keyDown(window, { key: "ArrowRight" });
     expect(within(panel).getByText("2 de 3")).toBeTruthy();
     fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.getByText("Elegí un producto para ver sus datos")).toBeTruthy();
+    expect(screen.queryByRole("complementary")).toBeNull();
+    expect(within(nav()).getByText("Proveedores")).toBeTruthy(); // y volvió
   });
 
   it("el precio se edita en el panel y se guarda al salir", () => {
@@ -74,6 +78,7 @@ describe("El escritorio (la versión de computadora)", () => {
 
   it("la vista de fábrica 'Sin precio' deja solo la vela; el buscador encuentra por nombre y por '< 2'", () => {
     con(<Escritorio {...base()} />);
+    fireEvent.click(within(nav()).getByRole("button", { name: "Mostrar las vistas" }));
     fireEvent.click(within(nav()).getByTitle("Sin precio"));
     expect(screen.getByRole("heading", { level: 1, name: "Sin precio" })).toBeTruthy();
     expect(screen.getByLabelText("Editar Nombre de Vela de soja")).toBeTruthy(); // la vista es tabla
@@ -89,14 +94,16 @@ describe("El escritorio (la versión de computadora)", () => {
 
   it("'+ Filtro' agrega un chip; Quitar filtros lo saca; sin resultados ofrece quitar", () => {
     con(<Escritorio {...base()} />);
+    expect(screen.queryByRole("button", { name: "+ Filtro" })).toBeNull(); // detrás de Filtrar
+    fireEvent.click(screen.getByRole("button", { name: "Filtrar" }));
     fireEvent.click(screen.getByRole("button", { name: "+ Filtro" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Favorito" }));
-    expect(screen.getByText("1 producto")).toBeTruthy();
+    expect(screen.getByLabelText("1 producto")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "+ Filtro" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Sin precio" }));
     expect(screen.getByText("Nada con esos criterios")).toBeTruthy();
     fireEvent.click(screen.getAllByRole("button", { name: "Quitar filtros" })[0]);
-    expect(screen.getByText("3 productos")).toBeTruthy();
+    expect(screen.getByLabelText("3 productos")).toBeTruthy();
   });
 
   it("la tabla ordena por precio con la cabecera y deja lo vacío al final; 'Columnas' apaga una", () => {
@@ -133,10 +140,12 @@ describe("El escritorio (la versión de computadora)", () => {
     const conDescartado = products.map(p => (p.id === 3 ? { ...p, descartado: 1 } : p));
     con(<Escritorio {...base({ products: conDescartado, onActualizarVarios })} />);
     expect(screen.queryByRole("button", { name: "Tren de madera" })).toBeNull();
-    expect(screen.getByText(/1 descartado/)).toBeTruthy();
+    expect(screen.getByLabelText("2 productos")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Taza de cerámica" }));
     fireEvent.keyDown(window, { key: "x" });
     expect(onActualizarVarios).toHaveBeenCalledWith([1], { descartado: 1 });
+    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "Filtrar" }));
     fireEvent.click(screen.getByRole("button", { name: "+ Filtro" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Descartados" }));
     fireEvent.click(screen.getByRole("button", { name: "Solo descartados" }));
@@ -155,8 +164,10 @@ describe("El escritorio (la versión de computadora)", () => {
 
   it("guarda la vista actual con nombre y la muestra en la barra lateral", async () => {
     con(<Escritorio {...base({ equipoId: "equipo-1" })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Filtrar" }));
     fireEvent.click(screen.getByRole("button", { name: "+ Filtro" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Favorito" }));
+    fireEvent.click(within(nav()).getByRole("button", { name: "Mostrar las vistas" }));
     fireEvent.click(screen.getByRole("button", { name: "+ Guardar vista actual" }));
     fireEvent.change(screen.getByLabelText("Nombre de la vista"), { target: { value: "Para pedir · Yiwu" } });
     fireEvent.submit(screen.getByLabelText("Nombre de la vista").closest("form"));
@@ -185,7 +196,20 @@ describe("El escritorio (la versión de computadora)", () => {
     expect(onSwitch).toHaveBeenCalledWith(1);
   });
 
-  it("la franja de bienvenida se ve la primera vez y se cierra para siempre", () => {
+  it("la barra lateral se pliega con [ y se recuerda; ] cierra la ficha", () => {
+    con(<Escritorio {...base()} />);
+    fireEvent.keyDown(window, { key: "[" });
+    expect(within(nav()).queryByText("Proveedores")).toBeNull();
+    expect(within(nav()).getByLabelText("Proveedores")).toBeTruthy(); // queda el ícono con su nombre
+    expect(localStorage.getItem("fairscan.escritorio.lateral")).toBe("1");
+    fireEvent.keyDown(window, { key: "[" });
+    fireEvent.click(screen.getByRole("button", { name: "Taza de cerámica" }));
+    expect(screen.getByRole("complementary")).toBeTruthy();
+    fireEvent.keyDown(window, { key: "]" });
+    expect(screen.queryByRole("complementary")).toBeNull();
+  });
+
+  it("la pista de la primera vez se ve una vez y se cierra para siempre", () => {
     localStorage.removeItem("fairscan.escritorio.bienvenida");
     con(<Escritorio {...base()} />);
     expect(screen.getByRole("note")).toBeTruthy();
@@ -207,7 +231,7 @@ describe("El escritorio (la versión de computadora)", () => {
   it("sin cuenta: el aviso y el botón Entrar", () => {
     const onEntrar = vi.fn();
     con(<Escritorio {...base({ cuenta: { esAnonima: true }, onEntrar })} />);
-    expect(screen.getByText(/Sin cuenta, lo que hagas acá queda en este navegador/)).toBeTruthy();
+    expect(screen.getByText("Sin cuenta")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Entrar" }));
     expect(onEntrar).toHaveBeenCalled();
   });

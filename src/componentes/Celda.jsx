@@ -42,13 +42,13 @@ export function Celda({ id, campo, etiqueta, nombre = "", valor, mostrar, numeri
       <input ref={ref} type="text" inputMode={numerico ? "decimal" : "text"} value={borrador} aria-label={etiquetaAccesible}
         onChange={e => setBorrador(e.target.value)} onBlur={confirmar} onClick={e => e.stopPropagation()}
         onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); confirmar(); } if (e.key === "Escape") { setBorrador(valor ?? ""); setEditando(false); } e.stopPropagation(); }}
-        style={{ width: "100%", minWidth: 0, height: 30, borderRadius: radios.chico, border: `1px solid ${paleta.accent}`, background: paleta.surface, color: paleta.text, fontFamily: "inherit", fontSize: 13, padding: "0 6px", textAlign: alineado, outline: "none", fontVariantNumeric: "tabular-nums", ...estilo }} />
+        style={{ width: "100%", minWidth: 0, height: 36, borderRadius: radios.chico, border: `1px solid ${paleta.accent}`, background: paleta.surface, color: paleta.text, fontFamily: "inherit", fontSize: 15, padding: "0 6px", textAlign: alineado, outline: "none", fontVariantNumeric: "tabular-nums", ...estilo }} />
     );
   }
   return (
     <button type="button" onClick={e => { e.stopPropagation(); setEditando(true); }} aria-label={etiquetaAccesible} title={etiqueta}
       onMouseEnter={e => { e.currentTarget.style.borderColor = paleta.border; }} onMouseLeave={e => { e.currentTarget.style.borderColor = "transparent"; }}
-      style={{ width: "100%", minWidth: 0, height: 30, borderRadius: radios.chico, border: "1px solid transparent", background: guardado ? paleta.greenSoft : "transparent", color: vacio(valor) ? paleta.dim : paleta.text, fontFamily: "inherit", fontSize: 13, fontWeight: vacio(valor) ? 400 : 600, padding: "0 6px", textAlign: alineado, cursor: "text", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", transition: "background 250ms ease", ...estilo }}>
+      style={{ width: "100%", minWidth: 0, height: 36, borderRadius: radios.chico, border: "1px solid transparent", background: guardado ? paleta.greenSoft : "transparent", color: vacio(valor) ? paleta.dim : paleta.text, fontFamily: "inherit", fontSize: 15, fontWeight: vacio(valor) ? 400 : 500, padding: "0 6px", textAlign: alineado, cursor: "text", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", transition: "background 250ms ease", ...estilo }}>
       {vacio(valor) ? "—" : (mostrar ?? valor)}
     </button>
   );

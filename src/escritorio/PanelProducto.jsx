@@ -12,7 +12,7 @@ import { Miniatura } from "./util.jsx";
 
 export function PanelProducto({
   producto: p, suppliers = [], districts = [], moneda = "USD", settings, Foto, tLegacy,
-  posicion = null, onAnterior, onSiguiente, onCerrar, onVerFoto, panelAmplio = false, onAlternarPanel,
+  posicion = null, onAnterior, onSiguiente, onCerrar, onVerFoto, panelAmplio = false, onAlternarPanel, dosColumnas = false,
   onActualizar, onEliminar, onAgregarAlPedido, onVerProveedor,
 }) {
   const { t } = useTranslation();
@@ -36,7 +36,7 @@ export function PanelProducto({
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: 16, color: paleta.text }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: dosColumnas ? "16px 22px 22px" : 16, color: paleta.text }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         {redondo("anterior", t("escritorio.anterior"), onAnterior, !onAnterior)}
         {redondo("siguiente", t("escritorio.siguiente"), onSiguiente, !onSiguiente)}
@@ -45,6 +45,8 @@ export function PanelProducto({
         {redondo("cerrar", t("escritorio.cerrarPanel"), onCerrar)}
       </div>
 
+      <div style={dosColumnas ? { display: "grid", gridTemplateColumns: "minmax(0, 1.05fr) minmax(280px, 1fr)", gap: 22, alignItems: "start" } : { display: "contents" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, position: dosColumnas ? "sticky" : "static", top: 0 }}>
       {/* La foto manda: cuadrada, grande; abajo las otras tomas */}
       <div style={{ borderRadius: radios.grande, overflow: "hidden", aspectRatio: "1", background: "#000", position: "relative" }}>
         {/* Clic en la foto: a pantalla completa (Nati, 23/09: "que las fotos se puedan ver más grandes") */}
@@ -76,6 +78,8 @@ export function PanelProducto({
       )}
 
       {district && <p style={{ ...texto("pie"), color: paleta.dim, margin: 0 }}>{district.name} · {t("ficha.capturado", { cuando: haceCuanto(p.createdAt) })}</p>}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, minWidth: 0 }}>
 
       <Bloque titulo={t("ficha.seccionProducto")}>
         <Campo etiqueta={t("ficha.nombre")} valor={p.name} onChange={v => { if (v) guardar({ name: v }); }} />
@@ -130,6 +134,8 @@ export function PanelProducto({
             </div>
           </div>
         )}
+      </div>
+      </div>
     </div>
   );
 }

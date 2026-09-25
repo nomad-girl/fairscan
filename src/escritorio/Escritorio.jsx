@@ -1,12 +1,8 @@
 /**
- * FairScan en la computadora: "el escritorio de trabajo" (wireframe del 23/09) más la tanda A (25/09,
- * https://claude.ai/artifact/DiB5J1GEzGjqzRSLkjFq6d): ordenar y columnas, selección múltiple con barra
- * flotante, vistas guardadas del equipo, filtros que se combinan, atajos y ⌘K, estados vacíos que enseñan.
- *
- *   · Cabecera: FairScan, la feria como filtro global, el buscador (⌘K), el estado de los datos y la cuenta.
- *   · Barra lateral: Catálogo (con sus vistas), Proveedores, Pedidos, Revisar el día, Exportar, Ajustes.
- *   · Centro: grilla de cinco fotos por fila o tabla editable; proveedores; pedidos.
- *   · Derecha: la ficha del producto o del proveedor elegido; con varios elegidos, el resumen de la selección.
+ * FairScan en la computadora: "el escritorio de trabajo" (23/09) + tanda A (25/09) + "escritorio en calma"
+ * (25/09, https://claude.ai/artifact/SWgrhrwj8o6zVpqz8fJ3KK): una sola franja arriba del contenido, cabecera
+ * sin texto, barra lateral plegable (y Catálogo que pliega sus vistas), panel derecho que no existe hasta que
+ * hay algo y que, con un producto, se abre grande con la foto protagonista; fotos limpias con el nombre debajo.
  *
  * La compu no saca fotos. Capa visible: los datos y sus cambios llegan por props desde App.
  */
@@ -25,19 +21,20 @@ import { TablaDeProductos } from "./TablaDeProductos.jsx";
 import { SeccionPedidos } from "./SeccionPedidos.jsx";
 import { BarraDeSeleccion } from "./BarraDeSeleccion.jsx";
 import { Paleta } from "./Paleta.jsx";
-import { aplicarFiltros, ordenarProductos, cantidadDeFiltros, rangoEntre, CLAVES_FILTRO, COLUMNAS_OPCIONALES, COLUMNAS_DEFAULT } from "./filtros.js";
+import { aplicarFiltros, ordenarProductos, rangoEntre, CLAVES_FILTRO, COLUMNAS_OPCIONALES, COLUMNAS_DEFAULT } from "./filtros.js";
 import { VISTAS_DE_FABRICA, cargarVistas, guardarVista, borrarVista, vistaModificada } from "./vistas.js";
 
 const ANCHO_LATERAL = 220;
-const ANCHO_PANEL = 360;
-const ANCHO_PANEL_MIN = 320;
-const CLAVE_ANCHO = "fairscan.escritorio.anchoPanel";
+const ANCHO_LATERAL_MINI = 56;
+const CLAVE_LATERAL = "fairscan.escritorio.lateral";
+const CLAVE_VISTAS = "fairscan.escritorio.vistas";
 const CLAVE_BIENVENIDA = "fairscan.escritorio.bienvenida";
 const ORDEN_DEFAULT = { campo: "createdAt", dir: "desc" };
-const leerAncho = () => { try { const n = Number(localStorage.getItem(CLAVE_ANCHO)); return n >= ANCHO_PANEL_MIN ? n : ANCHO_PANEL; } catch { return ANCHO_PANEL; } };
-const guardarAncho = (n) => { try { localStorage.setItem(CLAVE_ANCHO, String(n)); } catch { /* modo privado */ } };
+const ORDENES = ["createdAt-desc", "createdAt-asc", "name-asc", "price-asc", "price-desc", "proveedor-asc", "moq-asc", "category-asc"];
 const SECCIONES_TECLA = { "1": "catalogo", "2": "proveedores", "3": "pedidos", "4": "revisar", "5": "exportar" };
 const BOOLEANOS = ["favorito", "sinProveedor", "sinPrecio", "conPrecio", "conProveedor"];
+const leer = (clave, porDefecto) => { try { const v = localStorage.getItem(clave); return v == null ? porDefecto : v === "1"; } catch { return porDefecto; } };
+const guardar = (clave, v) => { try { localStorage.setItem(clave, v ? "1" : "0"); } catch { /* modo privado */ } };
 
 export function Escritorio({
   products = [], suppliers = [], districts = [], activeDistrictId = null, orders = [], moneda = "USD", settings, Foto, tLegacy,
@@ -55,7 +52,6 @@ export function Escritorio({
   const deHoy = useMemo(() => soloDeHoy(enFeria), [enFeria]);
   const proveedores = useMemo(() => (activeDistrictId == null ? suppliers : suppliers.filter(s => s.districtId === activeDistrictId)).filter(s => !proveedorVacio(s, products)), [suppliers, activeDistrictId, products]);
   const categorias = useMemo(() => [...new Set(enFeria.map(p => p.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es")), [enFeria]);
-  const pedidosConContenido = useMemo(() => orders.filter(o => (activeDistrictId == null || o.districtId === activeDistrictId) && (o.items || []).some(i => Number(i.cantidad) > 0)).length, [orders, activeDistrictId]);
 
   // ── Estado ──
   const [seccion, setSeccion] = useState(() => (soloDeHoy(enFeria).length > 0 ? "revisar" : "catalogo"));
@@ -64,6 +60,7 @@ export function Escritorio({
   const [orden, setOrden] = useState(ORDEN_DEFAULT);
   const [columnas, setColumnas] = useState(null);
   const [filtros, setFiltros] = useState({});
+  const [filtrosVisibles, setFiltrosVisibles] = useState(false);
   const [vistasGuardadas, setVistasGuardadas] = useState([]);
   const [vistaActiva, setVistaActiva] = useState(null);
   const [nombrandoVista, setNombrandoVista] = useState(false);
@@ -76,10 +73,15 @@ export function Escritorio({
   const [popover, setPopover] = useState(null); // "columnas" | "filtro" | { editando: clave }
   const [paletaAbierta, setPaletaAbierta] = useState(false);
   const [atajosAbiertos, setAtajosAbiertos] = useState(false);
-  const [bienvenida, setBienvenida] = useState(() => { try { return !localStorage.getItem(CLAVE_BIENVENIDA); } catch { return false; } });
-  const [anchoPanel, setAnchoPanel] = useState(leerAncho);
+  const [lateralPlegada, setLateralPlegada] = useState(() => leer(CLAVE_LATERAL, false));
+  const [vistasAbiertas, setVistasAbiertas] = useState(() => leer(CLAVE_VISTAS, false));
+  const [pista, setPista] = useState(() => !leer(CLAVE_BIENVENIDA, false));
   const [fotoGrande, setFotoGrande] = useState(null);
-  const arrastre = useRef(null);
+  const plegadaPorFicha = useRef(false);
+
+  const plegarLateral = (v) => { setLateralPlegada(v); guardar(CLAVE_LATERAL, v); };
+  const alternarVistas = () => { setVistasAbiertas(v => { guardar(CLAVE_VISTAS, !v); return !v; }); };
+  const cerrarPista = () => { setPista(false); guardar(CLAVE_BIENVENIDA, true); };
 
   // ── Vistas del equipo ──
   useEffect(() => {
@@ -92,13 +94,14 @@ export function Escritorio({
   const vistaActivaObj = vistas.find(v => v.id === vistaActiva) || null;
   const modificada = vistaActivaObj ? vistaModificada(vistaActivaObj, configActual) : false;
 
+  const limpiarSeleccion = () => { setSeleccion(null); setSeleccionados(new Set()); setProveedorSel(null); setPedidoAbierto(null); setPopover(null); };
   const aplicarVista = (v) => {
     setFiltros(v.config?.filtros || {}); setOrden(v.config?.orden || ORDEN_DEFAULT); setColumnas(v.config?.columnas || null); setVista(v.config?.vista || "grilla");
-    setVistaActiva(v.id); setSeccion("catalogo"); setSeleccion(null); setSeleccionados(new Set()); setProveedorSel(null); setPedidoAbierto(null); setPopover(null);
+    setVistaActiva(v.id); setSeccion("catalogo"); limpiarSeleccion();
   };
   const guardarVistaActual = async (nombre) => {
     const v = await guardarVista(equipoId, { nombre, config: configActual, position: vistasGuardadas.length });
-    setVistasGuardadas(prev => [...prev.filter(x => x.id !== v.id), v]); setVistaActiva(v.id); setNombrandoVista(false); setNombreVista("");
+    setVistasGuardadas(prev => [...prev.filter(x => x.id !== v.id), v]); setVistaActiva(v.id); setNombrandoVista(false); setNombreVista(""); setVistasAbiertas(true); guardar(CLAVE_VISTAS, true);
   };
   const guardarCambiosDeVista = async () => {
     if (!vistaActivaObj) return;
@@ -113,7 +116,8 @@ export function Escritorio({
     setVistasGuardadas(prev => prev.filter(x => x.id !== vistaActivaObj.id)); setVistaActiva(null);
   };
 
-  const irA = (s) => { setSeccion(s); setSeleccion(null); setSeleccionados(new Set()); setProveedorSel(null); setPedidoAbierto(null); setPopover(null); if (s !== "catalogo" && s !== "revisar") setVistaActiva(null); };
+  const irA = (s) => { setSeccion(s); limpiarSeleccion(); if (s !== "catalogo" && s !== "revisar") setVistaActiva(null); };
+  const irACatalogo = () => { irA("catalogo"); setVistaActiva(null); setFiltros({}); setOrden(ORDEN_DEFAULT); setColumnas(null); setVista("grilla"); };
 
   // ── Lo que se ve en el centro ──
   const base = seccion === "revisar" ? deHoy : enFeria;
@@ -133,6 +137,13 @@ export function Escritorio({
   const idx = elegido ? filtrados.findIndex(p => p.id === elegido.id) : -1;
   const mover = (delta) => { setFotoGrande(null); if (!filtrados.length) return; const i = idx < 0 ? 0 : Math.min(filtrados.length - 1, Math.max(0, idx + delta)); setSeleccion(filtrados[i].id); };
 
+  // La ficha protagonista: con un producto abierto, la barra lateral se pliega sola y vuelve al cerrar.
+  const fichaAbierta = !!elegido && !hayVarios;
+  useEffect(() => {
+    if (fichaAbierta && !lateralPlegada) { plegadaPorFicha.current = true; setLateralPlegada(true); }
+    if (!fichaAbierta && plegadaPorFicha.current) { plegadaPorFicha.current = false; setLateralPlegada(leer(CLAVE_LATERAL, false)); }
+  }, [fichaAbierta]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Selección múltiple ──
   const alternar = (p, e) => {
     setSeleccionados(prev => {
@@ -146,6 +157,7 @@ export function Escritorio({
   const alternarTodos = () => setSeleccionados(prev => (filtrados.length && filtrados.every(p => prev.has(p.id)) ? new Set() : new Set(filtrados.map(p => p.id))));
   const deseleccionar = () => { setSeleccionados(new Set()); setUltimoTocado(null); };
   const tocarProducto = (p, e) => { if (hayVarios || e?.shiftKey) alternar(p, e); else setSeleccion(p.id); };
+  const cerrarPanel = () => { setSeleccion(null); deseleccionar(); setProveedorSel(null); setFotoGrande(null); };
   const idsAccion = () => (hayVarios ? [...seleccionados] : elegido ? [elegido.id] : []);
   const objetivos = () => { const ids = new Set(idsAccion()); return products.filter(p => ids.has(p.id)); };
   const accionFavorito = () => { const ids = idsAccion(); if (!ids.length) return; const todos = objetivos().every(p => p.favorito); onActualizarVarios?.(ids, { favorito: todos ? 0 : 1 }); };
@@ -161,18 +173,7 @@ export function Escritorio({
     deseleccionar();
   };
 
-  // ── Panel: ancho y foto grande ──
-  const maxAncho = () => Math.max(ANCHO_PANEL_MIN, Math.round((typeof window !== "undefined" ? window.innerWidth : 1400) * 0.62));
-  const panelAmplio = anchoPanel >= ANCHO_PANEL + 120;
-  const alternarPanel = () => { const n = panelAmplio ? ANCHO_PANEL : Math.min(maxAncho(), 620); setAnchoPanel(n); guardarAncho(n); };
-  const empezarArrastre = (e) => {
-    e.preventDefault(); arrastre.current = true;
-    const moverAncho = (ev) => { const n = Math.min(maxAncho(), Math.max(ANCHO_PANEL_MIN, Math.round(window.innerWidth - ev.clientX))); setAnchoPanel(n); };
-    const soltar = () => { arrastre.current = false; window.removeEventListener("mousemove", moverAncho); window.removeEventListener("mouseup", soltar); setAnchoPanel(n => { guardarAncho(n); return n; }); };
-    window.addEventListener("mousemove", moverAncho); window.addEventListener("mouseup", soltar);
-  };
-
-  // ── Teclado (pieza 5): nunca mientras se escribe en un campo ──
+  // ── Teclado ──
   useEffect(() => {
     const al = (e) => {
       const tag = (e.target?.tagName || "").toLowerCase();
@@ -189,7 +190,9 @@ export function Escritorio({
       }
       if (e.key === "?") { e.preventDefault(); setAtajosAbiertos(v => !v); return; }
       if (atajosAbiertos) { if (e.key === "Escape") setAtajosAbiertos(false); return; }
-      if (e.key === "Escape") { if (popover) setPopover(null); else if (nombrandoVista) setNombrandoVista(false); else if (hayVarios) deseleccionar(); else setSeleccion(null); return; }
+      if (e.key === "[") { plegarLateral(!lateralPlegada); return; }
+      if (e.key === "]") { cerrarPanel(); return; }
+      if (e.key === "Escape") { if (popover) setPopover(null); else if (nombrandoVista) setNombrandoVista(false); else if (hayVarios) deseleccionar(); else cerrarPanel(); return; }
       if (SECCIONES_TECLA[e.key] && !e.metaKey && !e.ctrlKey && !e.altKey) { irA(SECCIONES_TECLA[e.key]); return; }
       const enCat = seccion === "catalogo" || seccion === "revisar";
       if (!enCat && seccion !== "proveedores") return;
@@ -224,11 +227,10 @@ export function Escritorio({
   const verProveedor = (s) => { setSeccion("proveedores"); setProveedorSel(s.id); setSeleccion(null); setPedidoAbierto(null); };
   const verProducto = (p) => { setSeccion("catalogo"); setSeleccion(p.id); setProveedorSel(null); setPedidoAbierto(null); };
   const invitar = onInvitar || (() => irA("ajustes"));
-  const cerrarBienvenida = () => { setBienvenida(false); try { localStorage.setItem(CLAVE_BIENVENIDA, "1"); } catch { /* modo privado */ } };
 
-  // ── Filtros (pieza 4) ──
+  // ── Filtros ──
   const ponerFiltro = (clave, valor) => { setFiltros(prev => { const n = { ...prev }; if (valor == null || valor === false || (Array.isArray(valor) && !valor.length)) delete n[clave]; else n[clave] = valor; return n; }); setPopover(null); };
-  const quitarFiltros = () => { setFiltros({}); setConsulta(""); };
+  const quitarFiltros = () => { setFiltros({}); setConsulta(""); setFiltrosVisibles(false); };
   const textoFiltro = (clave, valor) => {
     const nombre = t(`escritorio.filtro.${clave}`);
     switch (clave) {
@@ -290,17 +292,32 @@ export function Escritorio({
   const elegirFiltro = (clave) => { if (BOOLEANOS.includes(clave)) ponerFiltro(clave, true); else setPopover({ editando: clave }); };
   const filtrosActivos = CLAVES_FILTRO.filter(k => filtros[k] != null && filtros[k] !== false && !(Array.isArray(filtros[k]) && !filtros[k].length));
   const nFiltros = filtrosActivos.length + (consulta.trim() ? 1 : 0);
+  const mostrarFilaDeFiltros = filtrosVisibles || filtrosActivos.length > 0;
 
-  // ── Barra lateral ──
-  const itemLateral = (clave, icono, textoItem, cantidad) => {
+  // ── Piezas ──
+  const conPanel = hayVarios || fichaAbierta || (seccion === "proveedores" && !!proveedorElegido);
+  const enCatalogo = seccion === "catalogo" || seccion === "revisar";
+  const feriaActiva = districts.find(d => d.id === activeDistrictId) || null;
+  const otraFeria = useMemo(() => {
+    const cuenta = new Map(); for (const p of products) if (p.districtId != null && p.districtId !== activeDistrictId) cuenta.set(p.districtId, (cuenta.get(p.districtId) || 0) + 1);
+    const mejor = [...cuenta.entries()].sort((a, b) => b[1] - a[1])[0]; if (!mejor) return null;
+    const d = districts.find(x => x.id === mejor[0]); return d ? { ...d, cantidad: mejor[1] } : null;
+  }, [products, districts, activeDistrictId]);
+  const columnasGrilla = fichaAbierta ? 3 : lateralPlegada ? 6 : 5;
+  const anchoLateral = lateralPlegada ? ANCHO_LATERAL_MINI : ANCHO_LATERAL;
+
+  const itemLateral = (clave, icono, textoItem, cantidad, onClick, { extra } = {}) => {
     const activo = seccion === clave && !(clave === "catalogo" && vistaActiva);
     return (
-      <button key={clave} type="button" onClick={() => { irA(clave); if (clave === "catalogo") { setVistaActiva(null); setFiltros({}); setOrden(ORDEN_DEFAULT); setColumnas(null); setVista("grilla"); } }} aria-current={activo ? "page" : undefined}
-        style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 38, padding: "0 12px", borderRadius: radios.medio, border: "none", background: activo ? paleta.accentSoft : "transparent", color: activo ? paleta.accentTexto : paleta.muted, fontFamily: "inherit", fontSize: 14, fontWeight: activo ? 700 : 500, cursor: "pointer", textAlign: "left", width: "100%" }}>
-        <Icono nombre={icono} tamano={18} color={activo ? paleta.accentTexto : paleta.muted} />
-        <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{textoItem}</span>
-        {cantidad != null && cantidad > 0 ? <span style={{ fontSize: 12, fontWeight: 600, color: activo ? paleta.accentTexto : paleta.dim, fontVariantNumeric: "tabular-nums" }}>{cantidad}</span> : null}
-      </button>
+      <div key={clave} style={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <button type="button" onClick={onClick || (() => irA(clave))} aria-current={activo ? "page" : undefined} title={lateralPlegada ? textoItem : undefined} aria-label={lateralPlegada ? textoItem : undefined}
+          style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 40, padding: lateralPlegada ? 0 : "0 12px", justifyContent: lateralPlegada ? "center" : "flex-start", borderRadius: radios.medio, border: "none", background: activo ? paleta.accentSoft : "transparent", color: activo ? paleta.accentTexto : paleta.muted, fontFamily: "inherit", fontSize: 14, fontWeight: activo ? 700 : 500, cursor: "pointer", textAlign: "left", flex: 1, minWidth: 0, width: lateralPlegada ? 40 : undefined }}>
+          <Icono nombre={icono} tamano={18} color={activo ? paleta.accentTexto : paleta.muted} />
+          {!lateralPlegada && <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{textoItem}</span>}
+          {!lateralPlegada && cantidad != null && cantidad > 0 ? <span style={{ fontSize: 12, fontWeight: 600, color: activo ? paleta.accentTexto : paleta.dim, fontVariantNumeric: "tabular-nums" }}>{cantidad}</span> : null}
+        </button>
+        {!lateralPlegada && extra}
+      </div>
     );
   };
   const itemVista = (v) => {
@@ -313,42 +330,47 @@ export function Escritorio({
       </button>
     );
   };
+  const formularioVista = (
+    <form onSubmit={e => { e.preventDefault(); if (nombreVista.trim()) guardarVistaActual(nombreVista.trim()); }} style={{ display: "flex", gap: 4, padding: "2px 8px 6px 40px" }}>
+      <input autoFocus value={nombreVista} onChange={e => setNombreVista(e.target.value)} placeholder={t("escritorio.nombreDeVista")} aria-label={t("escritorio.nombreDeVista")} onKeyDown={e => { if (e.key === "Escape") setNombrandoVista(false); }}
+        style={{ flex: 1, minWidth: 0, minHeight: 30, borderRadius: radios.chico, border: `1px solid ${paleta.accent}`, padding: "0 8px", fontFamily: "inherit", fontSize: 13, background: paleta.surface, color: paleta.text, outline: "none" }} />
+      <button type="submit" aria-label={t("comun.guardar")} style={{ width: 30, height: 30, borderRadius: radios.chico, border: "none", background: paleta.accent, display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="listo" tamano={14} color="#fff" /></button>
+    </form>
+  );
+  const botonRedondo = (nombre, etiqueta, onClick) => <button type="button" onClick={onClick} aria-label={etiqueta} title={etiqueta} style={{ width: 34, height: 34, borderRadius: 17, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre={nombre} tamano={16} color={paleta.text} /></button>;
+  const botonBarra = (contenido, onClick, { activo = false, etiqueta, titulo } = {}) => (
+    <button type="button" onClick={onClick} aria-label={etiqueta} title={titulo || etiqueta} aria-pressed={activo || undefined}
+      style={{ display: "inline-flex", alignItems: "center", gap: 6, minHeight: 36, padding: "0 12px", borderRadius: radios.medio, border: `1px solid ${activo ? paleta.accent : paleta.border}`, background: activo ? paleta.accentSoft : paleta.card, color: activo ? paleta.accentTexto : paleta.muted, fontFamily: "inherit", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>{contenido}</button>
+  );
 
-  const conPanel = seccion === "catalogo" || seccion === "revisar" || seccion === "proveedores";
-  const enCatalogo = seccion === "catalogo" || seccion === "revisar";
-  const feriaActiva = districts.find(d => d.id === activeDistrictId) || null;
-  const otraFeria = useMemo(() => {
-    const cuenta = new Map(); for (const p of products) if (p.districtId != null && p.districtId !== activeDistrictId) cuenta.set(p.districtId, (cuenta.get(p.districtId) || 0) + 1);
-    const mejor = [...cuenta.entries()].sort((a, b) => b[1] - a[1])[0]; if (!mejor) return null;
-    const d = districts.find(x => x.id === mejor[0]); return d ? { ...d, cantidad: mejor[1] } : null;
-  }, [products, districts, activeDistrictId]);
-
-  // ── Grilla (pieza 2, decisión 2: la casilla al pasar el mouse, y siempre cuando hay una elegida) ──
+  // ── Grilla: fotos limpias, nombre y precio debajo ──
   const grilla = (
-    <div className="fs-grilla" data-hay={hayVarios ? "1" : "0"} style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 10 }}>
+    <div className="fs-grilla" data-hay={hayVarios ? "1" : "0"} style={{ display: "grid", gridTemplateColumns: `repeat(${columnasGrilla}, minmax(0, 1fr))`, gap: "18px 14px" }}>
       {filtrados.map(p => {
         const activo = p.id === seleccion; const marcado = seleccionados.has(p.id);
         return (
-          <div key={p.id} className="fs-celda" data-sel={marcado ? "1" : "0"} style={{ position: "relative", borderRadius: radios.medio, overflow: "hidden", aspectRatio: "1", background: paleta.surface, boxShadow: paleta.sombraTarjeta, outline: marcado || activo ? `3px solid ${paleta.accent}` : "none", outlineOffset: -3, opacity: p.descartado ? 0.6 : 1 }}>
-            <button type="button" onClick={(e) => tocarProducto(p, e)} aria-pressed={activo} aria-label={p.name || t("catalogo.procesandoNombre")} style={{ position: "absolute", inset: 0, padding: 0, border: "none", background: "transparent", cursor: "pointer" }}>
-              <Miniatura p={p} Foto={Foto} tLegacy={tLegacy} paleta={paleta} />
-              <span style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "18px 8px 6px", background: "linear-gradient(to top, rgba(10,14,23,0.8), rgba(10,14,23,0))", color: "#fff", fontSize: 12, fontWeight: 600, textAlign: "left", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {p.name || t("catalogo.procesandoNombre")}{p.price ? <span style={{ fontWeight: 400, opacity: 0.85 }}> · {moneda} {p.price}</span> : null}
-              </span>
-            </button>
-            <button type="button" className="fs-cb" role="checkbox" aria-checked={marcado} aria-label={`${t("escritorio.elegir")} ${p.name || ""}`.trim()} onClick={(e) => { e.stopPropagation(); alternar(p, e); }}
-              style={{ position: "absolute", top: 6, left: 6, width: 22, height: 22, borderRadius: 6, border: `2px solid ${marcado ? paleta.accent : "#fff"}`, background: marcado ? paleta.accent : "rgba(10,14,23,0.45)", display: "grid", placeItems: "center", cursor: "pointer", padding: 0 }}>
-              {marcado && <Icono nombre="listo" tamano={13} color="#fff" />}
-            </button>
-            {p.favorito ? <span style={{ position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: 11, background: paleta.accent, display: "grid", placeItems: "center", pointerEvents: "none" }}><Icono nombre="favorito" tamano={12} color="#fff" /></span> : null}
-            {(p.photos?.length || 0) > 1 && <span style={{ position: "absolute", top: 34, left: 6, padding: "1px 6px", borderRadius: 999, background: "rgba(10,14,23,0.6)", color: "#fff", fontSize: 11, fontWeight: 600, pointerEvents: "none" }}>{p.photos.length}</span>}
+          <div key={p.id} className="fs-celda" data-sel={marcado ? "1" : "0"} style={{ display: "flex", flexDirection: "column", gap: 6, opacity: p.descartado ? 0.6 : 1 }}>
+            <div style={{ position: "relative", borderRadius: radios.medio, overflow: "hidden", aspectRatio: "1", background: paleta.surface, boxShadow: paleta.sombraTarjeta, outline: marcado || activo ? `3px solid ${paleta.accent}` : "none", outlineOffset: -3 }}>
+              <button type="button" onClick={(e) => tocarProducto(p, e)} aria-pressed={activo} aria-label={p.name || t("catalogo.procesandoNombre")} style={{ position: "absolute", inset: 0, padding: 0, border: "none", background: "transparent", cursor: "pointer" }}>
+                <Miniatura p={p} Foto={Foto} tLegacy={tLegacy} paleta={paleta} />
+              </button>
+              <button type="button" className="fs-cb" role="checkbox" aria-checked={marcado} aria-label={`${t("escritorio.elegir")} ${p.name || ""}`.trim()} onClick={(e) => { e.stopPropagation(); alternar(p, e); }}
+                style={{ position: "absolute", top: 8, left: 8, width: 22, height: 22, borderRadius: 6, border: `2px solid ${marcado ? paleta.accent : "#fff"}`, background: marcado ? paleta.accent : "rgba(10,14,23,0.45)", display: "grid", placeItems: "center", cursor: "pointer", padding: 0 }}>
+                {marcado && <Icono nombre="listo" tamano={13} color="#fff" />}
+              </button>
+              {p.favorito ? <span style={{ position: "absolute", top: 8, right: 8, width: 22, height: 22, borderRadius: 11, background: paleta.accent, display: "grid", placeItems: "center", pointerEvents: "none" }}><Icono nombre="favorito" tamano={12} color="#fff" /></span> : null}
+              {(p.photos?.length || 0) > 1 && <span style={{ position: "absolute", bottom: 8, right: 8, padding: "1px 6px", borderRadius: 999, background: "rgba(10,14,23,0.55)", color: "#fff", fontSize: 11, fontWeight: 600, pointerEvents: "none" }}>{p.photos.length}</span>}
+            </div>
+            <p style={{ ...texto("pie"), color: paleta.muted, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <span style={{ color: paleta.text, fontWeight: 500 }}>{p.name || t("catalogo.procesandoNombre")}</span>{p.price ? ` · ${moneda} ${p.price}` : ""}
+            </p>
           </div>
         );
       })}
     </div>
   );
 
-  // ── Estados vacíos (pieza 6) ──
+  // ── Estados vacíos ──
   const vacio = () => {
     if (esperandoNube(estadoDatos)) return <p style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted, margin: "24px 0" }}>{t(`datos.${estadoDatos.clave}`, estadoDatos)}</p>;
     if (base.length > 0 || nFiltros > 0) {
@@ -373,13 +395,15 @@ export function Escritorio({
     );
   };
 
-  // ── Centro: catálogo ──
+  // ── Centro: catálogo (una sola franja arriba del contenido) ──
   const titulo = seccion === "revisar" ? t("escritorio.revisarTitulo", { count: deHoy.length }) : vistaActivaObj ? vistaActivaObj.nombre : t("escritorio.catalogo");
   const etiquetaColumna = (c) => ({ proveedor: t("escritorio.columnaProveedor"), price: t("escritorio.columnaPrecio"), moq: t("escritorio.columnaMoq"), piezasPorCaja: t("ficha.piezasPorCaja"), cbmPorCaja: t("ficha.cbmPorCaja"), category: t("escritorio.columnaCategoria"), material: t("ficha.materiales"), createdAt: t("escritorio.columnaFecha"), notes: t("ficha.notas") }[c] || c);
+  const ordenActual = `${orden.campo}-${orden.dir}`;
   const centroCatalogo = (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         <h1 style={{ ...texto("titulo"), margin: 0 }}>{titulo}</h1>
+        {seccion !== "revisar" && <span aria-label={t("escritorio.resultados", { count: filtrados.length })} style={{ ...texto("titulo"), fontWeight: 400, color: paleta.dim, fontVariantNumeric: "tabular-nums" }}>{filtrados.length}</span>}
         {vistaActivaObj && !vistaActivaObj.fabrica && <Boton variante="fantasma" icono="borrar" onClick={borrarVistaActiva}>{t("escritorio.borrarVista")}</Boton>}
         {modificada && (
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, ...texto("pie"), color: paleta.muted }}>
@@ -389,6 +413,11 @@ export function Escritorio({
           </span>
         )}
         <span style={{ marginLeft: "auto", display: "inline-flex", gap: 8, alignItems: "center" }}>
+          {botonBarra(<>{t("escritorio.filtrar")}{filtrosActivos.length ? <span style={{ background: paleta.accent, color: "#fff", borderRadius: 999, padding: "0 6px", fontSize: 11 }}>{filtrosActivos.length}</span> : null}</>, () => setFiltrosVisibles(v => !v), { activo: mostrarFilaDeFiltros, etiqueta: t("escritorio.filtrar") })}
+          <select value={ordenActual} onChange={e => { const [campo, dir] = e.target.value.split("-"); setOrden({ campo, dir }); }} aria-label={t("escritorio.ordenar")}
+            style={{ minHeight: 36, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, color: paleta.muted, fontFamily: "inherit", fontSize: 13, fontWeight: 600, padding: "0 10px", maxWidth: 220 }}>
+            {ORDENES.map(o => <option key={o} value={o}>{t(`escritorio.orden.${o}`)}</option>)}
+          </select>
           <div role="group" aria-label={t("escritorio.verGrilla")} style={{ display: "inline-flex", border: `1px solid ${paleta.border}`, borderRadius: radios.medio, overflow: "hidden", background: paleta.card }}>
             {[["grilla", "foto", t("escritorio.verGrilla"), "G"], ["tabla", "pedido", t("escritorio.verTabla"), "T"]].map(([v, ic, et, k]) => (
               <button key={v} type="button" onClick={() => setVista(v)} aria-pressed={vista === v} aria-label={et} title={`${et} · ${k}`} style={{ width: 40, height: 36, border: "none", background: vista === v ? paleta.text : "transparent", display: "grid", placeItems: "center", cursor: "pointer" }}>
@@ -398,7 +427,7 @@ export function Escritorio({
           </div>
           {vista === "tabla" && (
             <span style={{ position: "relative" }} onClick={e => e.stopPropagation()}>
-              <Boton variante="secundario" onClick={() => setPopover(p => (p === "columnas" ? null : "columnas"))}>{t("escritorio.columnas")} ▾</Boton>
+              {botonBarra(`${t("escritorio.columnas")} ▾`, () => setPopover(p => (p === "columnas" ? null : "columnas")), { activo: popover === "columnas", etiqueta: t("escritorio.columnas") })}
               {popover === "columnas" && (
                 <div role="group" aria-label={t("escritorio.columnas")} style={{ ...cajaFlotante, left: "auto", right: 0, gap: 2 }}>
                   <span style={{ ...texto("pie"), color: paleta.dim, marginBottom: 4 }}>{t("escritorio.columnasFijas")}</span>
@@ -418,21 +447,21 @@ export function Escritorio({
         </span>
       </div>
 
-      {/* Filtros como chips que se combinan */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        {filtrosActivos.map(k => <Chip key={k} activo onClick={() => ponerFiltro(k, null)} etiqueta={`${textoFiltro(k, filtros[k])} · ${t("comun.borrar")}`}>{textoFiltro(k, filtros[k])} ✕</Chip>)}
-        <span style={{ position: "relative" }} onClick={e => e.stopPropagation()}>
-          <button type="button" onClick={() => setPopover(p => (p === "filtro" ? null : "filtro"))} aria-expanded={popover === "filtro"} style={{ minHeight: 36, padding: "0 12px", borderRadius: 999, border: `1px dashed ${paleta.accent}`, background: "transparent", color: paleta.accentTexto, fontFamily: "inherit", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{t("escritorio.masFiltro")}</button>
-          {popover === "filtro" && (
-            <div role="menu" style={{ ...cajaFlotante, padding: 6, gap: 0 }}>
-              {CLAVES_FILTRO.filter(k => filtros[k] == null).map(k => <button key={k} type="button" role="menuitem" onClick={() => elegirFiltro(k)} style={{ textAlign: "left", border: "none", background: "transparent", borderRadius: radios.chico, padding: "8px 10px", fontFamily: "inherit", fontSize: 14, color: paleta.text, cursor: "pointer" }}>{t(`escritorio.filtro.${k}`)}</button>)}
-            </div>
-          )}
-          {popover && popover.editando && editorDeFiltro(popover.editando)}
-        </span>
-        {nFiltros > 0 && <button type="button" onClick={quitarFiltros} style={{ border: "none", background: "none", color: paleta.muted, fontFamily: "inherit", fontSize: 13, textDecoration: "underline", cursor: "pointer" }}>{t("escritorio.quitarFiltros")}</button>}
-        <span style={{ marginLeft: "auto", ...texto("pie"), color: paleta.dim, fontVariantNumeric: "tabular-nums" }}>{t("escritorio.resultados", { count: filtrados.length })}{descartados > 0 && !filtros.descartado ? ` · ${t("escritorio.descartados", { count: descartados })}` : ""}</span>
-      </div>
+      {mostrarFilaDeFiltros && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {filtrosActivos.map(k => <Chip key={k} activo onClick={() => ponerFiltro(k, null)} etiqueta={`${textoFiltro(k, filtros[k])} · ${t("comun.borrar")}`}>{textoFiltro(k, filtros[k])} ✕</Chip>)}
+          <span style={{ position: "relative" }} onClick={e => e.stopPropagation()}>
+            <button type="button" onClick={() => setPopover(p => (p === "filtro" ? null : "filtro"))} aria-expanded={popover === "filtro"} style={{ minHeight: 36, padding: "0 12px", borderRadius: 999, border: `1px dashed ${paleta.accent}`, background: "transparent", color: paleta.accentTexto, fontFamily: "inherit", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{t("escritorio.masFiltro")}</button>
+            {popover === "filtro" && (
+              <div role="menu" style={{ ...cajaFlotante, padding: 6, gap: 0 }}>
+                {CLAVES_FILTRO.filter(k => filtros[k] == null).map(k => <button key={k} type="button" role="menuitem" onClick={() => elegirFiltro(k)} style={{ textAlign: "left", border: "none", background: "transparent", borderRadius: radios.chico, padding: "8px 10px", fontFamily: "inherit", fontSize: 14, color: paleta.text, cursor: "pointer" }}>{t(`escritorio.filtro.${k}`)}</button>)}
+              </div>
+            )}
+            {popover && popover.editando && editorDeFiltro(popover.editando)}
+          </span>
+          {nFiltros > 0 && <button type="button" onClick={quitarFiltros} style={{ border: "none", background: "none", color: paleta.muted, fontFamily: "inherit", fontSize: 13, textDecoration: "underline", cursor: "pointer" }}>{t("escritorio.quitarFiltros")}</button>}
+        </div>
+      )}
 
       {filtrados.length === 0 ? vacio() : vista === "tabla"
         ? <TablaDeProductos productos={filtrados} suppliers={suppliers} moneda={moneda} seleccionado={seleccion} seleccionados={seleccionados} orden={orden} columnas={columnas} settings={settings} Foto={Foto} tLegacy={tLegacy}
@@ -444,10 +473,10 @@ export function Escritorio({
 
   // ── Centro: proveedores ──
   const centroProveedores = (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <h1 style={{ ...texto("titulo"), margin: 0 }}>{t("escritorio.proveedores")} · {proveedoresBuscados.length}</h1>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}><h1 style={{ ...texto("titulo"), margin: 0 }}>{t("escritorio.proveedores")}</h1><span style={{ ...texto("titulo"), fontWeight: 400, color: paleta.dim }}>{proveedoresBuscados.length}</span></div>
       {proveedoresBuscados.length === 0 ? <p style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted, margin: "24px 0" }}>{consulta ? t("escritorio.sinResultados") : t("catalogo.sinProveedores")}</p> : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 14 }}>
           {proveedoresBuscados.map(s => {
             const suyos = products.filter(p => p.supplierId === s.id); const tarjeta = s.cardPhoto || s.cardPhotoUrl || null; const activo = s.id === proveedorSel;
             return (
@@ -455,7 +484,7 @@ export function Escritorio({
                 style={{ padding: 0, border: `1px solid ${activo ? paleta.accent : paleta.border}`, borderRadius: radios.grande, overflow: "hidden", background: paleta.card, cursor: "pointer", textAlign: "left", boxShadow: activo ? `0 0 0 2px ${paleta.accentSoft}` : paleta.sombraTarjeta, fontFamily: "inherit" }}>
                 <div style={{ aspectRatio: "1.6", background: paleta.surface, position: "relative" }}>
                   {tarjeta ? <img src={tarjeta} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", background: "#0F172A" }} /> : suyos[0] ? <Miniatura p={suyos[0]} Foto={Foto} tLegacy={tLegacy} paleta={paleta} /> : <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center" }}><Icono nombre="proveedor" tamano={28} color={paleta.dim} /></div>}
-                  {s.favorito ? <span style={{ position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: 11, background: paleta.accent, display: "grid", placeItems: "center" }}><Icono nombre="favorito" tamano={12} color="#fff" /></span> : null}
+                  {s.favorito ? <span style={{ position: "absolute", top: 8, right: 8, width: 22, height: 22, borderRadius: 11, background: paleta.accent, display: "grid", placeItems: "center" }}><Icono nombre="favorito" tamano={12} color="#fff" /></span> : null}
                 </div>
                 <div style={{ padding: "8px 10px 10px" }}>
                   <p style={{ ...texto("cuerpo", { fontWeight: 600 }), margin: 0, color: paleta.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.company || `#${s.id}`}</p>
@@ -469,24 +498,18 @@ export function Escritorio({
     </div>
   );
 
-  // ── Panel derecho ──
-  const panelVacio = (textoVacio) => (
-    <div style={{ padding: 24, color: paleta.dim, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 10, marginTop: 60 }}>
-      <Icono nombre="ojo" tamano={28} color={paleta.dim} /><p style={{ ...texto("cuerpo", { fontWeight: 400 }), margin: 0 }}>{textoVacio}</p>
-    </div>
-  );
+  // ── Panel derecho: no existe hasta que hay algo que mostrar ──
   const panel = hayVarios ? (
     <PanelSeleccion productos={productosElegidos} suppliers={suppliers} moneda={moneda} Foto={Foto} tLegacy={tLegacy} onFavorito={accionFavorito} onAgregarAlPedido={accionPedido} onDescartar={accionDescartar} onRestaurar={accionRestaurar} onBorrar={accionBorrar} onCerrar={deseleccionar} />
-  ) : elegido ? (
-    <PanelProducto producto={elegido} suppliers={suppliers} districts={districts} moneda={moneda} settings={settings} Foto={Foto} tLegacy={tLegacy}
+  ) : fichaAbierta ? (
+    <PanelProducto producto={elegido} suppliers={suppliers} districts={districts} moneda={moneda} settings={settings} Foto={Foto} tLegacy={tLegacy} dosColumnas
       posicion={idx >= 0 ? { n: idx + 1, total: filtrados.length } : null}
       onAnterior={idx > 0 ? () => mover(-1) : undefined} onSiguiente={idx >= 0 && idx < filtrados.length - 1 ? () => mover(1) : undefined}
-      onCerrar={() => setSeleccion(null)} onActualizar={onActualizarProducto} onEliminar={(p) => { setSeleccion(null); onEliminarProducto?.(p.id); }}
-      onAgregarAlPedido={agregarAlPedido} onVerProveedor={verProveedor}
-      onVerFoto={(i) => setFotoGrande(i)} panelAmplio={panelAmplio} onAlternarPanel={alternarPanel} />
-  ) : seccion === "proveedores" && proveedorElegido ? (
+      onCerrar={cerrarPanel} onActualizar={onActualizarProducto} onEliminar={(p) => { setSeleccion(null); onEliminarProducto?.(p.id); }}
+      onAgregarAlPedido={agregarAlPedido} onVerProveedor={verProveedor} onVerFoto={(i) => setFotoGrande(i)} />
+  ) : proveedorElegido ? (
     <PanelProveedor proveedor={proveedorElegido} products={products} moneda={moneda} Foto={Foto} tLegacy={tLegacy} onCerrar={() => setProveedorSel(null)} onActualizar={onActualizarProveedor} onVerProducto={(p) => setSeleccion(p.id)} onArmarPedido={abrirPedidoDe} />
-  ) : panelVacio(seccion === "proveedores" ? t("escritorio.elegiProveedor") : t("escritorio.elegiUno"));
+  ) : null;
 
   // ── Acciones de la paleta ──
   const accionesPaleta = [
@@ -501,21 +524,20 @@ export function Escritorio({
     { id: "s4", texto: t("escritorio.revisarDia"), tecla: "4", run: () => irA("revisar") },
     { id: "s5", texto: t("escritorio.exportar"), tecla: "5", run: () => irA("exportar") },
     { id: "s6", texto: t("escritorio.ajustes"), run: () => irA("ajustes") },
+    { id: "lateral", texto: lateralPlegada ? t("escritorio.desplegarLateral") : t("escritorio.plegarLateral"), tecla: "[", run: () => plegarLateral(!lateralPlegada) },
     { id: "guardar", texto: t("escritorio.guardarVista").replace("+ ", ""), run: () => { irA("catalogo"); setNombrandoVista(true); } },
     { id: "quitar", texto: t("escritorio.quitarFiltros"), run: quitarFiltros },
     { id: "descartados", texto: t("escritorio.verDescartados"), run: () => { irA("catalogo"); ponerFiltro("descartado", "solo"); } },
     { id: "atajos", texto: t("escritorio.atajosTitulo"), tecla: "?", run: () => setAtajosAbiertos(true) },
   ];
 
-  const botonRedondo = (nombre, etiqueta, onClick) => <button type="button" onClick={onClick} aria-label={etiqueta} style={{ width: 32, height: 32, borderRadius: 16, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre={nombre} tamano={16} color={paleta.text} /></button>;
-
   return (
-    <div style={{ height: "100%", display: "grid", gridTemplateRows: "56px 1fr", gridTemplateColumns: `${ANCHO_LATERAL}px 1fr`, background: paleta.bg, color: paleta.text, fontFamily: "inherit", overflow: "hidden" }}>
-      <style>{`.fs-celda .fs-cb{opacity:0;transition:opacity 120ms ease}.fs-celda:hover .fs-cb,.fs-celda[data-sel="1"] .fs-cb,.fs-grilla[data-hay="1"] .fs-cb{opacity:1}.fs-fila:hover{filter:brightness(0.985)}`}</style>
+    <div style={{ height: "100%", display: "grid", gridTemplateRows: "56px 1fr", gridTemplateColumns: `${anchoLateral}px 1fr`, background: paleta.bg, color: paleta.text, fontFamily: "inherit", overflow: "hidden" }}>
+      <style>{`.fs-celda .fs-cb,.fs-fila .fs-cb,.fs-tabla .fs-cb{opacity:0;transition:opacity 120ms ease}.fs-celda:hover .fs-cb,.fs-celda[data-sel="1"] .fs-cb,.fs-grilla[data-hay="1"] .fs-cb,.fs-fila:hover .fs-cb,.fs-fila[data-sel="1"] .fs-cb,.fs-tabla[data-hay="1"] .fs-cb{opacity:1}.fs-fila:hover{filter:brightness(0.985)}`}</style>
 
-      {/* Cabecera */}
+      {/* Cabecera sin texto: feria, buscador, un punto de estado, la inicial */}
       <header style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 14, padding: "0 16px", background: paleta.card, borderBottom: `1px solid ${paleta.border}` }}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontWeight: 800, fontSize: 18, color: MARCA.naranja, width: ANCHO_LATERAL - 16 }}><Icono nombre="camara" tamano={20} color={MARCA.naranja} />FairScan</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontWeight: 800, fontSize: 18, color: MARCA.naranja, width: anchoLateral - 16, overflow: "hidden", whiteSpace: "nowrap", flexShrink: 0 }}><Icono nombre="camara" tamano={20} color={MARCA.naranja} />{!lateralPlegada && "FairScan"}</span>
         <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
           <Icono nombre="feria" tamano={16} color={paleta.muted} />
           <select value={activeDistrictId ?? ""} onChange={e => onSwitchDistrict?.(e.target.value === "" ? null : Number(e.target.value))} aria-label={t("escritorio.feria")}
@@ -524,57 +546,64 @@ export function Escritorio({
             {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         </label>
-        <label style={{ flex: 1, maxWidth: 480, position: "relative" }}>
+        <label style={{ flex: 1, maxWidth: 340, position: "relative" }}>
           <span style={{ position: "absolute", left: 10, top: 9 }}><Icono nombre="buscar" tamano={16} color={paleta.dim} /></span>
           <input type="search" value={consulta} onChange={e => setConsulta(e.target.value)} placeholder={t("escritorio.buscarOHacer")} aria-label={t("escritorio.buscar")}
             style={{ width: "100%", minHeight: 34, borderRadius: 999, border: `1px solid ${paleta.border}`, background: paleta.bg, color: paleta.text, fontFamily: "inherit", fontSize: 14, padding: "0 12px 0 32px", outline: "none" }} />
+          {pista && products.length > 0 && (
+            <div role="note" style={{ position: "absolute", left: 0, top: "calc(100% + 8px)", zIndex: 20, display: "flex", alignItems: "center", gap: 8, background: paleta.text, color: paleta.card, borderRadius: radios.medio, padding: "8px 10px 8px 12px", fontSize: 13, whiteSpace: "nowrap", boxShadow: "0 8px 24px rgba(0,0,0,0.25)" }}>
+              {t("escritorio.pistaPrimeraVez")}
+              <button type="button" onClick={cerrarPista} aria-label={t("escritorio.cerrarBienvenida")} style={{ border: "none", background: "none", cursor: "pointer", display: "grid", placeItems: "center", padding: 0 }}><Icono nombre="cerrar" tamano={14} color={paleta.card} /></button>
+            </div>
+          )}
         </label>
         <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 8 }}>
-          {estadoDatos && <EstadoDeDatos estado={estadoDatos} onReintentar={onReintentar} compacto estilo={{ maxWidth: 360 }} />}
-          <span style={{ ...texto("pie"), color: paleta.muted, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cuenta.esAnonima || !cuenta.email ? t("escritorio.sinCuenta") : cuenta.email}</span>
-          {(cuenta.esAnonima || !cuenta.email) && onEntrar ? <Boton variante="principal" onClick={onEntrar}>{t("escritorio.entrar")}</Boton> : (
-            <button type="button" onClick={() => irA("ajustes")} aria-label={t("escritorio.ajustes")} style={{ width: 34, height: 34, borderRadius: 17, border: `1px solid ${paleta.border}`, background: paleta.accentSoft, color: paleta.accentTexto, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>{(cuenta.email || "?")[0].toUpperCase()}</button>
+          {estadoDatos && <EstadoDeDatos estado={estadoDatos} onReintentar={onReintentar} soloPunto />}
+          {cuenta.esAnonima || !cuenta.email ? (
+            <>
+              <span style={{ ...texto("pie"), color: paleta.muted }}>{t("escritorio.sinCuenta")}</span>
+              {onEntrar && <Boton variante="principal" onClick={onEntrar}>{t("escritorio.entrar")}</Boton>}
+            </>
+          ) : (
+            <button type="button" onClick={() => irA("ajustes")} aria-label={`${t("escritorio.ajustes")} · ${cuenta.email}`} title={cuenta.email} style={{ width: 34, height: 34, borderRadius: 17, border: `1px solid ${paleta.border}`, background: paleta.accentSoft, color: paleta.accentTexto, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>{(cuenta.email || "?")[0].toUpperCase()}</button>
           )}
         </span>
       </header>
 
-      {/* Barra lateral (pieza 3: las vistas debajo de Catálogo) */}
-      <nav aria-label={t("escritorio.catalogo")} style={{ display: "flex", flexDirection: "column", gap: 2, padding: 10, background: paleta.card, borderRight: `1px solid ${paleta.border}`, overflowY: "auto" }}>
-        {itemLateral("catalogo", "foto", t("escritorio.catalogo"), enFeria.filter(p => !p.descartado).length)}
-        {vistas.map(itemVista)}
-        {nombrandoVista ? (
-          <form onSubmit={e => { e.preventDefault(); if (nombreVista.trim()) guardarVistaActual(nombreVista.trim()); }} style={{ display: "flex", gap: 4, padding: "2px 8px 6px 40px" }}>
-            <input autoFocus value={nombreVista} onChange={e => setNombreVista(e.target.value)} placeholder={t("escritorio.nombreDeVista")} aria-label={t("escritorio.nombreDeVista")} onKeyDown={e => { if (e.key === "Escape") setNombrandoVista(false); }}
-              style={{ flex: 1, minWidth: 0, minHeight: 30, borderRadius: radios.chico, border: `1px solid ${paleta.accent}`, padding: "0 8px", fontFamily: "inherit", fontSize: 13, background: paleta.surface, color: paleta.text, outline: "none" }} />
-            <button type="submit" aria-label={t("comun.guardar")} style={{ width: 30, height: 30, borderRadius: radios.chico, border: "none", background: paleta.accent, display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="listo" tamano={14} color="#fff" /></button>
-          </form>
-        ) : (
-          <button type="button" onClick={() => { irA("catalogo"); setNombrandoVista(true); }} style={{ textAlign: "left", border: "none", background: "transparent", color: paleta.accentTexto, fontFamily: "inherit", fontSize: 12, fontWeight: 600, padding: "4px 12px 6px 40px", cursor: "pointer" }}>{t("escritorio.guardarVista")}</button>
+      {/* Barra lateral: sin cantidades (salvo Revisar), plegable; Catálogo pliega sus vistas */}
+      <nav aria-label={t("escritorio.catalogo")} style={{ display: "flex", flexDirection: "column", gap: 2, padding: lateralPlegada ? "10px 8px" : 10, background: paleta.card, borderRight: `1px solid ${paleta.border}`, overflowY: "auto", overflowX: "hidden" }}>
+        {itemLateral("catalogo", "foto", t("escritorio.catalogo"), null, irACatalogo, {
+          extra: (
+            <button type="button" onClick={alternarVistas} aria-expanded={vistasAbiertas} aria-label={vistasAbiertas ? t("escritorio.plegarVistas") : t("escritorio.desplegarVistas")} title={vistasAbiertas ? t("escritorio.plegarVistas") : t("escritorio.desplegarVistas")}
+              style={{ width: 28, height: 28, borderRadius: radios.chico, border: "none", background: "transparent", display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}>
+              <Icono nombre="abajo" tamano={14} color={paleta.dim} style={{ transform: vistasAbiertas ? "rotate(180deg)" : "none", transition: "transform 150ms ease" }} />
+            </button>
+          ),
+        })}
+        {vistasAbiertas && !lateralPlegada && (
+          <>
+            {vistas.map(itemVista)}
+            {nombrandoVista ? formularioVista : (
+              <button type="button" onClick={() => { irA("catalogo"); setNombrandoVista(true); }} style={{ textAlign: "left", border: "none", background: "transparent", color: paleta.accentTexto, fontFamily: "inherit", fontSize: 12, fontWeight: 600, padding: "4px 12px 6px 40px", cursor: "pointer" }}>{t("escritorio.guardarVista")}</button>
+            )}
+          </>
         )}
-        {itemLateral("proveedores", "proveedor", t("escritorio.proveedores"), proveedores.length)}
-        {itemLateral("pedidos", "pedido", t("escritorio.pedidos"), pedidosConContenido)}
+        {nombrandoVista && !vistasAbiertas && !lateralPlegada && formularioVista}
+        {itemLateral("proveedores", "proveedor", t("escritorio.proveedores"))}
+        {itemLateral("pedidos", "pedido", t("escritorio.pedidos"))}
         {itemLateral("revisar", "ojo", t("escritorio.revisarDia"), deHoy.length)}
         {itemLateral("exportar", "exportar", t("escritorio.exportar"))}
         <span style={{ flex: 1 }} />
         {itemLateral("ajustes", "ajustes", t("escritorio.ajustes"))}
-        <button type="button" onClick={() => setAtajosAbiertos(true)} style={{ textAlign: "left", border: "none", background: "transparent", color: paleta.dim, fontFamily: "inherit", fontSize: 11, padding: "4px 12px", cursor: "pointer" }}>{t("escritorio.atajosTitulo")} · ?</button>
-        <p style={{ ...texto("pie"), color: paleta.dim, margin: "4px 12px 4px", fontSize: 11 }}>{t("escritorio.soloTelefono")}</p>
+        <button type="button" onClick={() => plegarLateral(!lateralPlegada)} aria-label={lateralPlegada ? t("escritorio.desplegarLateral") : t("escritorio.plegarLateral")} title={`${lateralPlegada ? t("escritorio.desplegarLateral") : t("escritorio.plegarLateral")} · [`}
+          style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 36, padding: lateralPlegada ? 0 : "0 12px", justifyContent: lateralPlegada ? "center" : "flex-start", borderRadius: radios.medio, border: "none", background: "transparent", color: paleta.dim, fontFamily: "inherit", fontSize: 12, cursor: "pointer" }}>
+          <Icono nombre={lateralPlegada ? "siguiente" : "anterior"} tamano={16} color={paleta.dim} />{!lateralPlegada && t("escritorio.plegarLateral")}
+        </button>
       </nav>
 
       {/* Centro + panel */}
       <div style={{ display: "flex", minWidth: 0, minHeight: 0, position: "relative" }}>
-        <main style={{ flex: 1, minWidth: 0, overflowY: "auto", padding: seccion === "pedidos" && pedidoAbierto ? 0 : 20, position: "relative" }} onClick={() => popover && setPopover(null)}>
-          {bienvenida && products.length > 0 && seccion !== "ajustes" && (
-            <div role="note" style={{ display: "flex", alignItems: "center", gap: 10, background: paleta.accentSoft, border: `1px solid ${paleta.border}`, borderRadius: radios.medio, padding: "8px 12px", marginBottom: 14, ...texto("pie"), color: paleta.text }}>
-              <Icono nombre="ojo" tamano={16} color={paleta.accentTexto} /><span style={{ flex: 1 }}>{t("escritorio.bienvenida")}</span>
-              <button type="button" onClick={cerrarBienvenida} aria-label={t("escritorio.cerrarBienvenida")} style={{ border: "none", background: "none", cursor: "pointer", display: "grid", placeItems: "center" }}><Icono nombre="cerrar" tamano={16} color={paleta.muted} /></button>
-            </div>
-          )}
-          {cuenta.esAnonima && seccion !== "ajustes" && (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, background: paleta.accentSoft, border: `1px solid ${paleta.border}`, borderRadius: radios.medio, padding: "8px 12px", marginBottom: 14, color: paleta.text, ...texto("pie") }}>
-              <Icono nombre="error" tamano={16} color={paleta.accentTexto} /><span style={{ flex: 1 }}>{t("escritorio.sinCuentaAviso")}</span>
-            </div>
-          )}
+        <main style={{ flex: 1, minWidth: 0, overflowY: "auto", padding: seccion === "pedidos" && pedidoAbierto ? 0 : "22px 24px", position: "relative" }} onClick={() => popover && setPopover(null)}>
           {enCatalogo && centroCatalogo}
           {seccion === "proveedores" && centroProveedores}
           {seccion === "pedidos" && (
@@ -586,8 +615,8 @@ export function Escritorio({
           {seccion === "ajustes" && <div style={{ maxWidth: 720, margin: "0 auto", height: "100%" }}>{renderAjustes?.(() => irA("catalogo"), () => irA("exportar"))}</div>}
         </main>
         {conPanel && (
-          <aside aria-label={hayVarios ? t("escritorio.elegidos", { count: seleccionados.size }) : elegido ? t("ficha.datos") : proveedorElegido ? t("proveedor.datos") : t("escritorio.elegiUno")} style={{ width: anchoPanel, flexShrink: 0, overflowY: "auto", background: paleta.card, borderLeft: `1px solid ${paleta.border}`, position: "relative", transition: arrastre.current ? "none" : "width 180ms ease" }}>
-            <div role="separator" aria-orientation="vertical" aria-label={t("escritorio.arrastrarPanel")} title={t("escritorio.arrastrarPanel")} onMouseDown={empezarArrastre} onDoubleClick={alternarPanel} style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 8, cursor: "col-resize", zIndex: 2 }} />
+          <aside aria-label={hayVarios ? t("escritorio.elegidos", { count: seleccionados.size }) : fichaAbierta ? t("ficha.datos") : t("proveedor.datos")}
+            style={{ flex: fichaAbierta ? "0 0 46%" : "0 0 380px", minWidth: 0, overflowY: "auto", background: paleta.card, borderLeft: `1px solid ${paleta.border}`, position: "relative" }}>
             {panel}
           </aside>
         )}
@@ -599,21 +628,19 @@ export function Escritorio({
 
       <Paleta abierta={paletaAbierta} onCerrar={() => setPaletaAbierta(false)} productos={enFeria} proveedores={proveedores} vistas={vistas} acciones={accionesPaleta} onProducto={verProducto} onProveedor={verProveedor} onVista={aplicarVista} />
 
-      {/* Los atajos */}
       {atajosAbiertos && (
         <div role="dialog" aria-modal="true" aria-label={t("escritorio.atajosTitulo")} onClick={() => setAtajosAbiertos(false)} style={{ position: "fixed", inset: 0, zIndex: 65, background: "rgba(10,14,23,0.35)", display: "grid", placeItems: "center" }}>
           <div onClick={e => e.stopPropagation()} style={{ width: 560, maxWidth: "92vw", background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, boxShadow: "0 24px 60px rgba(0,0,0,0.35)", padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ display: "flex", alignItems: "center" }}><h2 style={{ ...texto("titulo"), margin: 0, flex: 1 }}>{t("escritorio.atajosTitulo")}</h2>{botonRedondo("cerrar", t("comun.cerrar"), () => setAtajosAbiertos(false))}</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-              {[["⌘K", "paleta"], ["← →", "navegar"], ["Espacio", "fotoGrande"], ["F", "favorito"], ["X", "descartar"], ["P", "pedido"], ["⇧ clic", "rango"], ["⌘A", "todos"], ["1 … 5", "secciones"], ["G / T", "vista"], ["Esc", "cerrar"], ["?", "ayuda"]].map(([k, c]) => (
-                <div key={c} style={{ display: "flex", alignItems: "center", gap: 10, background: paleta.bg, borderRadius: radios.chico, padding: "8px 10px", ...texto("pie"), color: paleta.muted }}><kbd style={{ fontFamily: "ui-monospace, monospace", fontSize: 12, background: paleta.card, border: `1px solid ${paleta.border}`, borderBottomWidth: 2, borderRadius: 5, padding: "1px 6px", color: paleta.text, whiteSpace: "nowrap" }}>{k}</kbd>{t(`escritorio.atajo.${c}`)}</div>
+              {[["⌘K", "paleta"], ["← →", "navegar"], ["Espacio", "fotoGrande"], ["F", "favorito"], ["X", "descartar"], ["P", "pedido"], ["⇧ clic", "rango"], ["⌘A", "todos"], ["1 … 5", "secciones"], ["G / T", "vista"], ["[ ]", "paneles"], ["Esc", "cerrar"], ["?", "ayuda"]].map(([k, c]) => (
+                <div key={c} style={{ display: "flex", alignItems: "center", gap: 10, background: paleta.bg, borderRadius: radios.chico, padding: "8px 10px", ...texto("pie"), color: paleta.muted }}><kbd style={{ fontFamily: "ui-monospace, monospace", fontSize: 12, background: paleta.card, border: `1px solid ${paleta.border}`, borderBottomWidth: 2, borderRadius: 5, padding: "1px 6px", color: paleta.text, whiteSpace: "nowrap" }}>{k}</kbd>{c === "paneles" ? `${t("escritorio.plegarLateral")} / ${t("escritorio.cerrarFicha")}` : t(`escritorio.atajo.${c}`)}</div>
               ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* La foto a pantalla completa */}
       {fotoGrande != null && elegido && (() => {
         const fs = elegido.photos?.length ? elegido.photos : (elegido.photoUrls || []);
         const i = Math.min(fotoGrande, Math.max(0, fs.length - 1));

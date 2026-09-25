@@ -674,7 +674,26 @@
     "sinResultadosFiltros": "Nada con esos criterios",
     "verDescartados": "Ver descartados",
     "descartados_one": "{{count}} descartado",
-    "descartados_other": "{{count}} descartados"
+    "descartados_other": "{{count}} descartados",
+    "filtrar": "Filtrar",
+    "ordenar": "Ordenar",
+    "orden": {
+      "createdAt-desc": "Más nuevo primero",
+      "createdAt-asc": "Más viejo primero",
+      "name-asc": "Nombre, A a Z",
+      "price-asc": "Precio, menor a mayor",
+      "price-desc": "Precio, mayor a menor",
+      "proveedor-asc": "Proveedor, A a Z",
+      "moq-asc": "MOQ, menor a mayor",
+      "category-asc": "Categoría, A a Z"
+    },
+    "plegarLateral": "Ocultar el menú",
+    "desplegarLateral": "Mostrar el menú",
+    "plegarVistas": "Ocultar las vistas",
+    "desplegarVistas": "Mostrar las vistas",
+    "cerrarFicha": "Cerrar la ficha",
+    "pistaPrimeraVez": "⌘K busca todo y hace · ? muestra los atajos",
+    "estadoDatos": "Estado de los datos"
   },
   "datos": {
     "sinCuenta": "Sin cuenta · lo tuyo queda solo en este dispositivo",
