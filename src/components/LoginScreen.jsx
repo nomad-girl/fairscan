@@ -18,6 +18,8 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
   const recuperando = !!onAuth?.recuperando;
   // Olvidé mi contraseña (27/09, Nati: "debería darte solo el campo de mail"): su propia pantalla, con el mail y un botón.
   const [enviado, setEnviado] = useState(false);
+  const [confirmando, setConfirmando] = useState(null); // mail pendiente de confirmar tras crear la cuenta (D3)
+  const [reenviado, setReenviado] = useState(false);
   const olvide = async (e) => {
     e?.preventDefault?.();
     if (!email.trim()) { setAviso(tx('entrar.escribiTuMail')); return; }
@@ -48,7 +50,12 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
         const result = convertir
           ? await onAuth.convertir(email, password, displayName || email.split('@')[0], teamName, marketingOptIn, rubro)
           : await onAuth.signUp(email, password, displayName || email.split('@')[0], teamName, marketingOptIn, rubro);
-        if (convertir) { onCancel?.(); setLoading(false); return; }
+        if (convertir) {
+          // D3 (27/09): con Confirm email, la cuenta sigue anónima hasta que toque el enlace del mail; hay que decírselo
+          const pendiente = result?.user?.new_email || (result?.user?.is_anonymous ? email : null);
+          if (pendiente) { setConfirmando(pendiente); setLoading(false); return; }
+          onCancel?.(); setLoading(false); return;
+        }
         // If email confirmation is required, show message
         if (result?.user && !result.session) {
           setSuccess(tx('entrar.revisaTuEmail'));
@@ -117,7 +124,15 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
         <p style={{ fontSize: 16, margin: 0, lineHeight: 1.35, color: 'rgba(255,255,255,0.92)', maxWidth: 340 }}>{convertir ? tx('entrar.fraseConvertir') : tx('bienvenida.frase')}</p>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '22px 22px calc(28px + env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {mode === 'recuperar' ? (
+        {confirmando ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>{tx('entrar.confirmaTitulo')}</h2>
+            <p style={{ fontSize: 15, color: t.text, margin: 0, lineHeight: 1.5, padding: '12px 14px', borderRadius: 12, background: t.greenSoft }}>{tx('entrar.confirmaTexto', { mail: confirmando })}</p>
+            {reenviado && <p style={{ fontSize: 13, color: t.muted, margin: 0 }}>{tx('entrar.reenviado')}</p>}
+            <button type="button" onClick={async () => { try { await onAuth.reenviar?.(confirmando); setReenviado(true); } catch (err) { setError(err?.message || ''); } }} style={{ width: '100%', minHeight: 54, borderRadius: 14, border: `1px solid ${t.border}`, background: t.card, color: t.text, fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{tx('entrar.reenviar')}</button>
+            <button type="button" onClick={() => { setConfirmando(null); onCancel?.(); }} style={{ width: '100%', minHeight: 54, borderRadius: 14, border: 'none', background: '#EA5A22', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{tx('entrar.yaConfirme')}</button>
+          </div>
+        ) : mode === 'recuperar' ? (
           <form onSubmit={olvide} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>{tx('entrar.recuperarContrasena')}</h2>
             {enviado ? (

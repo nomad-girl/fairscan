@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase, signIn, signUp, signOut, onAuthStateChange, getSession, signInAnonymously, convertirCuenta, resetPassword, updatePassword } from '../lib/supabase.js';
+import { supabase, signIn, signUp, signOut, onAuthStateChange, getSession, signInAnonymously, convertirCuenta, resetPassword, updatePassword, reenviarConfirmacion } from '../lib/supabase.js';
 
 const CLAVE_CIERRE = 'fairscan_cerro_sesion';
 const recordarCierreDeSesion = () => { try { localStorage.setItem(CLAVE_CIERRE, '1'); } catch { /* modo privado */ } };
@@ -76,5 +76,9 @@ export default function useAuth() {
   }, []);
   const recuperar = async (email) => resetPassword(email);
   const cambiarContrasena = async (password) => { await updatePassword(password); setRecuperando(false); if (typeof window !== 'undefined') window.history.replaceState(null, '', window.location.pathname); };
-  return { user, loading, esAnonima: !!user?.is_anonymous, signIn: handleSignIn, signUp: handleSignUp, convertir: handleConvertir, signOut: handleSignOut, recuperar, cambiarContrasena, recuperando };
+  // D3 (27/09): con "Confirm email" encendido, quien empezó sin cuenta y le puso mail sigue anónimo hasta confirmar;
+  // `mailPendiente` es ese mail, para avisarlo en la app y poder reenviar.
+  const mailPendiente = user?.is_anonymous && user?.new_email ? user.new_email : null;
+  const reenviar = async (email = mailPendiente) => reenviarConfirmacion(email, user?.is_anonymous ? 'email_change' : 'signup');
+  return { user, loading, esAnonima: !!user?.is_anonymous, mailPendiente, reenviar, signIn: handleSignIn, signUp: handleSignUp, convertir: handleConvertir, signOut: handleSignOut, recuperar, cambiarContrasena, recuperando };
 }

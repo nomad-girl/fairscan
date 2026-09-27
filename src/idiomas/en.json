@@ -974,7 +974,10 @@
     "version": "Version {{version}}",
     "privacidad": "Privacy",
     "terminos": "Terms",
-    "soporte": "Support"
+    "soporte": "Support",
+    "faltaConfirmarTitulo": "Your email needs confirming",
+    "faltaConfirmarTexto": "We sent an email to {{mail}}. Tap the link to finish creating your account; meanwhile everything stays saved on this phone.",
+    "reenviarMail": "Resend the email"
   },
   "equipo": {
     "ahora": "just now",
@@ -1140,7 +1143,12 @@
     "aceptasTerminos": "By creating an account you accept the <terminos>Terms and Conditions</terminos> and the <privacidad>Privacy Policy</privacidad>.",
     "olvideContrasena": "I forgot my password",
     "yaTengoCuenta": "I already have an account",
-    "ahoraNo": "Not now"
+    "ahoraNo": "Not now",
+    "confirmaTitulo": "Check your email",
+    "confirmaTexto": "We sent an email to {{mail}} to confirm your account. Until you confirm it, your catalog stays saved on this phone; after that it's also in the cloud.",
+    "reenviar": "Resend the email",
+    "reenviado": "Done, we sent it again. Check your spam folder too.",
+    "yaConfirme": "I've confirmed it"
   },
   "borrador": {
     "tarjetaDe": "the card from {{nombre}}",

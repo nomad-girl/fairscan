@@ -26,3 +26,20 @@ describe("Entrar · Olvidé mi contraseña (27/09)", () => {
     expect(screen.getByRole("heading", { name: "Entrar" })).toBeTruthy();
   });
 });
+
+describe("Crear cuenta desde una sesión sin cuenta, con Confirm email encendido (D3, 27/09)", () => {
+  it("si la cuenta queda pendiente de confirmar, lo dice, ofrece reenviar y no cierra como si ya existiera", async () => {
+    const convertir = vi.fn().mockResolvedValue({ user: { is_anonymous: true, new_email: "nati@ejemplo.com" } });
+    const reenviar = vi.fn().mockResolvedValue(true); const onCancel = vi.fn();
+    render(<LoginScreen t={tema} convertir onCancel={onCancel} onAuth={{ convertir, reenviar, signIn: vi.fn(), signUp: vi.fn() }} />);
+    fireEvent.change(screen.getByLabelText("Mail"), { target: { value: "nati@ejemplo.com" } });
+    fireEvent.change(screen.getByLabelText("Contraseña"), { target: { value: "secreta1" } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Crear cuenta" }).find(b => b.getAttribute("type") === "submit"));
+    expect(await screen.findByRole("heading", { name: "Revisá tu mail" })).toBeTruthy();
+    expect(onCancel).not.toHaveBeenCalled(); // no la deja seguir como si la cuenta ya existiera
+    fireEvent.click(screen.getByText("Reenviar el mail"));
+    await waitFor(() => expect(reenviar).toHaveBeenCalledWith("nati@ejemplo.com"));
+    fireEvent.click(screen.getByText("Ya lo confirmé"));
+    expect(onCancel).toHaveBeenCalled();
+  });
+});

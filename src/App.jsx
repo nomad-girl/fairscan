@@ -1952,7 +1952,14 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
             width: '100%', padding: '12px', borderRadius: 12, marginBottom: 10,
             border: `1px solid ${t.border}`, background: t.card, color: t.text, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
           }}>{tx("configuracion.restaurarCompras")}</button>
-          {esAnonima ? (
+          {esAnonima && auth?.mailPendiente ? (
+            <div style={{ background:t.accentSoft, border:`1px solid ${t.accent}40`, borderRadius:14, padding:14 }}>
+              {/* D3 (27/09): puso mail pero todavía no tocó el enlace de confirmación */}
+              <p style={{ fontSize:13, fontWeight:700, color:t.text, margin:"0 0 4px" }}>{tx("configuracion.faltaConfirmarTitulo")}</p>
+              <p style={{ fontSize:12, color:t.muted, margin:"0 0 10px", lineHeight:1.5 }}>{tx("configuracion.faltaConfirmarTexto", { mail: auth.mailPendiente })}</p>
+              <button onClick={async () => { try { await auth.reenviar(); alert(tx("entrar.reenviado")); } catch (e) { alert(e?.message || ""); } }} style={{ width:"100%", padding:"12px", borderRadius:12, border:`1px solid ${t.border}`, background:t.card, color:t.text, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{tx("configuracion.reenviarMail")}</button>
+            </div>
+          ) : esAnonima ? (
             <div style={{ background:t.accentSoft, border:`1px solid ${t.accent}40`, borderRadius:14, padding:14 }}>
               <p style={{ fontSize:13, fontWeight:700, color:t.text, margin:"0 0 4px" }}>{tx("configuracion.sinCuentaTitulo")}</p>
               <p style={{ fontSize:12, color:t.muted, margin:"0 0 10px", lineHeight:1.5 }}>{tx("configuracion.sinCuentaTexto")}</p>

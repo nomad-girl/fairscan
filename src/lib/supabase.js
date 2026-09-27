@@ -69,6 +69,14 @@ export async function convertirCuenta(email, password, displayName, teamName, ma
   return res;
 }
 
+/** Vuelve a mandar el mail de confirmación (D3, 27/09): 'email_change' cuando una cuenta sin mail le puso uno; 'signup' al crear cuenta. */
+export async function reenviarConfirmacion(email, tipo = 'email_change') {
+  if (!supabase) throw new Error('Supabase no configurado');
+  const { error } = await supabase.auth.resend({ type: tipo, email });
+  if (error) throw error;
+  return true;
+}
+
 /** Manda el mail para recuperar la contraseña. El link vuelve a la app, que detecta la recuperación y pide una nueva. */
 export async function resetPassword(email) {
   if (!supabase) throw new Error('Supabase no está configurado');

@@ -974,7 +974,10 @@
     "version": "Versión {{version}}",
     "privacidad": "Privacidad",
     "terminos": "Términos",
-    "soporte": "Soporte"
+    "soporte": "Soporte",
+    "faltaConfirmarTitulo": "Falta confirmar tu mail",
+    "faltaConfirmarTexto": "Te mandamos un mail a {{mail}}. Tocá el enlace para terminar de crear la cuenta; mientras, todo sigue guardado en este teléfono.",
+    "reenviarMail": "Reenviar el mail"
   },
   "equipo": {
     "ahora": "ahora",
@@ -1140,7 +1143,12 @@
     "aceptasTerminos": "Al crear la cuenta aceptás los <terminos>Términos y Condiciones</terminos> y la <privacidad>Política de Privacidad</privacidad>.",
     "olvideContrasena": "Olvidé mi contraseña",
     "yaTengoCuenta": "Ya tengo cuenta",
-    "ahoraNo": "Ahora no"
+    "ahoraNo": "Ahora no",
+    "confirmaTitulo": "Revisá tu mail",
+    "confirmaTexto": "Te mandamos un mail a {{mail}} para confirmar la cuenta. Hasta que lo confirmes, tu catálogo sigue guardado en este teléfono; después queda también en la nube.",
+    "reenviar": "Reenviar el mail",
+    "reenviado": "Listo, te lo mandamos de nuevo. Revisá también no deseados.",
+    "yaConfirme": "Ya lo confirmé"
   },
   "borrador": {
     "tarjetaDe": "la tarjeta de {{nombre}}",
