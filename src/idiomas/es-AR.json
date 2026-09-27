@@ -755,5 +755,10 @@
     "nube_other": "Todo en la nube · {{count}} productos · {{equipo}}",
     "reintentar": "Reintentar",
     "entrar": "Entrar"
+  },
+  "ajustes": {
+    "idioma": "Idioma",
+    "idiomaAuto": "Como el teléfono",
+    "idiomaPista": "Como el teléfono: español si el teléfono está en español; inglés en cualquier otro idioma. La proforma y los Excel salen en el idioma de la app."
   }
 }

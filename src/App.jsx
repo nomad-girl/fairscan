@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
+import { i18next, cambiarIdioma, leerPreferencia } from './idiomas/index.js';
 import { PRESETS } from "./lib/presets.js";
 import useGrabadora from "./hooks/useGrabadora.js";
 import { cargarNegocio, NEGOCIO_POR_DEFECTO } from "./lib/negocio.js";
@@ -1313,6 +1314,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
     if (onSwitchTeam) await onSwitchTeam(teamId);
   };
   const [loc, setLoc] = useState({ ...settings });
+  const [prefIdioma, setPrefIdioma] = useState(() => leerPreferencia()); // "auto" · "es-AR" · "en"
   const [editing, setEditing] = useState(null);
   const [ni, setNi] = useState("");
   const [dirty, setDirty] = useState(false);
@@ -1523,6 +1525,14 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
         <button type="button" role="switch" aria-checked={!!isDark} onClick={onToggleTheme} style={{ width:"100%", minHeight:44, padding:"10px 12px", borderRadius:10, border:`1.5px solid ${isDark?t.accent:t.border}`, background:isDark?t.accentSoft:"transparent", color:isDark?t.accent:t.muted, fontSize:13, fontWeight:700, cursor:"pointer", textAlign:"left", fontFamily:"inherit", marginBottom:20 }}>
           Modo oscuro · {isDark ? "Activado" : "Desactivado"}
         </button>
+        {/* Idioma (E6, decisión de Nati del 27/09): sigue al teléfono, o se fija a mano */}
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"20px 0 8px", textTransform:"uppercase" }}>{i18next.t("ajustes.idioma")}</p>
+        <div style={{ display:"flex", gap:6, marginBottom:8 }}>
+          {[["auto", i18next.t("ajustes.idiomaAuto")], ["es-AR", "Español"], ["en", "English"]].map(([k, etiqueta]) => (
+            <button key={k} type="button" role="radio" aria-checked={prefIdioma===k} onClick={() => { setPrefIdioma(k); const activo = cambiarIdioma(k); try { document.documentElement.lang = activo; } catch {} }} style={{ flex:1, minHeight:44, padding:"10px 8px", borderRadius:10, border:`1.5px solid ${prefIdioma===k?t.accent:t.border}`, background:prefIdioma===k?t.accentSoft:"transparent", color:prefIdioma===k?t.accent:t.muted, fontSize:12, fontWeight:700, cursor:"pointer", textAlign:"center", fontFamily:"inherit" }}>{etiqueta}</button>
+          ))}
+        </div>
+        <p style={{ fontSize:11, color:t.dim, margin:"0 0 20px", lineHeight:1.5 }}>{i18next.t("ajustes.idiomaPista")}</p>
         <p style={{ fontSize:11, color:t.dim, textAlign:"center", fontStyle:"italic" }}>Los cambios se guardan automáticamente</p>
       </div>
     </div>

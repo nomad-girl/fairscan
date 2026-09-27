@@ -8,7 +8,8 @@ import { SistemaProvider } from './sistema/SistemaProvider.jsx';
 
 // Los textos de la app viven en archivos de idioma (es-AR hoy). Se inicializa
 // antes de dibujar nada para que ningún componente pida una clave sin diccionario.
-iniciarIdiomas();
+const idiomaInicial = iniciarIdiomas().language;
+try { document.documentElement.lang = idiomaInicial; } catch { /* sin DOM */ }
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

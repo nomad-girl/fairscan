@@ -87,9 +87,20 @@ async function post(path, payload) {
  * Procesa la foto de un producto con Claude Vision.
  * Extrae nombre, descripción, características, materiales, colores y categoría.
  */
-export async function processImage(base64Image, { categories, materials } = {}) {
+function idiomaActual() {
   try {
-    return await post('/api/process-image', { image: base64Image, categories, materials });
+    if (typeof document !== "undefined" && document.documentElement.lang) return document.documentElement.lang;
+    const pref = typeof localStorage !== "undefined" ? localStorage.getItem("fairscan.idioma") : null;
+    if (pref && pref !== "auto") return pref;
+    const del = (typeof navigator !== "undefined" && (navigator.languages?.[0] || navigator.language)) || "es";
+    return /^es\b/i.test(del) ? "es-AR" : "en";
+  } catch { return "es-AR"; }
+}
+
+export async function processImage(base64Image, { categories, materials, idioma } = {}) {
+  try {
+    // El idioma de la app viaja al servidor para que la IA nombre el producto en ese idioma (E6, 27/09)
+    return await post('/api/process-image', { image: base64Image, categories, materials, idioma: idioma || idiomaActual() });
   } catch (error) {
     console.error('Error processing image:', error);
     throw error;

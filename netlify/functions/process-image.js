@@ -12,7 +12,9 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { image, categories, materials } = JSON.parse(event.body);
+    const { image, categories, materials, idioma } = JSON.parse(event.body);
+    // La IA escribe en el idioma de la app (E6, 27/09): español salvo que el teléfono esté en otro idioma
+    const enIngles = typeof idioma === "string" && /^en/i.test(idioma);
 
     if (!image) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: "Image is required" }) };
@@ -47,10 +49,10 @@ exports.handler = async (event) => {
             },
             {
               type: "text",
-              text: `Analiza esta imagen de un producto de feria comercial y extrae la siguiente información en formato JSON:
+              text: `Analiza esta imagen de un producto de feria comercial y extrae la siguiente información en formato JSON. Escribe el nombre, la descripción, las características y los colores en ${enIngles ? "INGLÉS" : "ESPAÑOL"}:
 {
-  "name": "nombre del producto en español",
-  "description": "descripción breve del producto (1-2 oraciones)",
+  "name": "nombre del producto en ${enIngles ? "inglés" : "español"}",
+  "description": "descripción breve del producto (1-2 oraciones, en ${enIngles ? "inglés" : "español"})",
   "features": ["característica 1", "característica 2"],
   "materials": [${materialList}],
   "colors": ["color 1", "color 2"],
