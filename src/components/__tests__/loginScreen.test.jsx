@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import React from "react";
-import { describe, it, expect, vi, beforeAll } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeAll, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+afterEach(cleanup); // sin globals, RTL no limpia solo entre tests
 import LoginScreen from "../LoginScreen.jsx";
 import { PALETAS } from "../../sistema/tokens.js";
 import { iniciarIdiomas } from "../../idiomas/index.js";
@@ -34,7 +35,8 @@ describe("Crear cuenta desde una sesión sin cuenta, con Confirm email encendido
     render(<LoginScreen t={tema} convertir onCancel={onCancel} onAuth={{ convertir, reenviar, signIn: vi.fn(), signUp: vi.fn() }} />);
     fireEvent.change(screen.getByLabelText("Mail"), { target: { value: "nati@ejemplo.com" } });
     fireEvent.change(screen.getByLabelText("Contraseña"), { target: { value: "secreta1" } });
-    fireEvent.click(screen.getAllByRole("button", { name: "Crear cuenta" }).find(b => b.getAttribute("type") === "submit"));
+    fireEvent.submit(screen.getByLabelText("Mail").closest("form"));
+    await waitFor(() => expect(convertir).toHaveBeenCalled());
     expect(await screen.findByRole("heading", { name: "Revisá tu mail" })).toBeTruthy();
     expect(onCancel).not.toHaveBeenCalled(); // no la deja seguir como si la cuenta ya existiera
     fireEvent.click(screen.getByText("Reenviar el mail"));
