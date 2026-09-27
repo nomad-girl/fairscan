@@ -165,7 +165,7 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
           <span style={{ width: 48 }} />
         </div>
         <FilaDeChips estilo={{ padding: "0 14px" }}>
-          {filtros.map(([k, nombre, n]) => <Chip key={k} activo={filtro === k} onClick={() => cambiarFiltro(k)} estilo={filtro === k ? undefined : { background: "rgba(10,14,23,0.55)", color: "#fff", borderColor: "transparent" }}>{nombre}{n ? ` · ${n}` : ""}</Chip>)}
+          {filtros.map(([k, nombre, n]) => <Chip key={k} activo={filtro === k} onClick={() => cambiarFiltro(k)} estilo={filtro === k ? { background: paleta.accent, color: "#fff", borderColor: paleta.accent } : { background: "rgba(10,14,23,0.55)", color: "#fff", borderColor: "transparent" }}>{nombre}{n ? ` · ${n}` : ""}</Chip>)}
         </FilaDeChips>
       </div>
 

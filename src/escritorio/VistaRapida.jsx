@@ -13,11 +13,10 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Segmentado, Icono } from "../componentes/index.js";
+import { Boton, Segmentado, Icono, Dato } from "../componentes/index.js";
 import { haceCuanto } from "../idiomas/formato.js";
 import { respaldoDe } from "../lib/miniaturas.js";
 import { Miniatura } from "./util.jsx";
-import { Dato } from "./Dato.jsx";
 import { PREFIJO_EXTRA, cambioDeExtra } from "./camposPersonalizados.js";
 
 const ANCHO_DATOS = 460;

@@ -152,16 +152,17 @@ export function Catalogo({
                 al botón de vista y a la fila de revisar; favoritos queda como un filtro chico a la derecha. */}
             {seleccion ? (
               <div style={{ display: "flex", gap: 8, alignItems: "center", minHeight: 40 }}>
-                <span style={{ ...texto("cuerpo", { fontWeight: 600 }) }}>{seleccion.size ? t("catalogo.seleccionados", { count: seleccion.size }) : t("catalogo.tocaParaSeleccionar")}</span>
-                <span style={{ flex: 1 }} />
-                <Boton variante="peligro" icono="borrar" deshabilitado={seleccion.size === 0} onClick={() => setConfirmandoBorrado(true)}>{t("catalogo.eliminarSeleccion")}</Boton>
-                <Boton variante="secundario" onClick={() => setSeleccion(null)}>{t("catalogo.cancelar")}</Boton>
+                {/* 27/09: el texto cede y los botones no se parten (antes salía "Elim inar") */}
+                <span style={{ ...texto("pie", { fontWeight: 600 }), flex: 1, minWidth: 0, color: paleta.muted }}>{seleccion.size ? t("catalogo.seleccionados", { count: seleccion.size }) : t("catalogo.tocaParaSeleccionar")}</span>
+                <Boton variante="peligro" icono="borrar" deshabilitado={seleccion.size === 0} onClick={() => setConfirmandoBorrado(true)} estilo={{ whiteSpace: "nowrap", flexShrink: 0 }}>{t("catalogo.eliminarSeleccion")}</Boton>
+                <Boton variante="secundario" onClick={() => setSeleccion(null)} estilo={{ whiteSpace: "nowrap", flexShrink: 0 }}>{t("catalogo.cancelar")}</Boton>
               </div>
             ) : (
             <div style={{ display: "flex", gap: 8, alignItems: "center", minHeight: 40 }}>
+              {/* 27/09 (Nati: "la pastilla naranja molesta, se ve feo"): un enlace tranquilo, sin relleno */}
               {deHoy.length > 0 && onRevisarDia ? (
-                <button type="button" onClick={onRevisarDia} style={{ display: "inline-flex", alignItems: "center", gap: 6, minHeight: 40, padding: "0 14px", borderRadius: radios.pildora, border: "none", background: paleta.accent, color: "#fff", cursor: "pointer", fontFamily: "inherit", ...texto("pie", { fontWeight: 700 }) }}>
-                  <Icono nombre="listo" tamano={16} color="#fff" /><b>{t("catalogo.revisarElDia")}</b><span style={{ fontWeight: 500, opacity: 0.9 }}> · {t("catalogo.deHoy", { count: deHoy.length })}</span>
+                <button type="button" onClick={onRevisarDia} style={{ display: "inline-flex", alignItems: "center", gap: 6, minHeight: 40, padding: 0, border: "none", background: "transparent", color: paleta.accentTexto, cursor: "pointer", fontFamily: "inherit", ...texto("cuerpo", { fontWeight: 600 }) }}>
+                  <Icono nombre="listo" tamano={16} color={paleta.accentTexto} /><b style={{ fontWeight: 600 }}>{t("catalogo.revisarElDia")}</b><span style={{ fontWeight: 400, color: paleta.muted }}> · {t("catalogo.deHoy", { count: deHoy.length })}</span><Icono nombre="siguiente" tamano={14} color={paleta.dim} />
                 </button>
               ) : <span style={{ ...texto("pie"), color: paleta.dim }}>{t("catalogo.productos", { count: enFeria.length })}</span>}
               <span style={{ flex: 1 }} />

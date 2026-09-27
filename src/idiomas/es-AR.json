@@ -418,10 +418,9 @@
     "vendedor": "Vendedor",
     "sacarFotos": "Sacar fotos de este proveedor",
     "compra": "Compra",
-    "verTodos": "Ver todos ›",
-    "galeria": "Sus productos",
-    "paginaTarjeta": "La tarjeta",
-    "paginaGaleria": "Sus productos"
+    "paginaTarjeta": "Tarjeta",
+    "deslizaParaVer": "deslizá para verlos ›",
+    "tocaParaAbrir": "Tocá la foto para abrir el producto"
   },
   "pedido": {
     "titulo": "Pedido",
