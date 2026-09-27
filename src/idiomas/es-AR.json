@@ -431,7 +431,8 @@
     "compra": "Compra",
     "paginaTarjeta": "Tarjeta",
     "deslizaParaVer": "deslizá para verlos ›",
-    "tocaParaAbrir": "Tocá la foto para abrir el producto"
+    "tocaParaAbrir": "Tocá la foto para abrir el producto",
+    "verProductos": "Productos"
   },
   "pedido": {
     "titulo": "Pedido",

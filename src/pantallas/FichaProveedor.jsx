@@ -23,6 +23,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
   const [datosAbiertos, setDatosAbiertos] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
   const [guardado, setGuardado] = useState(false);
+  const [grillaAbierta, setGrillaAbierta] = useState(false); // 27/09 (C2): todos sus productos en grilla, con un botón arriba
   const [pagina, setPagina] = useState(0); // 0 = la tarjeta · 1 = la galería de sus productos (27/09)
   const paginasRef = useRef(null);
   useEffect(() => { setPagina(0); paginasRef.current?.scrollTo?.({ left: 0 }); }, [s.id]);
@@ -165,12 +166,25 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
       </div>
       {/* Dónde estoy en el carrusel: la tarjeta, o el producto n de N (27/09) */}
       {suyos.length > 0 && (
-        <div style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 66px)`, left: 0, right: 0, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
-          <span style={{ background: "rgba(10,14,23,0.55)", color: "#fff", borderRadius: 999, padding: "4px 10px", fontSize: 12, fontWeight: 600, backdropFilter: "blur(6px)", fontVariantNumeric: "tabular-nums" }}>
-            {pagina === 0 ? t("proveedor.paginaTarjeta") : t("proveedor.posicion", { n: pagina, total: suyos.length })}
-          </span>
+        <div style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 66px)`, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
+          {/* Dónde estoy en el carrusel, y el botón que abre la grilla con todos (C2) */}
+          <button type="button" onClick={() => setGrillaAbierta(true)} aria-label={t("proveedor.verProductos")} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(10,14,23,0.55)", color: "#fff", border: "none", borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 600, backdropFilter: "blur(6px)", fontVariantNumeric: "tabular-nums", cursor: "pointer", fontFamily: "inherit" }}>
+            <Icono nombre="foto" tamano={14} color="#fff" />{pagina === 0 ? t("proveedor.paginaTarjeta") : t("proveedor.posicion", { n: pagina, total: suyos.length })} · {t("proveedor.verProductos")}
+          </button>
         </div>
       )}
+
+      {/* Todos sus productos en grilla (C2) */}
+      <Hoja abierta={grillaAbierta} onCerrar={() => setGrillaAbierta(false)} titulo={`${s.company || t("proveedor.titulo")} · ${t("proveedor.conProductos", { count: suyos.length })}`} altura="completa">
+        <div role="list" style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 4, paddingTop: 4 }}>
+          {suyos.map(p => (
+            <button key={p.id} type="button" role="listitem" onClick={() => { setGrillaAbierta(false); onNavigateProduct?.(p); }} aria-label={p.name || t("pedido.sinNombre")} style={{ aspectRatio: "1", borderRadius: 8, overflow: "hidden", border: "none", padding: 0, background: paleta.surface, cursor: "pointer", position: "relative" }}>
+              {miniatura(p)}
+              {p.price ? <span style={{ position: "absolute", left: 6, bottom: 6, background: "rgba(10,14,23,0.7)", color: "#fff", borderRadius: 6, padding: "2px 6px", fontSize: 11, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moneda} {p.price}</span> : null}
+            </button>
+          ))}
+        </div>
+      </Hoja>
 
       {/* A la derecha: los contactos, con nombre debajo (un toque y estás escribiendo) */}
       {contactos.length > 0 && (

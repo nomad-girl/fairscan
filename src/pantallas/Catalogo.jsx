@@ -7,7 +7,7 @@
  *
  * Capa visible. La lógica de datos (borrar, favorito, navegar) llega por props desde App.
  */
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { Boton, Chip, FilaDeChips, Segmentado, Fila, Precio, Icono, Esqueleto, Hoja, GrillaDeFotos, CeldaDeFoto, CarruselDeFotos, EstadoDeDatos, esperandoNube } from "../componentes/index.js";
@@ -77,6 +77,16 @@ export function Catalogo({
   const borrarSeleccion = () => { const ids = [...(seleccion || [])]; setConfirmandoBorrado(false); setSeleccion(null); if (ids.length) onEliminarVarios?.(ids); };
   const abrir = (p) => seleccion ? alternarSeleccion(p) : onNavigate?.("detail", p, filtrados); // el orden con los filtros puestos: la ficha desliza por estos vecinos (21/09)
   const nombreFeria = feria === "todas" ? t("catalogo.todasLasFerias") : (activeDistrict?.name || "");
+  // Deslizar a los lados sobre el contenido cambia de pestaña (27/09, Nati: "que se pueda swipear entre uno y otro")
+  const toqueRef = useRef(null);
+  const alTocarContenido = (e) => { const t0 = e.touches[0]; toqueRef.current = { x: t0.clientX, y: t0.clientY }; };
+  const alSoltarContenido = (e) => {
+    const ini = toqueRef.current; toqueRef.current = null; if (!ini || seleccion) return;
+    const t0 = e.changedTouches[0]; const dx = t0.clientX - ini.x, dy = t0.clientY - ini.y;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    if (dx < 0 && pestana === "todo") onPestana?.("proveedores");
+    if (dx > 0 && pestana === "proveedores") onPestana?.("todo");
+  };
 
   // Función, no componente: un componente definido adentro del render es un tipo nuevo cada vez y React
   // desmonta y vuelve a montar la imagen (Nati, 16/09: "las fotos titilan").
@@ -123,27 +133,37 @@ export function Catalogo({
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit" }}>
-      {/* Barra superior: título · feria · buscar · ajustes */}
-      <div style={{ padding: `calc(0px + 8px) ${espacios.margenLateral}px 6px`, display: "flex", flexDirection: "column", gap: 8 }}>
-        {/* Protocolo de datos (24/09), medida 1: dónde están los datos, siempre a la vista */}
-        {estadoDatos && <EstadoDeDatos estado={estadoDatos} onReintentar={onReintentar} onEntrar={onEntrar} compacto />}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, minHeight: alturas.tocable }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h1 style={{ ...texto("titulo"), margin: 0 }}>{t("catalogo.titulo")}</h1>
-            <button type="button" onClick={() => setFeriaAbierta(true)} style={{ ...texto("pie"), color: paleta.accentTexto, background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 4, minHeight: 24 }}>{nombreFeria} <Icono nombre="siguiente" tamano={14} color={paleta.accentTexto} /></button>
-          </div>
-          <button type="button" onClick={() => { setBuscando(v => !v); if (buscando) setConsulta(""); }} aria-label={t("comun.buscar")} aria-pressed={buscando} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${buscando ? paleta.accent : paleta.border}`, background: buscando ? paleta.accentSoft : paleta.card, display: "grid", placeItems: "center", cursor: "pointer", boxShadow: paleta.sombraTarjeta }}><Icono nombre="buscar" tamano={20} color={buscando ? paleta.accentTexto : paleta.muted} /></button>
-          <button type="button" onClick={() => onNavigate?.("pedidos")} aria-label={t("catalogo.pedidos")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer", boxShadow: paleta.sombraTarjeta }}><Icono nombre="pedido" tamano={20} color={paleta.muted} /></button>
-          <button type="button" onClick={() => onNavigate?.("settings")} aria-label={t("catalogo.ajustes")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer", boxShadow: paleta.sombraTarjeta }}><Icono nombre="ajustes" tamano={20} color={paleta.muted} /></button>
+      {/* Barra superior (27/09, A1 elegida por Nati: "mucha info, muchas tipografías, poca jerarquía"): la feria es el
+          título, el estado de los datos es un punto al lado (tocarlo dice qué pasa), tres íconos chicos sin tarjeta. */}
+      <div style={{ padding: `calc(0px + 10px) ${espacios.margenLateral}px 0`, display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, minHeight: alturas.tocable }}>
+          {estadoDatos && <EstadoDeDatos estado={estadoDatos} onReintentar={onReintentar} onEntrar={onEntrar} soloPunto estilo={{ marginLeft: -6 }} />}
+          <button type="button" onClick={() => setFeriaAbierta(true)} aria-label={t("catalogo.ferias")} style={{ flex: 1, minWidth: 0, display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit", color: paleta.text, textAlign: "left" }}>
+            <h1 style={{ ...texto("titulo"), fontSize: 22, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{nombreFeria}</h1>
+            <Icono nombre="abajo" tamano={18} color={paleta.dim} />
+          </button>
+          {[["buscar", t("comun.buscar"), () => { setBuscando(v => !v); if (buscando) setConsulta(""); }, buscando], ["pedido", t("catalogo.pedidos"), () => onNavigate?.("pedidos"), false], ["ajustes", t("catalogo.ajustes"), () => onNavigate?.("settings"), false]].map(([icono, etiqueta, onClick, activo]) => (
+            <button key={icono} type="button" onClick={onClick} aria-label={etiqueta} aria-pressed={icono === "buscar" ? activo : undefined} style={{ width: 40, height: 40, borderRadius: 20, border: "none", background: activo ? paleta.accentSoft : "transparent", display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre={icono} tamano={22} color={activo ? paleta.accentTexto : paleta.muted} /></button>
+          ))}
         </div>
         {buscando && (
           <input autoFocus value={consulta} onChange={e => setConsulta(e.target.value)} placeholder={t("catalogo.buscar")} aria-label={t("catalogo.buscar")}
             style={{ ...texto("cuerpo", { fontWeight: 400 }), minHeight: alturas.campo, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.surface, color: paleta.text, padding: "0 14px", fontFamily: "inherit", outline: "none", width: "100%" }} />
         )}
-        <Segmentado etiqueta={t("catalogo.titulo")} valor={pestana} onChange={onPestana} opciones={[{ valor: "todo", texto: t("catalogo.todo") }, { valor: "proveedores", texto: t("catalogo.proveedores") }]} />
+        <div role="tablist" aria-label={t("catalogo.titulo")} style={{ display: "flex", borderBottom: `1px solid ${paleta.border}`, margin: `0 -${espacios.margenLateral}px`, padding: `0 ${espacios.margenLateral}px` }}>
+          {[["todo", t("catalogo.todo")], ["proveedores", t("catalogo.proveedores")]].map(([valor, nombre]) => {
+            const on = pestana === valor;
+            return (
+              <button key={valor} type="button" role="tab" aria-selected={on} onClick={() => onPestana?.(valor)} style={{ flex: 1, minHeight: 44, border: "none", background: "none", padding: 0, fontFamily: "inherit", fontSize: 15, fontWeight: on ? 700 : 500, color: on ? paleta.text : paleta.dim, cursor: "pointer", position: "relative", WebkitTapHighlightColor: "transparent" }}>
+                {nombre}
+                <span aria-hidden style={{ position: "absolute", left: "18%", right: "18%", bottom: -1, height: 3, borderRadius: 2, background: paleta.accent, transform: on ? "scaleX(1)" : "scaleX(0)", transition: "transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1)" }} />
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", padding: `6px ${espacios.margenLateral}px 110px`, display: "flex", flexDirection: "column", gap: espacios.entreFilas }}>
+      <div onTouchStart={alTocarContenido} onTouchEnd={alSoltarContenido} style={{ flex: 1, overflowY: "auto", overflowX: "hidden", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", padding: `6px ${espacios.margenLateral}px 110px`, display: "flex", flexDirection: "column", gap: espacios.entreFilas }}>
 
         {pestana === "todo" && (
           <>
@@ -242,12 +262,30 @@ export function Catalogo({
                 {!palabras.length && <p style={{ ...texto("pie"), color: paleta.dim, margin: 0 }}>{t("catalogo.sinProveedoresPista")}</p>}
               </div>
             )}
-            {proveedoresBuscados.map(s => (
-              <Fila key={s.id} onClick={() => onNavigate?.("supplier", s, proveedoresBuscados)} flecha
-                miniatura={(s.cardPhoto || s.cardPhotoUrl) ? (Foto ? <Foto src={s.cardPhoto || s.cardPhotoUrl} respaldo={s.cardPhotoUrl || null} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <img src={s.cardPhoto || s.cardPhotoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <Iniciales texto={s.company} />}
-                titulo={<>{s.favorito ? <><Icono nombre="favorito" tamano={13} color={paleta.accentTexto} /> </> : null}{s.company || `#${s.id}`}</>}
-                subtitulo={`${s.contact ? s.contact + " · " : ""}${t("catalogo.productos", { count: productosPorProveedor.get(s.id) || 0 })}`} />
-            ))}
+            {/* 27/09 (C1, Nati: "está bueno que se vea en grilla también la lista de proveedores"): tarjetas de dos columnas,
+                con la foto de la tarjeta o del primer producto, el nombre y cuántos productos tiene */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+              {proveedoresBuscados.map(s => {
+                const tarjeta = s.cardPhoto || s.cardPhotoUrl || null;
+                const primero = !tarjeta ? products.find(p => p.supplierId === s.id) : null;
+                const n = productosPorProveedor.get(s.id) || 0;
+                return (
+                  <button key={s.id} type="button" onClick={() => onNavigate?.("supplier", s, proveedoresBuscados)} aria-label={s.company || `#${s.id}`}
+                    style={{ textAlign: "left", padding: 0, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, background: paleta.card, overflow: "hidden", cursor: "pointer", fontFamily: "inherit", color: paleta.text, boxShadow: paleta.sombraTarjeta, display: "flex", flexDirection: "column" }}>
+                    <span style={{ display: "block", aspectRatio: "1.45", background: paleta.surface, position: "relative" }}>
+                      {tarjeta ? (Foto ? <Foto src={tarjeta} respaldo={s.cardPhotoUrl || null} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <img src={tarjeta} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />)
+                        : primero ? <span style={{ display: "block", width: "100%", height: "100%" }}>{miniatura(primero)}</span>
+                        : <span style={{ display: "grid", placeItems: "center", width: "100%", height: "100%" }}><Iniciales texto={s.company} /></span>}
+                      {s.favorito ? <span style={{ position: "absolute", top: 8, right: 8, width: 24, height: 24, borderRadius: 12, background: paleta.accent, display: "grid", placeItems: "center" }}><Icono nombre="favorito" tamano={13} color="#fff" /></span> : null}
+                    </span>
+                    <span style={{ display: "flex", flexDirection: "column", gap: 2, padding: "8px 10px 10px" }}>
+                      <span style={{ ...texto("cuerpo", { fontWeight: 600 }), display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.company || `#${s.id}`}</span>
+                      <span style={{ ...texto("pie"), color: paleta.muted, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{[s.boothNumber ? `${t("proveedor.stand")} ${s.boothNumber}` : null, t("catalogo.productos", { count: n })].filter(Boolean).join(" · ")}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </>
         )}
       </div>
