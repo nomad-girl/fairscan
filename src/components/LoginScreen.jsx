@@ -14,10 +14,13 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
   const [password, setPassword] = useState('');
   const [aviso, setAviso] = useState('');
   const recuperando = !!onAuth?.recuperando;
-  const olvide = async () => {
-    if (!email.trim()) { setAviso('Escribí tu mail arriba y volvé a tocar acá.'); return; }
-    try { await onAuth.recuperar(email.trim()); setAviso('Te mandamos un mail para crear una contraseña nueva. Revisá también no deseados.'); }
-    catch (e) { setAviso(e?.message || 'No se pudo mandar el mail.'); }
+  // Olvidé mi contraseña (27/09, Nati: "debería darte solo el campo de mail"): su propia pantalla, con el mail y un botón.
+  const [enviado, setEnviado] = useState(false);
+  const olvide = async (e) => {
+    e?.preventDefault?.();
+    if (!email.trim()) { setAviso('Escribí tu mail.'); return; }
+    try { await onAuth.recuperar(email.trim()); setAviso(''); setEnviado(true); }
+    catch (err) { setAviso(err?.message || 'No se pudo mandar el mail.'); }
   };
   const [displayName, setDisplayName] = useState('');
   const [teamName, setTeamName] = useState('');
@@ -112,6 +115,26 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
         <p style={{ fontSize: 16, margin: 0, lineHeight: 1.35, color: 'rgba(255,255,255,0.92)', maxWidth: 340 }}>{convertir ? 'Creá tu cuenta para no perder tu catálogo.' : 'Sacá la foto. La app le pone nombre, lee la tarjeta y arma el pedido.'}</p>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '22px 22px calc(28px + env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {mode === 'recuperar' ? (
+          <form onSubmit={olvide} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>Recuperar la contraseña</h2>
+            {enviado ? (
+              <>
+                <p style={{ fontSize: 15, color: t.text, margin: 0, lineHeight: 1.5, padding: '12px 14px', borderRadius: 12, background: t.greenSoft }}>Listo: te mandamos un mail a <b>{email.trim()}</b> con un enlace para crear una contraseña nueva. Si no llega en un minuto, revisá no deseados.</p>
+                <button type="button" onClick={() => { setMode('login'); setEnviado(false); setAviso(''); }} style={{ width: '100%', minHeight: 54, borderRadius: 14, border: 'none', background: '#EA5A22', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', marginTop: 4 }}>Volver a entrar</button>
+              </>
+            ) : (
+              <>
+                <p style={{ fontSize: 14, color: t.muted, margin: '0 0 6px', lineHeight: 1.5 }}>Escribí el mail de tu cuenta y te mandamos un enlace para crear una contraseña nueva.</p>
+                <label style={etiqueta} htmlFor="recuperar-mail">Mail</label>
+                <input id="recuperar-mail" type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus style={campo} autoComplete="email" autoCapitalize="none" autoCorrect="off" inputMode="email" />
+                {aviso && <p style={{ fontSize: 13, color: t.red, margin: 0, padding: '8px 12px', borderRadius: 10, background: t.redSoft }}>{aviso}</p>}
+                <button type="submit" style={{ width: '100%', minHeight: 54, borderRadius: 14, border: 'none', background: '#EA5A22', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', marginTop: 4 }}>Mandarme el enlace</button>
+                <button type="button" onClick={() => { setMode('login'); setAviso(''); }} style={{ ...link, alignSelf: 'center', marginTop: 8, textDecoration: 'none', color: t.muted }}>Volver</button>
+              </>
+            )}
+          </form>
+        ) : (<>
         <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>{mode === 'login' ? 'Entrar' : 'Crear cuenta'}</h2>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -154,11 +177,12 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
         )}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 6 }}>
-          {mode === 'login' ? <button type="button" onClick={olvide} style={link}>Olvidé mi contraseña</button> : <span />}
+          {mode === 'login' ? <button type="button" onClick={() => { setMode('recuperar'); setAviso(''); setError(null); }} style={link}>Olvidé mi contraseña</button> : <span />}
           <button type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(null); setSuccess(null); }} style={{ ...link, color: t.accent }}>{mode === 'login' ? 'Crear cuenta' : 'Ya tengo cuenta'}</button>
         </div>
         {convertir && <button type="button" onClick={onCancel} style={{ ...link, alignSelf: 'center', marginTop: 4, textDecoration: 'none', color: t.muted }}>Ahora no</button>}
         {aviso && <p style={{ textAlign: 'center', fontSize: 13, color: t.muted, margin: '6px 0 0', lineHeight: 1.4 }}>{aviso}</p>}
+        </>)}
       </div>
     </div>
   );
