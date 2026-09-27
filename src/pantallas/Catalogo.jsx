@@ -182,7 +182,16 @@ export function Catalogo({
               <div style={{ textAlign: "center", padding: "40px 16px", display: "flex", flexDirection: "column", gap: 12, alignItems: "center" }}>
                 {products.length === 0 ? (
                   <>
-                    <p style={{ ...texto("cuerpo"), color: paleta.muted, margin: 0 }}>{esperandoNube(estadoDatos) ? t(`datos.${estadoDatos.clave}`, estadoDatos) : bajando ? t("catalogo.bajando") : t("catalogo.vacioTitulo")}</p>
+                    {/* Idea 2 de Buddy (Nati, 27/09): lo vacío es un botón, no un texto */}
+                    {esperandoNube(estadoDatos) || bajando
+                      ? <p style={{ ...texto("cuerpo"), color: paleta.muted, margin: 0 }}>{esperandoNube(estadoDatos) ? t(`datos.${estadoDatos.clave}`, estadoDatos) : t("catalogo.bajando")}</p>
+                      : (
+                        <>
+                          <span style={{ width: 84, height: 84, borderRadius: 42, background: paleta.accentSoft, display: "grid", placeItems: "center" }}><Icono nombre="camara" tamano={36} color={paleta.accentTexto} /></span>
+                          <Boton variante="principal" ancho="total" icono="camara" onClick={() => onNavigate?.("capture")} estilo={{ maxWidth: 320, minHeight: 56, fontSize: 17 }}>{t("catalogo.primeraFoto")}</Boton>
+                          <p style={{ ...texto("pie"), color: paleta.dim, margin: 0 }}>{t("catalogo.primeraFotoPista")}</p>
+                        </>
+                      )}
                     {/* Regla 2 del protocolo: nunca "no tenés productos" mientras la app todavía no comprobó la nube */}
                     {!bajando && !esperandoNube(estadoDatos) && <Boton variante="principal" icono="camara" onClick={() => onNavigate?.("capture")}>{t("catalogo.vacioAccion")}</Boton>}
                     {/* Sin cuenta y sin productos (24/09, caso Lucas): quien ya tiene cuenta entra y recupera su catálogo */}

@@ -61,7 +61,9 @@ describe("Ficha de proveedor", () => {
     const onDelete = vi.fn();
     con(<FichaProveedor supplier={yiwu} products={products} districts={districts} onDelete={onDelete} />);
     fireEvent.click(screen.getAllByText("Ver todos los datos")[0]);
-    expect(screen.getByText("Sitio web")).toBeTruthy(); // opción A: lo vacío a la vista, en gris
+    expect(screen.queryByText("Sitio web")).toBeNull(); // 27/09: lo vacío detrás de "+ Agregar dato"
+    fireEvent.click(screen.getAllByRole("button", { name: /Agregar/ }).find(b => b.closest("section")?.getAttribute("aria-label") === "Contacto"));
+    expect(screen.getByLabelText(/Sitio web/)).toBeTruthy();
     fireEvent.click(screen.getByText("Eliminar proveedor"));
     expect(onDelete).not.toHaveBeenCalled();
     fireEvent.click(screen.getAllByText("Eliminar proveedor").pop());
@@ -76,7 +78,7 @@ describe("Armar pedido", () => {
     const onGuardar = vi.fn();
     con(<ArmarPedido supplier={yiwu} pedido={pedido} products={products} onGuardar={onGuardar} />);
     expect(screen.getByText("USD 408")).toBeTruthy();
-    expect(screen.getByText("480")).toBeTruthy();
+    expect(screen.getAllByText(/480 u\./).length).toBeGreaterThan(0); // el total grande manda; unidades debajo (27/09)
     fireEvent.click(screen.getByRole("button", { name: "Más Vela de soja" }));
     expect(onGuardar).toHaveBeenCalledWith({ items: [{ productId: 1, cantidad: 10 }, { productId: 2, cantidad: 1 }], estado: "en_curso" });
     fireEvent.click(screen.getByRole("button", { name: "Menos Taza de cerámica" }));

@@ -11,7 +11,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Dato, Icono, Hoja, PaginadorVertical } from "../componentes/index.js";
+import { Boton, Dato, Icono, Hoja, PaginadorVertical, SeccionDeDatos } from "../componentes/index.js";
 import { urlDeAudio } from "../lib/audioNotes.js";
 import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
 import { pedidoDeProveedor, productosParaPedido, totalesDePedido } from "../lib/pedidos.js";
@@ -142,12 +142,6 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
     );
   };
 
-  const seccionHoja = (titulo, hijos) => (
-    <section aria-label={titulo} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: paleta.dim }}>{titulo}</h3>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>{hijos}</div>
-    </section>
-  );
   const limpio = (k, v) => (typeof v === "string" ? v.replace(k === "email" ? /^\s*e-?mail\s*[:：]\s*/i : /^\s*(web|website|sitio web)\s*[:：]\s*/i, "") : v);
 
   const redondo = (nombre, etiqueta, onClick, { activo = false, presionado } = {}) => (
@@ -196,40 +190,49 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
             si está vacío. Se fueron las filas mezcladas (unas en línea, otras apiladas) que se veían "horribles". */}
         <div style={{ display: "flex", flexDirection: "column", gap: 20, color: paleta.text, paddingTop: 4 }}>
           {feria && <p style={{ ...texto("pie"), color: paleta.dim, margin: 0 }}>{feria.name}</p>}
-          {seccionHoja(t("proveedor.contacto"), <>
-            <Dato etiqueta={t("proveedor.vendedor")} valor={s.contact} onChange={v => guardar({ contact: v || null })} />
-            <Dato etiqueta={t("proveedor.telefono")} valor={s.phone} onChange={v => guardar({ phone: v || null })} />
-            <Dato etiqueta={t("proveedor.whatsappNumero")} valor={s.whatsapp} onChange={v => guardar({ whatsapp: v || null })} />
-            <Dato etiqueta={t("proveedor.wechatId")} valor={s.wechat} onChange={v => guardar({ wechat: v || null })} />
-            <Dato ancho={2} etiqueta={t("proveedor.email")} valor={limpio("email", s.email)} onChange={v => guardar({ email: v || null })} />
-            <Dato ancho={2} etiqueta={t("proveedor.web")} valor={limpio("website", s.website)} onChange={v => guardar({ website: v || null })} />
-          </>)}
-          {seccionHoja(t("proveedor.stand"), <>
-            <Dato etiqueta={t("proveedor.titulo")} valor={s.company} onChange={v => { if (v) guardar({ company: v }); }} />
-            <Dato etiqueta={t("proveedor.stand")} valor={s.boothNumber} onChange={v => guardar({ boothNumber: v || null })} />
-            <Dato ancho={2} etiqueta={t("proveedor.direccion")} valor={s.address} multilinea onChange={v => guardar({ address: v || null })} />
-            <Dato ancho={2} etiqueta={t("proveedor.queVende")} valor={s.products} multilinea onChange={v => guardar({ products: v || null })} />
-          </>)}
-          {seccionHoja(t("proveedor.compra"), <>
-            <Dato etiqueta={`${t("proveedor.minimoDeCompra")} ${moneda}`} valor={s.minimoDeCompra} tipo="numero" destacado color={paleta.green} onChange={v => guardar({ minimoDeCompra: v })} />
-            <Dato etiqueta={t("proveedor.productos")} valor={suyos.length ? t("proveedor.conProductos", { count: suyos.length }) : null} hijos={<span style={{ fontSize: 16, fontWeight: 600 }}>{t("proveedor.conProductos", { count: suyos.length })}</span>} />
-            {/* El pedido se arma en la compu; acá queda a mano sin tapar lo importante (27/09) */}
-            <div style={{ gridColumn: "1 / -1" }}>
-              <Boton variante="secundario" ancho="total" icono="pedido" deshabilitado={suyos.length === 0} onClick={() => { setDatosAbiertos(false); onArmarPedido?.(s); }}>
-                {enCurso ? `${t("proveedor.seguirPedido")} · ${t("proveedor.conProductos", { count: enCurso.lineas.length })}` : `${t("proveedor.armarPedido")} · ${t("proveedor.conProductos", { count: suyos.length })}`}
-              </Boton>
-            </div>
-          </>)}
-          {seccionHoja(t("proveedor.notas"), <>
-            <Dato ancho={2} etiqueta={t("proveedor.comentarios")} valor={s.notes} multilinea onChange={v => guardar({ notes: v })} />
-            {(audioSrc || s.audioTranscript) && (
-              <div style={{ gridColumn: "1 / -1", padding: "4px 0" }}>
-                <p style={{ ...texto("pie", { fontWeight: 600 }), color: paleta.dim, margin: "0 0 6px", display: "flex", alignItems: "center", gap: 6 }}><Icono nombre="voz" tamano={14} color={paleta.dim} />{t("proveedor.notaDeVoz")}</p>
-                {audioSrc && <audio src={audioSrc} controls style={{ width: "100%", height: 36, marginBottom: 6 }} />}
-                {s.audioTranscript && <p style={{ ...texto("cuerpo", { fontWeight: 400 }), margin: 0, lineHeight: 1.5 }}>{s.audioTranscript}</p>}
-              </div>
-            )}
-          </>)}
+          {(() => {
+            const vacio = (v) => v === null || v === undefined || String(v).trim() === "";
+            const parte = (items) => ({ conDato: items.filter(i => !vacio(i.valor)).map(i => i.nodo), sinDato: items.filter(i => vacio(i.valor)).map(i => i.nodo) });
+            const contacto = parte([
+              { valor: s.contact, nodo: <Dato key="contact" etiqueta={t("proveedor.vendedor")} valor={s.contact} onChange={v => guardar({ contact: v || null })} /> },
+              { valor: s.phone, nodo: <Dato key="phone" etiqueta={t("proveedor.telefono")} valor={s.phone} onChange={v => guardar({ phone: v || null })} /> },
+              { valor: s.whatsapp, nodo: <Dato key="whatsapp" etiqueta={t("proveedor.whatsappNumero")} valor={s.whatsapp} onChange={v => guardar({ whatsapp: v || null })} /> },
+              { valor: s.wechat, nodo: <Dato key="wechat" etiqueta={t("proveedor.wechatId")} valor={s.wechat} onChange={v => guardar({ wechat: v || null })} /> },
+              { valor: s.email, nodo: <Dato key="email" ancho={2} etiqueta={t("proveedor.email")} valor={limpio("email", s.email)} onChange={v => guardar({ email: v || null })} /> },
+              { valor: s.website, nodo: <Dato key="website" ancho={2} etiqueta={t("proveedor.web")} valor={limpio("website", s.website)} onChange={v => guardar({ website: v || null })} /> },
+            ]);
+            const stand = parte([
+              { valor: s.company, nodo: <Dato key="company" etiqueta={t("proveedor.titulo")} valor={s.company} onChange={v => { if (v) guardar({ company: v }); }} /> },
+              { valor: s.boothNumber, nodo: <Dato key="booth" etiqueta={t("proveedor.stand")} valor={s.boothNumber} onChange={v => guardar({ boothNumber: v || null })} /> },
+              { valor: s.address, nodo: <Dato key="address" ancho={2} etiqueta={t("proveedor.direccion")} valor={s.address} multilinea onChange={v => guardar({ address: v || null })} /> },
+              { valor: s.products, nodo: <Dato key="products" ancho={2} etiqueta={t("proveedor.queVende")} valor={s.products} multilinea onChange={v => guardar({ products: v || null })} /> },
+            ]);
+            const compra = parte([
+              { valor: s.minimoDeCompra, nodo: <Dato key="minimo" etiqueta={`${t("proveedor.minimoDeCompra")} ${moneda}`} valor={s.minimoDeCompra} tipo="numero" destacado color={paleta.green} onChange={v => guardar({ minimoDeCompra: v })} /> },
+            ]);
+            const notas = parte([
+              { valor: s.notes, nodo: <Dato key="notes" ancho={2} etiqueta={t("proveedor.comentarios")} valor={s.notes} multilinea onChange={v => guardar({ notes: v })} /> },
+            ]);
+            return (<>
+              <SeccionDeDatos titulo={t("proveedor.contacto")} {...contacto} />
+              <SeccionDeDatos titulo={t("proveedor.stand")} {...stand} />
+              <SeccionDeDatos titulo={t("proveedor.compra")} {...compra} extra={
+                <div style={{ gridColumn: "1 / -1" }}>
+                  {/* El pedido se arma en la compu; acá queda a mano sin tapar lo importante (27/09) */}
+                  <Boton variante="secundario" ancho="total" icono="pedido" deshabilitado={suyos.length === 0} onClick={() => { setDatosAbiertos(false); onArmarPedido?.(s); }}>
+                    {enCurso ? `${t("proveedor.seguirPedido")} · ${t("proveedor.conProductos", { count: enCurso.lineas.length })}` : `${t("proveedor.armarPedido")} · ${t("proveedor.conProductos", { count: suyos.length })}`}
+                  </Boton>
+                </div>
+              } />
+              <SeccionDeDatos titulo={t("proveedor.notas")} {...notas} extra={(audioSrc || s.audioTranscript) ? (
+                <div style={{ gridColumn: "1 / -1", padding: "4px 0" }}>
+                  <p style={{ ...texto("pie", { fontWeight: 600 }), color: paleta.dim, margin: "0 0 6px", display: "flex", alignItems: "center", gap: 6 }}><Icono nombre="voz" tamano={14} color={paleta.dim} />{t("proveedor.notaDeVoz")}</p>
+                  {audioSrc && <audio src={audioSrc} controls style={{ width: "100%", height: 36, marginBottom: 6 }} />}
+                  {s.audioTranscript && <p style={{ ...texto("cuerpo", { fontWeight: 400 }), margin: 0, lineHeight: 1.5 }}>{s.audioTranscript}</p>}
+                </div>
+              ) : null} />
+            </>);
+          })()}
           {onDelete && <div><Boton variante="fantasma" icono="borrar" onClick={() => setConfirmando(true)}>{t("proveedor.eliminar")}</Boton></div>}
         </div>
       </Hoja>

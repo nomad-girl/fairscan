@@ -40,6 +40,10 @@
     },
     "aviso": {
       "cerrar": "Cerrar aviso"
+    },
+    "baldosas": {
+      "agregar_one": "+ Agregar un dato",
+      "agregar_other": "+ Agregar dato · {{count}} vacíos"
     }
   },
   "visor": {
@@ -253,7 +257,9 @@
     "listo": "Listo",
     "tocaParaSeleccionar": "Tocá las fotos que querés borrar",
     "sinCuentaTitulo": "¿Ya tenés cuenta? Al entrar, tu catálogo aparece acá.",
-    "entrar": "Entrar con mi cuenta"
+    "entrar": "Entrar con mi cuenta",
+    "primeraFoto": "Sacá la primera foto",
+    "primeraFotoPista": "Después, la tarjeta del proveedor"
   },
   "revisar": {
     "titulo": "Revisar el día",
@@ -365,7 +371,12 @@
     "posicion": "{{n}} de {{total}}",
     "sinFoto": "Sin foto",
     "seccionProducto": "El producto",
-    "seccionCompra": "Compra"
+    "seccionCompra": "Compra",
+    "datosCorto": "Datos",
+    "fotoCorto": "Foto",
+    "ponerPrecio": "Poner precio",
+    "tocaPrecio": "Tocá para poner el precio",
+    "guardarPrecio": "Guardar"
   },
   "proveedor": {
     "titulo": "Proveedor",
@@ -468,7 +479,8 @@
     "piezasPorCaja": "Piezas/caja",
     "cbmPorCaja": "CBM/caja",
     "producto": "Producto",
-    "foto": "Foto"
+    "foto": "Foto",
+    "totalDelPedido": "Total del pedido"
   },
   "pedidos": {
     "titulo": "Pedidos",

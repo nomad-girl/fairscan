@@ -85,17 +85,15 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
     l.total != null ? dinero(l.total) : null,
   ].filter(Boolean).join(" · ");
 
+  // Idea 1 de Buddy (Nati, 27/09): un número grande que diga cómo vas. El total manda; bultos, unidades y CBM debajo.
   const totales = () => (
-    <div style={{ background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, padding: "10px 14px", boxShadow: paleta.sombraTarjeta }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-        {[[t("pedido.bultos"), tot.bultos ? fNumero(tot.bultos) : "—"], [t("pedido.unidades"), tot.unidades ? fNumero(tot.unidades) : "—"], [t("pedido.cbm"), tot.cbm ? fNumero(tot.cbm, { maximumFractionDigits: 2 }) : "—"], [t("pedido.total"), tot.total ? dinero(tot.total) : "—"]].map(([k, v], i) => (
-          <div key={k} style={{ minWidth: 0 }}>
-            <p style={{ ...texto("pie"), color: paleta.dim, margin: 0 }}>{k}</p>
-            <p style={{ ...texto(i === 3 ? "titulo" : "destacado"), color: i === 3 ? paleta.green : paleta.text, margin: 0, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{v}</p>
-          </div>
-        ))}
-      </div>
-      {tot.cbm > 0 && <p style={{ ...texto("pie"), color: paleta.muted, margin: "8px 0 0" }}>{t("pedido.contenedor", { porcentaje: porcentajeDeContenedor(tot.cbm) })}{tot.sinCbm ? ` · ${t("pedido.sinCbmEnLineas", { count: tot.sinCbm })}` : ""}</p>}
+    <div style={{ background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, padding: "14px 16px", boxShadow: paleta.sombraTarjeta, textAlign: "center" }}>
+      <p style={{ ...texto("pie", { fontWeight: 700 }), color: paleta.dim, margin: 0, textTransform: "uppercase", letterSpacing: "0.06em", fontSize: 11 }}>{t("pedido.totalDelPedido")}</p>
+      <p style={{ fontSize: 34, fontWeight: 700, lineHeight: 1.1, color: tot.total ? paleta.green : paleta.dim, margin: "2px 0 6px", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.01em" }}>{tot.total ? dinero(tot.total) : "—"}</p>
+      <p style={{ ...texto("pie"), color: paleta.muted, margin: 0, fontVariantNumeric: "tabular-nums" }}>
+        {tot.bultos ? `${fNumero(tot.bultos)} ${t("pedido.bultosCorto")}` : `— ${t("pedido.bultosCorto")}`} · {tot.unidades ? `${fNumero(tot.unidades)} ${t("pedido.unidadesCorto")}` : `— ${t("pedido.unidadesCorto")}`} · {tot.cbm ? fCbm(tot.cbm) : "— CBM"}
+      </p>
+      {tot.cbm > 0 && <p style={{ ...texto("pie"), color: paleta.muted, margin: "6px 0 0" }}>{t("pedido.contenedor", { porcentaje: porcentajeDeContenedor(tot.cbm) })}{tot.sinCbm ? ` · ${t("pedido.sinCbmEnLineas", { count: tot.sinCbm })}` : ""}</p>}
     </div>
   );
 

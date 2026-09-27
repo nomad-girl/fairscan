@@ -31,7 +31,7 @@ describe("Ficha de producto", () => {
     expect(screen.getByText(/USD 0.85/)).toBeTruthy();
     expect(screen.getByText(/MOQ 500 por caja/)).toBeTruthy();
     expect(screen.getByText("Yiwu Sunrise")).toBeTruthy(); // al pie, sobre la foto
-    expect(screen.getByText("2 fotos")).toBeTruthy(); // el botón de agregar foto muestra cuántas hay
+    expect(screen.getByRole("button", { name: "Agregar foto" })).toBeTruthy(); // en el riel de la derecha (27/09)
     fireEvent.click(screen.getByText("Ver todos los datos"));
     expect(screen.getAllByText("Yiwu Sunrise").length).toBe(2); // y como fila en la hoja
   });
@@ -39,7 +39,10 @@ describe("Ficha de producto", () => {
     const onUpdate = vi.fn();
     con(<FichaProducto product={base} suppliers={suppliers} districts={districts} allProducts={[base]} onUpdate={onUpdate} />);
     fireEvent.click(screen.getByText("Ver todos los datos"));
-    expect(screen.getByText("CBM por caja")).toBeTruthy(); // opción A: lo vacío a la vista, en gris, al final de su sección
+    // 27/09: lo vacío queda detrás de "+ Agregar dato" (Nati: los campos vacíos hacen ruido)
+    expect(screen.queryByText("CBM por caja")).toBeNull();
+    fireEvent.click(screen.getAllByRole("button", { name: /Agregar/ }).find(b => /Agregar/.test(b.textContent) && b.closest("section")?.getAttribute("aria-label") === "Compra"));
+    expect(screen.getByLabelText(/CBM por caja/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Piezas por caja/ }));
     const input = screen.getByRole("textbox");
     fireEvent.change(input, { target: { value: "48" } });

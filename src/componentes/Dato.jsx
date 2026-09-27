@@ -29,11 +29,11 @@ export function Dato({ etiqueta, valor, onChange, tipo = "texto", sufijo, multil
 
   const caja = {
     gridColumn: ancho === 2 ? "1 / -1" : undefined, display: "flex", flexDirection: "column", alignItems: "stretch", gap: 3,
-    minHeight: 62, padding: "10px 12px", borderRadius: radios.medio, background: paleta.bg, border: `1px solid ${editando ? paleta.accent : sobre ? paleta.border : "transparent"}`,
+    minHeight: 62, padding: "10px 12px", borderRadius: radios.medio, background: paleta.bg, border: `1px solid ${editando ? paleta.accent : paleta.border}`,
     textAlign: "left", boxSizing: "border-box", transition: "border-color 150ms ease", ...estilo,
   };
-  const etiquetaEstilo = { fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: paleta.dim, lineHeight: 1.3 };
-  const valorEstilo = { fontSize: destacado ? 22 : 16, fontWeight: destacado ? 700 : 600, lineHeight: 1.3, color: vacio ? paleta.dim : (color || paleta.text), fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere", whiteSpace: multilinea ? "pre-wrap" : undefined };
+  const etiquetaEstilo = { fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: paleta.muted, lineHeight: 1.3 };
+  const valorEstilo = { fontSize: destacado ? 24 : 17, fontWeight: 700, lineHeight: 1.3, color: vacio ? paleta.dim : (color || paleta.text), fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere", whiteSpace: multilinea ? "pre-wrap" : undefined };
 
   if (hijos) {
     return <div style={caja}><span style={etiquetaEstilo}>{etiqueta}</span>{hijos}</div>;

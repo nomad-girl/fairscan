@@ -104,8 +104,8 @@ export function Visor({
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           {estadoSync === "falla" && <Pastilla><span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, background: colorPunto, display: "inline-block" }} /><span style={{ fontSize: 12, fontWeight: 500, color: BLANCO_SUAVE }}>{textoSync}</span></Pastilla>}
-          {/* Volver al catálogo, siempre a mano (Nati, 23/09) */}
-          <button type="button" onClick={onCatalogo} aria-label={t("visor.irAlCatalogo")} style={{ minHeight: 40, padding: "0 14px 0 12px", borderRadius: 999, border: "none", background: "rgba(10,14,23,0.55)", color: BLANCO, fontSize: 14, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontFamily: "inherit", backdropFilter: "blur(8px)" }}><Icono nombre="foto" tamano={18} color={BLANCO} />{t("visor.catalogo")}</button>
+          {/* 27/09: el botón de Catálogo pasó abajo, junto al obturador, grande y con nombre */}
+          {false && <button type="button" onClick={onCatalogo} aria-label={t("visor.irAlCatalogo")} style={{ minHeight: 40, padding: "0 14px 0 12px", borderRadius: 999, border: "none", background: "rgba(10,14,23,0.55)", color: BLANCO, fontSize: 14, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontFamily: "inherit", backdropFilter: "blur(8px)" }}><Icono nombre="foto" tamano={18} color={BLANCO} />{t("visor.catalogo")}</button>}
         </div>
       </div>
 
@@ -253,6 +253,12 @@ export function Visor({
         {/* Derecha: nada (Nati, 23/09: la pastilla de arriba es el stand; el ciclo se cierra desde ahí con Listo,
             o lo propone la app al escanear la tarjeta del stand siguiente). Queda el ancho para centrar el obturador. */}
         <div style={{ width: 84, display: "flex", justifyContent: "flex-end" }}>
+          {/* 27/09 (Nati: "el botón de catálogo es casi invisible y difícil de alcanzar"): grande, con nombre, al alcance del pulgar */}
+          {!esTarjeta && (
+            <button type="button" onClick={onCatalogo} aria-label={t("visor.irAlCatalogo")} style={{ width: 84, height: alturas.miniatura, borderRadius: 14, border: "1.5px solid rgba(255,255,255,0.55)", background: "rgba(241,245,249,0.14)", color: BLANCO, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3 }}>
+              <Icono nombre="foto" tamano={22} color={BLANCO} />{t("visor.catalogo")}
+            </button>
+          )}
           {true ? null : (
             <button type="button" onClick={onStand} style={{ width: 84, height: alturas.miniatura, borderRadius: 14, border: "none", background: (itemsCount > 0 || standAbierto?.tieneTarjeta) ? MARCA.naranja : "rgba(241,245,249,0.14)", color: "#fff", fontSize: 12, fontWeight: 700, lineHeight: 1.15, cursor: "pointer", fontFamily: "inherit", textAlign: "center", padding: "0 6px", whiteSpace: "normal" }}>{t("visor.cerrarStand")}</button>
           )}

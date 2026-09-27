@@ -15,3 +15,4 @@ export { PaginadorVertical } from "./PaginadorVertical.jsx";
 export { Celda, valorDeCelda } from "./Celda.jsx";
 export { EstadoDeDatos, esperandoNube } from "./EstadoDeDatos.jsx";
 export { Dato } from "./Dato.jsx";
+export { SeccionDeDatos } from "./Baldosas.jsx";

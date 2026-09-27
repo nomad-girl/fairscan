@@ -10,7 +10,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Bloque, Campo, Segmentado, Fila, Icono, Hoja, Esqueleto, PaginadorVertical } from "../componentes/index.js";
+import { Boton, Dato, Segmentado, Fila, Icono, Hoja, Esqueleto, PaginadorVertical, SeccionDeDatos } from "../componentes/index.js";
 import { estadoIA, patchReintentoIA, explicarFalloIA } from "../lib/aiEstado.js";
 import { urlDeAudio, esPunteroMuerto } from "../lib/audioNotes.js";
 import { haceCuanto } from "../idiomas/formato.js";
@@ -23,6 +23,8 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
   const [guardado, setGuardado] = useState(false);
   const [eligiendoProveedor, setEligiendoProveedor] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
+  const [poniendoPrecio, setPoniendoPrecio] = useState(false); // 27/09: el precio se carga desde la portada
+  const [precioBorrador, setPrecioBorrador] = useState("");
   const fileRef = useRef(null);
 
   const supplier = suppliers.find(s => s.id === p.supplierId);
@@ -52,22 +54,32 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
     r.readAsDataURL(f);
   };
 
-  // Los campos: los que tienen dato se ven; los vacíos quedan detrás de "Agregar un dato" (Nati, 17/09: "ocultos pero que se sepa que están").
   const vacio = (x) => x === null || x === undefined || String(x).trim() === "";
-  const campos = [
-    { clave: "price", etiqueta: t("ficha.precio"), valor: p.price, nodo: <Campo key="price" etiqueta={`${t("ficha.precio")} ${moneda}`} valor={p.price} tipo="numero" onChange={v => guardar({ price: v == null ? null : String(v) })} /> },
-    { clave: "moq", etiqueta: t("ficha.moq"), valor: p.moq, nodo: <React.Fragment key="moq"><Campo etiqueta={t("ficha.moq")} valor={p.moq} tipo="numero" onChange={v => guardar({ moq: v == null ? null : String(v) })} />{(p.moq || p.moqBase) && <div style={{ padding: "8px 0 10px" }}><Segmentado etiqueta={t("ficha.moqBase")} valor={p.moqBase || null} onChange={v => guardar({ moqBase: v })} opciones={[{ valor: "producto", texto: t("ficha.basePorProducto") }, { valor: "caja", texto: t("ficha.basePorCaja") }, { valor: "pedido", texto: t("ficha.basePorPedido") }]} /></div>}</React.Fragment> },
-    settings?.datosDeCompra?.piezasPorCaja !== false && { clave: "piezasPorCaja", etiqueta: t("ficha.piezasPorCaja"), valor: p.piezasPorCaja, nodo: <Campo key="piezas" etiqueta={t("ficha.piezasPorCaja")} valor={p.piezasPorCaja} tipo="numero" onChange={v => guardar({ piezasPorCaja: v })} /> },
-    settings?.datosDeCompra?.cbmPorCaja !== false && { clave: "cbmPorCaja", etiqueta: t("ficha.cbmPorCaja"), valor: p.cbmPorCaja, nodo: <Campo key="cbm" etiqueta={t("ficha.cbmPorCaja")} valor={p.cbmPorCaja} tipo="numero" sufijo="CBM" onChange={v => guardar({ cbmPorCaja: v })} /> },
-    { clave: "notes", etiqueta: t("ficha.notas"), valor: p.notes, nodo: <Campo key="notes" etiqueta={t("ficha.notas")} valor={p.notes} onChange={v => guardar({ notes: v })} multilinea apilado /> },
-  ].filter(Boolean);
+  const materiales = Array.isArray(p.material) ? p.material.join(", ") : (p.material || "");
+  const parte = (items) => ({ conDato: items.filter(i => !vacio(i.valor)).map(i => i.nodo), sinDato: items.filter(i => vacio(i.valor)).map(i => i.nodo) });
+  // Las baldosas de la hoja (27/09, Nati: "plain, poco contraste y muchos campos vacíos que hacen ruido"):
+  // solo lo que tiene dato; lo vacío detrás de "+ Agregar dato".
+  const seccionProducto = parte([
+    { valor: p.name, nodo: <Dato key="name" ancho={2} etiqueta={t("ficha.nombre")} valor={p.name} onChange={v => { if (v) guardar({ name: v }); }} /> },
+    { valor: p.category, nodo: <Dato key="category" etiqueta={t("ficha.categoria")} valor={p.category} onChange={v => guardar({ category: v || null })} /> },
+    { valor: materiales, nodo: <Dato key="material" etiqueta={t("ficha.materiales")} valor={materiales} onChange={v => guardar({ material: v ? v.split(",").map(x => x.trim()).filter(Boolean) : [] })} /> },
+  ]);
+  const seccionCompra = parte([
+    { valor: p.price, nodo: <Dato key="price" etiqueta={`${t("ficha.precio")} ${moneda}`} valor={p.price} tipo="numero" destacado color={paleta.green} onChange={v => guardar({ price: v == null ? null : String(v) })} /> },
+    { valor: p.moq, nodo: <Dato key="moq" etiqueta={t("ficha.moq")} valor={p.moq} tipo="numero" destacado onChange={v => guardar({ moq: v == null ? null : String(v) })} /> },
+    settings?.datosDeCompra?.piezasPorCaja !== false && { valor: p.piezasPorCaja, nodo: <Dato key="piezas" etiqueta={t("ficha.piezasPorCaja")} valor={p.piezasPorCaja} tipo="numero" onChange={v => guardar({ piezasPorCaja: v })} /> },
+    settings?.datosDeCompra?.cbmPorCaja !== false && { valor: p.cbmPorCaja, nodo: <Dato key="cbm" etiqueta={t("ficha.cbmPorCaja")} valor={p.cbmPorCaja} tipo="numero" sufijo="CBM" onChange={v => guardar({ cbmPorCaja: v })} /> },
+  ].filter(Boolean));
+  const baseMoq = (p.moq || p.moqBase) ? (
+    <Dato key="moqBase" ancho={2} etiqueta={t("ficha.moqBase")} hijos={<Segmentado etiqueta={t("ficha.moqBase")} valor={p.moqBase || null} onChange={v => guardar({ moqBase: v })} estilo={{ marginTop: 4 }} opciones={[{ valor: "producto", texto: t("ficha.basePorProducto") }, { valor: "caja", texto: t("ficha.basePorCaja") }, { valor: "pedido", texto: t("ficha.basePorPedido") }]} />} />
+  ) : null;
+  const seccionNotas = parte([{ valor: p.notes, nodo: <Dato key="notes" ancho={2} etiqueta={t("ficha.notas")} valor={p.notes} multilinea onChange={v => guardar({ notes: v })} /> }]);
+  const guardarPrecio = () => { const n = Number(String(precioBorrador).replace(",", ".")); setPoniendoPrecio(false); if (precioBorrador !== "" && !isNaN(n)) guardar({ price: String(n) }); };
   // La hoja de datos y el paginador vertical (3 pantallas: anterior · esta · siguiente)
   const [datosAbiertos, setDatosAbiertos] = useState(false);
   const fotosDe = (x) => (x.photos?.length ? x.photos : (x.photoUrls || []));
   const supplierDe = (x) => suppliers.find(s => s.id === x.supplierId);
   const posicion = idx >= 0 ? t("ficha.posicion", { n: idx + 1, total: allProducts.length }) : "";
-  const camposConDato = campos.filter(c => !vacio(c.valor));
-  const camposSinDato = campos.filter(c => vacio(c.valor));
   const sinNombre = !p.name && !p.ai_processed && estadoIA(p) !== "fallo";
 
   // Una pantalla del feed: la foto a pantalla entera (deslizar a los lados cambia de ángulo) y el pie con lo esencial.
@@ -91,10 +103,16 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
         {/* El pie: nombre, precio y proveedor sobre la foto; "Ver todos los datos" abre la hoja */}
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: `72px 84px calc(18px + env(safe-area-inset-bottom, 0px)) 18px`, background: "linear-gradient(to top, rgba(10,14,23,0.86) 55%, rgba(10,14,23,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 }}>
           {sinNombreX ? <Esqueleto ancho={200} alto={22} estilo={{ background: "rgba(255,255,255,0.35)" }} /> : <p style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere" }}>{x.name || t("ficha.producto")}</p>}
-          <p style={{ margin: 0, fontSize: 17, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{x.price ? `${moneda} ${x.price}` : <span style={{ color: "rgba(255,255,255,0.6)", fontWeight: 400 }}>{t("ficha.precio")}: —</span>}{x.moq ? <span style={{ fontWeight: 400, color: "rgba(255,255,255,0.75)" }}> · MOQ {x.moq}{x.moqBase ? " " + t(`ficha.basePor${x.moqBase[0].toUpperCase()}${x.moqBase.slice(1)}`) : ""}</span> : null}{x.category ? <span style={{ fontWeight: 400, color: "rgba(255,255,255,0.75)" }}> · {x.category}</span> : null}</p>
+          {/* 27/09: el precio se toca y se carga desde la portada, sin ir a editar */}
+          <button type="button" onClick={esta ? () => { setPrecioBorrador(x.price || ""); setPoniendoPrecio(true); } : undefined} aria-label={x.price ? `${t("ficha.precio")} ${moneda} ${x.price}` : t("ficha.tocaPrecio")}
+            style={{ alignSelf: "flex-start", background: "none", border: "none", padding: 0, margin: 0, fontFamily: "inherit", textAlign: "left", cursor: "pointer", color: "#fff", fontSize: 20, fontWeight: 700, fontVariantNumeric: "tabular-nums", display: "inline-flex", alignItems: "center", gap: 6, minHeight: 32 }}>
+            {x.price ? <span style={{ color: "#86EFAC" }}>{moneda} {x.price}</span> : <span style={{ color: "#FCD34D", fontSize: 16, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6 }}><Icono nombre="editar" tamano={16} color="#FCD34D" />{t("ficha.tocaPrecio")}</span>}
+            {x.moq ? <span style={{ fontWeight: 400, fontSize: 14, color: "rgba(255,255,255,0.75)" }}> · MOQ {x.moq}{x.moqBase ? " " + t(`ficha.basePor${x.moqBase[0].toUpperCase()}${x.moqBase.slice(1)}`) : ""}</span> : null}
+          </button>
+          {/* 27/09: el proveedor, grande y fácil de tocar */}
           {sup ? (
-            <button type="button" onClick={() => onNavigateSupplier?.(sup)} style={{ alignSelf: "flex-start", background: "none", border: "none", padding: 0, color: "rgba(255,255,255,0.85)", fontFamily: "inherit", fontSize: 14, display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", textAlign: "left" }}>
-              <Icono nombre="proveedor" tamano={14} color="rgba(255,255,255,0.85)" /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 240 }}>{sup.company || `#${sup.id}`}</span><Icono nombre="siguiente" tamano={14} color="rgba(255,255,255,0.6)" />
+            <button type="button" onClick={() => onNavigateSupplier?.(sup)} style={{ alignSelf: "flex-start", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.35)", borderRadius: 999, padding: "0 14px 0 10px", minHeight: 44, color: "#fff", fontFamily: "inherit", fontSize: 16, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer", textAlign: "left", maxWidth: "100%" }}>
+              <Icono nombre="proveedor" tamano={18} color="#fff" /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 220 }}>{sup.company || `#${sup.id}`}</span><Icono nombre="siguiente" tamano={16} color="rgba(255,255,255,0.7)" />
             </button>
           ) : <span style={{ fontSize: 14, color: "rgba(255,255,255,0.6)" }}>{t("ficha.sinProveedor")}</span>}
           <button type="button" onClick={() => setDatosAbiertos(true)} style={{ marginTop: 10, alignSelf: "flex-start", minHeight: 40, borderRadius: 999, border: "1px solid rgba(255,255,255,0.6)", background: "rgba(10,14,23,0.35)", color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 600, padding: "0 14px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
@@ -110,9 +128,10 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
     );
   };
 
-  const redondo = (nombre, etiqueta, onClick, { activo = false, presionado } = {}) => (
-    <button type="button" onClick={onClick} aria-label={etiqueta} aria-pressed={presionado} style={{ width: 48, height: 48, borderRadius: 24, border: "none", background: activo ? paleta.accent : "rgba(10,14,23,0.55)", display: "grid", placeItems: "center", cursor: "pointer", backdropFilter: "blur(6px)" }}>
-      <Icono nombre={nombre} tamano={22} color="#fff" />
+  const redondo = (nombre, etiqueta, onClick, { activo = false, presionado, texto: rotulo } = {}) => (
+    <button type="button" onClick={onClick} aria-label={etiqueta} aria-pressed={presionado} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, border: "none", background: "none", padding: 0, cursor: "pointer", color: "#fff", fontFamily: "inherit", width: 56 }}>
+      <span style={{ width: 48, height: 48, borderRadius: 24, background: activo ? paleta.accent : "rgba(10,14,23,0.55)", display: "grid", placeItems: "center", backdropFilter: "blur(6px)" }}><Icono nombre={nombre} tamano={22} color="#fff" /></span>
+      {rotulo && <span style={{ fontSize: 11, fontWeight: 600, textShadow: "0 1px 2px rgba(0,0,0,0.6)" }}>{rotulo}</span>}
     </button>
   );
 
@@ -128,23 +147,15 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(10,14,23,0.55)", color: "#fff", borderRadius: 999, padding: "6px 12px", fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums", backdropFilter: "blur(6px)" }}>
           {estadoIA(p) === "fallo" && <Icono nombre="error" tamano={14} color="#FCA5A5" />}{guardado ? <><Icono nombre="listo" tamano={14} color="#86EFAC" />{t("ficha.guardado")}</> : posicion}
         </span>
-        <span style={{ pointerEvents: "auto" }}>
-          {onAddPhoto ? (
-            <>
-              <button type="button" onClick={() => fileRef.current?.click()} aria-label={t("ficha.agregarFoto")} style={{ minWidth: 48, height: 48, padding: "0 12px", borderRadius: 24, border: "none", background: "rgba(10,14,23,0.55)", color: "#fff", fontFamily: "inherit", fontSize: 13, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", backdropFilter: "blur(6px)" }}>
-                <Icono nombre="mas" tamano={18} color="#fff" />{t("ficha.fotos", { count: fotos.length })}
-              </button>
-              <input ref={fileRef} type="file" accept="image/*" onChange={onArchivo} style={{ display: "none" }} />
-            </>
-          ) : <span style={{ display: "inline-block", width: 48 }} />}
-        </span>
+        <span style={{ display: "inline-block", width: 48 }} />
       </div>
 
       {/* A la derecha: favorito, pedir, datos */}
-      <div style={{ position: "absolute", right: 14, bottom: `calc(150px + env(safe-area-inset-bottom, 0px))`, display: "flex", flexDirection: "column", gap: 12, alignItems: "center" }}>
-        {redondo("favorito", p.favorito ? t("ficha.quitarFavorito") : t("ficha.marcarFavorito"), () => guardar({ favorito: p.favorito ? 0 : 1 }), { activo: !!p.favorito, presionado: !!p.favorito })}
-        {onPedir && redondo("pedido", t("ficha.pedir"), () => (supplier ? onPedir(p) : setEligiendoProveedor(true)))}
-        {redondo("editar", t("ficha.datos"), () => setDatosAbiertos(true))}
+      <div style={{ position: "absolute", right: 10, bottom: `calc(170px + env(safe-area-inset-bottom, 0px))`, display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
+        {redondo("favorito", p.favorito ? t("ficha.quitarFavorito") : t("ficha.marcarFavorito"), () => guardar({ favorito: p.favorito ? 0 : 1 }), { activo: !!p.favorito, presionado: !!p.favorito, texto: t("revisar.favorito") })}
+        {/* 27/09: agregar foto baja al riel, al alcance del dedo, con nombre */}
+        {onAddPhoto && <>{redondo("mas", t("ficha.agregarFoto"), () => fileRef.current?.click(), { texto: t("ficha.fotoCorto") })}<input ref={fileRef} type="file" accept="image/*" onChange={onArchivo} style={{ display: "none" }} /></>}
+        {redondo("editar", t("ficha.datos"), () => setDatosAbiertos(true), { texto: t("ficha.datosCorto") })}
       </div>
 
       {/* Todos los datos, en una hoja */}
@@ -158,15 +169,8 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
           )}
           {district && <p style={{ ...texto("pie"), color: paleta.dim, margin: 0 }}>{district.name} · {t("ficha.capturado", { cuando: haceCuanto(p.createdAt) })}</p>}
 
-          {/* Los datos, editables tocando: en secciones, con aire */}
-          {/* Opción A (Nati, 22/09): una fila por dato, en secciones; lo vacío al final de su sección, en gris, dice "Agregar" */}
-          <Bloque titulo={t("ficha.seccionProducto")}>
-            <Campo etiqueta={t("ficha.nombre")} valor={p.name} onChange={v => { if (v) guardar({ name: v }); }} />
-            <Campo etiqueta={t("ficha.categoria")} valor={p.category} onChange={v => guardar({ category: v || null })} />
-          </Bloque>
-          <Bloque titulo={t("ficha.seccionCompra")}>
-            {[...camposConDato, ...camposSinDato].filter(c => c.clave !== "notes").map(c => c.nodo)}
-          </Bloque>
+          <SeccionDeDatos titulo={t("ficha.seccionProducto")} {...seccionProducto} />
+          <SeccionDeDatos titulo={t("ficha.seccionCompra")} {...seccionCompra} extra={baseMoq} />
 
           {/* Proveedor */}
           <section>
@@ -194,17 +198,25 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
           )}
 
           {/* Notas y la nota de voz */}
-          <Bloque titulo={t("ficha.notas")}>
-            {campos.find(c => c.clave === "notes")?.nodo}
-          </Bloque>
-          {(audioSrc || p.audioTranscript) && (
-            <Bloque titulo={t("ficha.notaDeVoz")}>
-              {audioSrc && <audio src={audioSrc} controls style={{ width: "100%", height: 36, margin: "6px 0 8px" }} />}
-              {p.audioTranscript && <p style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.text, margin: "0 0 10px", lineHeight: 1.5 }}>{p.audioTranscript}</p>}
-            </Bloque>
-          )}
+          <SeccionDeDatos titulo={t("ficha.notas")} {...seccionNotas} extra={(audioSrc || p.audioTranscript) ? (
+            <div style={{ gridColumn: "1 / -1", padding: "4px 0" }}>
+              <p style={{ ...texto("pie", { fontWeight: 600 }), color: paleta.dim, margin: "0 0 6px", display: "flex", alignItems: "center", gap: 6 }}><Icono nombre="voz" tamano={14} color={paleta.dim} />{t("ficha.notaDeVoz")}</p>
+              {audioSrc && <audio src={audioSrc} controls style={{ width: "100%", height: 36, marginBottom: 6 }} />}
+              {p.audioTranscript && <p style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.text, margin: 0, lineHeight: 1.5 }}>{p.audioTranscript}</p>}
+            </div>
+          ) : null} />
 
           <div style={{ marginTop: 8 }}><Boton variante="peligro" ancho="total" icono="borrar" onClick={() => setConfirmando(true)}>{t("ficha.eliminar")}</Boton></div>
+        </div>
+      </Hoja>
+
+      {/* Poner el precio desde la portada (27/09) */}
+      <Hoja abierta={poniendoPrecio} onCerrar={() => setPoniendoPrecio(false)} titulo={t("ficha.ponerPrecio")}
+        pie={<Boton variante="principal" ancho="total" onClick={guardarPrecio}>{t("ficha.guardarPrecio")}</Boton>}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ ...texto("titulo"), color: paleta.muted }}>{moneda}</span>
+          <input autoFocus type="text" inputMode="decimal" value={precioBorrador} aria-label={`${t("ficha.precio")} ${moneda}`} onChange={e => setPrecioBorrador(e.target.value.replace(/[^0-9.,]/g, ""))} onKeyDown={e => { if (e.key === "Enter") guardarPrecio(); }} placeholder="0"
+            style={{ flex: 1, minHeight: 56, fontSize: 32, fontWeight: 700, fontVariantNumeric: "tabular-nums", borderRadius: radios.medio, border: `1px solid ${paleta.accent}`, background: paleta.surface, color: paleta.text, padding: "0 14px", fontFamily: "inherit", outline: "none" }} />
         </div>
       </Hoja>
 
