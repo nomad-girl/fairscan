@@ -14,6 +14,7 @@
  * Vive en la tabla `settings` (clave propia) para no cambiar el esquema de la base.
  */
 
+import i18next from 'i18next';
 import db from '../db.js';
 
 export const CLAVE_BORRADOR = 'borrador-captura-rapida';
@@ -25,15 +26,17 @@ export function tieneContenido(b) {
   return (b.items?.length || 0) > 0 || (b.itemIds?.length || 0) > 0 || !!b.cardPhoto || !!(b.supplierName && b.supplierName.trim());
 }
 
-/** Texto corto para ofrecer retomar: qué hay y desde cuándo. */
+/** Texto corto para ofrecer retomar: qué hay y desde cuándo. Sale en el idioma de la app (claves `borrador.*`). */
 export function describirBorrador(b, ahora = Date.now()) {
+  const tx = (clave, opciones) => i18next.t(clave, opciones);
   const n = b?.items?.length || b?.itemIds?.length || 0;
   const partes = [];
-  if (n) partes.push(`${n} producto${n === 1 ? '' : 's'}`);
-  if (b?.cardPhoto || b?.supplierName) partes.push(b?.supplierName ? `la tarjeta de ${b.supplierName}` : 'la tarjeta del proveedor');
+  if (n) partes.push(tx('cantidades.productos', { count: n }));
+  if (b?.cardPhoto || b?.supplierName) partes.push(b?.supplierName ? tx('borrador.tarjetaDe', { nombre: b.supplierName }) : tx('borrador.tarjetaDelProveedor'));
   const min = Math.max(0, Math.round((ahora - (b?.savedAt ?? ahora)) / 60000));
-  const hace = min < 1 ? 'recién' : min < 60 ? `hace ${min} min` : `hace ${Math.round(min / 60)} h`;
-  return { que: partes.join(' y ') || 'nada', hace };
+  const hace = min < 1 ? tx('borrador.recien') : min < 60 ? tx('borrador.haceMin', { count: min }) : tx('borrador.haceHoras', { count: Math.round(min / 60) });
+  const que = partes.length === 2 ? tx('borrador.junta', { a: partes[0], b: partes[1] }) : (partes[0] || tx('borrador.nada'));
+  return { que, hace };
 }
 
 export async function leerBorrador(store = db) {

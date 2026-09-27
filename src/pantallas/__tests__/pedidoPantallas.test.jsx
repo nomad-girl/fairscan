@@ -95,7 +95,7 @@ describe("Armar pedido", () => {
     expect(screen.getByText("Por mail")).toBeTruthy();
     expect(screen.queryByText("Por WeChat")).toBeNull();
     fireEvent.click(screen.getByText("Copiar el texto"));
-    expect(onEnviar).toHaveBeenCalledWith("copiar");
+    expect(onEnviar).toHaveBeenCalledWith("copiar", expect.objectContaining({ idioma: "en" })); // la proforma sale en inglés por defecto (27/09)
   });
   it("sin cantidades no hay proforma que mandar", () => {
     ancho(390);

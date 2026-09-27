@@ -31,7 +31,11 @@ describe('capa 04 · un solo modo, abrir es capturar', () => {
   it('el paywall usa la frase decidida y tiene "Después" y "Restaurar compras"', () => {
     expect(FRASE_PAYWALL).toBe('Se te acabaron los escaneos de prueba. Los proveedores siguen siendo gratis; pagás solo por producto.');
     expect(app.includes('FRASE_PAYWALL')).toBe(true);
-    expect(app.includes('>Después<')).toBe(true);
-    expect(app.includes('Restaurar compras')).toBe(true);
+    // Desde el 27/09 (E6) los textos del paywall y del menú salen por clave: se controlan en el archivo de idioma.
+    const idioma = JSON.parse(fs.readFileSync(path.join(raiz, 'src/idiomas/es-AR.json'), 'utf8'));
+    expect(app.includes('tx("avisos.despues")')).toBe(true);
+    expect(idioma.avisos.despues).toBe('Después');
+    expect(app.includes('tx("configuracion.restaurarCompras")')).toBe(true);
+    expect(idioma.configuracion.restaurarCompras).toBe('Restaurar compras');
   });
 });

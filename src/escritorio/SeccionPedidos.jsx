@@ -38,7 +38,7 @@ export function SeccionPedidos({
       return (
         <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
           <ArmarPedido supplier={supplier} pedido={pedido} products={products} moneda={moneda} feria={districts.find(d => d.id === pedido.districtId) || null} Foto={Foto} tLegacy={tLegacy} primero={abierto.primero || null}
-            onBack={onCerrar} onGuardar={(cambios) => onGuardar?.(pedido.id, cambios)} onEnviar={(via) => onEnviar?.(pedido, supplier, via)} onNavigateProduct={onVerProducto} onActualizarProducto={onActualizarProducto}
+            onBack={onCerrar} onGuardar={(cambios) => onGuardar?.(pedido.id, cambios)} onEnviar={(via, opciones) => onEnviar?.(pedido, supplier, via, opciones)} onNavigateProduct={onVerProducto} onActualizarProducto={onActualizarProducto}
             onEliminar={onEliminar ? () => { onEliminar(pedido.id); onCerrar?.(); } : undefined} />
         </div>
       );

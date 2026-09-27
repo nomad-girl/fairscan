@@ -7,7 +7,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Bloque, Campo, Fila, Icono, Hoja, Celda } from "../componentes/index.js";
+import { Boton, Bloque, Campo, Fila, Icono, Hoja, Celda, Segmentado } from "../componentes/index.js";
 import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
 import { cantidadDe, conCantidad, lineaDePedido, productosParaPedido, totalesDePedido, porcentajeDeContenedor } from "../lib/pedidos.js";
 import { numero as fNumero, cbm as fCbm, fechaCorta } from "../idiomas/formato.js";
@@ -56,7 +56,10 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
     mail: !!s.email,
     compartir: typeof navigator !== "undefined" && typeof navigator.share === "function",
   };
-  const enviar = (via) => { setMandando(false); onEnviar?.(via); };
+  // La proforma sale en inglés por defecto (Nati, 27/09: la lee el proveedor chino), con opción de cambiarla acá; se recuerda.
+  const [idiomaProforma, setIdiomaProforma] = useState(() => { try { return localStorage.getItem("fairscan.idiomaProforma") || "en"; } catch { return "en"; } });
+  const elegirIdiomaProforma = (v) => { setIdiomaProforma(v); try { localStorage.setItem("fairscan.idiomaProforma", v); } catch { /* modo privado */ } };
+  const enviar = (via) => { setMandando(false); onEnviar?.(via, { idioma: idiomaProforma }); };
 
   // Funciones, no componentes: definidos adentro del render serían un tipo nuevo por render y React los
   // desmontaría (la imagen titila, el campo de cantidad pierde el foco al escribir).
@@ -119,7 +122,7 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
         {escritorio && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             {onEliminar && <Boton variante="fantasma" icono="borrar" etiqueta={t("escritorio.eliminarPedido")} onClick={() => { if (typeof window === "undefined" || typeof window.confirm !== "function" || window.confirm(t("escritorio.eliminarPedidoSeguro", { empresa: s.company || "" }))) onEliminar(); }} />}
-            <Boton variante="secundario" icono="excel" deshabilitado={tot.vacio} onClick={() => onEnviar?.("excel")}>{t("pedido.descargarExcel")}</Boton>
+            <Boton variante="secundario" icono="excel" deshabilitado={tot.vacio} onClick={() => onEnviar?.("excel", { idioma: idiomaProforma })}>{t("pedido.descargarExcel")}</Boton>
             <Boton variante="principal" icono="compartir" deshabilitado={tot.vacio} onClick={() => setMandando(true)}>{t("pedido.mandarCorto")}</Boton>
           </div>
         )}
@@ -225,6 +228,10 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
       {/* A quién y por dónde */}
       <Hoja abierta={mandando} onCerrar={() => setMandando(false)} titulo={t("pedido.mandarTitulo")}>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "2px 0 6px" }}>
+            <span style={{ ...texto("pie", { fontWeight: 600 }), color: paleta.muted, flexShrink: 0 }}>{t("ajustes.idioma")}</span>
+            <Segmentado etiqueta={t("ajustes.idioma")} valor={idiomaProforma} onChange={elegirIdiomaProforma} opciones={[{ valor: "en", texto: "English" }, { valor: "es-AR", texto: "Español" }]} estilo={{ flex: 1 }} />
+          </div>
           {contactos.whatsapp && <Fila onClick={() => enviar("whatsapp")} flecha miniatura={<Icono nombre="mensaje" tamano={22} color="#25D366" />} titulo={t("pedido.porWhatsapp")} subtitulo={s.whatsapp || s.phone} />}
           {contactos.wechat && <Fila onClick={() => enviar("wechat")} flecha miniatura={<Icono nombre="mensaje" tamano={22} color="#07C160" />} titulo={t("pedido.porWechat")} subtitulo={t("pedido.porWechatPista")} />}
           {contactos.mail && <Fila onClick={() => enviar("mail")} flecha miniatura={<Icono nombre="correo" tamano={22} color={paleta.accentTexto} />} titulo={t("pedido.porMail")} subtitulo={s.email} />}

@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
 import React from "react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import LoginScreen from "../LoginScreen.jsx";
 import { PALETAS } from "../../sistema/tokens.js";
+import { iniciarIdiomas } from "../../idiomas/index.js";
+
+// La pantalla pide sus textos por clave (E6): se arranca el idioma como en la app.
+beforeAll(() => { iniciarIdiomas("es-AR"); });
 
 const tema = { ...PALETAS.claro, redSoft: "rgba(220,38,38,0.1)", greenSoft: "rgba(21,128,61,0.1)" };
 

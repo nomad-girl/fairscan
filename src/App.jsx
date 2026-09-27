@@ -118,6 +118,7 @@ import { numero as fNumero } from './idiomas/formato.js';
 import i18n from 'i18next';
 // Los textos por clave, para lo que vive en App y todavía usa `t` como paleta de colores.
 const tx = (clave, opciones) => i18n.t(clave, opciones);
+import { useTranslation, Trans } from 'react-i18next';
 import { vibrarObturador } from './sistema/vibrar.js';
 import { serializarAudio, urlDeAudio, esPunteroMuerto } from './lib/audioNotes.js';
 import { crearPapelera } from './lib/deshacer.js';
@@ -134,7 +135,7 @@ import { supabase } from './lib/supabase.js';
 // El catálogo se muestra del más nuevo al más viejo (mismo orden que la base).
 const ordenarPorFecha = (arr) => [...arr].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
-const CURRENCIES = { USD: { symbol:"USD", label:"Dólar (USD)" }, ARS: { symbol:"ARS", label:"Peso Argentino (ARS)" }, CNY: { symbol:"¥", label:"Yuan Chino (CNY)" } };
+const CURRENCIES = { USD: { symbol:"USD", label:"configuracion.monedaUSD" }, ARS: { symbol:"ARS", label:"configuracion.monedaARS" }, CNY: { symbol:"¥", label:"configuracion.monedaCNY" } };
 const DEFAULT_SETTINGS_FALLBACK = { activeDistrictId:1, theme:"light", preset:"vajilla", minMargin:40, quickCaptureMode:true, currency:"USD", showImportCalculator:false, ...PRESETS.vajilla };
 
 // ═══════════════════════════════════════════
@@ -335,7 +336,7 @@ const FotoDeProducto = memo(({ src, respaldo = null, t, estilo }) => {
     return (
       <div
         onClick={fallo ? (e) => { e.stopPropagation(); setIntento(0); } : undefined}
-        title={fallo ? "No se pudo bajar la foto. Tocá para reintentar." : undefined}
+        title={fallo ? tx("captura.fotoNoBajo") : undefined}
         style={{ ...caja, background:t.surface, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, opacity:fallo ? 0.55 : 1 }}>
         <Icono nombre={fallo ? "reintentar" : "foto"} tamano={22} color={t.dim || t.muted} />
       </div>
@@ -360,6 +361,7 @@ const FotoDeProducto = memo(({ src, respaldo = null, t, estilo }) => {
  * qué pasa sin adivinar.
  */
 function DiagnosticoFotos({ t }) {
+  const { t: tx } = useTranslation();
   const [estado, setEstado] = useState(null);
   const correr = async () => {
     setEstado({ corriendo: true });
@@ -389,18 +391,18 @@ function DiagnosticoFotos({ t }) {
   const fila = (obj) => Object.entries(obj || {}).map(([k, v]) => `${k}: ${v}`).join(' · ') || '—';
   return (
     <div style={{ background:t.card, borderRadius:14, padding:"12px 14px", marginTop:12, border:`1px solid ${t.border}` }}>
-      <p style={{ fontSize:13, fontWeight:700, color:t.text, margin:"0 0 6px" }}>Diagnóstico de fotos</p>
-      <p style={{ fontSize:11, color:t.muted, margin:"0 0 8px" }}>Para soporte: dice qué tiene guardado este teléfono y qué fotos no cargan. No cambia nada.</p>
+      <p style={{ fontSize:13, fontWeight:700, color:t.text, margin:"0 0 6px" }}>{tx("diagnostico.titulo")}</p>
+      <p style={{ fontSize:11, color:t.muted, margin:"0 0 8px" }}>{tx("diagnostico.pista")}</p>
       <button onClick={correr} disabled={!!estado?.corriendo} style={{ padding:"8px 12px", borderRadius:10, border:"none", background:t.accentSoft, color:t.accent, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-        {estado?.corriendo ? "Probando…" : "Probar las fotos"}
+        {estado?.corriendo ? tx("diagnostico.probando") : tx("diagnostico.probar")}
       </button>
       {estado && !estado.corriendo && (
         <div style={{ fontSize:11, color:t.text, marginTop:10, lineHeight:1.6, wordBreak:"break-all" }}>
-          <div>Productos: <b>{estado.total}</b></div>
-          <div>Fotos guardadas como: {fila(estado.tipos)}</div>
-          <div>Miniaturas como: {fila(estado.thumbs)}</div>
-          <div>Probadas: <b>{estado.probadas}</b> · Fallan: <b style={{ color:t.red }}>{estado.fallidas}</b></div>
-          <div>Fallan por tipo: {fila(estado.fallosPorTipo)}</div>
+          <div>{tx("diagnostico.productos")} <b>{estado.total}</b></div>
+          <div>{tx("diagnostico.guardadasComo", { tipos: fila(estado.tipos) })}</div>
+          <div>{tx("diagnostico.miniaturasComo", { tipos: fila(estado.thumbs) })}</div>
+          <div>{tx("diagnostico.probadas")} <b>{estado.probadas}</b> · {tx("diagnostico.fallan")} <b style={{ color:t.red }}>{estado.fallidas}</b></div>
+          <div>{tx("diagnostico.fallanPorTipo", { tipos: fila(estado.fallosPorTipo) })}</div>
           {estado.ejemplos.map((e, i) => <div key={i} style={{ color:t.muted }}>{e}</div>)}
         </div>
       )}
@@ -416,16 +418,17 @@ function DiagnosticoFotos({ t }) {
  * alto cagado"). Con 1.137 productos la espera es de minutos.
  */
 const BajandoCatalogo = memo(({ bajando, t }) => {
+  const { t: tx } = useTranslation();
   if (!bajando) return null;
-  const nombre = { products: "productos", suppliers: "proveedores", districts: "ferias" }[bajando.tabla] || "datos";
+  const nombre = tx({ products: "avisos.tablaProductos", suppliers: "avisos.tablaProveedores", districts: "avisos.tablaFerias" }[bajando.tabla] || "avisos.tablaDatos");
   const pct = bajando.total ? Math.round((bajando.hechos / bajando.total) * 100) : 0;
   return (
     <div style={{ position:"fixed", top:"calc(env(safe-area-inset-top, 0px) + 16px)", left:16, right:16, margin:"0 auto",
       width:"min(420px, calc(100vw - 32px))", boxSizing:"border-box", background:t.card, border:`1px solid ${t.blue}55`, color:t.text,
       padding:"12px 16px", borderRadius:14, boxShadow:"0 8px 30px rgba(0,0,0,0.35)", zIndex:1001 }} className="fade-in">
-      <p style={{ margin:0, fontSize:13, fontWeight:700 }}>Bajando tu catálogo…</p>
+      <p style={{ margin:0, fontSize:13, fontWeight:700 }}>{tx("avisos.bajandoCatalogo")}</p>
       <p style={{ margin:"2px 0 8px", fontSize:12, color:t.muted }}>
-        {bajando.hechos} de {bajando.total} {nombre}. No cierres la app; nada se perdió.
+        {tx("avisos.bajandoDetalle", { hechos: bajando.hechos, total: bajando.total, nombre })}
       </p>
       <div style={{ height:4, borderRadius:4, background:t.border, overflow:"hidden" }}>
         <div style={{ height:"100%", width:`${pct}%`, background:t.blue, transition:"width .3s" }} />
@@ -439,6 +442,7 @@ const BajandoCatalogo = memo(({ bajando, t }) => {
  * arregla, botón a los ajustes del teléfono en nativo, y una alternativa.
  */
 function PermisoAviso({ info, onRetry, onAlternativa, alternativaLabel, onClose, t }) {
+  const { t: tx } = useTranslation();
   if (!info) return null;
   const btn = (extra) => ({ padding:"12px 14px", borderRadius:12, border:"none", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit", ...extra });
   return (
@@ -448,14 +452,14 @@ function PermisoAviso({ info, onRetry, onAlternativa, alternativaLabel, onClose,
         <p style={{ fontSize:14, color:t.muted, margin:"0 0 16px", lineHeight:1.5 }}>{info.texto}</p>
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
           {info.puedeAbrirAjustes && (
-            <button onClick={() => abrirAjustesDeLaApp()} style={btn({ background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff" })}>Abrir ajustes del teléfono</button>
+            <button onClick={() => abrirAjustesDeLaApp()} style={btn({ background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff" })}>{tx("captura.abrirAjustesDelTelefono")}</button>
           )}
           {onAlternativa && (
             <button onClick={() => { onClose?.(); onAlternativa(); }} style={btn({ background:t.card, color:t.text, border:`1px solid ${t.border}` })}>{alternativaLabel}</button>
           )}
           <div style={{ display:"flex", gap:8 }}>
-            {onRetry && <button onClick={() => { onClose?.(); onRetry(); }} style={btn({ flex:1, background:t.surface, color:t.text })}>Reintentar</button>}
-            <button onClick={onClose} style={btn({ flex:1, background:"none", color:t.muted })}>Cerrar</button>
+            {onRetry && <button onClick={() => { onClose?.(); onRetry(); }} style={btn({ flex:1, background:t.surface, color:t.text })}>{tx("comun.reintentar")}</button>}
+            <button onClick={onClose} style={btn({ flex:1, background:"none", color:t.muted })}>{tx("comun.cerrar")}</button>
           </div>
         </div>
       </div>
@@ -471,7 +475,7 @@ function PermisoAviso({ info, onRetry, onAlternativa, alternativaLabel, onClose,
 const EsqueletoCatalogo = ({ t }) => {
   const bloque = (extra) => ({ background:t.surface, borderRadius:12, animation:"esqueletoPulso 1.2s ease-in-out infinite", ...extra });
   return (
-    <div style={{ height:"100%", background:t.bg, padding:"12px 20px", boxSizing:"border-box", overflow:"hidden" }} aria-busy="true" aria-label="Cargando el catálogo">
+    <div style={{ height:"100%", background:t.bg, padding:"12px 20px", boxSizing:"border-box", overflow:"hidden" }} aria-busy="true" aria-label={tx("captura.cargandoCatalogo")}>
       <style>{`@keyframes esqueletoPulso { 0%, 100% { opacity: 0.55 } 50% { opacity: 1 } }`}</style>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
         <div style={bloque({ width:140, height:34 })} />
@@ -495,18 +499,19 @@ const DiaHeader = ({ etiqueta, n, grid, t }) => (
 
 /** Bienvenida de un solo golpe: el "para qué" antes de pedir la cámara (4.1, 1.5). */
 function Bienvenida({ onEmpezar, sinCuenta, onEntrar }) {
+  const { t: tx } = useTranslation();
   // Primera vez, sin foto (Nati, 22/09: "no es el código visual de la app"): el naranja de la marca arriba,
   // con FairScan y la frase en blanco; abajo, claro, los dos botones. Un toque y estás en la cámara.
   return (
     <div className="pantalla-fija" style={{ position:"fixed", inset:0, background:"#F8FAFC", color:"#0F172A", fontFamily:"inherit", display:"flex", flexDirection:"column" }}>
       <div style={{ flex:1, background:"#EA5A22", color:"#fff", padding:"calc(env(safe-area-inset-top, 0px) + 40px) 24px 36px", display:"flex", flexDirection:"column", justifyContent:"flex-end", gap:12, borderRadius:"0 0 32px 32px" }}>
         <h1 style={{ fontSize:44, fontWeight:700, margin:0, letterSpacing:"-0.02em" }}>FairScan</h1>
-        <p style={{ fontSize:19, fontWeight:500, margin:0, lineHeight:1.3, maxWidth:340, color:"rgba(255,255,255,0.92)" }}>Sacá la foto. La app le pone nombre, lee la tarjeta y arma el pedido.</p>
+        <p style={{ fontSize:19, fontWeight:500, margin:0, lineHeight:1.3, maxWidth:340, color:"rgba(255,255,255,0.92)" }}>{tx("bienvenida.frase")}</p>
       </div>
       <div style={{ padding:"24px 22px calc(28px + env(safe-area-inset-bottom, 0px))", display:"flex", flexDirection:"column", gap:10 }}>
-        <button onClick={onEmpezar} style={{ width:"100%", minHeight:54, borderRadius:14, border:"none", background:"#EA5A22", color:"#fff", fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><Icono nombre="camara" tamano={20} color="#fff" />Empezar a escanear</button>
-        {sinCuenta && onEntrar && <button onClick={onEntrar} style={{ width:"100%", minHeight:54, borderRadius:14, border:"1px solid #DCE3EC", background:"#FFFFFF", color:"#0F172A", fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Ya tengo cuenta</button>}
-        <p style={{ fontSize:12, color:"#64748B", margin:"8px 0 0", textAlign:"center", lineHeight:1.5 }}>{sinCuenta ? "Sin cuenta, tus fotos quedan en este teléfono. Creás la cuenta cuando quieras, desde Configuración." : "El teléfono te va a pedir permiso para usar la cámara."}</p>
+        <button onClick={onEmpezar} style={{ width:"100%", minHeight:54, borderRadius:14, border:"none", background:"#EA5A22", color:"#fff", fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><Icono nombre="camara" tamano={20} color="#fff" />{tx("bienvenida.empezar")}</button>
+        {sinCuenta && onEntrar && <button onClick={onEntrar} style={{ width:"100%", minHeight:54, borderRadius:14, border:"1px solid #DCE3EC", background:"#FFFFFF", color:"#0F172A", fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{tx("bienvenida.yaTengoCuenta")}</button>}
+        <p style={{ fontSize:12, color:"#64748B", margin:"8px 0 0", textAlign:"center", lineHeight:1.5 }}>{sinCuenta ? tx("bienvenida.sinCuentaPista") : tx("bienvenida.permisoCamara")}</p>
       </div>
     </div>
   );
@@ -615,7 +620,7 @@ const parseQRContent = (qrData) => {
     info.wechatLink = qrData;
     const idMatch = qrData.match(/weixin:\/\/dl\/(?:chat|business)\?.*?username=([^&]+)/i);
     if (idMatch) info.wechat = idMatch[1];
-    if (!info.wechat) info.wechat = "QR escaneado";
+    if (!info.wechat) info.wechat = tx("captura.qrEscaneado");
   }
   const telMatch = qrData.match(/tel:(\+?\d[\d\s-]+)/i);
   if (telMatch) { info.phone = telMatch[1].replace(/\s/g, ""); }
@@ -646,6 +651,7 @@ const parseQRContent = (qrData) => {
 // DISTRICTS
 // ═══════════════════════════════════════════
 function DistrictsScreen({ districts, activeDistrictId, products, onActivate, onAdd, onUpdate, onDelete, onBack, t }) {
+  const { t: tx } = useTranslation();
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [nn, setNn] = useState(""); const [nl, setNl] = useState(""); const [nd, setNd] = useState(""); const [ne, setNe] = useState("");
@@ -656,23 +662,23 @@ function DistrictsScreen({ districts, activeDistrictId, products, onActivate, on
   const emojiRow = <div style={{ display:"flex", gap:6, marginBottom:14, flexWrap:"wrap" }}>{emojis.map(e => <button key={e} onClick={() => setNe(e)} style={{ width:40, height:40, borderRadius:10, fontSize:20, border:`1.5px solid ${ne===e?t.accent:t.border}`, background:ne===e?t.accentSoft:t.surface, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>{e}</button>)}</div>;
   const formFields = <>
     {emojiRow}
-    <input value={nn} onChange={e=>setNn(e.target.value)} placeholder="Nombre (ej: Canton Fair)" style={inp} />
-    <input value={nl} onChange={e=>setNl(e.target.value)} placeholder="Ubicación (ej: Guangzhou)" style={inp} />
-    <input value={nd} onChange={e=>setNd(e.target.value)} placeholder="Fechas (ej: 15-19 Abr)" style={inp} />
+    <input value={nn} onChange={e=>setNn(e.target.value)} placeholder={tx("ferias.nombrePlaceholder")} style={inp} />
+    <input value={nl} onChange={e=>setNl(e.target.value)} placeholder={tx("ferias.ubicacionPlaceholder")} style={inp} />
+    <input value={nd} onChange={e=>setNd(e.target.value)} placeholder={tx("ferias.fechasPlaceholder")} style={inp} />
   </>;
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
-      <Header title="Ferias / Distritos" onBack={onBack} t={t} />
+      <Header title={tx("ferias.titulo")} onBack={onBack} t={t} />
       <div style={{ flex:1, padding:"16px 20px", overflow:"auto" }}>
         {districts.map(d => {
           const count = products.filter(p => p.districtId === d.id).length;
           if (editingId === d.id) return (
             <div key={d.id} style={{ background:t.card, borderRadius:16, padding:16, marginBottom:10, border:`1.5px solid ${t.accent}` }}>
-              <p style={{ fontSize:14, fontWeight:700, color:t.text, margin:"0 0 14px" }}>Editar feria</p>
+              <p style={{ fontSize:14, fontWeight:700, color:t.text, margin:"0 0 14px" }}>{tx("ferias.editarFeria")}</p>
               {formFields}
               <div style={{ display:"flex", gap:10 }}>
-                <Btn onClick={cancelEdit} variant="ghost" t={t}>Cancelar</Btn>
-                <Btn onClick={() => { if(nn.trim()) { onUpdate(d.id, { name:nn, location:nl, dates:nd, emoji:ne }); cancelEdit(); }}} full disabled={!nn.trim()} t={t} style={{ flex:1 }}>✓ Guardar</Btn>
+                <Btn onClick={cancelEdit} variant="ghost" t={t}>{tx("comun.cancelar")}</Btn>
+                <Btn onClick={() => { if(nn.trim()) { onUpdate(d.id, { name:nn, location:nl, dates:nd, emoji:ne }); cancelEdit(); }}} full disabled={!nn.trim()} t={t} style={{ flex:1 }}>{tx("ferias.guardar")}</Btn>
               </div>
             </div>
           );
@@ -681,16 +687,16 @@ function DistrictsScreen({ districts, activeDistrictId, products, onActivate, on
               <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
                 <span style={{ fontSize:28 }}>{d.emoji}</span>
                 <div style={{ flex:1 }}><div style={{ fontSize:15, fontWeight:700, color:t.text }}>{d.name}</div><div style={{ fontSize:12, color:t.muted }}>{d.location} · {d.dates}</div></div>
-                {d.id===activeDistrictId && <span style={{ fontSize:10, fontWeight:700, color:t.green, background:t.greenSoft, padding:"3px 8px", borderRadius:8 }}>ACTIVO</span>}
+                {d.id===activeDistrictId && <span style={{ fontSize:10, fontWeight:700, color:t.green, background:t.greenSoft, padding:"3px 8px", borderRadius:8 }}>{tx("ferias.activa")}</span>}
               </div>
-              <div style={{ fontSize:12, color:t.muted, marginBottom:10 }}><b style={{ color:t.text }}>{count}</b> productos</div>
+              <div style={{ fontSize:12, color:t.muted, marginBottom:10 }}><Trans i18nKey="ferias.cantidadProductos" count={count} components={{ b: <b style={{ color:t.text }} /> }} /></div>
               <div style={{ display:"flex", gap:8 }}>
-                {d.id!==activeDistrictId && <Btn onClick={() => onActivate(d.id)} full t={t} style={{ flex:1 }}>Activar esta feria</Btn>}
+                {d.id!==activeDistrictId && <Btn onClick={() => onActivate(d.id)} full t={t} style={{ flex:1 }}>{tx("ferias.activarEstaFeria")}</Btn>}
                 <button onClick={() => startEdit(d)} style={{
                   padding:"8px 12px", borderRadius:10, border:`1px solid ${t.border}`, background:t.surface,
                   color:t.text, fontSize:12, fontWeight:700, cursor:"pointer",
                 }}></button>
-                {d.id!==activeDistrictId && <button onClick={() => { if(confirm(`¿Eliminar "${d.name}" y sus ${count} productos?`)) onDelete(d.id); }} style={{
+                {d.id!==activeDistrictId && <button onClick={() => { if(confirm(tx("ferias.eliminarSeguro", { nombre: d.name, count }))) onDelete(d.id); }} style={{
                   padding:"8px 12px", borderRadius:10, border:`1px solid ${t.red}30`, background:t.redSoft,
                   color:t.red, fontSize:12, fontWeight:700, cursor:"pointer",
                 }}></button>}
@@ -698,13 +704,13 @@ function DistrictsScreen({ districts, activeDistrictId, products, onActivate, on
             </div>
           );
         })}
-        {!creating ? <Btn onClick={() => { setCreating(true); cancelEdit(); }} variant="outline" full t={t}>+ Nueva feria</Btn>
+        {!creating ? <Btn onClick={() => { setCreating(true); cancelEdit(); }} variant="outline" full t={t}>{tx("ferias.nuevaFeria")}</Btn>
         : <div style={{ background:t.card, borderRadius:16, padding:16, border:`1.5px solid ${t.accent}` }}>
-            <p style={{ fontSize:14, fontWeight:700, color:t.text, margin:"0 0 14px" }}>Nueva feria</p>
+            <p style={{ fontSize:14, fontWeight:700, color:t.text, margin:"0 0 14px" }}>{tx("ferias.nuevaFeriaTitulo")}</p>
             {formFields}
             <div style={{ display:"flex", gap:10 }}>
-              <Btn onClick={() => { setCreating(false); setNn(""); setNl(""); setNd(""); setNe("🏮"); }} variant="ghost" t={t}>Cancelar</Btn>
-              <Btn onClick={() => { if(nn.trim()) { onAdd({ name:nn, location:nl, dates:nd, emoji:ne }); setCreating(false); setNn(""); setNl(""); setNd(""); setNe("🏮"); }}} full disabled={!nn.trim()} t={t} style={{ flex:1 }}>✓ Crear</Btn>
+              <Btn onClick={() => { setCreating(false); setNn(""); setNl(""); setNd(""); setNe("🏮"); }} variant="ghost" t={t}>{tx("comun.cancelar")}</Btn>
+              <Btn onClick={() => { if(nn.trim()) { onAdd({ name:nn, location:nl, dates:nd, emoji:ne }); setCreating(false); setNn(""); setNl(""); setNd(""); setNe("🏮"); }}} full disabled={!nn.trim()} t={t} style={{ flex:1 }}>{tx("ferias.crear")}</Btn>
             </div>
           </div>}
       </div>
@@ -722,6 +728,7 @@ function DistrictsScreen({ districts, activeDistrictId, products, onActivate, on
  * gesto o con el botón "Catálogo". Un solo modo (4.5).
  */
 function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave, onClose, onCatalogo, t, isDark, initialSupplier = null, products = [], onProductoNuevo, onProductoCambio, onProductoBorrar, soloProveedor = false, saldoCreditos = null, queueCount = 0 }) {
+  const { t: tx } = useTranslation();
   const [cardPhoto, setCardPhoto] = useState(null);
   const [cardData, setCardData] = useState(null);
   const [cardProcessing, setCardProcessing] = useState(false);
@@ -1215,7 +1222,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
       // El botón vuelve y dice qué pasó: nada de quedarse en "Guardando..." para siempre (N11).
       console.warn("Guardado de captura rápida falló:", err);
       setSaving(false);
-      setSaveError("No se pudo guardar. Lo cargado sigue en pantalla: revisá la señal y tocá Guardar de nuevo.");
+      setSaveError(tx("captura.noSePudoGuardar"));
     }
   };
 
@@ -1237,11 +1244,11 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   const esperando = products.filter(p => p.bloqueado).length;
   const hojaTarjetaNueva = (
     // Ojo: en QuickCapture `t` es el tema de colores, no la función de textos (el 23/09 la app arrancó en negro por esto).
-    <Hoja abierta={!!tarjetaPendiente} onCerrar={esLaMismaTarjeta} titulo="Tarjeta nueva">
-      <p style={{ fontSize: 15, lineHeight: 1.45, margin: "0 0 14px" }}>{supplierName ? `¿Cerramos ${supplierName} (${items.length} ${items.length === 1 ? "foto" : "fotos"}) y arrancamos con esta?` : `¿Cerramos el stand anterior (${items.length} ${items.length === 1 ? "foto" : "fotos"}) y arrancamos con esta tarjeta?`}</p>
+    <Hoja abierta={!!tarjetaPendiente} onCerrar={esLaMismaTarjeta} titulo={tx("captura.tarjetaNueva")}>
+      <p style={{ fontSize: 15, lineHeight: 1.45, margin: "0 0 14px" }}>{supplierName ? tx("captura.cerrarYArrancarCon", { nombre: supplierName, fotos: tx("cantidades.fotos", { count: items.length }) }) : tx("captura.cerrarStandAnterior", { fotos: tx("cantidades.fotos", { count: items.length }) })}</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <Boton variante="principal" ancho="total" icono="listo" onClick={cerrarYArrancar}>Sí, cerrar y seguir</Boton>
-        <Boton variante="secundario" ancho="total" onClick={esLaMismaTarjeta}>No, es la misma tarjeta de nuevo</Boton>
+        <Boton variante="principal" ancho="total" icono="listo" onClick={cerrarYArrancar}>{tx("captura.siCerrarYSeguir")}</Boton>
+        <Boton variante="secundario" ancho="total" onClick={esLaMismaTarjeta}>{tx("captura.esLaMismaTarjeta")}</Boton>
       </div>
     </Hoja>
   );
@@ -1297,7 +1304,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
         onListo={handleSave} guardando={saving} errorGuardar={saveError}
         stand={cardData?.boothNumber || null}
         borrador={borrador} onRetomar={retomarBorrador} onDescartar={descartarBorrador} descripcionBorrador={borrador ? describirBorrador(borrador) : null}
-        avisoPermiso={<PermisoAviso info={cameraError} t={t} onClose={() => setCameraError(null)} onRetry={() => openCamera(cameraError?.modo)} alternativaLabel="Elegir de la galería" onAlternativa={() => (cameraError?.modo === "card" ? cardGalleryRef : prodGalleryRef).current?.click()} />}
+        avisoPermiso={<PermisoAviso info={cameraError} t={t} onClose={() => setCameraError(null)} onRetry={() => openCamera(cameraError?.modo)} alternativaLabel={tx("visor.elegirDeGaleria")} onAlternativa={() => (cameraError?.modo === "card" ? cardGalleryRef : prodGalleryRef).current?.click()} />}
       />
       <input ref={cardGalleryRef} type="file" accept="image/*" onChange={onCardGallery} style={{ display:"none" }} />
       <input ref={prodGalleryRef} type="file" accept="image/*" onChange={onProductGallery} style={{ display:"none" }} />
@@ -1310,6 +1317,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
 // SETTINGS
 // ═══════════════════════════════════════════
 function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers, districts, onReload, teams, activeTeam, teamMembers, isAdmin, fetchMembers, inviteMember, onSwitchTeam, userEmail, userId, esAnonima = false, auth, onSignOut, onGoExport, onAccountDeleted, isDark = false, onToggleTheme, onEntrar }) {
+  const { t: tx } = useTranslation();
   const handleSwitchTeam = async (teamId) => {
     if (onSwitchTeam) await onSwitchTeam(teamId);
   };
@@ -1355,7 +1363,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
     try {
       setDelPreview(await deleteAccountPreview());
     } catch (err) {
-      setDelError(err.message || "No se pudo consultar qué se borraría");
+      setDelError(err.message || tx("configuracion.noSePudoConsultarBorrado"));
     }
   };
 
@@ -1372,7 +1380,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
       if (onAccountDeleted) await onAccountDeleted();
       else window.location.reload();
     } catch (err) {
-      setDelError(err.message || "No se pudo borrar la cuenta");
+      setDelError(err.message || tx("configuracion.noSePudoBorrarCuenta"));
       setDelBusy(false);
     }
   };
@@ -1386,7 +1394,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
       const data = await res.json();
       setHealth(data);
     } catch (err) {
-      setHealthError('No se pudo verificar. ¿Tenés internet?');
+      setHealthError(tx("configuracion.noSePudoVerificar"));
       setHealth(null);
     } finally {
       setHealthLoading(false);
@@ -1410,11 +1418,11 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
         ))}
         {editing===field ? (
           <div style={{ display:"flex", gap:4 }}>
-            <input value={ni} onChange={e=>setNi(e.target.value)} onKeyDown={e => e.key==="Enter" && add(field)} autoFocus placeholder="Nombre..." style={{ width:110, padding:"5px 10px", borderRadius:16, fontSize:16, border:`1.5px solid ${color}`, background:t.card, color:t.text, outline:"none", fontFamily:"inherit" }} />
+            <input value={ni} onChange={e=>setNi(e.target.value)} onKeyDown={e => e.key==="Enter" && add(field)} autoFocus placeholder={tx("configuracion.nombrePlaceholder")} style={{ width:110, padding:"5px 10px", borderRadius:16, fontSize:16, border:`1.5px solid ${color}`, background:t.card, color:t.text, outline:"none", fontFamily:"inherit" }} />
             <button onClick={() => add(field)} style={{ padding:"5px 10px", borderRadius:16, fontSize:11, fontWeight:700, border:"none", background:color, color:"#fff", cursor:"pointer" }}>+</button>
             <button onClick={() => { setEditing(null); setNi(""); }} style={{ padding:"5px 8px", borderRadius:16, fontSize:11, border:`1px solid ${t.border}`, background:t.card, color:t.muted, cursor:"pointer" }}>✕</button>
           </div>
-        ) : <button onClick={() => setEditing(field)} style={{ padding:"5px 12px", borderRadius:16, fontSize:12, fontWeight:600, border:`1.5px dashed ${t.border}`, background:"transparent", color:t.dim, cursor:"pointer" }}>+ Agregar</button>}
+        ) : <button onClick={() => setEditing(field)} style={{ padding:"5px 12px", borderRadius:16, fontSize:12, fontWeight:600, border:`1.5px dashed ${t.border}`, background:"transparent", color:t.dim, cursor:"pointer" }}>{tx("configuracion.agregar")}</button>}
       </div>
     </div>
   );
@@ -1437,7 +1445,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
   // ─── SUB-SCREEN: Equipo y sincronización ───
   if (subScreen === "room") return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
-      <Header title="Equipo y sincronización" onBack={() => setSubScreen(null)} t={t} />
+      <Header title={tx("configuracion.equipoYSync")} onBack={() => setSubScreen(null)} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
         {sync ? <TeamPanel
           sync={sync}
@@ -1450,7 +1458,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
           onSwitchTeam={handleSwitchTeam}
           t={t}
         /> : (
-          <p style={{ fontSize:13, color:t.muted, textAlign:"center", marginTop:40 }}>La sincronización no está disponible.</p>
+          <p style={{ fontSize:13, color:t.muted, textAlign:"center", marginTop:40 }}>{tx("configuracion.syncNoDisponible")}</p>
         )}
       </div>
     </div>
@@ -1459,18 +1467,18 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
   // ─── SUB-SCREEN: Rubros y etiquetas ───
   if (subScreen === "tags") return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
-      <Header title="Rubros y etiquetas" onBack={() => setSubScreen(null)} t={t} />
+      <Header title={tx("configuracion.rubrosYEtiquetas")} onBack={() => setSubScreen(null)} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Preset por rubro</p>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>{tx("configuracion.presetPorRubro")}</p>
         <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:24 }}>
           {Object.entries(PRESETS).map(([k,p]) => <button key={k} onClick={() => updateLoc(prev => ({ ...prev, preset:k, ...PRESETS[k] }))} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px", borderRadius:12, cursor:"pointer", background:loc.preset===k?t.accentSoft:t.card, border:`1.5px solid ${loc.preset===k?t.accent:t.border}`, textAlign:"left" }}><span style={{ fontSize:22 }}>{p.icon}</span><span style={{ fontSize:13, fontWeight:600, color:loc.preset===k?t.accent:t.text, flex:1 }}>{p.name}</span>{loc.preset===k && <span style={{ color:t.accent }}>✓</span>}</button>)}
         </div>
         <div style={{ height:1, background:t.border, marginBottom:20 }} />
-        {sec("Categorías","","categories",t.accent)}
-        {sec("Materiales","","materials",t.blue)}
-        {sec("Packaging","","packagingTypes",t.green)}
-        {sec("Variantes","","variantTypes",t.purple)}
-        <p style={{ fontSize:11, color:t.dim, textAlign:"center", fontStyle:"italic" }}>Los cambios se guardan automáticamente</p>
+        {sec(tx("configuracion.categorias"),"","categories",t.accent)}
+        {sec(tx("configuracion.materiales"),"","materials",t.blue)}
+        {sec(tx("configuracion.packaging"),"","packagingTypes",t.green)}
+        {sec(tx("configuracion.variantes"),"","variantTypes",t.purple)}
+        <p style={{ fontSize:11, color:t.dim, textAlign:"center", fontStyle:"italic" }}>{tx("configuracion.cambiosAutomaticos")}</p>
       </div>
     </div>
   );
@@ -1478,18 +1486,15 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
   // ─── SUB-SCREEN: Captura y fotos ───
   if (subScreen === "capture") return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
-      <Header title="Captura y fotos" onBack={() => setSubScreen(null)} t={t} />
+      <Header title={tx("configuracion.capturaYFotos")} onBack={() => setSubScreen(null)} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
         <div style={{ height:1, background:t.border, margin:"0 0 20px" }} />
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.08em" }}>Backup de fotos</p>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.08em" }}>{tx("configuracion.backupDeFotos")}</p>
         <div style={{ padding:"12px 14px", borderRadius:14, background:t.greenSoft, border:`1.5px solid ${t.green}40`, marginBottom:16 }}>
-          <p style={{ fontSize:12, color:t.green, fontWeight:700, margin:"0 0 4px" }}>✓ Siempre activo</p>
-          <p style={{ fontSize:11, color:t.dim, margin:0, lineHeight:1.5 }}>
-            Después de cada captura aparece un botón para guardar las fotos en tu galería/Camera Roll.
-            Para máxima seguridad: sacá las fotos con la cámara normal del iPhone y después importalas tocando "Galería" en la app.
-          </p>
+          <p style={{ fontSize:12, color:t.green, fontWeight:700, margin:"0 0 4px" }}>{tx("configuracion.siempreActivo")}</p>
+          <p style={{ fontSize:11, color:t.dim, margin:0, lineHeight:1.5 }}>{tx("configuracion.backupFotosTexto")}</p>
         </div>
-        <p style={{ fontSize:11, color:t.dim, textAlign:"center", fontStyle:"italic" }}>Los cambios se guardan automáticamente</p>
+        <p style={{ fontSize:11, color:t.dim, textAlign:"center", fontStyle:"italic" }}>{tx("configuracion.cambiosAutomaticos")}</p>
       </div>
     </div>
   );
@@ -1497,13 +1502,13 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
   // ─── SUB-SCREEN: Captura y pantalla (21/09): lo que cambia cómo se saca la foto y cómo se ve la app ───
   if (subScreen === "captura") return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
-      <Header title="Captura y pantalla" onBack={() => setSubScreen(null)} t={t} />
+      <Header title={tx("configuracion.capturaYPantalla")} onBack={() => setSubScreen(null)} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
         {/* Datos de compra tras la foto (Nati, 17/09): quien no usa MOQ, piezas por caja o CBM los apaga acá y el teclado solo pide precio */}
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Datos que pide el teclado después de la foto</p>
-        <p style={{ fontSize:11, color:t.dim, margin:"0 0 8px", lineHeight:1.5 }}>El precio siempre. Los demás, apagalos si no los usás.</p>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>{tx("configuracion.datosDelTeclado")}</p>
+        <p style={{ fontSize:11, color:t.dim, margin:"0 0 8px", lineHeight:1.5 }}>{tx("configuracion.datosDelTecladoPista")}</p>
         <div style={{ display:"flex", gap:6, marginBottom:20 }}>
-          {[["moq", "MOQ"], ["piezasPorCaja", "Piezas por caja"], ["cbmPorCaja", "CBM"]].map(([k, etiqueta]) => {
+          {[["moq", "MOQ"], ["piezasPorCaja", tx("configuracion.piezasPorCaja")], ["cbmPorCaja", "CBM"]].map(([k, etiqueta]) => {
             const activo = loc.datosDeCompra?.[k] !== false;
             return (
               <button key={k} type="button" role="switch" aria-checked={activo} onClick={() => updateLoc(p => ({ ...p, datosDeCompra: { ...(p.datosDeCompra || {}), [k]: !activo } }))} style={{
@@ -1514,26 +1519,26 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
           })}
         </div>
 
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Moneda de precios</p>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>{tx("configuracion.monedaDePrecios")}</p>
         <div style={{ display:"flex", gap:6, marginBottom:20 }}>
           {Object.entries(CURRENCIES).map(([k, v]) => (
-            <button key={k} type="button" onClick={() => updateLoc(p => ({ ...p, currency: k }))} style={{ flex:1, minHeight:44, padding:"10px 8px", borderRadius:10, border:`1.5px solid ${loc.currency===k?t.accent:t.border}`, background:loc.currency===k?t.accentSoft:"transparent", color:loc.currency===k?t.accent:t.muted, fontSize:12, fontWeight:700, cursor:"pointer", textAlign:"center", fontFamily:"inherit" }}>{v.label}</button>
+            <button key={k} type="button" onClick={() => updateLoc(p => ({ ...p, currency: k }))} style={{ flex:1, minHeight:44, padding:"10px 8px", borderRadius:10, border:`1.5px solid ${loc.currency===k?t.accent:t.border}`, background:loc.currency===k?t.accentSoft:"transparent", color:loc.currency===k?t.accent:t.muted, fontSize:12, fontWeight:700, cursor:"pointer", textAlign:"center", fontFamily:"inherit" }}>{tx(v.label)}</button>
           ))}
         </div>
 
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Pantalla</p>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>{tx("configuracion.pantalla")}</p>
         <button type="button" role="switch" aria-checked={!!isDark} onClick={onToggleTheme} style={{ width:"100%", minHeight:44, padding:"10px 12px", borderRadius:10, border:`1.5px solid ${isDark?t.accent:t.border}`, background:isDark?t.accentSoft:"transparent", color:isDark?t.accent:t.muted, fontSize:13, fontWeight:700, cursor:"pointer", textAlign:"left", fontFamily:"inherit", marginBottom:20 }}>
-          Modo oscuro · {isDark ? "Activado" : "Desactivado"}
+          {isDark ? tx("configuracion.modoOscuroActivado") : tx("configuracion.modoOscuroDesactivado")}
         </button>
         {/* Idioma (E6, decisión de Nati del 27/09): sigue al teléfono, o se fija a mano */}
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"20px 0 8px", textTransform:"uppercase" }}>{i18next.t("ajustes.idioma")}</p>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"20px 0 8px", textTransform:"uppercase" }}>{tx("ajustes.idioma")}</p>
         <div style={{ display:"flex", gap:6, marginBottom:8 }}>
-          {[["auto", i18next.t("ajustes.idiomaAuto")], ["es-AR", "Español"], ["en", "English"]].map(([k, etiqueta]) => (
+          {[["auto", tx("ajustes.idiomaAuto")], ["es-AR", "Español"], ["en", "English"]].map(([k, etiqueta]) => (
             <button key={k} type="button" role="radio" aria-checked={prefIdioma===k} onClick={() => { setPrefIdioma(k); const activo = cambiarIdioma(k); try { document.documentElement.lang = activo; } catch {} }} style={{ flex:1, minHeight:44, padding:"10px 8px", borderRadius:10, border:`1.5px solid ${prefIdioma===k?t.accent:t.border}`, background:prefIdioma===k?t.accentSoft:"transparent", color:prefIdioma===k?t.accent:t.muted, fontSize:12, fontWeight:700, cursor:"pointer", textAlign:"center", fontFamily:"inherit" }}>{etiqueta}</button>
           ))}
         </div>
-        <p style={{ fontSize:11, color:t.dim, margin:"0 0 20px", lineHeight:1.5 }}>{i18next.t("ajustes.idiomaPista")}</p>
-        <p style={{ fontSize:11, color:t.dim, textAlign:"center", fontStyle:"italic" }}>Los cambios se guardan automáticamente</p>
+        <p style={{ fontSize:11, color:t.dim, margin:"0 0 20px", lineHeight:1.5 }}>{tx("ajustes.idiomaPista")}</p>
+        <p style={{ fontSize:11, color:t.dim, textAlign:"center", fontStyle:"italic" }}>{tx("configuracion.cambiosAutomaticos")}</p>
       </div>
     </div>
   );
@@ -1541,31 +1546,29 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
   // ─── SUB-SCREEN: Costos de importación ───
   if (subScreen === "costs") return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
-      <Header title="Costos de importación" onBack={() => setSubScreen(null)} t={t} />
+      <Header title={tx("configuracion.costosDeImportacion")} onBack={() => setSubScreen(null)} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
 
         {/* Currency selector */}
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Moneda de precios</p>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>{tx("configuracion.monedaDePrecios")}</p>
         <div style={{ display:"flex", gap:6, marginBottom:20 }}>
           {Object.entries(CURRENCIES).map(([k, v]) => (
             <button key={k} onClick={() => updateLoc(p => ({ ...p, currency: k }))} style={{
               flex:1, padding:"10px 8px", borderRadius:10, border:`1.5px solid ${loc.currency===k?t.accent:t.border}`,
               background:loc.currency===k?t.accentSoft:"transparent", color:loc.currency===k?t.accent:t.muted,
               fontSize:12, fontWeight:700, cursor:"pointer", textAlign:"center",
-            }}>{v.label}</button>
+            }}>{tx(v.label)}</button>
           ))}
         </div>
 
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Margen mínimo para importación</p>
-        <p style={{ fontSize:11, color:t.dim, marginBottom:20, lineHeight:1.5 }}>
-          Los productos con margen menor a este porcentaje se marcan como no viables en el calculador de costos.
-        </p>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>{tx("configuracion.margenMinimo")}</p>
+        <p style={{ fontSize:11, color:t.dim, marginBottom:20, lineHeight:1.5 }}>{tx("configuracion.margenMinimoPista")}</p>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:16, marginBottom:24 }}>
           <button onClick={() => updateLoc(p=>({...p, minMargin:Math.max(10, (p.minMargin||40)-5)}))} style={{ width:52, height:52, borderRadius:16, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:22, cursor:"pointer" }}>−</button>
           <span style={{ fontSize:48, fontWeight:800, color:t.accent, minWidth:100, textAlign:"center" }}>{loc.minMargin || 40}%</span>
           <button onClick={() => updateLoc(p=>({...p, minMargin:Math.min(200, (p.minMargin||40)+5)}))} style={{ width:52, height:52, borderRadius:16, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:22, cursor:"pointer" }}>+</button>
         </div>
-        <p style={{ fontSize:11, color:t.dim, textAlign:"center", fontStyle:"italic" }}>Los cambios se guardan automáticamente</p>
+        <p style={{ fontSize:11, color:t.dim, textAlign:"center", fontStyle:"italic" }}>{tx("configuracion.cambiosAutomaticos")}</p>
       </div>
     </div>
   );
@@ -1573,7 +1576,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
   // ─── SUB-SCREEN: Crear cuenta (desde una sesión sin cuenta, 4.2) ───
   if (subScreen === "crear-cuenta") return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
-      <Header title="Crear cuenta" onBack={() => setSubScreen(null)} t={t} />
+      <Header title={tx("configuracion.crearCuenta")} onBack={() => setSubScreen(null)} t={t} />
       <div style={{ flex:1, overflow:"auto" }}>
         <LoginScreen t={t} onAuth={auth} convertir onCancel={() => setSubScreen(null)} />
       </div>
@@ -1583,10 +1586,10 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
   // ─── SUB-SCREEN: Backup y datos ───
   if (subScreen === "backup") return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
-      <Header title="Backup y datos" onBack={() => setSubScreen(null)} t={t} />
+      <Header title={tx("configuracion.backupYDatos")} onBack={() => setSubScreen(null)} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Backup y restauración</p>
-        <p style={{ fontSize:11, color:t.dim, marginBottom:12 }}>Exportá o importá toda tu data (proveedores, productos, ferias) como archivo JSON.</p>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>{tx("configuracion.backupYRestauracion")}</p>
+        <p style={{ fontSize:11, color:t.dim, marginBottom:12 }}>{tx("configuracion.backupPista")}</p>
         <div style={{ display:"flex", gap:8, marginBottom:12 }}>
           <button onClick={async () => {
             const backup = {
@@ -1601,25 +1604,25 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
             const res = await saveFile(blob, `fairscan-backup-${new Date().toISOString().slice(0,10)}.json`, { title: 'FairScan · Backup' });
             if (res.cancelled) return;
             setImportStatus(res.ok
-              ? (isNativeApp() ? "Backup listo para guardar" : "Backup descargado")
-              : "No se pudo guardar el backup");
+              ? (isNativeApp() ? tx("configuracion.backupListoNativo") : tx("configuracion.backupDescargado"))
+              : tx("configuracion.backupNoGuardado"));
             setTimeout(() => setImportStatus(null), 3000);
           }} style={{
             flex:1, padding:"12px", borderRadius:12, border:`1px solid ${t.blue}40`, background:t.blueSoft,
             color:t.blue, fontSize:13, fontWeight:700, cursor:"pointer",
-          }}>Exportar JSON</button>
+          }}>{tx("configuracion.exportarJson")}</button>
           <label style={{
             flex:1, padding:"12px", borderRadius:12, border:`1px solid ${t.green}40`, background:t.greenSoft,
             color:t.green, fontSize:13, fontWeight:700, cursor:"pointer", textAlign:"center",
           }}>
-            Importar JSON
+            {tx("configuracion.importarJson")}
             <input type="file" accept=".json" onChange={async (e) => {
               const file = e.target.files?.[0];
               if (!file) return;
               try {
                 const text = await file.text();
                 const data = JSON.parse(text);
-                if (!data.version || !data.districts) throw new Error('Formato inválido');
+                if (!data.version || !data.districts) throw new Error(tx("configuracion.formatoInvalido"));
                 for (const d of data.districts) {
                   const existing = await db.districts.where('uuid').equals(d.uuid || '').first();
                   if (!existing) { await db.districts.add({ ...d, id: undefined }); }
@@ -1634,10 +1637,10 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
                 }
                 if (data.settings) { await onSave(data.settings, true); }
                 if (onReload) await onReload();
-                setImportStatus(`Importado: ${data.districts.length} ferias, ${data.suppliers.length} proveedores, ${data.products.length} productos`);
+                setImportStatus(tx("configuracion.importado", { ferias: data.districts.length, proveedores: data.suppliers.length, productos: data.products.length }));
                 setTimeout(() => setImportStatus(null), 5000);
               } catch (err) {
-                setImportStatus(`Error: ${err.message}`);
+                setImportStatus(tx("configuracion.error", { mensaje: err.message }));
                 setTimeout(() => setImportStatus(null), 4000);
               }
               e.target.value = '';
@@ -1649,50 +1652,50 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
         {sync?.teamId && (
           <>
             <div style={{ height:1, background:t.border, margin:"20px 0" }} />
-            <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Backup automático en la nube</p>
-            <p style={{ fontSize:11, color:t.dim, marginBottom:12 }}>Se guarda una copia de seguridad en la nube cada 1 hora automáticamente mientras estés conectado a un equipo.</p>
+            <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>{tx("configuracion.backupNube")}</p>
+            <p style={{ fontSize:11, color:t.dim, marginBottom:12 }}>{tx("configuracion.backupNubePista")}</p>
             <DiagnosticoFotos t={t} />
             <div style={{ display:"flex", gap:8, marginBottom:12 }}>
               <button onClick={async () => {
-                setImportStatus("⏳ Guardando backup en la nube...");
+                setImportStatus(tx("configuracion.guardandoBackupNube"));
                 try {
                   await syncEngine.createBackup();
-                  setImportStatus("Backup guardado en la nube");
+                  setImportStatus(tx("configuracion.backupGuardadoNube"));
                   setTimeout(() => setImportStatus(null), 3000);
                 } catch (err) {
-                  setImportStatus(`Error: ${err.message}`);
+                  setImportStatus(tx("configuracion.error", { mensaje: err.message }));
                   setTimeout(() => setImportStatus(null), 4000);
                 }
               }} style={{
                 flex:1, padding:"12px", borderRadius:12, border:`1px solid ${t.purple}40`, background:t.purpleSoft,
                 color:t.purple, fontSize:13, fontWeight:700, cursor:"pointer",
-              }}>Guardar backup ahora</button>
+              }}>{tx("configuracion.guardarBackupAhora")}</button>
               <button onClick={async () => {
-                setImportStatus("⏳ Buscando backups...");
+                setImportStatus(tx("configuracion.buscandoBackups"));
                 try {
                   const backups = await syncEngine.getBackups();
                   if (!backups || backups.length === 0) {
-                    setImportStatus("ℹ️ No hay backups en la nube todavía");
+                    setImportStatus(tx("configuracion.sinBackups"));
                     setTimeout(() => setImportStatus(null), 3000);
                     return;
                   }
                                     const latest = copiaParaRestaurar(backups); // la más nueva con datos, no la más nueva a secas
                   const counts = latest.counts || latest.data?.counts;
-                  if (confirm(`¿Restaurar backup del ${new Date(latest.created_at).toLocaleString()}?\n(${counts?.districts || '?'} ferias, ${counts?.suppliers || '?'} proveedores, ${counts?.products || '?'} productos)`)) {
-                    setImportStatus("⏳ Restaurando...");
+                  if (confirm(tx("configuracion.restaurarBackupSeguro", { fecha: new Date(latest.created_at).toLocaleString(i18n.language), ferias: counts?.districts || '?', proveedores: counts?.suppliers || '?', productos: counts?.products || '?' }))) {
+                    setImportStatus(tx("configuracion.restaurando"));
                     const result = await syncEngine.restoreBackup(latest.id);
                     if (onReload) await onReload();
-                    setImportStatus(`Restaurado: ${result.districts} ferias, ${result.suppliers} proveedores, ${result.products} productos`);
+                    setImportStatus(tx("configuracion.restaurado", { ferias: result.districts, proveedores: result.suppliers, productos: result.products }));
                     setTimeout(() => setImportStatus(null), 5000);
                   } else { setImportStatus(null); }
                 } catch (err) {
-                  setImportStatus(`Error: ${err.message}`);
+                  setImportStatus(tx("configuracion.error", { mensaje: err.message }));
                   setTimeout(() => setImportStatus(null), 4000);
                 }
               }} style={{
                 flex:1, padding:"12px", borderRadius:12, border:`1px solid ${t.accent}40`, background:t.accentSoft,
                 color:t.accent, fontSize:13, fontWeight:700, cursor:"pointer",
-              }}>Restaurar desde nube</button>
+              }}>{tx("configuracion.restaurarDesdeNube")}</button>
             </div>
           </>
         )}
@@ -1703,25 +1706,25 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
   // ─── SUB-SCREEN: Salud del sistema ───
   if (subScreen === "health") return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
-      <Header title="Salud del sistema" onBack={() => setSubScreen(null)} t={t} />
+      <Header title={tx("configuracion.saludDelSistema")} onBack={() => setSubScreen(null)} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
-        <p style={{ fontSize:11, color:t.dim, marginBottom:16 }}>Verifica que todos los servicios de la app funcionan correctamente.</p>
+        <p style={{ fontSize:11, color:t.dim, marginBottom:16 }}>{tx("configuracion.saludPista")}</p>
         <div style={{ background:t.card, borderRadius:14, padding:14, border:`1px solid ${t.border}`, marginBottom:12 }}>
           {healthLoading && !health && (
-            <p style={{ fontSize:12, color:t.muted, textAlign:"center", margin:0 }}>⏳ Verificando...</p>
+            <p style={{ fontSize:12, color:t.muted, textAlign:"center", margin:0 }}>{tx("configuracion.verificando")}</p>
           )}
           {healthError && (
             <p style={{ fontSize:12, color:t.red, textAlign:"center", margin:0 }}>{healthError}</p>
           )}
           {!health && !healthLoading && !healthError && (
-            <p style={{ fontSize:12, color:t.muted, textAlign:"center", margin:0 }}>Tocá "Verificar" para comprobar los servicios</p>
+            <p style={{ fontSize:12, color:t.muted, textAlign:"center", margin:0 }}>{tx("configuracion.tocaVerificar")}</p>
           )}
           {health && (() => {
             const serviceLabels = {
-              anthropic: { name: "Procesamiento de fotos", icon: "" },
-              supabase: { name: "Sincronización en la nube", icon: "" },
-              r2_storage: { name: "Almacenamiento de fotos", icon: "" },
-              model_config: { name: "Modelo de IA", icon: "" },
+              anthropic: { name: tx("configuracion.servicioFotos"), icon: "" },
+              supabase: { name: tx("configuracion.servicioNube"), icon: "" },
+              r2_storage: { name: tx("configuracion.servicioAlmacenamiento"), icon: "" },
+              model_config: { name: tx("configuracion.servicioModelo"), icon: "" },
             };
             const allOk = health.status === "ok";
             return (
@@ -1729,7 +1732,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12, paddingBottom:10, borderBottom:`1px solid ${t.border}` }}>
                   <span style={{ width:12, height:12, borderRadius:6, background:allOk ? "#22c55e" : "#ef4444", display:"inline-block", flexShrink:0 }} />
                   <span style={{ fontSize:14, fontWeight:700, color:allOk ? "#22c55e" : "#ef4444" }}>
-                    {allOk ? "Todo funciona correctamente" : "Hay problemas detectados"}
+                    {allOk ? tx("configuracion.todoFunciona") : tx("configuracion.hayProblemas")}
                   </span>
                 </div>
                 {Object.entries(health.services || {}).map(([key, svc]) => {
@@ -1738,15 +1741,12 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
                   return (
                     <div key={key} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"6px 0" }}>
                       <span style={{ fontSize:12, color:t.text }}>{label.icon} {label.name}</span>
-                      <span style={{ fontSize:12, fontWeight:700, color:ok ? "#22c55e" : "#ef4444" }}>{ok ? "✓ OK" : "Error"}</span>
+                      <span style={{ fontSize:12, fontWeight:700, color:ok ? "#22c55e" : "#ef4444" }}>{ok ? tx("configuracion.ok") : tx("configuracion.errorCorto")}</span>
                     </div>
                   );
                 })}
                 {!allOk && (
-                  <p style={{ fontSize:11, color:t.red, margin:"10px 0 0", padding:"8px 10px", background:t.red+"10", borderRadius:8, lineHeight:1.5 }}>
-                    Algo no funciona. La app sigue funcionando offline pero algunas funciones pueden fallar.
-                    Sacá fotos directo con la cámara del celular como respaldo.
-                  </p>
+                  <p style={{ fontSize:11, color:t.red, margin:"10px 0 0", padding:"8px 10px", background:t.red+"10", borderRadius:8, lineHeight:1.5 }}>{tx("configuracion.algoNoFunciona")}</p>
                 )}
               </>
             );
@@ -1756,11 +1756,11 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
           width:"100%", padding:"12px", borderRadius:12, border:`1px solid ${t.blue}40`, background:t.blueSoft,
           color:t.blue, fontSize:14, fontWeight:700, cursor:"pointer", opacity:healthLoading?0.6:1,
         }}>
-          {healthLoading ? "⏳ Verificando..." : "Verificar ahora"}
+          {healthLoading ? tx("configuracion.verificando") : tx("configuracion.verificarAhora")}
         </button>
         {health && (
           <p style={{ fontSize:10, color:t.dim, textAlign:"center", marginTop:6 }}>
-            Última verificación: {new Date(health.timestamp).toLocaleTimeString("es-AR")}
+            {tx("configuracion.ultimaVerificacion", { hora: new Date(health.timestamp).toLocaleTimeString(i18n.language) })}
           </p>
         )}
       </div>
@@ -1802,7 +1802,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
         <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
           <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 32px" }}>
             <p style={{ fontSize:17, fontWeight:700, color:t.text, textAlign:"center", lineHeight:1.5, margin:0 }}>
-              Tu cuenta fue borrada. Gracias por haber usado FairScan.
+              {tx("configuracion.cuentaBorrada")}
             </p>
           </div>
         </div>
@@ -1811,11 +1811,11 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
 
     return (
       <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
-        <Header title="Borrar mi cuenta" onBack={() => setSubScreen(null)} t={t} />
+        <Header title={tx("configuracion.borrarMiCuenta")} onBack={() => setSubScreen(null)} t={t} />
         <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
 
           {!p && !delError && (
-            <p style={{ fontSize:13, color:t.muted, textAlign:"center", padding:"40px 0" }}>⏳ Viendo qué se borraría...</p>
+            <p style={{ fontSize:13, color:t.muted, textAlign:"center", padding:"40px 0" }}>{tx("configuracion.viendoQueSeBorraria")}</p>
           )}
           {delError && (
             <div style={{ background:t.redSoft, border:`1px solid ${t.red}40`, borderRadius:14, padding:14, marginBottom:16 }}>
@@ -1831,24 +1831,20 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
                   {e.accion === "borrar" ? (
                     <>
                       <p style={{ fontSize:14, color:t.text, margin:0, lineHeight:1.6 }}>
-                        Sos la única persona en el equipo <B>{e.nombre}</B>. Si borrás tu cuenta se borra también
-                        el catálogo: <B>{e.conteos?.proveedores ?? 0} proveedores y {e.conteos?.productos ?? 0} productos</B>,
-                        con sus fotos en la nube. Esto no se puede deshacer.
+                        <Trans i18nKey="configuracion.unicaEnEquipo" values={{ nombre: e.nombre, proveedores: e.conteos?.proveedores ?? 0, productos: e.conteos?.productos ?? 0 }} components={{ b: <B /> }} />
                       </p>
                       <p style={{ fontSize:14, color:t.text, margin:"12px 0 0", fontWeight:700, lineHeight:1.6 }}>
-                        ¿Querés llevarte tu catálogo antes?
+                        {tx("configuracion.quererLlevarse")}
                       </p>
                     </>
                   ) : (
                     <>
                       <p style={{ fontSize:14, color:t.text, margin:0, lineHeight:1.6 }}>
-                        Tu cuenta se va a borrar. El catálogo de <B>{e.nombre}</B> queda para las demás integrantes
-                        ({e.conteos?.proveedores ?? 0} proveedores, {e.conteos?.productos ?? 0} productos).
-                        Lo que se elimina es tu perfil y tu acceso.
+                        <Trans i18nKey="configuracion.seVaABorrarEquipo" values={{ nombre: e.nombre, proveedores: e.conteos?.proveedores ?? 0, productos: e.conteos?.productos ?? 0 }} components={{ b: <B /> }} />
                       </p>
                       {e.soyLaDuena && e.heredero?.nombre && (
                         <p style={{ fontSize:14, color:t.text, margin:"12px 0 0", lineHeight:1.6 }}>
-                          La administración del equipo pasa a <B>{e.heredero.nombre}</B>.
+                          <Trans i18nKey="configuracion.administracionPasaA" values={{ nombre: e.heredero.nombre }} components={{ b: <B /> }} />
                         </p>
                       )}
                     </>
@@ -1859,30 +1855,30 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
               {equipos.length === 0 && (
                 <div style={{ background:t.card, border:`1px solid ${t.border}`, borderRadius:16, padding:16, marginBottom:12 }}>
                   <p style={{ fontSize:14, color:t.text, margin:0, lineHeight:1.6 }}>
-                    Tu cuenta se va a borrar. No hay ningún catálogo asociado: lo que se elimina es tu perfil y tu acceso.
+                    {tx("configuracion.seVaABorrarSinCatalogo")}
                   </p>
                 </div>
               )}
 
               {hayBorrado ? (
                 <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:4 }}>
-                  <button onClick={() => onGoExport?.()} style={btnPrimario}>Exportar catálogo</button>
-                  <button onClick={() => setSubScreen("backup")} style={btnPrimario}>Hacer copia de seguridad</button>
+                  <button onClick={() => onGoExport?.()} style={btnPrimario}>{tx("configuracion.exportarCatalogo")}</button>
+                  <button onClick={() => setSubScreen("backup")} style={btnPrimario}>{tx("configuracion.hacerCopia")}</button>
                   <button onClick={() => { setDelStage("confirmar"); setDelError(null); }} style={{ ...btnContinuar(true), marginTop:4 }}>
-                    Continuar con el borrado
+                    {tx("configuracion.continuarBorrado")}
                   </button>
                 </div>
               ) : (
                 <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:4 }}>
                   <button onClick={() => { setDelStage("confirmar"); setDelError(null); }} style={btnContinuar(false)}>
-                    Continuar con el borrado
+                    {tx("configuracion.continuarBorrado")}
                   </button>
-                  <button onClick={() => setSubScreen(null)} style={btnSecundario}>Cancelar</button>
+                  <button onClick={() => setSubScreen(null)} style={btnSecundario}>{tx("comun.cancelar")}</button>
                 </div>
               )}
 
               <p style={{ fontSize:11, color:t.dim, textAlign:"center", margin:"12px 0 0" }}>
-                Todavía no se borró nada. Podés volver atrás.
+                {tx("configuracion.nadaBorrado")}
               </p>
             </>
           )}
@@ -1891,7 +1887,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
             <>
               <div style={{ background:t.redSoft, border:`1.5px solid ${t.red}40`, borderRadius:16, padding:16, marginBottom:16 }}>
                 <p style={{ fontSize:14, color:t.text, margin:0, lineHeight:1.6 }}>
-                  Para confirmar, escribí el mail de tu cuenta.
+                  {tx("configuracion.confirmarConMail")}
                 </p>
               </div>
 
@@ -1906,14 +1902,14 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
                 background: emailOk && !delBusy ? t.red : t.surface,
                 color: emailOk && !delBusy ? "#fff" : t.dim,
                 fontSize:15, fontWeight:800, cursor: emailOk && !delBusy ? "pointer" : "default",
-              }}>{delBusy ? "⏳ Borrando..." : "Borrar mi cuenta definitivamente"}</button>
+              }}>{delBusy ? tx("configuracion.borrando") : tx("configuracion.borrarDefinitivamente")}</button>
 
               <p style={{ fontSize:11, color:t.dim, textAlign:"center", margin:"12px 0 0", lineHeight:1.5 }}>
-                Los escaneos comprados y no usados se pierden. Las compras se rigen por las políticas de reembolso de App Store / Google Play.
+                {tx("configuracion.escaneosSePierden")}
               </p>
 
               <button onClick={() => { setDelStage("aviso"); setDelEmail(""); setDelError(null); }} disabled={delBusy}
-                style={{ ...btnSecundario, marginTop:12 }}>Cancelar</button>
+                style={{ ...btnSecundario, marginTop:12 }}>{tx("comun.cancelar")}</button>
             </>
           )}
         </div>
@@ -1925,17 +1921,17 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
 
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
-      <Header title="Configuración" onBack={onBack} t={t} />
+      <Header title={tx("configuracion.titulo")} onBack={onBack} t={t} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
-        <MenuItem icon={<Icono nombre="camara" tamano={22} color={t.accent} />} title="Captura y pantalla" subtitle={`${CURRENCIES[loc.currency]?.symbol || "USD"} · ${isDark ? "oscuro" : "claro"}`} onClick={() => setSubScreen("captura")} />
-        <MenuItem icon={<Icono nombre="equipo" tamano={22} color={t.accent} />} title="Equipo y sincronización" subtitle={activeTeam ? activeTeam.name : "Sin equipo"} onClick={() => setSubScreen("room")} />
-        <MenuItem icon={<Icono nombre="nube" tamano={22} color={t.accent} />} title="Backup y datos" subtitle="JSON, nube" onClick={() => setSubScreen("backup")} />
+        <MenuItem icon={<Icono nombre="camara" tamano={22} color={t.accent} />} title={tx("configuracion.capturaYPantalla")} subtitle={`${CURRENCIES[loc.currency]?.symbol || "USD"} · ${isDark ? tx("configuracion.oscuro") : tx("configuracion.claro")}`} onClick={() => setSubScreen("captura")} />
+        <MenuItem icon={<Icono nombre="equipo" tamano={22} color={t.accent} />} title={tx("configuracion.equipoYSync")} subtitle={activeTeam ? activeTeam.name : tx("configuracion.sinEquipo")} onClick={() => setSubScreen("room")} />
+        <MenuItem icon={<Icono nombre="nube" tamano={22} color={t.accent} />} title={tx("configuracion.backupYDatos")} subtitle={tx("configuracion.backupSub")} onClick={() => setSubScreen("backup")} />
 
         {/* User & logout */}
         <div style={{ marginTop: 24, borderTop: `1px solid ${t.border}`, paddingTop: 20 }}>
           {userEmail && (
             <p style={{ fontSize: 12, color: t.muted, margin: '0 0 12px', textAlign: 'center' }}>
-              Sesión: {userEmail}
+              {tx("configuracion.sesion", { email: userEmail })}
             </p>
           )}
           {marketingOptInAt !== undefined && (
@@ -1944,7 +1940,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
               padding:"10px 14px", borderRadius:12, marginBottom:12,
               background: t.surface, border:`1px solid ${t.border}`, cursor:"pointer",
             }}>
-              <span style={{ fontSize:13, fontWeight:600, color:t.text, textAlign:"left" }}>Novedades por mail</span>
+              <span style={{ fontSize:13, fontWeight:600, color:t.text, textAlign:"left" }}>{tx("configuracion.novedadesPorMail")}</span>
               <span style={{ width:40, height:22, borderRadius:11, padding:2, flexShrink:0,
                 background: marketingOptInAt ? t.accent : t.border,
                 display:"flex", alignItems:"center", justifyContent: marketingOptInAt ? "flex-end" : "flex-start", transition:"all 0.2s" }}>
@@ -1952,17 +1948,17 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
               </span>
             </button>
           )}
-          <button onClick={async () => { try { const { restaurar } = await import("./lib/compras.js"); const r = await restaurar(); alert(r.mensaje); } catch (e) { alert(e?.message || "No se pudo restaurar"); } }} style={{
+          <button onClick={async () => { try { const { restaurar } = await import("./lib/compras.js"); const r = await restaurar(); alert(r.mensaje); } catch (e) { alert(e?.message || tx("configuracion.noSePudoRestaurar")); } }} style={{
             width: '100%', padding: '12px', borderRadius: 12, marginBottom: 10,
             border: `1px solid ${t.border}`, background: t.card, color: t.text, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-          }}>Restaurar compras</button>
+          }}>{tx("configuracion.restaurarCompras")}</button>
           {esAnonima ? (
             <div style={{ background:t.accentSoft, border:`1px solid ${t.accent}40`, borderRadius:14, padding:14 }}>
-              <p style={{ fontSize:13, fontWeight:700, color:t.text, margin:"0 0 4px" }}>Estás usando FairScan sin cuenta</p>
-              <p style={{ fontSize:12, color:t.muted, margin:"0 0 10px", lineHeight:1.5 }}>Lo que capturás queda en este teléfono. Con una cuenta lo tenés en la nube, en otros dispositivos y compartido con tu equipo.</p>
-              <button onClick={() => setSubScreen("crear-cuenta")} style={{ width:"100%", padding:"12px", borderRadius:12, border:"none", background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>Crear mi cuenta</button>
+              <p style={{ fontSize:13, fontWeight:700, color:t.text, margin:"0 0 4px" }}>{tx("configuracion.sinCuentaTitulo")}</p>
+              <p style={{ fontSize:12, color:t.muted, margin:"0 0 10px", lineHeight:1.5 }}>{tx("configuracion.sinCuentaTexto")}</p>
+              <button onClick={() => setSubScreen("crear-cuenta")} style={{ width:"100%", padding:"12px", borderRadius:12, border:"none", background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>{tx("configuracion.crearMiCuenta")}</button>
               {/* 24/09 (caso Lucas): sin sesión la app entra sin cuenta; quien ya tiene cuenta necesita un camino para volver a la suya */}
-              {onEntrar && <button onClick={onEntrar} style={{ width:"100%", marginTop:8, padding:"12px", borderRadius:12, border:`1px solid ${t.border}`, background:t.card, color:t.text, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Ya tengo cuenta · Entrar</button>}
+              {onEntrar && <button onClick={onEntrar} style={{ width:"100%", marginTop:8, padding:"12px", borderRadius:12, border:`1px solid ${t.border}`, background:t.card, color:t.text, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{tx("configuracion.yaTengoCuentaEntrar")}</button>}
             </div>
           ) : (
           <button onClick={onSignOut} style={{
@@ -1970,7 +1966,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
             border: `1px solid ${t.red}40`, background: t.redSoft,
             color: t.red, fontSize: 13, fontWeight: 700, cursor: 'pointer',
           }}>
-            Cerrar sesión
+            {tx("configuracion.cerrarSesion")}
           </button>
           )}
 
@@ -1982,18 +1978,18 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
             color: t.dim, fontSize: 12, fontWeight: 600, cursor: 'pointer',
             textDecoration: 'underline', textUnderlineOffset: 3,
           }}>
-            Borrar mi cuenta
+            {tx("configuracion.borrarMiCuenta")}
           </button>}
 
-          <p style={{ fontSize:11, color:t.dim, textAlign:"center", margin:"18px 0 6px", fontVariantNumeric:"tabular-nums" }}>Versión {typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev"}</p>
+          <p style={{ fontSize:11, color:t.dim, textAlign:"center", margin:"18px 0 6px", fontVariantNumeric:"tabular-nums" }}>{tx("configuracion.version", { version: typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev" })}</p>
           {/* Legales (pieza 10.0). Direcciones absolutas a propósito: en la app
               nativa no hay "sitio", así que un link relativo no llevaría a ningún lado. */}
           <p style={{ fontSize: 12, color: t.dim, margin: '18px 0 0', textAlign: 'center', lineHeight: 1.8 }}>
-            <a href="https://fairscan.app/privacidad" target="_blank" rel="noopener noreferrer" style={{ color: t.dim }}>Privacidad</a>
+            <a href="https://fairscan.app/privacidad" target="_blank" rel="noopener noreferrer" style={{ color: t.dim }}>{tx("configuracion.privacidad")}</a>
             {' · '}
-            <a href="https://fairscan.app/terminos" target="_blank" rel="noopener noreferrer" style={{ color: t.dim }}>Términos</a>
+            <a href="https://fairscan.app/terminos" target="_blank" rel="noopener noreferrer" style={{ color: t.dim }}>{tx("configuracion.terminos")}</a>
             {' · '}
-            <a href="https://fairscan.app/soporte" target="_blank" rel="noopener noreferrer" style={{ color: t.dim }}>Soporte</a>
+            <a href="https://fairscan.app/soporte" target="_blank" rel="noopener noreferrer" style={{ color: t.dim }}>{tx("configuracion.soporte")}</a>
           </p>
         </div>
       </div>
@@ -2004,7 +2000,8 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
 // ═══════════════════════════════════════════
 // EXPORT
 // ═══════════════════════════════════════════
-function ExportScreen({ products, suppliers, districts, onBack, onExported, onUpdateProduct, onUpdateSupplier, t, initialDateFilter = "all", compacto = false }) {
+function ExportScreen({ products, suppliers, districts, onBack, onExported, onUpdateProduct, onUpdateSupplier, t, initialDateFilter = "all", compacto = false, equipoId = null }) {
+  const { t: tx } = useTranslation();
   const [scope, setScope] = useState("all");
   const [dateFilter, setDateFilter] = useState(initialDateFilter || "all"); // "all" | "today"
   const [format, setFormat] = useState("zip");
@@ -2050,7 +2047,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
   const deliver = async (blob, filename, okMsg) => {
     const res = await saveFile(blob, filename, { title: "FairScan · Export" });
     if (res.cancelled) return;
-    onExported(res.ok ? okMsg : "No se pudo guardar el archivo");
+    onExported(res.ok ? okMsg : tx("exportar.noSePudoGuardar"));
   };
 
   const hasCloudPhotos = scopeProducts.some(p => (p.photoUrls || []).some(Boolean) || (p.photos || []).some(x => x && typeof x === 'string' && x.startsWith('http')));
@@ -2098,7 +2095,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
     }
     setSyncing(false);
     setSyncProgress("");
-    if (!opts.silent) onExported(`${done} fotos subidas a la nube`);
+    if (!opts.silent) onExported(tx("exportar.fotosSubidas", { count: done }));
     return subidas;
   };
 
@@ -2110,8 +2107,8 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
   };
 
   const generateCSV = () => {
-    const pHeaders = ["Nombre","Proveedor","Contacto","Precio USD","MOQ","Categoría","Material","Rating","Costo Importado","Viabilidad","Notas","Feria","Fecha",
-      ...(hasCloudPhotos ? ["Foto_1","Foto_2","Foto_3","Foto_4","Foto_5"] : [])];
+    const pHeaders = [tx("excel.nombre"),tx("excel.proveedor"),tx("excel.contacto"),tx("excel.precioUsd"),"MOQ",tx("excel.categoria"),tx("excel.material"),tx("excel.rating"),tx("excel.costoImportado"),tx("excel.viabilidad"),tx("excel.notas"),tx("excel.feria"),tx("excel.fecha"),
+      ...(hasCloudPhotos ? [1, 2, 3, 4, 5].map(n => tx("excel.csvFoto", { n })) : [])];
     const pRows = scopeProducts.map(p => {
       const sup = suppliers.find(s => s.id === p.supplierId);
       const dist = districts.find(d => d.id === p.districtId);
@@ -2121,7 +2118,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
         (p.material||[]).join("; "), p.rating || "",
         p.costTotal || "", p.viability || "",
         (p.notes||"").replace(/\n/g, " "), dist?.name || "",
-        p.createdAt ? new Date(p.createdAt).toLocaleDateString("es-AR") : "",
+        p.createdAt ? new Date(p.createdAt).toLocaleDateString(i18n.language) : "",
       ];
       if (hasCloudPhotos) {
         const urls = p.photoUrls || [];
@@ -2129,18 +2126,18 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       }
       return row;
     });
-    let csv = "PRODUCTOS\n" + pHeaders.join(",") + "\n" +
+    let csv = tx("excel.seccionProductos") + "\n" + pHeaders.join(",") + "\n" +
       pRows.map(r => r.map(csvEscape).join(",")).join("\n");
     if (includeSuppliers) {
       const sups = uniqueSupIds.map(id => suppliers.find(s => s.id === id)).filter(Boolean);
-      const sHeaders = ["Empresa","Contacto","Feria","Productos","Rating Promedio"];
+      const sHeaders = [tx("excel.empresa"),tx("excel.contacto"),tx("excel.feria"),tx("excel.productos"),tx("excel.ratingPromedio")];
       const sRows = sups.map(s => {
         const prods = scopeProducts.filter(p => p.supplierId === s.id);
         const dist = districts.find(d => d.id === s.districtId);
         const avg = prods.length > 0 ? (prods.reduce((a,p) => a+(p.rating||0), 0) / prods.length).toFixed(1) : "";
         return [s.company || "", s.contact || "", dist?.name || "", prods.length, avg];
       });
-      csv += "\n\nPROVEEDORES\n" + sHeaders.join(",") + "\n" +
+      csv += "\n\n" + tx("excel.seccionProveedores") + "\n" + sHeaders.join(",") + "\n" +
         sRows.map(r => r.map(csvEscape).join(",")).join("\n");
     }
     return csv;
@@ -2174,17 +2171,17 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       // pegadas encima de la celda como antes.
       if (photosNotUploaded > 0) {
         if (navigator.onLine) {
-          setExportProgress(`Subiendo ${totalPhotosToSync} fotos a la nube...`);
+          setExportProgress(tx("exportar.subiendoFotos", { count: totalPhotosToSync }));
           try { subidas = await syncPhotosToCloud({ silent: true }); } catch (e) { console.warn("Subida previa al export falló:", e?.message); }
         } else {
-          setExportProgress(`Sin señal: ${photosNotUploaded} productos van con la foto pegada, no en la celda`);
+          setExportProgress(tx("exportar.sinSenalFotosPegadas", { count: photosNotUploaded }));
           await new Promise(r => setTimeout(r, 1500));
         }
       }
-      setExportProgress("Cargando Excel...");
+      setExportProgress(tx("exportar.cargandoExcel"));
       const ExcelJS = (await import('exceljs')).default;
       const wb = new ExcelJS.Workbook();
-      const ws = wb.addWorksheet('Productos');
+      const ws = wb.addWorksheet(tx("excel.hojaProductos"));
 
       // Deduplicate products: same name + same supplier + same price = duplicate
       const deduped = [];
@@ -2197,7 +2194,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       }
 
       // Pre-fetch supplier card images (one per supplier, reused across rows)
-      setExportProgress("Descargando tarjetas...");
+      setExportProgress(tx("exportar.descargandoTarjetas"));
       const cardCache = new Map(); // supplierKey → base64 or null
       const cacheFotos = new Map();
       for (const p of deduped) {
@@ -2212,9 +2209,9 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       // Header row
       // 25/09: los campos propios del equipo (columnas creadas en la compu) también van al Excel, al final.
       // Los numéricos salen como número, no como texto: así se suman y entran en fórmulas (pedido de Nati).
-      const camposPropios = await cargarCamposPropios(sync.teamId);
+      const camposPropios = await cargarCamposPropios(equipoId);
       const numeroExcel = (v) => { if (v === null || v === undefined || v === "") return ""; const n = Number(String(v).replace(",", ".")); return isNaN(n) ? v : n; };
-      const headers = ["Foto","Nombre","Proveedor","Tarjeta","Contacto","Precio USD","MOQ","Categoría","Material","Rating","Viabilidad","Notas","Feria","Fecha","Foto (link)","Tarjeta (link)","MOQ base","Piezas por caja","CBM por caja","Favorito", ...camposPropios.map(c => c.nombre)];
+      const headers = [tx("excel.foto"),tx("excel.nombre"),tx("excel.proveedor"),tx("excel.tarjeta"),tx("excel.contacto"),tx("excel.precioUsd"),"MOQ",tx("excel.categoria"),tx("excel.material"),tx("excel.rating"),tx("excel.viabilidad"),tx("excel.notas"),tx("excel.feria"),tx("excel.fecha"),tx("excel.fotoLink"),tx("excel.tarjetaLink"),tx("excel.moqBase"),tx("excel.piezasPorCaja"),tx("excel.cbmPorCaja"),tx("excel.favorito"), ...camposPropios.map(c => c.nombre)];
       const headerRow = ws.addRow(headers);
       headerRow.font = { bold: true, size: 11 };
       headerRow.alignment = { vertical: 'middle' };
@@ -2264,11 +2261,11 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
           p.viability || "",
           (p.notes || "").replace(/\n/g, " "),
           dist?.name || "",
-          p.createdAt ? new Date(p.createdAt).toLocaleDateString("es-AR") : "",
+          p.createdAt ? new Date(p.createdAt).toLocaleDateString(i18n.language) : "",
           fotoUrl || "",
           tarjetaUrl || "",
           // Datos de compra (16/09): lo que pidió Lucas para armar el pedido desde la planilla.
-          p.moqBase === "caja" ? "por caja" : p.moqBase === "pedido" ? "por pedido" : p.moqBase === "producto" ? "por producto" : "",
+          p.moqBase === "caja" ? tx("visor.basePorCaja") : p.moqBase === "pedido" ? tx("visor.basePorPedido") : p.moqBase === "producto" ? tx("visor.basePorProducto") : "",
           numeroExcel(p.piezasPorCaja),
           numeroExcel(p.cbmPorCaja),
           p.favorito ? "" : "",
@@ -2305,15 +2302,15 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
 
         done++;
         if (done % 3 === 0) {
-          setExportProgress(`Excel... ${done}/${deduped.length}`);
+          setExportProgress(tx("exportar.progresoExcel", { hechos: done, total: deduped.length }));
           await new Promise(r => setTimeout(r, 0));
         }
       }
 
       // Supplier sheet
       if (includeSuppliers) {
-        const ws2 = wb.addWorksheet('Proveedores');
-        const sHeaders = ["Tarjeta","Empresa","Contacto","Teléfono","WeChat","WhatsApp","Email","Website","Feria","Productos","Rating","Tarjeta (link)"];
+        const ws2 = wb.addWorksheet(tx("excel.hojaProveedores"));
+        const sHeaders = [tx("excel.tarjeta"),tx("excel.empresa"),tx("excel.contacto"),tx("excel.telefono"),"WeChat","WhatsApp","Email","Website",tx("excel.feria"),tx("excel.productos"),tx("excel.rating"),tx("excel.tarjetaLink")];
         const sHeaderRow = ws2.addRow(sHeaders);
         sHeaderRow.font = { bold: true, size: 11 };
         sHeaderRow.alignment = { vertical: 'middle' };
@@ -2372,8 +2369,8 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       // 6.3: hoja "Catálogo visual" con las fotos pegadas encima de la celda. Acá el
       // sticker es lo correcto: esta hoja es para mirar e imprimir, no para copiar.
       {
-        const ws3 = wb.addWorksheet('Catálogo visual');
-        const vHeaders = ["Foto", "Nombre", "Proveedor", "Precio USD", "MOQ", "Categoría", "Notas"];
+        const ws3 = wb.addWorksheet(tx("excel.hojaCatalogoVisual"));
+        const vHeaders = [tx("excel.foto"), tx("excel.nombre"), tx("excel.proveedor"), tx("excel.precioUsd"), "MOQ", tx("excel.categoria"), tx("excel.notas")];
         const vHeaderRow = ws3.addRow(vHeaders);
         vHeaderRow.font = { bold: true, size: 11 };
         [22, 30, 22, 12, 10, 16, 36].forEach((w, i) => { ws3.getColumn(i + 1).width = w; });
@@ -2395,22 +2392,22 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
             } catch (e) { console.warn("Error en catálogo visual:", e?.message); }
           }
           v++;
-          if (v % 5 === 0) { setExportProgress(`Catálogo visual... ${v}/${deduped.length}`); await new Promise(r => setTimeout(r, 0)); }
+          if (v % 5 === 0) { setExportProgress(tx("exportar.progresoCatalogoVisual", { hechos: v, total: deduped.length })); await new Promise(r => setTimeout(r, 0)); }
         }
       }
 
-      setExportProgress("Generando archivo...");
+      setExportProgress(tx("exportar.generandoArchivo"));
       const buffer = await wb.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       await deliver(
         blob,
         `FairScan_Export_${new Date().toISOString().slice(0, 10)}${dateFilter === "today" ? "_SOLO_HOY" : ""}.xlsx`,
-        isNativeApp() ? "Excel listo — elegí dónde guardarlo" : "Excel descargado con fotos embebidas",
+        isNativeApp() ? tx("exportar.excelListoNativo") : tx("exportar.excelDescargado"),
       );
     } catch (err) {
       console.error("Error generando Excel:", err);
       setExportProgress("");
-      onExported("Error generando Excel");
+      onExported(tx("exportar.errorExcel"));
     } finally {
       setExporting(false);
       setExportProgress("");
@@ -2420,7 +2417,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
   const generateZIP = async () => {
     setExporting(true);
     try {
-      setExportProgress("Cargando...");
+      setExportProgress(tx("exportar.cargando"));
       const JSZip = (await import('jszip')).default;
       const zip = new JSZip();
       const dateStr = new Date().toISOString().slice(0, 10);
@@ -2487,7 +2484,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
             paths.push(relativePath);
           } catch (e) { console.warn("Error procesando foto:", e); }
           photosDone++;
-          setExportProgress(`Fotos... ${photosDone}/${totalPhotos}`);
+          setExportProgress(tx("exportar.progresoFotos", { hechos: photosDone, total: totalPhotos }));
           if (photosDone % 5 === 0) await new Promise(r => setTimeout(r, 0));
         }
         productPhotoMap.set(product.id, paths);
@@ -2524,9 +2521,9 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       }
 
       // Generate productos.csv with photo columns (local paths + cloud URLs)
-      setExportProgress("Generando CSV...");
-      const pHeaders = ["Nombre","Proveedor","Contacto","Precio USD","MOQ","Categoria","Material","Rating","Costo Importado","Viabilidad","Notas","Transcripcion Audio","Feria","Fecha","Foto_1","Foto_2","Foto_3","Foto_4","Foto_5",
-        ...(hasCloudPhotos ? ["URL_Foto_1","URL_Foto_2","URL_Foto_3","URL_Foto_4","URL_Foto_5"] : [])];
+      setExportProgress(tx("exportar.generandoCsv"));
+      const pHeaders = [tx("excel.nombre"),tx("excel.proveedor"),tx("excel.contacto"),tx("excel.precioUsd"),"MOQ",tx("excel.csvCategoria"),tx("excel.material"),tx("excel.rating"),tx("excel.costoImportado"),tx("excel.viabilidad"),tx("excel.notas"),tx("excel.csvTranscripcion"),tx("excel.feria"),tx("excel.fecha"),...[1, 2, 3, 4, 5].map(n => tx("excel.csvFoto", { n })),
+        ...(hasCloudPhotos ? [1, 2, 3, 4, 5].map(n => tx("excel.csvUrlFoto", { n })) : [])];
       const pRows = scopeProducts.map(p => {
         const sup = suppliers.find(s => s.id === p.supplierId);
         const dist = districts.find(d => d.id === p.districtId);
@@ -2539,7 +2536,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
           (p.notes||"").replace(/\n/g, " "),
           (p.audioTranscript||"").replace(/\n/g, " "),
           dist?.name||"",
-          p.createdAt ? new Date(p.createdAt).toLocaleDateString("es-AR") : "",
+          p.createdAt ? new Date(p.createdAt).toLocaleDateString(i18n.language) : "",
           paths[0]||"", paths[1]||"", paths[2]||"", paths[3]||"", paths[4]||"",
         ];
         if (hasCloudPhotos) {
@@ -2554,8 +2551,8 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       // Generate proveedores.csv with all contact fields
       if (includeSuppliers) {
         const hasCardUrls = [...supplierMap.values()].some(({ supplier: s }) => s.cardPhotoUrl);
-        const sHeaders = ["Empresa","Contacto","Telefono","WeChat","WhatsApp","Email","Website","Direccion","Productos_Desc","Feria","Num_Productos","Rating_Promedio","Tarjeta_Foto",
-          ...(hasCardUrls ? ["URL_Tarjeta"] : [])];
+        const sHeaders = [tx("excel.empresa"),tx("excel.contacto"),tx("excel.csvTelefono"),"WeChat","WhatsApp","Email","Website",tx("excel.csvDireccion"),tx("excel.csvProductosDesc"),tx("excel.feria"),tx("excel.csvNumProductos"),tx("excel.csvRatingPromedio"),tx("excel.csvTarjetaFoto"),
+          ...(hasCardUrls ? [tx("excel.csvUrlTarjeta")] : [])];
         const sRows = [...supplierMap.values()].map(({ supplier: s, slug }) => {
           const prods = scopeProducts.filter(p => p.supplierId === s.id);
           const dist = districts.find(d => d.id === s.districtId);
@@ -2575,21 +2572,21 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       }
 
       // Generate ZIP
-      setExportProgress("Comprimiendo...");
+      setExportProgress(tx("exportar.comprimiendo"));
       const blob = await zip.generateAsync({ type: "blob" }, (meta) => {
-        setExportProgress(`Comprimiendo... ${Math.round(meta.percent)}%`);
+        setExportProgress(tx("exportar.comprimiendoPct", { pct: Math.round(meta.percent) }));
       });
 
-      setExportProgress("Guardando...");
+      setExportProgress(tx("exportar.guardando"));
       await deliver(
         blob,
         `FairScan_Export_${dateStr}${suffix}.zip`,
-        isNativeApp() ? "ZIP listo — elegí dónde guardarlo" : "ZIP descargado con todas las fotos",
+        isNativeApp() ? tx("exportar.zipListoNativo") : tx("exportar.zipDescargado"),
       );
     } catch (err) {
       console.error("Error generando ZIP:", err);
       setExportProgress("");
-      onExported("Error generando ZIP");
+      onExported(tx("exportar.errorZip"));
     } finally {
       setExporting(false);
       setExportProgress("");
@@ -2604,7 +2601,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       await deliver(
         blob,
         `fairscan-export-${new Date().toISOString().slice(0,10)}${dateFilter === "today" ? "_SOLO_HOY" : ""}.csv`,
-        isNativeApp() ? "CSV listo \u2014 eleg\u00ED d\u00F3nde guardarlo" : "CSV descargado",
+        isNativeApp() ? tx("exportar.csvListoNativo") : tx("exportar.csvDescargado"),
       );
     } else if (format === "excel") {
       generateExcel();
@@ -2613,14 +2610,14 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
 
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
-      <Header title="Exportar datos" onBack={onBack} t={t} />
+      <Header title={tx("exportar.titulo")} onBack={onBack} t={t} />
       <div style={{ flex:1, overflow:"auto", padding: compacto ? "16px 24px 24px" : "16px 20px 40px" }}>
       {/* En la compu (25/09): dos columnas, todo a la vista sin desplazar (Nati: "nadie va a escrolear") */}
       <div style={compacto ? { display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 28px", alignItems:"start" } : undefined}>
       <div>
 
         {/* Scope */}
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>¿Qué exportar?</p>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>{tx("exportar.queExportar")}</p>
         <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:20 }}>
           <button onClick={() => setScope("all")} style={{
             display:"flex", alignItems:"center", gap:10, padding:"12px 14px", borderRadius:12,
@@ -2629,8 +2626,8 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
           }}>
             <span style={{ fontSize:18 }}></span>
             <div style={{ flex:1 }}>
-              <span style={{ fontSize:13, fontWeight:700, color:scope==="all"?t.accent:t.text }}>Todas las ferias</span>
-              <p style={{ fontSize:11, color:t.muted, margin:"2px 0 0" }}>{products.length} productos</p>
+              <span style={{ fontSize:13, fontWeight:700, color:scope==="all"?t.accent:t.text }}>{tx("ferias.todasLasFerias")}</span>
+              <p style={{ fontSize:11, color:t.muted, margin:"2px 0 0" }}>{tx("cantidades.productos", { count: products.length })}</p>
             </div>
             {scope==="all" && <span style={{ color:t.accent }}>✓</span>}
           </button>
@@ -2645,7 +2642,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
                 <span style={{ fontSize:18 }}>{d.emoji}</span>
                 <div style={{ flex:1 }}>
                   <span style={{ fontSize:13, fontWeight:700, color:scope===String(d.id)?t.accent:t.text }}>{d.name}</span>
-                  <p style={{ fontSize:11, color:t.muted, margin:"2px 0 0" }}>{count} productos</p>
+                  <p style={{ fontSize:11, color:t.muted, margin:"2px 0 0" }}>{tx("cantidades.productos", { count })}</p>
                 </div>
                 {scope===String(d.id) && <span style={{ color:t.accent }}>✓</span>}
               </button>
@@ -2654,11 +2651,11 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
         </div>
 
         {/* Date filter */}
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>¿De cuándo?</p>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>{tx("exportar.deCuando")}</p>
         <div style={{ display:"flex", gap:8, marginBottom:20 }}>
           {[
-            { k:"all", icon:"", name:"Todo", desc:"Todos los datos acumulados" },
-            { k:"today", icon:"", name:"Solo hoy", desc:"Agregados hoy" },
+            { k:"all", icon:"", name:tx("exportar.todo"), desc:tx("exportar.todoDesc") },
+            { k:"today", icon:"", name:tx("exportar.soloHoy"), desc:tx("exportar.soloHoyDesc") },
           ].map(d => (
             <button key={d.k} onClick={() => setDateFilter(d.k)} style={{
               flex:1, padding:"12px 10px", borderRadius:12, textAlign:"center",
@@ -2673,12 +2670,12 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
         </div>
 
         {/* Format */}
-        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>Formato</p>
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase", letterSpacing:"0.05em" }}>{tx("exportar.formato")}</p>
         <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
           {[
-            { k:"zip", icon:"", name:"ZIP completo", desc:"Fotos + CSV organizados" },
-            { k:"csv", icon:"", name:"CSV", desc:"Solo tabla, sin fotos" },
-            { k:"excel", icon:"", name:"Excel", desc:"Tabla con fotos embebidas" },
+            { k:"zip", icon:"", name:tx("exportar.zipCompleto"), desc:tx("exportar.zipDesc") },
+            { k:"csv", icon:"", name:"CSV", desc:tx("exportar.csvDesc") },
+            { k:"excel", icon:"", name:"Excel", desc:tx("exportar.excelDesc") },
           ].map(f => (
             <button key={f.k} onClick={() => setFormat(f.k)} style={{
               flex:1, minWidth:(f.k==="zip" && !compacto)?"100%":0, padding: compacto ? "10px 8px" : "14px 10px", borderRadius:14, textAlign:"center",
@@ -2704,27 +2701,27 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
               left:includeSuppliers?21:3, transition:"left 0.2s", boxShadow:"0 2px 4px rgba(0,0,0,0.2)" }} />
           </button>
           <div>
-            <span style={{ fontSize:13, fontWeight:600, color:t.text }}>Incluir proveedores</span>
-            <p style={{ fontSize:11, color:t.muted, margin:0 }}>{format==="zip" ? "CSV + tarjetas de contacto" : "Tabla con datos de contacto"}</p>
+            <span style={{ fontSize:13, fontWeight:600, color:t.text }}>{tx("exportar.incluirProveedores")}</span>
+            <p style={{ fontSize:11, color:t.muted, margin:0 }}>{format==="zip" ? tx("exportar.incluirProveedoresZip") : tx("exportar.incluirProveedoresTabla")}</p>
           </div>
         </div>
 
         {/* Preview */}
         <div style={{ background:t.card, borderRadius:14, padding:14, border:`1px solid ${t.border}`, marginBottom:16 }}>
-          <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>Vista previa</p>
+          <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>{tx("exportar.vistaPrevia")}</p>
           <div style={{ display:"flex", gap:8, flexWrap:"wrap", fontSize:12 }}>
-            <span style={{ padding:"4px 10px", borderRadius:8, background:t.surface, color:t.text, fontWeight:600 }}>{scopeProducts.length} productos</span>
+            <span style={{ padding:"4px 10px", borderRadius:8, background:t.surface, color:t.text, fontWeight:600 }}>{tx("cantidades.productos", { count: scopeProducts.length })}</span>
             <span style={{ padding:"4px 10px", borderRadius:8, background:t.surface, color:t.text, fontWeight:600 }}>
-              {uniqueSupIds.length} proveedores
+              {tx("cantidades.proveedores", { count: uniqueSupIds.length })}
             </span>
             {format === "zip" && (
               <span style={{ padding:"4px 10px", borderRadius:8, background:t.accentSoft, color:t.accent, fontWeight:600 }}>
-                {totalPhotos} fotos{includeSuppliers && totalCards > 0 ? ` + ${totalCards} tarjetas` : ""}
+                {tx("cantidades.fotos", { count: totalPhotos })}{includeSuppliers && totalCards > 0 ? ` + ${tx("exportar.tarjetas", { count: totalCards })}` : ""}
               </span>
             )}
             {scopeProducts.filter(p=>p.costTotal).length > 0 && (
               <span style={{ padding:"4px 10px", borderRadius:8, background:t.greenSoft, color:t.green, fontWeight:600 }}>
-                {scopeProducts.filter(p=>p.costTotal).length} con costo
+                {tx("exportar.conCosto", { count: scopeProducts.filter(p=>p.costTotal).length })}
               </span>
             )}
           </div>
@@ -2736,14 +2733,14 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
               <div>
                 <p style={{ fontSize:13, fontWeight:700, color:hasCloudPhotos ? t.green : t.blue, margin:0 }}>
-                  {hasCloudPhotos ? "Fotos en la nube" : "Subir fotos a la nube"}
+                  {hasCloudPhotos ? tx("exportar.fotosEnLaNube") : tx("exportar.subirFotosALaNube")}
                 </p>
                 <p style={{ fontSize:11, color:t.muted, margin:"4px 0 0" }}>
                   {photosNotUploaded === 0
-                    ? "Todas las fotos tienen URL pública"
-                    : `${photosNotUploaded} productos sin subir (${totalPhotosToSync} fotos)`}
+                    ? tx("exportar.todasConUrl")
+                    : tx("exportar.sinSubir", { productos: photosNotUploaded, fotos: totalPhotosToSync })}
                 </p>
-                {hasCloudPhotos && <p style={{ fontSize:10, color:t.dim, margin:"2px 0 0" }}>CSV incluirá URLs · Excel incluirá fotos reales</p>}
+                {hasCloudPhotos && <p style={{ fontSize:10, color:t.dim, margin:"2px 0 0" }}>{tx("exportar.csvIncluiraUrls")}</p>}
               </div>
               {photosNotUploaded > 0 && (
                 <button onClick={syncPhotosToCloud} disabled={syncing} style={{
@@ -2751,7 +2748,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
                   background:syncing ? t.dim : t.blue, color:"#fff",
                   fontSize:12, fontWeight:700, whiteSpace:"nowrap", opacity:syncing?0.7:1,
                 }}>
-                  {syncing ? syncProgress : "Subir"}
+                  {syncing ? syncProgress : tx("exportar.subir")}
                 </button>
               )}
             </div>
@@ -2761,12 +2758,12 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
         {/* ZIP structure preview */}
         {format === "zip" && (
           <div style={{ background:t.surface, borderRadius:12, padding:12, border:`1px solid ${t.border}`, marginBottom:16, fontFamily:"monospace", fontSize:11, color:t.muted, lineHeight:1.6 }}>
-            <p style={{ color:t.text, fontWeight:700, margin:"0 0 4px", fontFamily:"inherit" }}>Estructura del ZIP:</p>
+            <p style={{ color:t.text, fontWeight:700, margin:"0 0 4px", fontFamily:"inherit" }}>{tx("exportar.estructuraZip")}</p>
             <div style={{ paddingLeft:8 }}>
-              productos.csv <span style={{ color:t.accent }}>(con columnas Foto_1..5{hasCloudPhotos ? " + URLs" : ""})</span><br/>
-              {includeSuppliers && <>proveedores.csv <span style={{ color:t.accent }}>(todos los datos)</span><br/></>}
+              productos.csv <span style={{ color:t.accent }}>{hasCloudPhotos ? tx("exportar.columnasFotoUrls") : tx("exportar.columnasFoto")}</span><br/>
+              {includeSuppliers && <>proveedores.csv <span style={{ color:t.accent }}>{tx("exportar.todosLosDatos")}</span><br/></>}
               fotos/<br/>
-              <span style={{ paddingLeft:12 }}>└ {uniqueSupIds.length > 0 ? "por-proveedor/ (fotos + tarjetas)" : "sin-proveedor/"}</span><br/>
+              <span style={{ paddingLeft:12 }}>└ {uniqueSupIds.length > 0 ? tx("exportar.porProveedor") : "sin-proveedor/"}</span><br/>
             </div>
           </div>
         )}
@@ -2777,9 +2774,9 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
       <div style={{ padding:"12px 20px", paddingBottom:"calc(16px + env(safe-area-inset-bottom, 0px))", borderTop:`1px solid ${t.border}` }}>
         <Btn onClick={handleExport} disabled={scopeProducts.length===0 || exporting || syncing} full t={t}>
           {exporting ? exportProgress :
-            format==="zip" ? `Descargar ZIP${dateFilter==="today"?" de hoy":""} (${totalPhotos} fotos)` :
-            format==="csv" ? `Descargar CSV${dateFilter==="today"?" de hoy":""}` :
-            `Descargar Excel${dateFilter==="today"?" de hoy":""} con fotos`}
+            format==="zip" ? tx(dateFilter==="today" ? "exportar.descargarZipHoy" : "exportar.descargarZip", { fotos: tx("cantidades.fotos", { count: totalPhotos }) }) :
+            format==="csv" ? tx(dateFilter==="today" ? "exportar.descargarCsvHoy" : "exportar.descargarCsv") :
+            tx(dateFilter==="today" ? "exportar.descargarExcelHoy" : "exportar.descargarExcel")}
         </Btn>
       </div>
     </div>
@@ -2792,6 +2789,7 @@ function ExportScreen({ products, suppliers, districts, onBack, onExported, onUp
 // MAIN APP
 // ═══════════════════════════════════════════
 export default function App() {
+  const { t: tx } = useTranslation();
   const [districts, setDistricts] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [products, setProducts] = useState([]);
@@ -2848,12 +2846,12 @@ export default function App() {
       const { comprar } = await import("./lib/compras.js");
       const r = await comprar(pk.id);
       if (r.ok) {
-        showToast(`✓ Compra hecha: ${pk.escaneos} escaneos`); setPaywall(null);
+        showToast(tx("avisos.compraHecha", { cantidad: pk.escaneos })); setPaywall(null);
         // El saldo lo acredita el servidor cuando la tienda confirma; se relee varias veces.
         [2000, 6000, 15000, 40000].forEach(ms => setTimeout(sincronizarCreditos, ms));
       }
-      else showToast(r.mensaje || "La compra no se completó");
-    } catch (err) { showToast(err?.message || "La compra no se completó"); }
+      else showToast(r.mensaje || tx("avisos.compraNoCompletada"));
+    } catch (err) { showToast(err?.message || tx("avisos.compraNoCompletada")); }
   };
   // Paywall (5.3): al cerrar el stand, si el saldo no alcanza. Nunca al disparar.
   const [paywall, setPaywall] = useState(null); // { bloqueados }
@@ -2882,8 +2880,8 @@ export default function App() {
       const ids = nuevos.slice(nuevos.length - veredicto.bloquear).map(u => idsPorUuid[u]).filter(id => id != null);
       await bloquearProductos(ids);
     }
-    if (veredicto.usarEmergencia > 0) showToast(`Sin señal: ${veredicto.usarEmergencia} escaneos de regalo. Nada se pierde.`);
-    else if (veredicto.avisoQuedan !== null && veredicto.avisoQuedan > 0) showToast(`Te quedan ${veredicto.avisoQuedan} escaneos`);
+    if (veredicto.usarEmergencia > 0) showToast(tx("avisos.sinSenalRegalo", { count: veredicto.usarEmergencia }));
+    else if (veredicto.avisoQuedan !== null && veredicto.avisoQuedan > 0) showToast(tx("avisos.teQuedan", { count: veredicto.avisoQuedan }));
     if (veredicto.mostrarPaywall) setPaywall({ bloqueados: veredicto.bloquear });
     sincronizarCreditos();
   };
@@ -2901,7 +2899,7 @@ export default function App() {
   // Cuando el saldo vuelve a alcanzar (compra, devolución), lo bloqueado se libera.
   useEffect(() => {
     if (!ready || !creditos || creditos.saldo < 0) return;
-    if (products.some(p => p.bloqueado)) desbloquearProductos().then(n => { if (n) showToast(`✓ ${n} producto${n === 1 ? "" : "s"} desbloqueado${n === 1 ? "" : "s"}`); });
+    if (products.some(p => p.bloqueado)) desbloquearProductos().then(n => { if (n) showToast(tx("avisos.desbloqueados", { count: n })); });
   }, [ready, creditos?.saldo]);
   const devolverAlBorrar = async (uuid) => {
     const e = creditosRef.current;
@@ -3175,9 +3173,11 @@ export default function App() {
     setOrders(prev => prev.map(o => o.id === id ? { ...o, ...changes } : o));
     await updateOrder(id, changes);
   };
-  const enviarProforma = async (pedido, supplier, via) => {
+  const enviarProforma = async (pedido, supplier, via, { idioma } = {}) => {
     const feria = districts.find(d => d.id === pedido.districtId) || activeDistrict || null;
-    const texto = textoProforma({ pedido, proveedor: supplier, productos: products, moneda: monedaActual, feria, f: { numero: fNumero }, t: tx });
+    // La proforma sale en inglés por defecto (Nati, 27/09: la lee el proveedor chino); el selector de la hoja puede cambiarla
+    const tp = i18next.getFixedT(idioma || "en");
+    const texto = textoProforma({ pedido, proveedor: supplier, productos: products, moneda: monedaActual, feria, f: { numero: fNumero }, t: tp });
     const copiar = () => navigator.clipboard?.writeText(texto).catch(() => {});
     let marcarEnviado = true;
     try {
@@ -3190,18 +3190,18 @@ export default function App() {
         const link = supplier.wechatLink || (supplier.wechat && supplier.wechat !== "QR escaneado" ? `weixin://dl/chat?${supplier.wechat}` : null);
         if (link) window.open(link, "_blank", "noopener");
       } else if (via === "mail") {
-        window.location.href = `mailto:${supplier.email || ""}?subject=${encodeURIComponent(`${tx("pedido.proformaTitulo")} · ${supplier.company || ""}`)}&body=${encodeURIComponent(texto)}`;
+        window.location.href = `mailto:${supplier.email || ""}?subject=${encodeURIComponent(`${tp("pedido.proformaTitulo")} · ${supplier.company || ""}`)}&body=${encodeURIComponent(texto)}`;
       } else if (via === "compartir" && navigator.share) {
-        await navigator.share({ title: `${tx("pedido.proformaTitulo")} · ${supplier.company || ""}`, text: texto });
+        await navigator.share({ title: `${tp("pedido.proformaTitulo")} · ${supplier.company || ""}`, text: texto });
       } else if (via === "copiar") {
         await copiar(); showToast(tx("pedido.copiado")); marcarEnviado = false;
       } else if (via === "excel") {
-        const blob = await excelDeProforma({ pedido, proveedor: supplier, productos: products, moneda: monedaActual, feria, t: tx });
-        await saveFile(blob, nombreDeArchivo(supplier), { title: `FairScan · ${tx("pedido.proformaTitulo")}` });
+        const blob = await excelDeProforma({ pedido, proveedor: supplier, productos: products, moneda: monedaActual, feria, t: tp });
+        await saveFile(blob, nombreDeArchivo(supplier), { title: `FairScan · ${tp("pedido.proformaTitulo")}` });
       }
     } catch (err) {
       if (err?.name === "AbortError") return; // cerró la hoja de compartir sin mandar
-      console.warn("[proforma]", err); showToast(err?.message || "No se pudo mandar"); return;
+      console.warn("[proforma]", err); showToast(err?.message || tx("avisos.noSePudoMandar")); return;
     }
     if (marcarEnviado) await handleUpdateOrder(pedido.id, { estado: "enviado", enviadoEl: Date.now() });
   };
@@ -3241,7 +3241,7 @@ export default function App() {
     setSettings(prev => ({ ...prev, activeDistrictId: id }));
     scrollPositionRef.current = { products: 0, suppliers: 0 };
     const d = districts.find(d => d.id === id);
-    showToast(id == null ? "Todas las ferias" : `→ ${d?.name}`);
+    showToast(id == null ? tx("ferias.todasLasFerias") : `→ ${d?.name}`);
   };
 
   // Upload photos to R2 in background, update product record with URLs
@@ -3432,10 +3432,10 @@ export default function App() {
         if (supplierId) {
           const newSupplier = suppliers.find(s => s.id === supplierId) || { id: supplierId, company: data.supplierName };
           navigate("supplier", newSupplier);
-          showToast("✓ Proveedor guardado");
+          showToast(tx("avisos.proveedorGuardado"));
         } else {
           navigate("list");
-          showToast("✓ Proveedor guardado");
+          showToast(tx("avisos.proveedorGuardado"));
         }
         // Background: upload card photo
         if (data.cardPhoto && supplierId && navigator.onLine) {
@@ -3504,7 +3504,7 @@ export default function App() {
         // De vuelta al visor, con un stand nuevo: nunca tocaste "guardar" (4.1).
         setStandKey(k => k + 1);
         navigate(data.soloProveedor ? "list" : "capture");
-        showToast(data.soloProveedor ? "✓ Proveedor guardado" : `✓ Stand cerrado: ${createdIds.length} producto${createdIds.length !== 1 ? "s" : ""}`);
+        showToast(data.soloProveedor ? tx("avisos.proveedorGuardado") : tx("avisos.standCerrado", { count: createdIds.length }));
         // Show share dialog so user can save photos to Camera Roll
         if (sessionPhotos.length > 0) {
           setTimeout(() => setPhotosToShare(sessionPhotos), 600);
@@ -3515,7 +3515,7 @@ export default function App() {
       return true;
     } catch (err) {
       console.error("Error en handleCaptureSave:", err);
-      showToast(data.supplierOnly ? "Error guardando proveedor" : "Error guardando producto");
+      showToast(data.supplierOnly ? tx("avisos.errorProveedor") : tx("avisos.errorProducto"));
       return false;
     }
   };
@@ -3550,7 +3550,7 @@ export default function App() {
     if (!raw) return;
     await dbUpdateProduct(id, { photos: [...(raw.photos || []), dataUrl] });
     setProducts(prev => prev.map(p => p.id === id ? { ...p, photos: [...(p.photos || []), dataUrl] } : p));
-    showToast("Foto agregada");
+    showToast(tx("avisos.fotoAgregada"));
   };
 
   const handleUpdateProduct = async (id, changes) => {
@@ -3567,7 +3567,7 @@ export default function App() {
       catch (err) {
         console.warn("[borrar] la base local abortó, se reintenta:", err?.message || err);
         await new Promise(r => setTimeout(r, 300));
-        try { await dbDeleteProduct(id); } catch (err2) { console.error("[borrar] no se pudo borrar", id, err2); showToast("No se pudo borrar uno de los productos. Probá de nuevo."); }
+        try { await dbDeleteProduct(id); } catch (err2) { console.error("[borrar] no se pudo borrar", id, err2); showToast(tx("avisos.noSePudoBorrarProducto")); }
       }
     }
   };
@@ -3581,7 +3581,7 @@ export default function App() {
     borrandoRef.current.add(id);
     if (!quedarse) navigate("list"); // desde Revisar el día se sigue con la próxima tarjeta
     await papeleraRef.current.programar({
-      mensaje: "Producto eliminado",
+      mensaje: tx("avisos.productoEliminado"),
       confirmar: async () => { await borrarConReintento([id]); borrandoRef.current.delete(id); setProducts(prev => prev.filter(p => p.id !== id)); },
       restaurar: () => { borrandoRef.current.delete(id); setProducts(prev => ordenarPorFecha([...prev, borrado])); },
     });
@@ -3602,13 +3602,13 @@ export default function App() {
   const handleBatchUpdate = async (ids, changes) => {
     for (const id of ids) await dbUpdateProduct(id, changes);
     setProducts(prev => prev.map(p => ids.includes(p.id) ? { ...p, ...changes } : p));
-    showToast(`${ids.length} productos actualizados`);
+    showToast(tx("avisos.productosActualizados", { count: ids.length }));
   };
 
   const handleUpdateSupplier = async (id, changes, silent) => {
     await dbUpdateSupplier(id, changes);
     setSuppliers(prev => prev.map(s => s.id === id ? { ...s, ...changes } : s));
-    if (!silent) showToast("Proveedor actualizado");
+    if (!silent) showToast(tx("avisos.proveedorActualizado"));
   };
 
   const handleDeleteSupplier = async (id) => {
@@ -3619,7 +3619,7 @@ export default function App() {
     setProducts(prev => prev.map(p => p.supplierId === id ? { ...p, supplierId: null, supplierCompany: null } : p));
     navigate("list");
     await papeleraRef.current.programar({
-      mensaje: "Proveedor eliminado",
+      mensaje: tx("avisos.proveedorEliminado"),
       confirmar: () => dbDeleteSupplier(id),
       restaurar: () => {
         setSuppliers(prev => [...prev, borrado]);
@@ -3649,7 +3649,7 @@ export default function App() {
     setSettings(prev => ({ ...prev, ...s }));
     if (!silent) {
       navigate("list");
-      showToast("Config guardada");
+      showToast(tx("configuracion.guardada"));
     }
   };
 
@@ -3659,7 +3659,7 @@ export default function App() {
       if (sync.teamId) await sync.disconnectTeam();
       await sync.connectTeam(teamId);
       await reloadAll();
-      showToast("Equipo cambiado");
+      showToast(tx("configuracion.equipoCambiado"));
     } catch (err) {
       console.warn('Error switching team:', err);
     }
@@ -3668,13 +3668,13 @@ export default function App() {
   const handleAddDistrict = async (d) => {
     await addDistrict(d);
     await reloadAll();
-    showToast(`Feria creada: ${d.name}`);
+    showToast(tx("ferias.feriaCreada", { nombre: d.name }));
   };
 
   const handleUpdateDistrict = async (id, changes) => {
     await dbUpdateDistrict(id, changes);
     await reloadAll();
-    showToast("Feria actualizada");
+    showToast(tx("ferias.feriaActualizada"));
   };
 
   const handleDeleteDistrict = async (id) => {
@@ -3692,7 +3692,7 @@ export default function App() {
       }
     }
     await reloadAll();
-    showToast("Feria eliminada");
+    showToast(tx("ferias.feriaEliminada"));
   };
 
   // Auth gate: show login screen if not authenticated
@@ -3700,7 +3700,7 @@ export default function App() {
     <div style={{ height:"100%", display:"flex", alignItems:"center", justifyContent:"center", background:t.bg, flexDirection:"column", gap:12 }}>
       <Icono nombre="camara" tamano={36} color={t.accent} />
       <span style={{ fontSize:18, fontWeight:800, color:t.text }}>FairScan</span>
-      <span style={{ fontSize:12, color:t.muted }}>Cargando...</span>
+      <span style={{ fontSize:12, color:t.muted }}>{tx("avisos.cargando")}</span>
     </div>
   );
 
@@ -3722,46 +3722,46 @@ export default function App() {
       {paywall && (
         <div role="dialog" style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
           <div style={{ width:"100%", maxWidth:520, background:t.bg, borderRadius:"22px 22px 0 0", padding:"22px 20px calc(env(safe-area-inset-bottom, 0px) + 20px)", boxShadow:"0 -8px 40px rgba(0,0,0,0.35)" }}>
-            <p style={{ fontSize:17, fontWeight:800, color:t.text, margin:"0 0 6px", lineHeight:1.35 }}>{FRASE_PAYWALL}</p>
-            {paywall.bloqueados > 0 && <p style={{ fontSize:13, color:t.muted, margin:"0 0 14px" }}>{paywall.bloqueados} producto{paywall.bloqueados === 1 ? "" : "s"} de este stand quedaron guardados y bloqueados. No se pierde nada.</p>}
+            <p style={{ fontSize:17, fontWeight:800, color:t.text, margin:"0 0 6px", lineHeight:1.35 }}>{tx("avisos.paywallFrase", { defaultValue: FRASE_PAYWALL })}</p>
+            {paywall.bloqueados > 0 && <p style={{ fontSize:13, color:t.muted, margin:"0 0 14px" }}>{tx("avisos.bloqueados", { count: paywall.bloqueados })}</p>}
             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
               {(negocio.packs || []).map(pk => { const destacado = packDestacado(negocio.packs)?.id === pk.id; return (
                 <button key={pk.id} onClick={() => comprarPack(pk)} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 16px", borderRadius:14, cursor:"pointer", fontFamily:"inherit", textAlign:"left",
                   border:`2px solid ${destacado ? t.accent : t.border}`, background: destacado ? t.accentSoft : t.card }}>
                   <span>
-                    <span style={{ display:"block", fontSize:15, fontWeight:800, color:t.text }}>{pk.escaneos.toLocaleString("es-AR")} escaneos</span>
-                    {destacado && <span style={{ fontSize:11, fontWeight:700, color:t.accent }}>El más elegido</span>}
+                    <span style={{ display:"block", fontSize:15, fontWeight:800, color:t.text }}>{tx("avisos.escaneosPack", { cantidad: fNumero(pk.escaneos) })}</span>
+                    {destacado && <span style={{ fontSize:11, fontWeight:700, color:t.accent }}>{tx("avisos.elMasElegido")}</span>}
                   </span>
                   <span style={{ fontSize:15, fontWeight:800, color: destacado ? t.accent : t.text }}>USD {pk.usd.toFixed(2)}</span>
                 </button>
               ); })}
-              <button onClick={() => setPaywall(null)} style={{ padding:"12px", borderRadius:12, border:"none", background:"none", color:t.muted, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Después</button>
+              <button onClick={() => setPaywall(null)} style={{ padding:"12px", borderRadius:12, border:"none", background:"none", color:t.muted, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{tx("avisos.despues")}</button>
             </div>
-            <p style={{ fontSize:11, color:t.dim, margin:"10px 0 0", textAlign:"center" }}>Las tarjetas de proveedor no descuentan nunca. Los escaneos comprados no vencen.</p>
+            <p style={{ fontSize:11, color:t.dim, margin:"10px 0 0", textAlign:"center" }}>{tx("avisos.tarjetasNoDescuentan")}</p>
           </div>
         </div>
       )}
       {/* Solo la primera vez, con el teléfono vacío: con catálogo a la vista el cartel molesta (Nati, 22/09) */}
       <BajandoCatalogo bajando={products.length === 0 ? sync.bajando : null} t={t} />
       <Toast msg={undo ? undo.mensaje : toast} t={t}
-        action={undo ? { label: "Deshacer", onClick: () => { papeleraRef.current.deshacer(); showToast("Restaurado"); } } : null} />
+        action={undo ? { label: tx("comun.deshacer"), onClick: () => { papeleraRef.current.deshacer(); showToast(tx("avisos.restaurado")); } } : null} />
       {/* #10: Supplier dedup prompt */}
       {dedupPrompt && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
           <div style={{ background:t.card, borderRadius:20, padding:24, maxWidth:340, width:"100%", border:`1px solid ${t.border}` }}>
-            <p style={{ fontSize:15, fontWeight:800, color:t.text, margin:"0 0 8px" }}>Proveedor similar encontrado</p>
+            <p style={{ fontSize:15, fontWeight:800, color:t.text, margin:"0 0 8px" }}>{tx("avisos.proveedorSimilar")}</p>
             <p style={{ fontSize:12, color:t.muted, margin:"0 0 16px", lineHeight:1.5 }}>
-              "<strong style={{ color:t.accent }}>{dedupPrompt.newName}</strong>" es similar a "<strong style={{ color:t.blue }}>{dedupPrompt.similar.company}</strong>" ({Math.round(dedupPrompt.score * 100)}% coincidencia)
-              {dedupPrompt.crossDistrict && <><br/><span style={{ fontSize:11, color:"#f59e0b" }}>(de otra feria: {districts.find(d => d.id === dedupPrompt.similar.districtId)?.name || "otra feria"})</span></>}
+              <Trans i18nKey="avisos.similarA" values={{ nuevo: dedupPrompt.newName, existente: dedupPrompt.similar.company, pct: Math.round(dedupPrompt.score * 100) }} components={{ n: <strong style={{ color:t.accent }} />, e: <strong style={{ color:t.blue }} /> }} />
+              {dedupPrompt.crossDistrict && <><br/><span style={{ fontSize:11, color:"#f59e0b" }}>{tx("avisos.deOtraFeria", { feria: districts.find(d => d.id === dedupPrompt.similar.districtId)?.name || tx("avisos.otraFeria") })}</span></>}
             </p>
             <button onClick={() => { const r = dedupPrompt.resolve; setDedupPrompt(null); r("use_existing"); }} style={{
               width:"100%", padding:"12px", borderRadius:12, border:`1.5px solid ${t.blue}`, background:t.blueSoft,
               color:t.blue, fontSize:13, fontWeight:700, cursor:"pointer", marginBottom:8, textAlign:"left",
-            }}>Usar "{dedupPrompt.similar.company}"</button>
+            }}>{tx("avisos.usarExistente", { nombre: dedupPrompt.similar.company })}</button>
             <button onClick={() => { const r = dedupPrompt.resolve; setDedupPrompt(null); r("create_new"); }} style={{
               width:"100%", padding:"12px", borderRadius:12, border:`1px solid ${t.border}`, background:t.surface,
               color:t.text, fontSize:13, fontWeight:700, cursor:"pointer", textAlign:"left",
-            }}>Crear nuevo "{dedupPrompt.newName}"</button>
+            }}>{tx("avisos.crearNuevo", { nombre: dedupPrompt.newName })}</button>
           </div>
         </div>
       )}
@@ -3769,24 +3769,24 @@ export default function App() {
       {photosToShare && photosToShare.length > 0 && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center", padding:0 }}>
           <div style={{ background:t.card, borderRadius:"20px 20px 0 0", padding:"24px 20px", paddingBottom:"calc(24px + env(safe-area-inset-bottom, 0px))", width:"100%", maxWidth:420, border:`1px solid ${t.border}`, borderBottom:"none" }}>
-            <p style={{ fontSize:16, fontWeight:800, color:t.text, margin:"0 0 4px", textAlign:"center" }}>Guardar fotos en tu celular</p>
+            <p style={{ fontSize:16, fontWeight:800, color:t.text, margin:"0 0 4px", textAlign:"center" }}>{tx("avisos.guardarFotosTitulo")}</p>
             <p style={{ fontSize:12, color:t.muted, margin:"0 0 20px", textAlign:"center", lineHeight:1.5 }}>
-              {photosToShare.length} foto{photosToShare.length !== 1 ? "s" : ""} capturada{photosToShare.length !== 1 ? "s" : ""}. Tocá el botón para guardarlas en tu galería.
+              {tx("avisos.fotosCapturadas", { count: photosToShare.length })}
             </p>
             <button onClick={async () => {
               const photos = [...photosToShare];
               setPhotosToShare(null);
               const ok = await sharePhotosToDevice(photos);
-              if (ok) showToast("✓ Fotos compartidas");
+              if (ok) showToast(tx("avisos.fotosCompartidas"));
             }} style={{
               width:"100%", padding:"16px", borderRadius:16, border:"none", fontSize:15, fontWeight:700, cursor:"pointer",
               background:`linear-gradient(135deg, ${t.green}, #34D399)`, color:"#fff", marginBottom:10,
               display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-            }}>Guardar en mi galería</button>
+            }}>{tx("avisos.guardarEnGaleria")}</button>
             <button onClick={() => setPhotosToShare(null)} style={{
               width:"100%", padding:"14px", borderRadius:14, border:`1px solid ${t.border}`, background:t.surface,
               color:t.muted, fontSize:13, fontWeight:600, cursor:"pointer",
-            }}>Ahora no</button>
+            }}>{tx("avisos.ahoraNo")}</button>
           </div>
         </div>
       )}
@@ -3798,8 +3798,8 @@ export default function App() {
           onEliminarProducto={(id) => handleDeleteProduct(id, { quedarse: true })}
           onPedidoPara={asegurarPedido} onGuardarPedido={handleUpdateOrder} onEnviarProforma={enviarProforma} onDescargarExcelFeria={descargarExcelFeria}
           equipoId={sync.teamId} onActualizarVarios={handleBatchUpdate} onEliminarVarios={handleBatchDelete} onAgregarAlPedidoVarios={agregarVariosAlPedido} onEliminarPedido={handleDeleteOrder}
-          renderExportar={(onVolver) => <ExportScreen compacto products={products} suppliers={suppliers} districts={districts} onBack={onVolver} onExported={msg => { onVolver(); showToast(msg); }} onUpdateProduct={handleUpdateProduct} onUpdateSupplier={handleUpdateSupplier} t={t} />}
-          renderAjustes={(onVolver, irAExportar) => <SettingsScreen settings={settings} onSave={(s, silent) => handleSaveSettings(s, true).then(() => { if (!silent) { showToast("Config guardada"); onVolver(); } })} onBack={onVolver} sync={sync} t={t} isDark={isDark} onToggleTheme={toggleTheme}
+          renderExportar={(onVolver) => <ExportScreen compacto equipoId={sync.teamId} products={products} suppliers={suppliers} districts={districts} onBack={onVolver} onExported={msg => { onVolver(); showToast(msg); }} onUpdateProduct={handleUpdateProduct} onUpdateSupplier={handleUpdateSupplier} t={t} />}
+          renderAjustes={(onVolver, irAExportar) => <SettingsScreen settings={settings} onSave={(s, silent) => handleSaveSettings(s, true).then(() => { if (!silent) { showToast(tx("configuracion.guardada")); onVolver(); } })} onBack={onVolver} sync={sync} t={t} isDark={isDark} onToggleTheme={toggleTheme}
             products={products} suppliers={suppliers} districts={districts} onReload={reloadAll}
             teams={teamsHook.teams} activeTeam={teamsHook.teams.find(tm => tm.id === sync.teamId)} teamMembers={teamsHook.teamMembers}
             isAdmin={teamsHook.isAdmin} fetchMembers={teamsHook.fetchMembers} inviteMember={teamsHook.inviteMember}
@@ -3871,7 +3871,7 @@ export default function App() {
           onGoExport={() => navigate("export")} onAccountDeleted={handleAccountDeleted} onEntrar={() => setMostrarLogin(true)} />
       )}
       {!esEscritorio && screen === "export" && (
-        <ExportScreen products={products} suppliers={suppliers} districts={districts}
+        <ExportScreen equipoId={sync.teamId} products={products} suppliers={suppliers} districts={districts}
           onBack={() => navigate("list")} onExported={msg => { navigate("list"); showToast(msg); }}
           onUpdateProduct={handleUpdateProduct} onUpdateSupplier={handleUpdateSupplier} t={t} initialDateFilter={screenData?.dateFilter} />
       )}

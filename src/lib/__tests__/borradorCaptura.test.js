@@ -1,4 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
+import { iniciarIdiomas } from '../../idiomas/index.js';
+
+// Los textos de describirBorrador salen por clave (E6): se arranca el idioma como en la app.
+iniciarIdiomas('es-AR');
 
 vi.mock('../../db.js', () => ({ default: { settings: { get: async () => null, put: async () => {}, delete: async () => {} } } }));
 const { tieneContenido, describirBorrador, leerBorrador, guardarBorrador, borrarBorrador, CLAVE_BORRADOR } = await import('../borradorCaptura.js');
