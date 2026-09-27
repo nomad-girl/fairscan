@@ -7,7 +7,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Bloque, Campo, Fila, Icono, Hoja, Celda } from "../componentes/index.js";
+import { Boton, Bloque, Campo, Fila, Icono, Hoja, Celda, Numero } from "../componentes/index.js";
 import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
 import { cantidadDe, conCantidad, lineaDePedido, productosParaPedido, totalesDePedido, porcentajeDeContenedor } from "../lib/pedidos.js";
 import { numero as fNumero, cbm as fCbm, fechaCorta } from "../idiomas/formato.js";
@@ -91,7 +91,7 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
   const totales = () => (
     <div style={{ background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, padding: "14px 16px", boxShadow: paleta.sombraTarjeta, textAlign: "center" }}>
       <p style={{ ...texto("pie", { fontWeight: 700 }), color: paleta.dim, margin: 0, textTransform: "uppercase", letterSpacing: "0.06em", fontSize: 11 }}>{t("pedido.totalDelPedido")}</p>
-      <p style={{ fontSize: 34, fontWeight: 700, lineHeight: 1.1, color: tot.total ? paleta.green : paleta.dim, margin: "2px 0 6px", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.01em" }}>{tot.total ? dinero(tot.total) : "—"}</p>
+      <p style={{ fontSize: 34, fontWeight: 700, lineHeight: 1.1, color: tot.total ? paleta.green : paleta.dim, margin: "2px 0 6px", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.01em" }}>{tot.total ? <Numero valor={tot.total} formato={dinero} /> : "—"}</p>
       <p style={{ ...texto("pie"), color: paleta.muted, margin: 0, fontVariantNumeric: "tabular-nums" }}>
         {tot.bultos ? `${fNumero(tot.bultos)} ${t("pedido.bultosCorto")}` : `— ${t("pedido.bultosCorto")}`} · {tot.unidades ? `${fNumero(tot.unidades)} ${t("pedido.unidadesCorto")}` : `— ${t("pedido.unidadesCorto")}`} · {tot.cbm ? fCbm(tot.cbm) : "— CBM"}
       </p>

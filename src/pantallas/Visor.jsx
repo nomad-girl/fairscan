@@ -14,7 +14,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Icono, Hoja, Boton } from "../componentes/index.js";
+import { Icono, Hoja, Boton, Numero } from "../componentes/index.js";
 import { MARCA } from "../sistema/tokens.js";
 
 const VIDRIO = "rgba(10, 14, 23, 0.55)";
@@ -52,13 +52,25 @@ export function Visor({
   const [miniaturaVuela, setMiniaturaVuela] = useState(false);
   const consejoTimer = useRef(null);
 
-  // La miniatura "vuela" al contador en cada disparo (movimiento 2).
+  // La miniatura "vuela" al contador en cada disparo (movimiento 2). Tanda 1 de pulido (27/09): una copia de la
+  // foto recién sacada arranca en el centro de la pantalla y viaja hasta la esquina donde queda la miniatura.
+  const [vuelo, setVuelo] = useState(null); // { src, fase: 0 | 1 }
   useEffect(() => {
     if (!ultimaCaptura) return;
     setMiniaturaVuela(true);
-    const id = setTimeout(() => setMiniaturaVuela(false), duracion(movimiento.obturador.miniatura));
+    if (!reducido) { setVuelo({ src: ultimaCaptura, fase: 0 }); requestAnimationFrame(() => requestAnimationFrame(() => setVuelo(v => (v ? { ...v, fase: 1 } : v)))); }
+    const id = setTimeout(() => { setMiniaturaVuela(false); setVuelo(null); }, duracion(movimiento.obturador.miniatura) + 60);
     return () => clearTimeout(id);
   }, [ultimaCaptura]);
+  const vueloEstilo = () => {
+    if (!vuelo) return null;
+    const W = window.innerWidth, H = window.innerHeight; const lado = Math.round(W * 0.62);
+    const destinoX = 22 + 36, destinoY = H - 22 - 36 - 8; const escala = alturas.miniatura / lado;
+    const llegada = vuelo.fase === 1;
+    return { position: "absolute", left: W / 2 - lado / 2, top: H / 2 - lado / 2, width: lado, height: lado, borderRadius: llegada ? 12 / escala : 16, overflow: "hidden", zIndex: 6, pointerEvents: "none", boxShadow: "0 20px 50px -20px rgba(0,0,0,0.6)",
+      transform: llegada ? `translate(${destinoX - W / 2}px, ${destinoY - H / 2}px) scale(${escala})` : "translate(0, 0) scale(1)", opacity: llegada ? 0.9 : 1,
+      transition: `transform ${movimiento.obturador.miniatura}ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity ${movimiento.obturador.miniatura}ms ease, border-radius ${movimiento.obturador.miniatura}ms ease` };
+  };
 
   // El consejo se va solo y no vuelve.
   useEffect(() => {
@@ -94,6 +106,7 @@ export function Visor({
       {/* Velo blanco del obturador (80 ms) */}
       <style>{`@keyframes fairscanGuardado { 0% { transform: scale(0.4); opacity: 0 } 35% { transform: scale(1.15); opacity: 1 } 55% { transform: scale(1) } 100% { transform: scale(1); opacity: 1 } }`}</style>
       <div aria-hidden style={{ position: "absolute", inset: 0, background: "#fff", opacity: flash ? 0.75 : 0, pointerEvents: "none", zIndex: 2, transition: `opacity ${duracion(movimiento.obturador.velo)}ms linear` }} />
+      {vuelo && <img aria-hidden src={vuelo.src} alt="" style={{ ...vueloEstilo(), objectFit: "cover" }} />}
 
       {/* Arriba: saldo y estado. Nada más. */}
       <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 12px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
@@ -113,7 +126,7 @@ export function Visor({
           stand); con tarjeta dice la empresa y abre el stand. Nati, 21/09: "la tarjeta es sinónimo de nuevo stand". */}
       {modoAngulo && !esTarjeta && (
         <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 68px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "center" }}>
-          <span style={{ background: MARCA.naranja, color: "#fff", borderRadius: 999, padding: "12px 18px", fontSize: 15, fontWeight: 600, textAlign: "center" }}>{t("visor.otraFotoMismo")}</span>
+          <span style={{ background: "rgba(10,14,23,0.7)", color: "#fff", borderRadius: 999, padding: "12px 18px", fontSize: 15, fontWeight: 600, textAlign: "center", backdropFilter: "blur(8px)" }}>{t("visor.otraFotoMismo")}</span>
         </div>
       )}
       {standAbierto && !esTarjeta && !modoAngulo && (() => {
@@ -127,7 +140,7 @@ export function Visor({
           : t("visor.escanearTarjetaConFotos", { count: n });
         return (
           <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 68px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "center" }}>
-            <button type="button" onClick={sinTarjeta ? onTarjeta : onStand} aria-label={sinTarjeta ? t("visor.escanearTarjeta") : t("visor.abrirStand")} style={{ maxWidth: "100%", minHeight: 50, padding: "0 20px", borderRadius: 999, border: "none", background: (conNombre || sinTarjeta) ? MARCA.naranja : "rgba(10,14,23,0.7)", boxShadow: sinTarjeta ? "0 6px 18px -6px rgba(234,90,34,0.7)" : "none", color: "#fff", fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", overflow: "hidden", backdropFilter: "blur(8px)" }}>
+            <button type="button" onClick={sinTarjeta ? onTarjeta : onStand} aria-label={sinTarjeta ? t("visor.escanearTarjeta") : t("visor.abrirStand")} style={{ maxWidth: "100%", minHeight: 50, padding: "0 20px", borderRadius: 999, border: sinTarjeta ? "1.5px solid rgba(255,255,255,0.75)" : "none", background: "rgba(10,14,23,0.7)", boxShadow: "none", color: "#fff", fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", overflow: "hidden", backdropFilter: "blur(8px)" }}>
               {/* Sin tarjeta, la pastilla es naranja y con el ícono de tarjeta (Nati, 27/09: "que sea más llamativo") */}
               <Icono nombre={conNombre ? "proveedor" : "tarjeta"} tamano={18} color="#fff" /><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{texto}</span>{!sinTarjeta && <Icono nombre="siguiente" tamano={14} color="rgba(255,255,255,0.8)" />}
             </button>
@@ -225,7 +238,7 @@ export function Visor({
                 <img src={ultimaCaptura || ultimas[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               </button>
               {puedeAgregarAngulo && !esTarjeta && !modoAngulo && (
-                <button type="button" onClick={onAgregarAngulo} aria-label={t("visor.agregarAngulo")} style={{ position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)", minHeight: 24, padding: "0 8px", borderRadius: 999, border: "1.5px solid #fff", background: MARCA.naranja, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit" }}>{t("visor.otraFoto")}</button>
+                <button type="button" onClick={onAgregarAngulo} aria-label={t("visor.agregarAngulo")} style={{ position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)", minHeight: 24, padding: "0 8px", borderRadius: 999, border: "1.5px solid #fff", background: "rgba(10,14,23,0.85)", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit" }}>{t("visor.otraFoto")}</button>
               )}
             </>
           ) : (
@@ -243,10 +256,10 @@ export function Visor({
           onPointerUp={() => setPresionado(false)}
           onPointerLeave={() => setPresionado(false)}
           aria-label={t("visor.disparar")}
-          style={{ position: "relative", width: alturas.obturador, height: alturas.obturador, borderRadius: "50%", border: "5px solid #fff", background: "rgba(255,255,255,0.25)", cursor: "pointer", padding: 0, transform: presionado ? `scale(${movimiento.toque.escala})` : "scale(1)", transition: `transform ${duracion(presionado ? movimiento.toque.bajada : movimiento.toque.vuelta)}ms ${curvas.estandar}`, WebkitTapHighlightColor: "transparent" }}
+          style={{ position: "relative", width: alturas.obturador, height: alturas.obturador, borderRadius: "50%", border: "5px solid #fff", background: MARCA.naranja, boxShadow: "0 0 0 3px rgba(0,0,0,0.25), 0 8px 24px -8px rgba(255,107,53,0.6)", cursor: "pointer", padding: 0, transform: presionado ? `scale(${movimiento.toque.escala})` : "scale(1)", transition: `transform ${duracion(presionado ? movimiento.toque.bajada : movimiento.toque.vuelta)}ms ${curvas.estandar}`, WebkitTapHighlightColor: "transparent" }}
         >
           {!esTarjeta && itemsCount > 0 && (
-            <span aria-label={t("visor.enEsteStand", { count: itemsCount })} style={{ position: "absolute", right: -10, top: -10, minWidth: 26, height: 26, padding: "0 8px", borderRadius: 13, background: MARCA.naranja, color: "#fff", fontSize: 13, fontWeight: 700, display: "grid", placeItems: "center", boxShadow: "0 0 0 3px rgba(0,0,0,0.35)", fontVariantNumeric: "tabular-nums" }}>{itemsCount}</span>
+            <span aria-label={t("visor.enEsteStand", { count: itemsCount })} style={{ position: "absolute", right: -10, top: -10, minWidth: 26, height: 26, padding: "0 8px", borderRadius: 13, background: MARCA.naranja, color: "#fff", fontSize: 13, fontWeight: 700, display: "grid", placeItems: "center", boxShadow: "0 0 0 3px rgba(0,0,0,0.35)", fontVariantNumeric: "tabular-nums" }}><Numero valor={itemsCount} /></span>
           )}
         </button>
 

@@ -16,6 +16,7 @@ import { urlDeAudio, esPunteroMuerto } from "../lib/audioNotes.js";
 import { haceCuanto } from "../idiomas/formato.js";
 import { respaldoDe } from "../lib/miniaturas.js";
 import { useVolverConGesto } from "../sistema/useVolverConGesto.js";
+import { vibrarExito } from "../sistema/vibrar.js";
 
 export function FichaProducto({ product: p, allProducts = [], suppliers = [], districts = [], settings, moneda = "USD", Foto, tLegacy, onBack, onUpdate, onAddPhoto, onDelete, onNavigateSupplier, onNavigateProduct, onPedir }) {
   const { t } = useTranslation();
@@ -25,6 +26,7 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
   const [eligiendoProveedor, setEligiendoProveedor] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
   const [poniendoPrecio, setPoniendoPrecio] = useState(false); // 27/09: el precio se carga desde la portada
+  const [agregado, setAgregado] = useState(false); // tilde de "agregado al pedido" (tanda 1 de pulido)
   // Volver al catálogo con el gesto (27/09): desde el borde, o desde cualquier lado cuando estás en la primera foto
   const fotoRef = useRef(0); fotoRef.current = foto;
   const { ref: raizRef, estilo: estiloGesto } = useVolverConGesto(onBack, { libre: () => fotoRef.current === 0 });
@@ -105,25 +107,18 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
           )}
         </div>
         {/* El pie: nombre, precio y proveedor sobre la foto; "Ver todos los datos" abre la hoja */}
-        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: `72px 84px calc(18px + env(safe-area-inset-bottom, 0px)) 18px`, background: "linear-gradient(to top, rgba(10,14,23,0.86) 55%, rgba(10,14,23,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 }}>
-          {sinNombreX ? <Esqueleto ancho={200} alto={22} estilo={{ background: "rgba(255,255,255,0.35)" }} /> : <p style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere" }}>{x.name || t("ficha.producto")}</p>}
-          {/* 27/09: el precio se toca y se carga desde la portada, sin ir a editar */}
-          <button type="button" onClick={esta ? () => { setPrecioBorrador(x.price || ""); setPoniendoPrecio(true); } : undefined} aria-label={x.price ? `${t("ficha.precio")} ${moneda} ${x.price}` : t("ficha.tocaPrecio")}
-            style={{ alignSelf: "flex-start", background: "none", border: "none", padding: 0, margin: 0, fontFamily: "inherit", textAlign: "left", cursor: "pointer", color: "#fff", fontSize: 20, fontWeight: 700, fontVariantNumeric: "tabular-nums", display: "inline-flex", alignItems: "center", gap: 6, minHeight: 32 }}>
-            {x.price ? <span style={{ color: "#86EFAC" }}>{moneda} {x.price}</span> : <span style={{ color: "#FCD34D", fontSize: 16, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6 }}><Icono nombre="editar" tamano={16} color="#FCD34D" />{t("ficha.tocaPrecio")}</span>}
-            {x.moq ? <span style={{ fontWeight: 400, fontSize: 14, color: "rgba(255,255,255,0.75)" }}> · MOQ {x.moq}{x.moqBase ? " " + t(`ficha.basePor${x.moqBase[0].toUpperCase()}${x.moqBase.slice(1)}`) : ""}</span> : null}
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: `120px 84px calc(18px + env(safe-area-inset-bottom, 0px)) 18px`, background: "linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.5) 30%, rgba(0,0,0,0.1) 55%, rgba(0,0,0,0) 70%)", color: "#fff", display: "flex", flexDirection: "column", gap: 4 }}>
+          {/* Regla de tres (tanda 1 de pulido, 27/09): un título, una línea gris, un número. El resto vive en la hoja de datos. */}
+          {sinNombreX ? <Esqueleto ancho={200} alto={22} estilo={{ background: "rgba(255,255,255,0.35)" }} /> : <p style={{ margin: 0, fontSize: 22, fontWeight: 600, lineHeight: 1.15, overflowWrap: "anywhere", textShadow: "0 1px 2px rgba(0,0,0,0.4)" }}>{x.name || t("ficha.producto")}</p>}
+          <button type="button" onClick={sup ? () => onNavigateSupplier?.(sup) : undefined} style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 4, maxWidth: "100%", background: "none", border: "none", padding: 0, margin: 0, fontFamily: "inherit", textAlign: "left", cursor: sup ? "pointer" : "default", color: "rgba(255,255,255,0.78)", fontSize: 15, fontWeight: 500, lineHeight: 1.3, textShadow: "0 1px 2px rgba(0,0,0,0.4)" }}>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{[x.category, Array.isArray(x.material) ? x.material.slice(0, 2).join(", ") : x.material, sup ? (sup.company || `#${sup.id}`) : t("ficha.sinProveedor")].filter(Boolean).join(" · ")}</span>
+            {sup && <Icono nombre="siguiente" tamano={14} color="rgba(255,255,255,0.6)" />}
           </button>
-          {/* 27/09: el proveedor (grande, fácil de tocar) y "Ver todos los datos" en una sola fila: menos pila de cosas al pie */}
-          <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
-            {sup ? (
-              <button type="button" onClick={() => onNavigateSupplier?.(sup)} style={{ background: "rgba(255,255,255,0.14)", border: "1px solid rgba(255,255,255,0.4)", borderRadius: 999, padding: "0 12px 0 10px", minHeight: 42, color: "#fff", fontFamily: "inherit", fontSize: 15, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", textAlign: "left", maxWidth: "100%", minWidth: 0 }}>
-                <Icono nombre="proveedor" tamano={17} color="#fff" /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 170 }}>{sup.company || `#${sup.id}`}</span><Icono nombre="siguiente" tamano={14} color="rgba(255,255,255,0.7)" />
-              </button>
-            ) : <span style={{ fontSize: 14, color: "rgba(255,255,255,0.6)" }}>{t("ficha.sinProveedor")}</span>}
-            <button type="button" onClick={() => setDatosAbiertos(true)} style={{ minHeight: 42, borderRadius: 999, border: "1px solid rgba(255,255,255,0.4)", background: "rgba(10,14,23,0.35)", color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 600, padding: "0 12px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-              <Icono nombre="abajo" tamano={16} color="#fff" style={{ transform: "rotate(180deg)" }} />{t("ficha.verDatos")}
-            </button>
-          </div>
+          <button type="button" onClick={esta ? () => { setPrecioBorrador(x.price || ""); setPoniendoPrecio(true); } : undefined} aria-label={x.price ? `${t("ficha.precio")} ${moneda} ${x.price}` : t("ficha.tocaPrecio")}
+            style={{ alignSelf: "flex-start", background: "none", border: "none", padding: 0, margin: "2px 0 0", fontFamily: "inherit", textAlign: "left", cursor: "pointer", display: "inline-flex", alignItems: "baseline", gap: 8, minHeight: 32, textShadow: "0 1px 2px rgba(0,0,0,0.4)" }}>
+            {x.price ? <span style={{ color: "#86EFAC", fontSize: 20, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moneda} {x.price}</span> : <span style={{ color: "#FCD34D", fontSize: 15, fontWeight: 600 }}>{t("ficha.tocaPrecio")}</span>}
+            {x.moq ? <span style={{ fontWeight: 400, fontSize: 13, color: "rgba(255,255,255,0.7)" }}>MOQ {x.moq}{x.moqBase ? " " + t(`ficha.basePor${x.moqBase[0].toUpperCase()}${x.moqBase.slice(1)}`) : ""}</span> : null}
+          </button>
           {fs.length > 1 && esta && (
             <div style={{ position: "absolute", right: 18, bottom: `calc(22px + env(safe-area-inset-bottom, 0px))`, display: "flex", gap: 5 }}>
               {fs.map((_, i) => <span key={i} style={{ width: foto === i ? 16 : 6, height: 6, borderRadius: 3, background: foto === i ? "#fff" : "rgba(255,255,255,0.5)", transition: "width 150ms" }} />)}
@@ -192,7 +187,7 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
             {supplier && <div style={{ display: "flex", gap: 8, marginTop: 8 }}><Boton variante="fantasma" onClick={() => setEligiendoProveedor(true)}>{t("ficha.cambiarProveedor")}</Boton><Boton variante="fantasma" onClick={() => cambiarProveedor(null)}>{t("ficha.quitarProveedor")}</Boton></div>}
           </section>
 
-          {onPedir && <Boton variante="secundario" ancho="total" icono="pedido" onClick={() => (supplier ? onPedir(p) : setEligiendoProveedor(true))}>{t("ficha.pedir")}</Boton>}
+          {onPedir && <Boton variante={agregado ? "principal" : "secundario"} ancho="total" icono={agregado ? "listo" : "pedido"} onClick={() => { if (!supplier) { setEligiendoProveedor(true); return; } onPedir(p); vibrarExito(); setAgregado(true); setTimeout(() => setAgregado(false), 1400); }}>{agregado ? t("ficha.agregado") : t("ficha.pedir")}</Boton>}
 
           {/* La IA no pudo */}
           {estadoIA(p) === "fallo" && (

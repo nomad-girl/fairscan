@@ -99,7 +99,7 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
         <div style={{ position: "absolute", inset: 0 }}>{foto(p)}</div>
         {/* 27/09: la etiqueta roja de arriba a la derecha se pisaba con los filtros (Nati: "está todo superpuesto"); lo que
             falta ya se dice en el pie, en amarillo, y en los botones naranjas de la derecha. */}
-        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: `80px 84px calc(18px + env(safe-area-inset-bottom, 0px)) 18px`, background: "linear-gradient(to top, rgba(10,14,23,0.9) 60%, rgba(10,14,23,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: `130px 84px calc(18px + env(safe-area-inset-bottom, 0px)) 18px`, background: "linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.5) 30%, rgba(0,0,0,0.1) 55%, rgba(0,0,0,0) 70%)", color: "#fff", display: "flex", flexDirection: "column", gap: 4 }}>
           <p style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere" }}>{p.name || t("pedido.sinNombre")}</p>
           <p style={{ margin: 0, fontSize: 17, fontWeight: 600, color: sinPrecio(p) ? "#FCD34D" : "#fff" }}>{sinPrecio(p) ? t("revisar.tocaParaPrecio") : `USD ${p.price}`}</p>
           <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.8)" }}>{prov || t("revisar.sinProveedor")} · {horaDe(p.createdAt)}</p>

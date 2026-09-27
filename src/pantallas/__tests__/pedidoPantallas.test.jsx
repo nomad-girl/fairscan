@@ -8,7 +8,7 @@ import { FichaProveedor } from "../FichaProveedor.jsx";
 import { ArmarPedido } from "../ArmarPedido.jsx";
 import { Pedidos } from "../Pedidos.jsx";
 
-vi.mock("../../sistema/vibrar.js", () => ({ vibrarSeleccion: vi.fn(), vibrarExito: vi.fn(), vibrarError: vi.fn(), vibrarObturador: vi.fn(), vibrarAviso: vi.fn() }));
+vi.mock("../../sistema/vibrar.js", () => ({ vibrarSeleccion: vi.fn(), vibrarEncastre: vi.fn(), vibrarExito: vi.fn(), vibrarError: vi.fn(), vibrarObturador: vi.fn(), vibrarAviso: vi.fn() }));
 
 beforeAll(() => { iniciarIdiomas("es-AR"); });
 afterEach(cleanup);
