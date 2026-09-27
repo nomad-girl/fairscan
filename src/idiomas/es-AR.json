@@ -416,7 +416,11 @@
     "agregarVendedor": "Agregar el nombre del vendedor",
     "vendedor": "Vendedor",
     "sacarFotos": "Sacar fotos de este proveedor",
-    "compra": "Compra"
+    "compra": "Compra",
+    "verTodos": "Ver todos ›",
+    "galeria": "Sus productos",
+    "paginaTarjeta": "La tarjeta",
+    "paginaGaleria": "Sus productos"
   },
   "pedido": {
     "titulo": "Pedido",

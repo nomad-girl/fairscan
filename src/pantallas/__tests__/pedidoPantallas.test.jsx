@@ -42,22 +42,25 @@ describe("Ficha de proveedor", () => {
     expect(screen.getByRole("button", { name: "Taza de cerámica" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Marcar proveedor como favorito" }));
     expect(onUpdate).toHaveBeenCalledWith(10, { favorito: 1 }, true);
+    fireEvent.click(screen.getAllByText("Ver todos los datos")[0]); // Armar pedido vive en la hoja de datos (27/09)
     fireEvent.click(screen.getByText("Armar pedido · 3 productos"));
     expect(onArmarPedido).toHaveBeenCalledWith(yiwu);
   });
   it("con un pedido en curso dice Seguir el pedido; sin productos el botón no se puede tocar", () => {
     const pedidos = [{ id: 1, supplierId: 10, estado: "en_curso", items: [{ productId: 1, cantidad: 10 }, { productId: 2, cantidad: 6 }] }];
     const { unmount } = con(<FichaProveedor supplier={yiwu} products={products} pedidos={pedidos} districts={districts} />);
+    fireEvent.click(screen.getAllByText("Ver todos los datos")[0]);
     expect(screen.getByText("Seguir el pedido · 2 productos")).toBeTruthy();
     unmount();
     con(<FichaProveedor supplier={shenzhen} products={[]} districts={districts} />);
+    fireEvent.click(screen.getAllByText("Ver todos los datos")[0]);
     expect(screen.getByText("Armar pedido · 0 productos").closest("button").disabled).toBe(true);
-    expect(screen.getByText("Todavía no hay productos de este proveedor")).toBeTruthy();
+    expect(screen.getAllByText("Todavía no hay productos de este proveedor").length).toBeGreaterThan(0);
   });
   it("los campos vacíos se ven en gris al final; eliminar pide confirmación", () => {
     const onDelete = vi.fn();
     con(<FichaProveedor supplier={yiwu} products={products} districts={districts} onDelete={onDelete} />);
-    fireEvent.click(screen.getByText("Ver todos los datos"));
+    fireEvent.click(screen.getAllByText("Ver todos los datos")[0]);
     expect(screen.getByText("Sitio web")).toBeTruthy(); // opción A: lo vacío a la vista, en gris
     fireEvent.click(screen.getByText("Eliminar proveedor"));
     expect(onDelete).not.toHaveBeenCalled();

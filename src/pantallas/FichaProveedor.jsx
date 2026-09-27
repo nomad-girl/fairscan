@@ -8,7 +8,7 @@
  * contacto y el stand, el mínimo, la tira de sus productos y los dos botones: Armar pedido y
  * "Ver todos los datos", que abre la hoja con los campos, las notas, la nota de voz y eliminar.
  */
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { Boton, Bloque, Campo, Icono, Hoja, PaginadorVertical } from "../componentes/index.js";
@@ -25,6 +25,9 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
   const [datosAbiertos, setDatosAbiertos] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
   const [guardado, setGuardado] = useState(false);
+  const [pagina, setPagina] = useState(0); // 0 = la tarjeta · 1 = la galería de sus productos (27/09)
+  const paginasRef = useRef(null);
+  useEffect(() => { setPagina(0); paginasRef.current?.scrollTo?.({ left: 0 }); }, [s.id]);
 
   const suyos = useMemo(() => productosParaPedido(products, s.id), [products, s.id]);
   const pedido = pedidoDeProveedor(pedidos, s.id);
@@ -65,15 +68,26 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
   const subtituloDe = (x) => [x.boothNumber ? `${t("proveedor.stand")} ${x.boothNumber}` : null, districts.find(d => d.id === x.districtId)?.name].filter(Boolean).join(" · ");
   const posicion = idx >= 0 ? t("proveedor.posicion", { n: idx + 1, total: allSuppliers.length }) : "";
 
-  // Una pantalla del feed: la tarjeta entera (o la foto del primer producto) y el pie con lo esencial.
-  const pantalla = (x, esta) => {
+  // El pie de la portada y de la galería: los dos botones (27/09, Nati: "Armar pedido ahí me molesta; nadie arma un
+  // pedido desde el celular, e interfiere con dos acciones más importantes: agregar otro producto o ver los datos").
+  // Agregar producto es el principal (naranja); Ver todos los datos, el secundario. Armar pedido vive en la hoja de datos.
+  const botones = (propios) => (
+    <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+      {onAddProduct && <button type="button" onClick={onAddProduct} style={{ minHeight: 44, borderRadius: 999, border: "none", background: paleta.accent, color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 700, padding: "0 16px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}><Icono nombre="camara" tamano={16} color="#fff" />{propios.length === 0 ? t("proveedor.sacarFotos") : t("proveedor.agregarProducto")}</button>}
+      <button type="button" onClick={() => setDatosAbiertos(true)} style={{ minHeight: 44, borderRadius: 999, border: "1px solid rgba(255,255,255,0.6)", background: "rgba(10,14,23,0.35)", color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 600, padding: "0 14px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+        <Icono nombre="abajo" tamano={16} color="#fff" style={{ transform: "rotate(180deg)" }} />{t("proveedor.verDatos")}
+      </button>
+    </div>
+  );
+  const irA = (n) => { const el = paginasRef.current; if (!el) return; el.scrollTo?.({ left: n * el.offsetWidth, behavior: "smooth" }); setPagina(n); };
+
+  // La portada del feed: la tarjeta entera (o la foto del primer producto) y el pie con lo esencial.
+  const portada = (x, esta, propios) => {
     const tarjeta = x.cardPhoto || x.cardPhotoUrl || null;
-    const propios = esta ? suyos : productosParaPedido(products, x.id);
     const primera = !tarjeta && propios[0] ? (elegirMiniatura(propios[0]) || respaldoDe(propios[0])) : null;
     const fondo = tarjeta || primera;
-    const pedidoX = esta ? enCurso : null;
     return (
-      <div key={x.id} style={{ height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative", background: "#0B0E17" }}>
+      <div style={{ width: "100%", height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative" }}>
         <div style={{ position: "absolute", inset: 0 }}>
           {fondo ? (Foto
             ? <Foto src={fondo} respaldo={tarjeta ? (x.cardPhotoUrl || null) : (propios[0] ? respaldoDe(propios[0]) : null)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: tarjeta ? "contain" : "cover", display: "block" }} />
@@ -87,25 +101,53 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
           {subtituloDe(x) && <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.75)", paddingRight: 60 }}>{subtituloDe(x)}</p>}
           {x.minimoDeCompra ? <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.75)" }}>{t("proveedor.minimoDeCompra")} {moneda} {x.minimoDeCompra}</p> : null}
           {propios.length > 0 ? (
-            <div style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", marginTop: 8, paddingBottom: 2 }}>
-              {propios.map(p => (
+            <div style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", marginTop: 8, paddingBottom: 2, alignItems: "center" }}>
+              {propios.slice(0, 8).map(p => (
                 <button key={p.id} type="button" onClick={() => onNavigateProduct?.(p)} aria-label={p.name || t("pedido.sinNombre")} style={{ width: 64, height: 64, flexShrink: 0, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,0.35)", padding: 0, background: "rgba(255,255,255,0.15)", cursor: "pointer" }}>{miniatura(p)}</button>
               ))}
+              {/* La galería entera está a un deslizamiento a la izquierda (27/09) */}
+              {esta && <button type="button" onClick={() => irA(1)} style={{ height: 64, flexShrink: 0, borderRadius: 10, border: "1px solid rgba(255,255,255,0.35)", padding: "0 12px", background: "rgba(255,255,255,0.15)", color: "#fff", fontFamily: "inherit", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{t("proveedor.verTodos")}</button>}
             </div>
           ) : <p style={{ margin: "8px 0 0", fontSize: 14, color: "rgba(255,255,255,0.75)" }}>{t("proveedor.sinProductos")}</p>}
           <p style={{ margin: "2px 0 0", fontSize: 13, color: "rgba(255,255,255,0.75)" }}>{t("proveedor.conProductos", { count: propios.length })}</p>
-          {esta && (
-            <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-              {onAddProduct && <button type="button" onClick={onAddProduct} style={{ minHeight: 44, borderRadius: 999, border: propios.length === 0 ? "none" : "1px solid rgba(255,255,255,0.6)", background: propios.length === 0 ? paleta.accent : "rgba(10,14,23,0.35)", color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 700, padding: "0 16px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}><Icono nombre="camara" tamano={16} color="#fff" />{propios.length === 0 ? t("proveedor.sacarFotos") : t("proveedor.agregarProducto")}</button>}
-              {!(propios.length === 0 && onAddProduct) && <button type="button" disabled={propios.length === 0} onClick={() => onArmarPedido?.(x)} style={{ minHeight: 44, borderRadius: 999, border: "none", background: propios.length === 0 ? "rgba(255,255,255,0.25)" : paleta.accent, color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 700, padding: "0 16px", display: "inline-flex", alignItems: "center", gap: 6, cursor: propios.length === 0 ? "default" : "pointer" }}>
-                <Icono nombre="pedido" tamano={16} color="#fff" />{pedidoX ? `${t("proveedor.seguirPedido")} · ${t("proveedor.conProductos", { count: pedidoX.lineas.length })}` : `${t("proveedor.armarPedido")} · ${t("proveedor.conProductos", { count: propios.length })}`}
-              </button>}
-              <button type="button" onClick={() => setDatosAbiertos(true)} style={{ minHeight: 44, borderRadius: 999, border: "1px solid rgba(255,255,255,0.6)", background: "rgba(10,14,23,0.35)", color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 600, padding: "0 14px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-                <Icono nombre="abajo" tamano={16} color="#fff" style={{ transform: "rotate(180deg)" }} />{t("proveedor.verDatos")}
-              </button>
-            </div>
-          )}
+          {esta && botones(propios)}
         </div>
+      </div>
+    );
+  };
+
+  // La galería: todos sus productos en una grilla, para el pantallazo general (27/09). Tocás uno y lo abrís.
+  const galeria = (x, propios) => (
+    <div style={{ width: "100%", height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative", display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: `calc(env(safe-area-inset-top, 0px) + 72px) 14px 16px`, WebkitOverflowScrolling: "touch" }}>
+        <p style={{ margin: "0 0 10px", fontSize: 15, fontWeight: 600, color: "rgba(255,255,255,0.85)" }}>{x.company || t("proveedor.titulo")} · {t("proveedor.conProductos", { count: propios.length })}</p>
+        {propios.length === 0 ? <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.7)" }}>{t("proveedor.sinProductos")}</p> : (
+          <div role="list" aria-label={t("proveedor.galeria")} style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 4 }}>
+            {propios.map(p => (
+              <button key={p.id} type="button" role="listitem" onClick={() => onNavigateProduct?.(p)} aria-label={p.name || t("pedido.sinNombre")} style={{ aspectRatio: "1", borderRadius: 8, overflow: "hidden", border: "none", padding: 0, background: "rgba(255,255,255,0.1)", cursor: "pointer", position: "relative" }}>
+                {miniatura(p)}
+                {p.price ? <span style={{ position: "absolute", left: 6, bottom: 6, background: "rgba(10,14,23,0.7)", color: "#fff", borderRadius: 6, padding: "2px 6px", fontSize: 11, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moneda} {p.price}</span> : null}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div style={{ padding: `8px 18px calc(18px + env(safe-area-inset-bottom, 0px))`, background: "linear-gradient(to top, rgba(10,14,23,0.95), rgba(10,14,23,0.6))", color: "#fff" }}>{botones(propios)}</div>
+    </div>
+  );
+
+  // Una pantalla del feed. La del proveedor actual se desliza a la izquierda para ver la galería (después de la tarjeta).
+  const pantalla = (x, esta) => {
+    const propios = esta ? suyos : productosParaPedido(products, x.id);
+    return (
+      <div key={x.id} style={{ height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative", background: "#0B0E17" }}>
+        {esta ? (
+          <div ref={paginasRef} onScroll={e => setPagina(Math.round(e.target.scrollLeft / Math.max(1, e.target.offsetWidth)))}
+            style={{ position: "absolute", inset: 0, display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch", touchAction: "pan-x pan-y" }}>
+            {portada(x, true, propios)}
+            {galeria(x, propios)}
+          </div>
+        ) : portada(x, false, propios)}
       </div>
     );
   };
@@ -128,6 +170,14 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
           {guardado ? <><Icono nombre="listo" tamano={14} color="#86EFAC" />{t("proveedor.guardado")}</> : posicion}
         </span>
         {redondo("favorito", s.favorito ? t("proveedor.quitarFavorito") : t("proveedor.marcarFavorito"), () => guardar({ favorito: s.favorito ? 0 : 1 }), { activo: !!s.favorito, presionado: !!s.favorito })}
+      </div>
+      {/* Los dos puntos: la tarjeta · sus productos (27/09) */}
+      <div role="tablist" aria-label={t("proveedor.galeria")} style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 66px)`, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 6 }}>
+        {[t("proveedor.paginaTarjeta"), t("proveedor.paginaGaleria")].map((nombre, n) => (
+          <button key={n} type="button" role="tab" aria-selected={pagina === n} aria-label={nombre} onClick={() => irA(n)} style={{ width: 22, height: 22, border: "none", background: "transparent", padding: 0, cursor: "pointer", display: "grid", placeItems: "center" }}>
+            <span style={{ width: pagina === n ? 18 : 7, height: 7, borderRadius: 4, background: pagina === n ? "#fff" : "rgba(255,255,255,0.45)", transition: "width 200ms ease" }} />
+          </button>
+        ))}
       </div>
 
       {/* A la derecha: los contactos, con nombre debajo (un toque y estás escribiendo) */}
@@ -154,6 +204,12 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
           </Bloque>
           <Bloque titulo={t("proveedor.compra")}>
             <Campo etiqueta={`${t("proveedor.minimoDeCompra")} ${moneda}`} valor={s.minimoDeCompra} tipo="numero" onChange={v => guardar({ minimoDeCompra: v })} />
+            {/* El pedido se arma en la compu; acá queda a mano pero sin tapar lo importante (27/09) */}
+            <div style={{ padding: "10px 0 8px" }}>
+              <Boton variante="secundario" ancho="total" icono="pedido" deshabilitado={suyos.length === 0} onClick={() => { setDatosAbiertos(false); onArmarPedido?.(s); }}>
+                {enCurso ? `${t("proveedor.seguirPedido")} · ${t("proveedor.conProductos", { count: enCurso.lineas.length })}` : `${t("proveedor.armarPedido")} · ${t("proveedor.conProductos", { count: suyos.length })}`}
+              </Boton>
+            </div>
           </Bloque>
           <Bloque titulo={t("proveedor.notas")}>
             <Campo etiqueta={t("proveedor.comentarios")} valor={s.notes} multilinea onChange={v => guardar({ notes: v })} />
