@@ -93,13 +93,11 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
     const par = filtro === "repetidos" ? parDe(p) : null;
     const otro = par ? (par.a.id === p.id ? par.b : par.a) : null;
     const prov = nombreProveedor(p);
-    const faltas = [sinPrecio(p) && t("revisar.sinPrecio"), !p.supplierId && t("revisar.sinProveedor")].filter(Boolean);
     return (
       <div key={p.id} style={{ height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative", background: "#0B0E17" }}>
         <div style={{ position: "absolute", inset: 0 }}>{foto(p)}</div>
-        {esta && faltas.length > 0 && (
-          <span style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 66px)`, right: 14, background: "rgba(220,38,38,0.9)", color: "#fff", borderRadius: 999, padding: "5px 11px", fontSize: 12, fontWeight: 700 }}>{faltas.join(" · ")}</span>
-        )}
+        {/* 27/09: la etiqueta roja de arriba a la derecha se pisaba con los filtros (Nati: "está todo superpuesto"); lo que
+            falta ya se dice en el pie, en amarillo, y en los botones naranjas de la derecha. */}
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: `80px 84px calc(18px + env(safe-area-inset-bottom, 0px)) 18px`, background: "linear-gradient(to top, rgba(10,14,23,0.9) 60%, rgba(10,14,23,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 }}>
           <p style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere" }}>{p.name || t("pedido.sinNombre")}</p>
           <p style={{ margin: 0, fontSize: 17, fontWeight: 600, color: sinPrecio(p) ? "#FCD34D" : "#fff" }}>{sinPrecio(p) ? t("revisar.tocaParaPrecio") : `USD ${p.price}`}</p>
@@ -175,7 +173,7 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
       {actual && !enCierre && (
         <div style={{ position: "absolute", right: 10, bottom: `calc(160px + env(safe-area-inset-bottom, 0px))`, display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
           {redondo("favorito", favs.has(actual.id) ? t("ficha.quitarFavorito") : t("ficha.marcarFavorito"), () => alternarFav(actual), { activo: favs.has(actual.id), presionado: favs.has(actual.id), texto: t("revisar.favorito") })}
-          {redondo("editar", t("revisar.ponerPrecio"), () => { setValor(""); setHoja("precio"); }, { activo: sinPrecio(actual), texto: "$" })}
+          {redondo("editar", t("revisar.ponerPrecio"), () => { setValor(""); setHoja("precio"); }, { activo: sinPrecio(actual), texto: t("revisar.precioCorto") })}
           {redondo("proveedor", t("revisar.elegirProveedor"), () => setHoja("proveedor"), { activo: !actual.supplierId, texto: t("proveedor.titulo") })}
           {redondo("borrar", `${t("revisar.eliminar")} ${actual.name || ""}`.trim(), () => eliminar(actual), { texto: t("comun.borrar") })}
         </div>
