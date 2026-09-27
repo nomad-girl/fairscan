@@ -376,7 +376,8 @@
     "fotoCorto": "Foto",
     "ponerPrecio": "Poner precio",
     "tocaPrecio": "Tocá para poner el precio",
-    "guardarPrecio": "Guardar"
+    "guardarPrecio": "Guardar",
+    "sinPrecio": "Sin precio"
   },
   "proveedor": {
     "titulo": "Proveedor",
@@ -430,9 +431,10 @@
     "sacarFotos": "Sacar fotos de este proveedor",
     "compra": "Compra",
     "paginaTarjeta": "Tarjeta",
-    "deslizaParaVer": "deslizá para verlos ›",
+    "deslizaParaVer": "deslizá para ver sus productos ›",
     "tocaParaAbrir": "Tocá la foto para abrir el producto",
-    "verProductos": "Productos"
+    "verProductos": "Productos",
+    "abrirProducto": "Abrir el producto ›"
   },
   "pedido": {
     "titulo": "Pedido",

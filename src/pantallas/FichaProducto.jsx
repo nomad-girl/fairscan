@@ -140,15 +140,17 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
             {x.price ? <span style={{ color: "#86EFAC" }}>{moneda} {x.price}</span> : <span style={{ color: "#FCD34D", fontSize: 16, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6 }}><Icono nombre="editar" tamano={16} color="#FCD34D" />{t("ficha.tocaPrecio")}</span>}
             {x.moq ? <span style={{ fontWeight: 400, fontSize: 14, color: "rgba(255,255,255,0.75)" }}> · MOQ {x.moq}{x.moqBase ? " " + t(`ficha.basePor${x.moqBase[0].toUpperCase()}${x.moqBase.slice(1)}`) : ""}</span> : null}
           </button>
-          {/* 27/09: el proveedor, grande y fácil de tocar */}
-          {sup ? (
-            <button type="button" onClick={() => onNavigateSupplier?.(sup)} style={{ alignSelf: "flex-start", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.35)", borderRadius: 999, padding: "0 14px 0 10px", minHeight: 44, color: "#fff", fontFamily: "inherit", fontSize: 16, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer", textAlign: "left", maxWidth: "100%" }}>
-              <Icono nombre="proveedor" tamano={18} color="#fff" /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 220 }}>{sup.company || `#${sup.id}`}</span><Icono nombre="siguiente" tamano={16} color="rgba(255,255,255,0.7)" />
+          {/* 27/09: el proveedor (grande, fácil de tocar) y "Ver todos los datos" en una sola fila: menos pila de cosas al pie */}
+          <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
+            {sup ? (
+              <button type="button" onClick={() => onNavigateSupplier?.(sup)} style={{ background: "rgba(255,255,255,0.14)", border: "1px solid rgba(255,255,255,0.4)", borderRadius: 999, padding: "0 12px 0 10px", minHeight: 42, color: "#fff", fontFamily: "inherit", fontSize: 15, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", textAlign: "left", maxWidth: "100%", minWidth: 0 }}>
+                <Icono nombre="proveedor" tamano={17} color="#fff" /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 170 }}>{sup.company || `#${sup.id}`}</span><Icono nombre="siguiente" tamano={14} color="rgba(255,255,255,0.7)" />
+              </button>
+            ) : <span style={{ fontSize: 14, color: "rgba(255,255,255,0.6)" }}>{t("ficha.sinProveedor")}</span>}
+            <button type="button" onClick={() => setDatosAbiertos(true)} style={{ minHeight: 42, borderRadius: 999, border: "1px solid rgba(255,255,255,0.4)", background: "rgba(10,14,23,0.35)", color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 600, padding: "0 12px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+              <Icono nombre="abajo" tamano={16} color="#fff" style={{ transform: "rotate(180deg)" }} />{t("ficha.verDatos")}
             </button>
-          ) : <span style={{ fontSize: 14, color: "rgba(255,255,255,0.6)" }}>{t("ficha.sinProveedor")}</span>}
-          <button type="button" onClick={() => setDatosAbiertos(true)} style={{ marginTop: 10, alignSelf: "flex-start", minHeight: 40, borderRadius: 999, border: "1px solid rgba(255,255,255,0.6)", background: "rgba(10,14,23,0.35)", color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 600, padding: "0 14px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-            <Icono nombre="abajo" tamano={16} color="#fff" style={{ transform: "rotate(180deg)" }} />{t("ficha.verDatos")}
-          </button>
+          </div>
           {fs.length > 1 && esta && (
             <div style={{ position: "absolute", right: 18, bottom: `calc(22px + env(safe-area-inset-bottom, 0px))`, display: "flex", gap: 5 }}>
               {fs.map((_, i) => <span key={i} style={{ width: foto === i ? 16 : 6, height: 6, borderRadius: 3, background: foto === i ? "#fff" : "rgba(255,255,255,0.5)", transition: "width 150ms" }} />)}
@@ -247,7 +249,7 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ ...texto("titulo"), color: paleta.muted }}>{moneda}</span>
           <input autoFocus type="text" inputMode="decimal" value={precioBorrador} aria-label={`${t("ficha.precio")} ${moneda}`} onChange={e => setPrecioBorrador(e.target.value.replace(/[^0-9.,]/g, ""))} onKeyDown={e => { if (e.key === "Enter") guardarPrecio(); }} placeholder="0"
-            style={{ flex: 1, minHeight: 56, fontSize: 32, fontWeight: 700, fontVariantNumeric: "tabular-nums", borderRadius: radios.medio, border: `1px solid ${paleta.accent}`, background: paleta.surface, color: paleta.text, padding: "0 14px", fontFamily: "inherit", outline: "none" }} />
+            style={{ flex: 1, minWidth: 0, width: "100%", boxSizing: "border-box", minHeight: 56, fontSize: 32, fontWeight: 700, fontVariantNumeric: "tabular-nums", borderRadius: radios.medio, border: `1px solid ${paleta.accent}`, background: paleta.surface, color: paleta.text, padding: "0 14px", fontFamily: "inherit", outline: "none" }} />
         </div>
       </Hoja>
 

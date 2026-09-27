@@ -75,57 +75,55 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
   const irA = (n) => { const el = paginasRef.current; if (!el) return; el.scrollTo?.({ left: n * el.offsetWidth, behavior: "smooth" }); setPagina(n); };
   const PIE = { position: "absolute", left: 0, right: 0, bottom: 0, padding: `80px 18px calc(18px + env(safe-area-inset-bottom, 0px))`, background: "linear-gradient(to top, rgba(10,14,23,0.9) 60%, rgba(10,14,23,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 };
 
-  // La portada: la tarjeta entera (o la foto del primer producto) y el pie con lo esencial.
-  const portada = (x, esta, propios) => {
+  // El pie del proveedor: es el mismo en todas las diapositivas (27/09, Nati: "cuando swipeás que cambie la portada,
+  // no que te vayas de la ficha"). Solo cambia la foto de atrás: la tarjeta, y después cada producto.
+  const pie = (x, esta, propios, producto = null) => (
+    <div style={PIE}>
+      {producto && (
+        <button type="button" onClick={() => onNavigateProduct?.(producto)} style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 8, maxWidth: "100%", marginBottom: 8, padding: "8px 12px 8px 10px", borderRadius: 14, border: "1px solid rgba(255,255,255,0.45)", background: "rgba(255,255,255,0.14)", color: "#fff", fontFamily: "inherit", cursor: "pointer", textAlign: "left" }}>
+          <span style={{ minWidth: 0 }}>
+            <span style={{ display: "block", fontSize: 15, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 230 }}>{producto.name || t("pedido.sinNombre")}</span>
+            <span style={{ display: "block", fontSize: 13, color: producto.price ? "#86EFAC" : "rgba(255,255,255,0.75)", fontWeight: 600 }}>{producto.price ? `${moneda} ${producto.price}` : t("ficha.sinPrecio")} · <span style={{ color: "rgba(255,255,255,0.85)", fontWeight: 500 }}>{t("proveedor.abrirProducto")}</span></span>
+          </span>
+        </button>
+      )}
+      <p style={{ margin: 0, fontSize: producto ? 20 : 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere", paddingRight: 60 }}>{x.company || t("proveedor.titulo")}</p>
+      {x.contact && !producto && <p style={{ margin: 0, fontSize: 17, fontWeight: 500, color: "rgba(255,255,255,0.92)", paddingRight: 60 }}>{x.contact}</p>}
+      {subtituloDe(x) && <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.75)", paddingRight: 60 }}>{subtituloDe(x)}</p>}
+      {x.minimoDeCompra && !producto ? <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.75)" }}>{t("proveedor.minimoDeCompra")} {moneda} {x.minimoDeCompra}</p> : null}
+      {propios.length > 0 ? (
+        <div style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", marginTop: 8, paddingBottom: 2, alignItems: "center" }}>
+          {/* La tira es el índice del carrusel: la que se ve tiene el borde blanco; tocar una lleva a esa foto */}
+          {propios.map((p, k) => (
+            <button key={p.id} type="button" onClick={() => (esta ? irA(k + 1) : onNavigateProduct?.(p))} aria-label={p.name || t("pedido.sinNombre")} aria-current={producto?.id === p.id || undefined} style={{ width: 56, height: 56, flexShrink: 0, borderRadius: 10, overflow: "hidden", border: producto?.id === p.id ? "2px solid #fff" : "1px solid rgba(255,255,255,0.35)", padding: 0, background: "rgba(255,255,255,0.15)", cursor: "pointer", opacity: producto && producto.id !== p.id ? 0.7 : 1 }}>{miniatura(p)}</button>
+          ))}
+        </div>
+      ) : <p style={{ margin: "8px 0 0", fontSize: 14, color: "rgba(255,255,255,0.75)" }}>{t("proveedor.sinProductos")}</p>}
+      <p style={{ margin: "2px 0 0", fontSize: 13, color: "rgba(255,255,255,0.75)" }}>{t("proveedor.conProductos", { count: propios.length })}{esta && propios.length > 0 && !producto ? ` · ${t("proveedor.deslizaParaVer")}` : ""}</p>
+      {esta && botones(propios)}
+    </div>
+  );
+
+  // Una diapositiva del carrusel: la foto de atrás (la tarjeta, o un producto) y el pie del proveedor encima.
+  const diapositiva = (x, esta, propios, producto = null) => {
     const tarjeta = x.cardPhoto || x.cardPhotoUrl || null;
     const primera = !tarjeta && propios[0] ? (elegirMiniatura(propios[0]) || respaldoDe(propios[0])) : null;
-    const fondo = tarjeta || primera;
+    const fondo = producto ? (producto.photos?.[0] || respaldoDe(producto) || elegirMiniatura(producto)) : (tarjeta || primera);
+    const respaldo = producto ? respaldoDe(producto) : (tarjeta ? (x.cardPhotoUrl || null) : (propios[0] ? respaldoDe(propios[0]) : null));
+    const entera = producto ? false : !!tarjeta; // la tarjeta se ve entera (el QR se escanea de acá); las fotos llenan la pantalla
     return (
-      <div style={{ width: "100%", height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative" }}>
-        <div style={{ position: "absolute", inset: 0 }}>
+      <div key={producto ? producto.id : "tarjeta"} style={{ width: "100%", height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative" }}>
+        <div style={{ position: "absolute", inset: 0 }} onClick={producto ? () => onNavigateProduct?.(producto) : undefined}>
           {fondo ? (Foto
-            ? <Foto src={fondo} respaldo={tarjeta ? (x.cardPhotoUrl || null) : (propios[0] ? respaldoDe(propios[0]) : null)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: tarjeta ? "contain" : "cover", display: "block" }} />
-            : <img src={fondo} alt="" style={{ width: "100%", height: "100%", objectFit: tarjeta ? "contain" : "cover", display: "block" }} />)
+            ? <Foto src={fondo} respaldo={respaldo} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: entera ? "contain" : "cover", display: "block" }} />
+            : <img src={fondo} alt="" style={{ width: "100%", height: "100%", objectFit: entera ? "contain" : "cover", display: "block" }} />)
             : <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center" }}><span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, color: "rgba(255,255,255,0.6)", fontSize: 14 }}><Icono nombre="tarjeta" tamano={40} color="rgba(255,255,255,0.6)" />{t("proveedor.sinTarjeta")}</span></div>}
         </div>
-        <div style={PIE}>
-          <p style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere", paddingRight: 60 }}>{x.company || t("proveedor.titulo")}</p>
-          {x.contact && <p style={{ margin: 0, fontSize: 17, fontWeight: 500, color: "rgba(255,255,255,0.92)", paddingRight: 60 }}>{x.contact}</p>}
-          {subtituloDe(x) && <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.75)", paddingRight: 60 }}>{subtituloDe(x)}</p>}
-          {x.minimoDeCompra ? <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.75)" }}>{t("proveedor.minimoDeCompra")} {moneda} {x.minimoDeCompra}</p> : null}
-          {propios.length > 0 ? (
-            <div style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", marginTop: 8, paddingBottom: 2, alignItems: "center" }}>
-              {/* La tira es el índice: tocar una miniatura lleva a esa foto en el carrusel (27/09) */}
-              {propios.map((p, k) => (
-                <button key={p.id} type="button" onClick={() => (esta ? irA(k + 1) : onNavigateProduct?.(p))} aria-label={p.name || t("pedido.sinNombre")} style={{ width: 64, height: 64, flexShrink: 0, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,0.35)", padding: 0, background: "rgba(255,255,255,0.15)", cursor: "pointer" }}>{miniatura(p)}</button>
-              ))}
-            </div>
-          ) : <p style={{ margin: "8px 0 0", fontSize: 14, color: "rgba(255,255,255,0.75)" }}>{t("proveedor.sinProductos")}</p>}
-          <p style={{ margin: "2px 0 0", fontSize: 13, color: "rgba(255,255,255,0.75)" }}>{t("proveedor.conProductos", { count: propios.length })}{esta && propios.length > 0 ? ` · ${t("proveedor.deslizaParaVer")}` : ""}</p>
-          {esta && botones(propios)}
-        </div>
+        {pie(x, esta, propios, producto)}
       </div>
     );
   };
-
-  // Cada producto es una foto más del carrusel, después de la tarjeta (27/09, Nati: "desde la foto de la tarjeta
-  // se pueda pasar y empiecen a verse los productos"). Tocarla abre el producto.
-  const diapositiva = (p, k, propios) => {
-    const src = p.photos?.[0] || respaldoDe(p) || elegirMiniatura(p);
-    return (
-      <div key={p.id} style={{ width: "100%", height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative" }}>
-        <button type="button" onClick={() => onNavigateProduct?.(p)} aria-label={t("proveedor.verProducto", { nombre: p.name || t("pedido.sinNombre") })} style={{ position: "absolute", inset: 0, padding: 0, border: "none", background: "#0B0E17", cursor: "pointer" }}>
-          {src ? (Foto ? <Foto src={src} respaldo={respaldoDe(p)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} /> : <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />) : null}
-        </button>
-        <div style={{ ...PIE, pointerEvents: "none" }}>
-          <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.7)" }}>{t("proveedor.posicion", { n: k + 1, total: propios.length })}</p>
-          <p style={{ margin: 0, fontSize: 22, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere", paddingRight: 60 }}>{p.name || t("pedido.sinNombre")}</p>
-          <p style={{ margin: 0, fontSize: 17, fontWeight: 600, color: p.price ? "#86EFAC" : "rgba(255,255,255,0.7)" }}>{p.price ? `${moneda} ${p.price}` : t("ficha.sinPrecio")}</p>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "rgba(255,255,255,0.7)" }}>{t("proveedor.tocaParaAbrir")}</p>
-        </div>
-      </div>
-    );
-  };
+  const portada = (x, esta, propios) => diapositiva(x, esta, propios, null);
 
   // Una pantalla del feed. La del proveedor actual es un carrusel horizontal: la tarjeta y después sus productos.
   const pantalla = (x, esta) => {
@@ -136,7 +134,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
           <div ref={paginasRef} onScroll={e => setPagina(Math.round(e.target.scrollLeft / Math.max(1, e.target.offsetWidth)))}
             style={{ position: "absolute", inset: 0, display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch", touchAction: "pan-x pan-y" }}>
             {portada(x, true, propios)}
-            {propios.map((p, k) => diapositiva(p, k, propios))}
+            {propios.map(p => diapositiva(x, true, propios, p))}
           </div>
         ) : portada(x, false, propios)}
       </div>
@@ -171,6 +169,11 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
           <button type="button" onClick={() => setGrillaAbierta(true)} aria-label={t("proveedor.verProductos")} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(10,14,23,0.55)", color: "#fff", border: "none", borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 600, backdropFilter: "blur(6px)", fontVariantNumeric: "tabular-nums", cursor: "pointer", fontFamily: "inherit" }}>
             <Icono nombre="foto" tamano={14} color="#fff" />{pagina === 0 ? t("proveedor.paginaTarjeta") : t("proveedor.posicion", { n: pagina, total: suyos.length })} · {t("proveedor.verProductos")}
           </button>
+        </div>
+      )}
+      {suyos.length > 0 && suyos.length <= 12 && (
+        <div aria-hidden style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 100px)`, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 4, pointerEvents: "none" }}>
+          {Array.from({ length: suyos.length + 1 }).map((_, k) => <span key={k} style={{ width: pagina === k ? 14 : 5, height: 5, borderRadius: 3, background: pagina === k ? "#fff" : "rgba(255,255,255,0.5)", transition: "width 150ms" }} />)}
         </div>
       )}
 

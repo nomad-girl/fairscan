@@ -36,10 +36,10 @@ describe("Ficha de proveedor", () => {
   it("productos, contacto directo, favorito y el botón Armar pedido con la cuenta", () => {
     const onUpdate = vi.fn(), onArmarPedido = vi.fn();
     con(<FichaProveedor supplier={yiwu} products={products} districts={districts} onUpdate={onUpdate} onArmarPedido={onArmarPedido} />);
-    expect(screen.getByText("Yiwu Sunrise")).toBeTruthy();
+    expect(screen.getAllByText("Yiwu Sunrise").length).toBeGreaterThan(0); // el pie del proveedor va en todas las diapositivas (27/09)
     expect(screen.getByText("Llamar")).toBeTruthy();
     expect(screen.getByText("Mail")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Taza de cerámica" })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Taza de cerámica" }).length).toBeGreaterThan(0); // la tira va en cada diapositiva
     fireEvent.click(screen.getByRole("button", { name: "Marcar proveedor como favorito" }));
     expect(onUpdate).toHaveBeenCalledWith(10, { favorito: 1 }, true);
     fireEvent.click(screen.getAllByText("Ver todos los datos")[0]); // Armar pedido vive en la hoja de datos (27/09)
@@ -117,7 +117,7 @@ describe("Pedidos", () => {
     const onAbrirPedido = vi.fn();
     const pedidos = [{ id: 1, supplierId: 10, districtId: 1, estado: "enviado", enviadoEl: Date.now(), items: [{ productId: 1, cantidad: 10 }], updatedAt: 1 }];
     con(<Pedidos pedidos={pedidos} suppliers={suppliers} products={products} districts={districts} activeDistrictId={1} onAbrirPedido={onAbrirPedido} />);
-    expect(screen.getByText("Yiwu Sunrise")).toBeTruthy();
+    expect(screen.getAllByText("Yiwu Sunrise").length).toBeGreaterThan(0); // el pie del proveedor va en todas las diapositivas (27/09)
     expect(screen.getByText(/proforma enviada/)).toBeTruthy();
     expect(screen.getByText("Shenzhen Brightwave")).toBeTruthy();
     expect(screen.getByText(/Sin pedido · 1 favorito/)).toBeTruthy();

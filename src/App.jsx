@@ -3207,8 +3207,17 @@ export default function App() {
   // "Ya tengo cuenta" desde la primera vez: el login se muestra sobre la sesión sin cuenta y se cierra solo al entrar.
   const [mostrarLogin, setMostrarLogin] = useState(false);
   useEffect(() => { if (auth.user && !auth.esAnonima) setMostrarLogin(false); }, [auth.user, auth.esAnonima]);
-  const navigate = (s, data) => { setPrevScreen({ screen, data: screenData }); setScreenData(data); setScreen(s); };
-  const goBack = () => { if (prevScreen) { setScreen(prevScreen.screen); setScreenData(prevScreen.data); setPrevScreen(null); } else { setScreen("list"); setScreenData(null); } };
+  // 27/09 (Nati: "volver siempre a donde estabas"): antes se guardaba una sola pantalla anterior, así que
+  // catálogo → producto → proveedor → producto → volver perdía el camino. Ahora es una pila (hasta 12).
+  const pilaRef = useRef([]);
+  const navigate = (s, data) => { pilaRef.current = [...pilaRef.current.slice(-11), { screen, data: screenData }]; setPrevScreen({ screen, data: screenData }); setScreenData(data); setScreen(s); };
+  const goBack = () => {
+    const pila = pilaRef.current;
+    const anterior = pila.length ? pila[pila.length - 1] : null;
+    pilaRef.current = pila.slice(0, -1);
+    setPrevScreen(pilaRef.current.length ? pilaRef.current[pilaRef.current.length - 1] : null);
+    if (anterior) { setScreen(anterior.screen); setScreenData(anterior.data); } else { setScreen("list"); setScreenData(null); }
+  };
 
   const toggleTheme = async () => {
     const next = !isDark;
