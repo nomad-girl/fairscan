@@ -10,6 +10,7 @@ import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { Boton, Chip, FilaDeChips, Fila, Precio, Icono, Hoja } from "../componentes/index.js";
 import { totalesDePedido, totalesDeFeria, proveedoresSinPedido, productosParaPedido } from "../lib/pedidos.js";
 import { numero as fNumero, cbm as fCbm, fechaCorta } from "../idiomas/formato.js";
+import { useVolverConGesto } from "../sistema/useVolverConGesto.js";
 
 export function Pedidos({ pedidos = [], suppliers = [], products = [], districts = [], activeDistrictId = null, moneda = "USD", onBack, onAbrirPedido, onDescargarExcelFeria }) {
   const { t } = useTranslation();
@@ -24,9 +25,10 @@ export function Pedidos({ pedidos = [], suppliers = [], products = [], districts
   const tot = totalesDeFeria(conContenido, products);
   const feriaActual = districts.find(d => d.id === filtro) || null;
   const vacio = conContenido.length === 0 && sinPedido.length === 0;
+  const { ref: raizRef, estilo: estiloGesto } = useVolverConGesto(onBack, { borde: 40 }); // volver con el gesto (27/09)
 
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit" }}>
+    <div ref={raizRef} style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit", ...estiloGesto }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: `calc(0px + 8px) ${espacios.margenLateral}px 8px`, minHeight: alturas.tocable + 16 }}>
         <button type="button" onClick={onBack} aria-label={t("comun.volver")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}><Icono nombre="volver" tamano={20} color={paleta.muted} /></button>
         <h1 style={{ ...texto("titulo"), margin: 0, flex: 1 }}>{t("pedidos.titulo")}</h1>

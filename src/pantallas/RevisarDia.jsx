@@ -11,6 +11,7 @@ import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { Boton, Chip, FilaDeChips, Icono, Hoja, PaginadorVertical } from "../componentes/index.js";
+import { useVolverConGesto } from "../sistema/useVolverConGesto.js";
 import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
 import { fechaCorta } from "../idiomas/formato.js";
 import { paresRepetidos } from "../lib/repetidos.js";
@@ -147,8 +148,11 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
     ["favoritos", t("revisar.juegoFavoritos"), favoritos.length],
   ];
 
+  // Volver con el gesto desde el borde (27/09)
+  const { ref: raizRef, estilo: estiloGesto } = useVolverConGesto(onCerrar, { borde: 40 });
+
   return (
-    <div className="pantalla-fija" style={{ position: "fixed", inset: 0, background: "#000", color: "#fff", fontFamily: "inherit", zIndex: 50 }}>
+    <div ref={raizRef} className="pantalla-fija" style={{ position: "fixed", inset: 0, background: "#000", color: "#fff", fontFamily: "inherit", zIndex: 50, ...estiloGesto }}>
       {total === 0 ? <div style={{ position: "absolute", inset: 0 }}>{cierre}</div> : (
         <PaginadorVertical clave={`${filtro}-${i}`}
           anterior={prev ? pantalla(prev, false) : null}

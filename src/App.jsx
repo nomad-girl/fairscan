@@ -3844,7 +3844,8 @@ export default function App() {
         const pedido = orders.find(o => o.id === screenData.pedidoId);
         if (!supplier || !pedido) return null;
         return <ArmarPedido supplier={supplier} pedido={pedido} products={products} moneda={monedaActual} feria={districts.find(d => d.id === pedido.districtId) || null} Foto={FotoDeProducto} tLegacy={t} primero={screenData.primero || null}
-          onBack={goBack} onGuardar={(cambios) => handleUpdateOrder(pedido.id, cambios)} onEnviar={(via) => enviarProforma(pedido, supplier, via)} onNavigateProduct={p => navigate("detail", p)} />;
+          onBack={goBack} onGuardar={(cambios) => handleUpdateOrder(pedido.id, cambios)} onEnviar={(via) => enviarProforma(pedido, supplier, via)} onNavigateProduct={p => navigate("detail", p)}
+          onEliminar={() => { handleDeleteOrder(pedido.id); goBack(); }} />;
       })()}
       {!esEscritorio && screen === "districts" && (
         <DistrictsScreen districts={districts} activeDistrictId={activeDistrictId} products={products}

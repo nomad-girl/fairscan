@@ -12,6 +12,7 @@ import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
 import { cantidadDe, conCantidad, lineaDePedido, productosParaPedido, totalesDePedido, porcentajeDeContenedor } from "../lib/pedidos.js";
 import { numero as fNumero, cbm as fCbm, fechaCorta } from "../idiomas/formato.js";
 import { vibrarSeleccion } from "../sistema/vibrar.js";
+import { useVolverConGesto } from "../sistema/useVolverConGesto.js";
 
 /** ¿La pantalla es ancha (computadora)? */
 function useAncho(minimo = 900) {
@@ -35,6 +36,7 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
   const escritorio = useAncho(900);
   const [mandando, setMandando] = useState(false);
   const refPrimero = useRef(null);
+  const { ref: raizRef, estilo: estiloGesto } = useVolverConGesto(onBack, { borde: 40 }); // volver con el gesto (27/09)
 
   const suyos = useMemo(() => productosParaPedido(products, s.id, primero), [products, s.id, primero]);
   const items = pedido?.items || [];
@@ -107,7 +109,7 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
   const botonMandar = <Boton variante="principal" ancho="total" icono="compartir" deshabilitado={tot.vacio} onClick={() => setMandando(true)}>{t("pedido.mandar", { empresa: s.company || t("proveedor.titulo") })}</Boton>;
 
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit" }}>
+    <div ref={raizRef} style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit", ...estiloGesto }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: `calc(0px + 8px) ${espacios.margenLateral}px 8px`, minHeight: alturas.tocable + 16, maxWidth: escritorio ? 1480 : undefined, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
         <button type="button" onClick={onBack} aria-label={t("comun.volver")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}><Icono nombre="volver" tamano={20} color={paleta.muted} /></button>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -210,6 +212,8 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
               );
             })}
             {comentarios()}
+            {/* 27/09 (Nati: "en pedidos falta poder eliminar"): también en el teléfono */}
+            {onEliminar && <div style={{ display: "flex", justifyContent: "center", paddingTop: 6 }}><Boton variante="fantasma" icono="borrar" onClick={() => { if (typeof window === "undefined" || typeof window.confirm !== "function" || window.confirm(t("escritorio.eliminarPedidoSeguro", { empresa: s.company || "" }))) onEliminar(); }}>{t("escritorio.eliminarPedido")}</Boton></div>}
           </div>
           <div style={{ padding: `10px ${espacios.margenLateral}px calc(env(safe-area-inset-bottom, 0px) + 10px)`, borderTop: `1px solid ${paleta.border}`, background: paleta.bg }}>
             {botonMandar}

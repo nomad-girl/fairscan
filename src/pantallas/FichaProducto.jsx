@@ -15,6 +15,7 @@ import { estadoIA, patchReintentoIA, explicarFalloIA } from "../lib/aiEstado.js"
 import { urlDeAudio, esPunteroMuerto } from "../lib/audioNotes.js";
 import { haceCuanto } from "../idiomas/formato.js";
 import { respaldoDe } from "../lib/miniaturas.js";
+import { useVolverConGesto } from "../sistema/useVolverConGesto.js";
 
 export function FichaProducto({ product: p, allProducts = [], suppliers = [], districts = [], settings, moneda = "USD", Foto, tLegacy, onBack, onUpdate, onAddPhoto, onDelete, onNavigateSupplier, onNavigateProduct, onPedir }) {
   const { t } = useTranslation();
@@ -24,37 +25,9 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
   const [eligiendoProveedor, setEligiendoProveedor] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
   const [poniendoPrecio, setPoniendoPrecio] = useState(false); // 27/09: el precio se carga desde la portada
-  // Volver al catálogo con el gesto (27/09, híbrido elegido por Nati): arrastrar desde el borde izquierdo hacia la derecha,
-  // o hacia la derecha desde cualquier lado cuando estás en la primera foto (no hay foto anterior, el gesto queda libre).
-  // La ficha se corre con el dedo; al soltar pasado el umbral, vuelve.
-  const [corrimiento, setCorrimiento] = useState(0);
-  const raizRef = useRef(null);
-  const fotoRef = useRef(0);
-  fotoRef.current = foto;
-  const onBackRef = useRef(onBack); onBackRef.current = onBack;
-  useEffect(() => {
-    const el = raizRef.current; if (!el) return;
-    let ini = null;
-    const start = (e) => { const t0 = e.touches[0]; ini = { x: t0.clientX, y: t0.clientY, t: Date.now(), borde: t0.clientX < 28, activo: false }; };
-    const move = (e) => {
-      if (!ini) return;
-      const t0 = e.touches[0]; const dx = t0.clientX - ini.x, dy = t0.clientY - ini.y;
-      if (!ini.activo) {
-        if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
-        if (dx <= 0 || Math.abs(dy) > Math.abs(dx) || !(ini.borde || fotoRef.current === 0)) { ini = null; return; }
-        ini.activo = true;
-      }
-      if (e.cancelable) e.preventDefault();
-      setCorrimiento(Math.max(0, dx));
-    };
-    const end = (e) => {
-      if (!ini) return; const { activo, t: t0, x } = ini; ini = null; if (!activo) return;
-      const dx = (e.changedTouches?.[0]?.clientX ?? x) - x; const v = dx / Math.max(1, Date.now() - t0);
-      if (dx > 90 || v > 0.5) { setCorrimiento(window.innerWidth); setTimeout(() => onBackRef.current?.(), 180); } else setCorrimiento(0);
-    };
-    el.addEventListener("touchstart", start, { passive: true }); el.addEventListener("touchmove", move, { passive: false }); el.addEventListener("touchend", end); el.addEventListener("touchcancel", end);
-    return () => { el.removeEventListener("touchstart", start); el.removeEventListener("touchmove", move); el.removeEventListener("touchend", end); el.removeEventListener("touchcancel", end); };
-  }, []);
+  // Volver al catálogo con el gesto (27/09): desde el borde, o desde cualquier lado cuando estás en la primera foto
+  const fotoRef = useRef(0); fotoRef.current = foto;
+  const { ref: raizRef, estilo: estiloGesto } = useVolverConGesto(onBack, { libre: () => fotoRef.current === 0 });
   const [precioBorrador, setPrecioBorrador] = useState("");
   const fileRef = useRef(null);
 
@@ -169,7 +142,7 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
   );
 
   return (
-    <div ref={raizRef} className="pantalla-fija" style={{ position: "fixed", inset: 0, background: "#000", color: "#fff", fontFamily: "inherit", zIndex: 50, transform: corrimiento ? `translateX(${corrimiento}px)` : "none", transition: corrimiento && corrimiento < window.innerWidth ? "none" : "transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1)", boxShadow: corrimiento ? "-12px 0 30px rgba(0,0,0,0.35)" : "none" }}>
+    <div ref={raizRef} className="pantalla-fija" style={{ position: "fixed", inset: 0, background: "#000", color: "#fff", fontFamily: "inherit", zIndex: 50, ...estiloGesto }}>
       {/* El paginador vertical: anterior · esta · siguiente; al asentarse en una vecina, se navega */}
       <PaginadorVertical clave={p.id} anterior={prev ? pantalla(prev, false) : null} actual={pantalla(p, true)} siguiente={next ? pantalla(next, false) : null}
         onAnterior={() => prev && onNavigateProduct?.(prev)} onSiguiente={() => next && onNavigateProduct?.(next)} />

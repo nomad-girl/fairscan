@@ -15,6 +15,7 @@ import { Boton, Dato, Icono, Hoja, PaginadorVertical, SeccionDeDatos } from "../
 import { urlDeAudio } from "../lib/audioNotes.js";
 import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
 import { pedidoDeProveedor, productosParaPedido, totalesDePedido } from "../lib/pedidos.js";
+import { useVolverConGesto } from "../sistema/useVolverConGesto.js";
 
 
 export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], pedidos = [], districts = [], moneda = "USD", Foto, tLegacy, onBack, onUpdate, onDelete, onNavigateProduct, onNavigateSupplier, onAddProduct, onArmarPedido }) {
@@ -23,7 +24,10 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
   const [datosAbiertos, setDatosAbiertos] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
   const [guardado, setGuardado] = useState(false);
-  const [pagina, setPagina] = useState(0); // 0 = la tarjeta · 1 = la galería de sus productos (27/09)
+  const [pagina, setPagina] = useState(0);
+  const paginaRef = useRef(0); paginaRef.current = pagina;
+  // Volver a la grilla con el gesto (27/09): desde el borde, o desde cualquier lado cuando se ve la tarjeta
+  const { ref: raizRef, estilo: estiloGesto } = useVolverConGesto(onBack, { libre: () => paginaRef.current === 0 }); // 0 = la tarjeta · 1 = la galería de sus productos (27/09)
   const paginasRef = useRef(null);
   useEffect(() => { setPagina(0); paginasRef.current?.scrollTo?.({ left: 0 }); }, [s.id]);
 
@@ -139,7 +143,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
   );
 
   return (
-    <div className="pantalla-fija" style={{ position: "fixed", inset: 0, background: "#000", color: "#fff", fontFamily: "inherit", zIndex: 50 }}>
+    <div ref={raizRef} className="pantalla-fija" style={{ position: "fixed", inset: 0, background: "#000", color: "#fff", fontFamily: "inherit", zIndex: 50, ...estiloGesto }}>
       <PaginadorVertical clave={s.id} anterior={prev ? pantalla(prev, false) : null} actual={pantalla(s, true)} siguiente={next ? pantalla(next, false) : null}
         onAnterior={() => prev && onNavigateSupplier?.(prev)} onSiguiente={() => next && onNavigateSupplier?.(next)} />
 
