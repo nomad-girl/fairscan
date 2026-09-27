@@ -431,10 +431,11 @@
     "sacarFotos": "Sacar fotos de este proveedor",
     "compra": "Compra",
     "paginaTarjeta": "Tarjeta",
-    "deslizaParaVer": "deslizá para ver sus productos ›",
+    "deslizaParaVer": "deslizá para ver la galería ›",
     "tocaParaAbrir": "Tocá la foto para abrir el producto",
     "verProductos": "Productos",
-    "abrirProducto": "Abrir el producto ›"
+    "abrirProducto": "Abrir el producto ›",
+    "galeria": "Galería"
   },
   "pedido": {
     "titulo": "Pedido",
