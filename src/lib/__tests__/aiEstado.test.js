@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { estadoIA, patchReintentoIA, explicarFalloIA } from '../aiEstado.js';
+import { iniciarIdiomas } from '../../idiomas/index.js';
+iniciarIdiomas('es-AR'); // los textos van por claves de idioma (E6, 27/09)
 
 describe('estadoIA', () => {
   it('distingue pendiente, fallo y listo', () => {

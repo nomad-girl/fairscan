@@ -1150,5 +1150,46 @@
     "recien": "recién",
     "haceMin": "hace {{count}} min",
     "haceHoras": "hace {{count}} h"
+  },
+  "permisos": {
+    "ajustesIos": "Ajustes → FairScan → {{permiso}} → activar.",
+    "ajustesAndroid": "Ajustes → Aplicaciones → FairScan → Permisos → {{permiso}} → Permitir.",
+    "ajustesWeb": "En el navegador, tocá el ícono junto a la dirección (el candado o \"aA\") → Configuración del sitio → {{permiso}} → Permitir, y recargá la página.",
+    "camara": "Cámara",
+    "microfono": "Micrófono",
+    "camaraDenegadaTitulo": "La cámara está bloqueada para FairScan",
+    "camaraDenegadaTexto": "Se le dijo \"no\" al permiso de cámara, y el teléfono lo recuerda. Se arregla en un toque: {{instrucciones}} Mientras tanto podés elegir fotos de la galería.",
+    "camaraSinDispositivoTitulo": "No encontramos una cámara",
+    "camaraSinDispositivoTexto": "Este dispositivo no tiene una cámara disponible. Podés elegir una foto de la galería.",
+    "camaraOcupadaTitulo": "La cámara está ocupada",
+    "camaraOcupadaTexto": "Otra app la está usando. Cerrala y probá de nuevo, o elegí una foto de la galería.",
+    "camaraNoSoportadaTitulo": "Este navegador no puede abrir la cámara acá",
+    "camaraNoSoportadaTexto": "Probá abrir FairScan en Safari o Chrome, o elegí una foto de la galería.",
+    "camaraDesconocidoTitulo": "No se pudo abrir la cámara",
+    "camaraDesconocidoTexto": "Probá de nuevo. Si sigue sin andar, elegí una foto de la galería.",
+    "microfonoDenegadoTitulo": "El micrófono está bloqueado para FairScan",
+    "microfonoDenegadoTexto": "Se le dijo \"no\" al permiso de micrófono. Para grabar notas de voz: {{instrucciones}} Mientras tanto podés escribir la nota.",
+    "microfonoSinDispositivoTitulo": "No encontramos un micrófono",
+    "microfonoSinDispositivoTexto": "Este dispositivo no tiene micrófono disponible. Podés escribir la nota.",
+    "microfonoOcupadoTitulo": "El micrófono está ocupado",
+    "microfonoOcupadoTexto": "Otra app lo está usando (¿una llamada?). Cerrala y probá de nuevo.",
+    "microfonoNoSoportadoTitulo": "Este navegador no puede grabar audio",
+    "microfonoNoSoportadoTexto": "Probá abrir FairScan en Safari o Chrome, o escribí la nota.",
+    "microfonoDesconocidoTitulo": "No se pudo grabar",
+    "microfonoDesconocidoTexto": "Probá de nuevo. Si sigue sin andar, escribí la nota."
+  },
+  "ia": {
+    "falloSesion": "La IA no reconoció tu sesión. Cerrá sesión y volvé a entrar, después reintentá.",
+    "falloTope": "Se llegó al tope de uso de la IA por ahora. Reintentá en unos minutos.",
+    "falloSenal": "No hubo señal suficiente para llegar al servidor. Reintentá cuando tengas conexión.",
+    "falloGenerico": "La IA no pudo con esta foto después de tres intentos."
+  },
+  "compras": {
+    "enWeb": "Los escaneos se compran desde la app de App Store o Google Play.",
+    "soloTienda": "Las compras se habilitan con la versión de la tienda.",
+    "packNoDisponible": "Ese pack todavía no está disponible en la tienda.",
+    "cancelada": "Compra cancelada",
+    "noCompleto": "La compra no se completó",
+    "restaurarEnWeb": "Restaurar compras funciona desde la app de App Store o Google Play."
   }
 }

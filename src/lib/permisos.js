@@ -15,6 +15,8 @@
  */
 
 import { Capacitor } from '@capacitor/core';
+import { i18next } from '../idiomas/index.js';
+const tx = (k, o) => i18next.t(k, o);
 
 /** 'ios' | 'android' | 'web' */
 export const plataformaActual = () => Capacitor.getPlatform();
@@ -38,10 +40,10 @@ export function clasificarError(err) {
  * @param {'cámara'|'micrófono'} permiso
  */
 export function instruccionesDeAjustes(permiso, plataforma = plataformaActual()) {
-  const P = permiso.charAt(0).toUpperCase() + permiso.slice(1);
-  if (plataforma === 'ios') return `Ajustes → FairScan → ${P} → activar.`;
-  if (plataforma === 'android') return `Ajustes → Aplicaciones → FairScan → Permisos → ${P} → Permitir.`;
-  return `En el navegador, tocá el ícono junto a la dirección (el candado o "aA") → Configuración del sitio → ${P} → Permitir, y recargá la página.`;
+  const P = tx(permiso === 'micrófono' ? 'permisos.microfono' : 'permisos.camara');
+  if (plataforma === 'ios') return tx('permisos.ajustesIos', { permiso: P });
+  if (plataforma === 'android') return tx('permisos.ajustesAndroid', { permiso: P });
+  return tx('permisos.ajustesWeb', { permiso: P });
 }
 
 /**
@@ -54,18 +56,18 @@ export function explicarErrorDeCamara(err, plataforma = plataformaActual()) {
     case 'denegado':
       return {
         ...base,
-        titulo: 'La cámara está bloqueada para FairScan',
-        texto: `Se le dijo "no" al permiso de cámara, y el teléfono lo recuerda. Se arregla en un toque: ${instruccionesDeAjustes('cámara', plataforma)} Mientras tanto podés elegir fotos de la galería.`,
+        titulo: tx('permisos.camaraDenegadaTitulo'),
+        texto: tx('permisos.camaraDenegadaTexto', { instrucciones: instruccionesDeAjustes('cámara', plataforma) }),
         puedeAbrirAjustes: plataforma !== 'web',
       };
     case 'sin-dispositivo':
-      return { ...base, titulo: 'No encontramos una cámara', texto: 'Este dispositivo no tiene una cámara disponible. Podés elegir una foto de la galería.' };
+      return { ...base, titulo: tx('permisos.camaraSinDispositivoTitulo'), texto: tx('permisos.camaraSinDispositivoTexto') };
     case 'ocupado':
-      return { ...base, titulo: 'La cámara está ocupada', texto: 'Otra app la está usando. Cerrala y probá de nuevo, o elegí una foto de la galería.' };
+      return { ...base, titulo: tx('permisos.camaraOcupadaTitulo'), texto: tx('permisos.camaraOcupadaTexto') };
     case 'no-soportado':
-      return { ...base, titulo: 'Este navegador no puede abrir la cámara acá', texto: 'Probá abrir FairScan en Safari o Chrome, o elegí una foto de la galería.' };
+      return { ...base, titulo: tx('permisos.camaraNoSoportadaTitulo'), texto: tx('permisos.camaraNoSoportadaTexto') };
     default:
-      return { ...base, titulo: 'No se pudo abrir la cámara', texto: 'Probá de nuevo. Si sigue sin andar, elegí una foto de la galería.' };
+      return { ...base, titulo: tx('permisos.camaraDesconocidoTitulo'), texto: tx('permisos.camaraDesconocidoTexto') };
   }
 }
 
@@ -76,18 +78,18 @@ export function explicarErrorDeMicrofono(err, plataforma = plataformaActual()) {
     case 'denegado':
       return {
         ...base,
-        titulo: 'El micrófono está bloqueado para FairScan',
-        texto: `Se le dijo "no" al permiso de micrófono. Para grabar notas de voz: ${instruccionesDeAjustes('micrófono', plataforma)} Mientras tanto podés escribir la nota.`,
+        titulo: tx('permisos.microfonoDenegadoTitulo'),
+        texto: tx('permisos.microfonoDenegadoTexto', { instrucciones: instruccionesDeAjustes('micrófono', plataforma) }),
         puedeAbrirAjustes: plataforma !== 'web',
       };
     case 'sin-dispositivo':
-      return { ...base, titulo: 'No encontramos un micrófono', texto: 'Este dispositivo no tiene micrófono disponible. Podés escribir la nota.' };
+      return { ...base, titulo: tx('permisos.microfonoSinDispositivoTitulo'), texto: tx('permisos.microfonoSinDispositivoTexto') };
     case 'ocupado':
-      return { ...base, titulo: 'El micrófono está ocupado', texto: 'Otra app lo está usando (¿una llamada?). Cerrala y probá de nuevo.' };
+      return { ...base, titulo: tx('permisos.microfonoOcupadoTitulo'), texto: tx('permisos.microfonoOcupadoTexto') };
     case 'no-soportado':
-      return { ...base, titulo: 'Este navegador no puede grabar audio', texto: 'Probá abrir FairScan en Safari o Chrome, o escribí la nota.' };
+      return { ...base, titulo: tx('permisos.microfonoNoSoportadoTitulo'), texto: tx('permisos.microfonoNoSoportadoTexto') };
     default:
-      return { ...base, titulo: 'No se pudo grabar', texto: 'Probá de nuevo. Si sigue sin andar, escribí la nota.' };
+      return { ...base, titulo: tx('permisos.microfonoDesconocidoTitulo'), texto: tx('permisos.microfonoDesconocidoTexto') };
   }
 }
 

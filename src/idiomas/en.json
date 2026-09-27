@@ -1150,5 +1150,46 @@
     "recien": "just now",
     "haceMin": "{{count}} min ago",
     "haceHoras": "{{count}} h ago"
+  },
+  "permisos": {
+    "ajustesIos": "Settings → FairScan → {{permiso}} → turn on.",
+    "ajustesAndroid": "Settings → Apps → FairScan → Permissions → {{permiso}} → Allow.",
+    "ajustesWeb": "In the browser, tap the icon next to the address (the lock or \"aA\") → Site settings → {{permiso}} → Allow, then reload the page.",
+    "camara": "Camera",
+    "microfono": "Microphone",
+    "camaraDenegadaTitulo": "Camera access is blocked for FairScan",
+    "camaraDenegadaTexto": "Camera permission was denied and the phone remembers it. It's a one-tap fix: {{instrucciones}} Meanwhile you can pick photos from your gallery.",
+    "camaraSinDispositivoTitulo": "No camera found",
+    "camaraSinDispositivoTexto": "This device has no camera available. You can pick a photo from your gallery.",
+    "camaraOcupadaTitulo": "The camera is busy",
+    "camaraOcupadaTexto": "Another app is using it. Close it and try again, or pick a photo from your gallery.",
+    "camaraNoSoportadaTitulo": "This browser can't open the camera here",
+    "camaraNoSoportadaTexto": "Try opening FairScan in Safari or Chrome, or pick a photo from your gallery.",
+    "camaraDesconocidoTitulo": "Couldn't open the camera",
+    "camaraDesconocidoTexto": "Try again. If it still doesn't work, pick a photo from your gallery.",
+    "microfonoDenegadoTitulo": "Microphone access is blocked for FairScan",
+    "microfonoDenegadoTexto": "Microphone permission was denied. To record voice notes: {{instrucciones}} Meanwhile you can type the note.",
+    "microfonoSinDispositivoTitulo": "No microphone found",
+    "microfonoSinDispositivoTexto": "This device has no microphone available. You can type the note.",
+    "microfonoOcupadoTitulo": "The microphone is busy",
+    "microfonoOcupadoTexto": "Another app is using it (a call?). Close it and try again.",
+    "microfonoNoSoportadoTitulo": "This browser can't record audio",
+    "microfonoNoSoportadoTexto": "Try opening FairScan in Safari or Chrome, or type the note.",
+    "microfonoDesconocidoTitulo": "Couldn't record",
+    "microfonoDesconocidoTexto": "Try again. If it still doesn't work, type the note."
+  },
+  "ia": {
+    "falloSesion": "The AI didn't recognize your session. Sign out, sign in again, then retry.",
+    "falloTope": "The AI usage limit was reached for now. Retry in a few minutes.",
+    "falloSenal": "Not enough signal to reach the server. Retry when you're online.",
+    "falloGenerico": "The AI couldn't process this photo after three tries."
+  },
+  "compras": {
+    "enWeb": "Scans are purchased from the App Store or Google Play app.",
+    "soloTienda": "Purchases are enabled in the store version.",
+    "packNoDisponible": "That pack isn't available in the store yet.",
+    "cancelada": "Purchase canceled",
+    "noCompleto": "The purchase didn't complete",
+    "restaurarEnWeb": "Restore purchases works from the App Store or Google Play app."
   }
 }

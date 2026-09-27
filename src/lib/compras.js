@@ -48,25 +48,25 @@ export async function configurar(userId) {
 
 /** @returns {Promise<{ ok: boolean, mensaje?: string, cancelada?: boolean }>} */
 export async function comprar(packId) {
-  if (!Capacitor.isNativePlatform()) return { ok: false, mensaje: EN_WEB };
-  if (!configurado) return { ok: false, mensaje: 'Las compras se habilitan con la versión de la tienda.' };
+  if (!Capacitor.isNativePlatform()) return { ok: false, mensaje: EN_WEB() };
+  if (!configurado) return { ok: false, mensaje: i18next.t('compras.soloTienda') };
   try {
     const { Purchases } = await sdk();
     const { products } = await Purchases.getProducts({ productIdentifiers: [packId] });
     const product = products?.[0];
-    if (!product) return { ok: false, mensaje: 'Ese pack todavía no está disponible en la tienda.' };
+    if (!product) return { ok: false, mensaje: i18next.t('compras.packNoDisponible') };
     await Purchases.purchaseStoreProduct({ product });
     // El saldo lo acredita el servidor cuando la tienda confirma (webhook); la app
     // vuelve a leer el saldo enseguida y unas veces más por si tarda.
     return { ok: true };
   } catch (err) {
-    if (err?.userCancelled || /cancel/i.test(err?.message || '')) return { ok: false, cancelada: true, mensaje: 'Compra cancelada' };
-    return { ok: false, mensaje: err?.message || 'La compra no se completó' };
+    if (err?.userCancelled || /cancel/i.test(err?.message || '')) return { ok: false, cancelada: true, mensaje: i18next.t('compras.cancelada') };
+    return { ok: false, mensaje: err?.message || i18next.t('compras.noCompleto') };
   }
 }
 
 export async function restaurar() {
-  if (!Capacitor.isNativePlatform()) return { ok: false, mensaje: 'Restaurar compras funciona desde la app de App Store o Google Play.' };
+  if (!Capacitor.isNativePlatform()) return { ok: false, mensaje: i18next.t('compras.restaurarEnWeb') };
   if (!configurado) return { ok: false, mensaje: 'Las compras se habilitan con la versión de la tienda.' };
   try {
     const { Purchases } = await sdk();

@@ -1,3 +1,4 @@
+import { i18next } from '../idiomas/index.js';
 /**
  * En qué quedó la IA con un producto o proveedor.
  *
@@ -24,8 +25,8 @@ export function patchReintentoIA() {
 /** Texto corto para la usuaria según el error técnico guardado. */
 export function explicarFalloIA(error) {
   const e = String(error || '').toLowerCase();
-  if (/401|403|sesi|auth/.test(e)) return 'La IA no reconoció tu sesión. Cerrá sesión y volvé a entrar, después reintentá.';
-  if (/429|rate|tope|límite|limit/.test(e)) return 'Se llegó al tope de uso de la IA por ahora. Reintentá en unos minutos.';
-  if (/network|fetch|failed|timeout|offline|conex/.test(e)) return 'No hubo señal suficiente para llegar al servidor. Reintentá cuando tengas conexión.';
-  return 'La IA no pudo con esta foto después de tres intentos.';
+  if (/401|403|sesi|auth/.test(e)) return i18next.t('ia.falloSesion');
+  if (/429|rate|tope|límite|limit/.test(e)) return i18next.t('ia.falloTope');
+  if (/network|fetch|failed|timeout|offline|conex/.test(e)) return i18next.t('ia.falloSenal');
+  return i18next.t('ia.falloGenerico');
 }

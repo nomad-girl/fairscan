@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
+import { iniciarIdiomas } from '../../idiomas/index.js';
+iniciarIdiomas('es-AR'); // los textos van por claves de idioma (E6, 27/09)
 
 vi.mock('@capacitor/core', () => ({ Capacitor: { getPlatform: () => 'web' } }));
 const open = vi.fn(async () => {});
