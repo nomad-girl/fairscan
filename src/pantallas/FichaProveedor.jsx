@@ -86,7 +86,15 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
       {x.contact && <p style={{ margin: 0, fontSize: 17, fontWeight: 500, color: "rgba(255,255,255,0.92)", paddingRight: 60 }}>{x.contact}</p>}
       {subtituloDe(x) && <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.75)", paddingRight: 60 }}>{subtituloDe(x)}</p>}
       {x.minimoDeCompra ? <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.75)" }}>{t("proveedor.minimoDeCompra")} {moneda} {x.minimoDeCompra}</p> : null}
-      <p style={{ margin: "6px 0 0", fontSize: 13, color: "rgba(255,255,255,0.75)" }}>{propios.length === 0 ? t("proveedor.sinProductos") : `${t("proveedor.conProductos", { count: propios.length })}${esta && pagina === 0 ? ` · ${t("proveedor.deslizaParaVer")}` : ""}`}</p>
+      {/* La tira de miniaturas (Nati, 27/09: "me gustaba más cuando se veían las miniaturas"): tocar una abre el producto */}
+      {propios.length > 0 && (
+        <div style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", marginTop: 8, paddingBottom: 2 }} onTouchStart={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()}>
+          {propios.slice(0, 12).map(p => (
+            <button key={p.id} type="button" onClick={() => onNavigateProduct?.(p)} aria-label={p.name || t("pedido.sinNombre")} style={{ width: 56, height: 56, flexShrink: 0, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,0.35)", padding: 0, background: "rgba(255,255,255,0.15)", cursor: "pointer" }}>{miniatura(p)}</button>
+          ))}
+        </div>
+      )}
+      <p style={{ margin: "4px 0 0", fontSize: 13, color: "rgba(255,255,255,0.75)" }}>{propios.length === 0 ? t("proveedor.sinProductos") : `${t("proveedor.conProductos", { count: propios.length })}${esta && pagina === 0 ? ` · ${t("proveedor.deslizaParaVer")}` : ""}`}</p>
       {esta && botones(propios)}
     </div>
   );
@@ -106,9 +114,11 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
   // La galería: todos sus productos en grilla de tres (27/09, Nati: "la ficha del proveedor YA ES la galería").
   // Ocupa la parte de la foto; el pie fijo queda debajo. Tocar un producto abre su ficha clásica.
   const galeria = (propios) => (
-    <div aria-label={t("proveedor.galeria")} style={{ height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", padding: `calc(env(safe-area-inset-top, 0px) + 96px) 10px 330px`, display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 4, alignContent: "start" }}>
+    // El scroll de la galería es suyo: no le llega al paginador vertical de proveedores (se trababa, Nati 27/09)
+    <div aria-label={t("proveedor.galeria")} onTouchStart={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}
+      style={{ height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain", touchAction: "pan-y", padding: `calc(env(safe-area-inset-top, 0px) + 96px) 10px 360px`, display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gridAutoRows: "max-content", gap: 4, alignContent: "start", alignItems: "start" }}>
       {propios.map(p => (
-        <button key={p.id} type="button" onClick={() => onNavigateProduct?.(p)} aria-label={p.name || t("pedido.sinNombre")} style={{ aspectRatio: "1", borderRadius: 8, overflow: "hidden", border: "none", padding: 0, background: "rgba(255,255,255,0.1)", cursor: "pointer", position: "relative" }}>
+        <button key={p.id} type="button" onClick={() => onNavigateProduct?.(p)} aria-label={p.name || t("pedido.sinNombre")} style={{ width: "100%", aspectRatio: "1", height: "auto", borderRadius: 8, overflow: "hidden", border: "none", padding: 0, background: "rgba(255,255,255,0.1)", cursor: "pointer", position: "relative", display: "block" }}>
           {miniatura(p)}
           {p.price ? <span style={{ position: "absolute", left: 6, bottom: 6, background: "rgba(10,14,23,0.7)", color: "#fff", borderRadius: 6, padding: "2px 6px", fontSize: 11, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moneda} {p.price}</span> : null}
         </button>

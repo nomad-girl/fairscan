@@ -29,7 +29,7 @@ describe("Catálogo", () => {
   it("Todo abre en grilla, muestra el badge de pendientes y filtra por favoritos", () => {
     const onPestana = vi.fn();
     con(<Catalogo products={products} suppliers={suppliers} districts={districts} activeDistrictId={1} activeDistrict={districts[0]} pestana="todo" onPestana={onPestana} enLinea={false} />);
-    expect(screen.getByRole("status").textContent).toContain("1 sin nombre · se completa cuando vuelva la señal");
+    expect(screen.getByRole("status").getAttribute("aria-label")).toContain("1 sin nombre · se completa cuando vuelva la señal"); // el texto largo pasa al nombre accesible; en pantalla, el punto y el número (27/09)
     // Grilla literal Instagram (17/09): sin texto encima; el nombre queda como etiqueta accesible de la celda
     expect(screen.getByRole("button", { name: "Taza de cerámica blanca" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Favoritos/ }));
