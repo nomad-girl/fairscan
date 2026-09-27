@@ -5,7 +5,6 @@ import { startMonitoring } from './lib/monitoring.js';
 import { unregisterServiceWorkersOnNative } from './lib/platform.js';
 import { iniciarIdiomas } from './idiomas/index.js';
 import { SistemaProvider } from './sistema/SistemaProvider.jsx';
-import './styles/interaccion.css';
 
 // Los textos de la app viven en archivos de idioma (es-AR hoy). Se inicializa
 // antes de dibujar nada para que ningún componente pida una clave sin diccionario.

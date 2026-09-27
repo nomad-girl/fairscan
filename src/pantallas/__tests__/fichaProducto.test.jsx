@@ -6,7 +6,7 @@ import { iniciarIdiomas } from "../../idiomas/index.js";
 import { SistemaProvider } from "../../sistema/SistemaProvider.jsx";
 import { FichaProducto } from "../FichaProducto.jsx";
 
-vi.mock("../../sistema/vibrar.js", () => ({ vibrarSeleccion: vi.fn(), vibrarEncastre: vi.fn(), vibrarExito: vi.fn(), vibrarError: vi.fn(), vibrarObturador: vi.fn(), vibrarAviso: vi.fn() }));
+vi.mock("../../sistema/vibrar.js", () => ({ vibrarSeleccion: vi.fn(), vibrarExito: vi.fn(), vibrarError: vi.fn(), vibrarObturador: vi.fn(), vibrarAviso: vi.fn() }));
 
 beforeAll(() => { iniciarIdiomas("es-AR"); });
 afterEach(cleanup);
@@ -30,15 +30,15 @@ describe("Ficha de producto", () => {
     con(<FichaProducto product={base} suppliers={suppliers} districts={districts} allProducts={[base]} onAddPhoto={vi.fn()} />);
     expect(screen.getByText(/USD 0.85/)).toBeTruthy();
     expect(screen.getByText(/MOQ 500 por caja/)).toBeTruthy();
-    expect(screen.getByText(/Yiwu Sunrise/)).toBeTruthy(); // al pie, en la línea gris (regla de tres, 27/09)
+    expect(screen.getByText("Yiwu Sunrise")).toBeTruthy(); // al pie, sobre la foto
     expect(screen.getByRole("button", { name: "Agregar foto" })).toBeTruthy(); // en el riel de la derecha (27/09)
-    fireEvent.click(screen.getByRole("button", { name: "Datos del producto" })); // "Datos", en el riel (27/09)
-    expect(screen.getAllByText(/Yiwu Sunrise/).length).toBeGreaterThanOrEqual(2); // y como fila en la hoja
+    fireEvent.click(screen.getByText("Ver todos los datos"));
+    expect(screen.getAllByText("Yiwu Sunrise").length).toBe(2); // y como fila en la hoja
   });
   it("piezas por caja y CBM se editan tocando, junto al precio", () => {
     const onUpdate = vi.fn();
     con(<FichaProducto product={base} suppliers={suppliers} districts={districts} allProducts={[base]} onUpdate={onUpdate} />);
-    fireEvent.click(screen.getByRole("button", { name: "Datos del producto" })); // "Datos", en el riel (27/09)
+    fireEvent.click(screen.getByText("Ver todos los datos"));
     // 27/09: lo vacío queda detrás de "+ Agregar dato" (Nati: los campos vacíos hacen ruido)
     expect(screen.queryByText("CBM por caja")).toBeNull();
     fireEvent.click(screen.getAllByRole("button", { name: /Agregar/ }).find(b => /Agregar/.test(b.textContent) && b.closest("section")?.getAttribute("aria-label") === "Compra"));
@@ -71,7 +71,7 @@ describe("Ficha de producto", () => {
     unmount();
     const fallo = { ...base, id: 3, ai_processed: true, ai_error: "timeout", aiPendiente: 0, ai_failed: true };
     con(<FichaProducto product={fallo} suppliers={suppliers} districts={districts} allProducts={[fallo]} onUpdate={onUpdate} />);
-    fireEvent.click(screen.getByRole("button", { name: "Datos del producto" })); // "Datos", en el riel (27/09)
+    fireEvent.click(screen.getByText("Ver todos los datos"));
     const boton = screen.queryByText("Reintentar con IA");
     if (boton) { fireEvent.click(boton); expect(onUpdate).toHaveBeenCalled(); }
   });

@@ -40,5 +40,3 @@ export const vibrarAviso = () => correr(h => h.notification({ type: "WARNING" })
 export const vibrarError = () => correr(h => h.notification({ type: "ERROR" }), [50, 40, 50]);
 /** Cambio de selección (segmentado, más y menos). Muy suave. */
 export const vibrarSeleccion = () => correr(h => h.selectionChanged(), 8);
-/** Algo encastró en su lugar: la hoja llegó, un chip se eligió, la miniatura aterrizó (27/09, tanda 1). */
-export const vibrarEncastre = () => correr(h => h.impact({ style: "LIGHT" }), 10);

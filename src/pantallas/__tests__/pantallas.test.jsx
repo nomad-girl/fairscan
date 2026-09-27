@@ -7,7 +7,7 @@ import { SistemaProvider } from "../../sistema/SistemaProvider.jsx";
 import { Visor } from "../Visor.jsx";
 import { CerrarStand } from "../CerrarStand.jsx";
 
-vi.mock("../../sistema/vibrar.js", () => ({ vibrarSeleccion: vi.fn(), vibrarEncastre: vi.fn(), vibrarExito: vi.fn(), vibrarError: vi.fn(), vibrarObturador: vi.fn(), vibrarAviso: vi.fn() }));
+vi.mock("../../sistema/vibrar.js", () => ({ vibrarSeleccion: vi.fn(), vibrarExito: vi.fn(), vibrarError: vi.fn(), vibrarObturador: vi.fn(), vibrarAviso: vi.fn() }));
 
 beforeAll(() => { iniciarIdiomas("es-AR"); });
 afterEach(cleanup);

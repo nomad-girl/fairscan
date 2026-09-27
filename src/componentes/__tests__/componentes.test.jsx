@@ -6,7 +6,7 @@ import { iniciarIdiomas } from "../../idiomas/index.js";
 import { SistemaProvider } from "../../sistema/SistemaProvider.jsx";
 import { Boton, Chip, Segmentado, Fila, Precio, Campo, Bloque, Hoja, Aviso, Esqueleto, Icono, NOMBRES_DE_ICONOS } from "../index.js";
 
-vi.mock("../../sistema/vibrar.js", () => ({ vibrarSeleccion: vi.fn(), vibrarEncastre: vi.fn(), vibrarExito: vi.fn(), vibrarError: vi.fn(), vibrarObturador: vi.fn(), vibrarAviso: vi.fn() }));
+vi.mock("../../sistema/vibrar.js", () => ({ vibrarSeleccion: vi.fn(), vibrarExito: vi.fn(), vibrarError: vi.fn(), vibrarObturador: vi.fn(), vibrarAviso: vi.fn() }));
 
 beforeAll(() => { iniciarIdiomas("es-AR"); });
 afterEach(cleanup);

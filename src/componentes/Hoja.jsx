@@ -14,7 +14,6 @@ import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { Icono } from "./Icono.jsx";
-import { vibrarEncastre } from "../sistema/vibrar.js";
 
 const TIRON_PX = 80;         // distancia mínima para cerrar
 const TIRON_VELOCIDAD = 0.45; // px por ms
@@ -35,7 +34,7 @@ export function Hoja({ abierta, onCerrar, titulo, altura = "media", children, pi
   onCerrarRef.current = onCerrar;
 
   useEffect(() => {
-    if (abierta) { setVisible(true); requestAnimationFrame(() => setEntrando(true)); const k = setTimeout(vibrarEncastre, duracion(movimiento.hoja.duracion)); return () => clearTimeout(k); } // encastra: vibración ligera al llegar (tanda 1)
+    if (abierta) { setVisible(true); requestAnimationFrame(() => setEntrando(true)); }
     else { setEntrando(false); const id = setTimeout(() => { setVisible(false); setArrastre(0); arrastreRef.current = 0; }, duracion(movimiento.hoja.duracion)); return () => clearTimeout(id); }
   }, [abierta]);
 
@@ -46,13 +45,12 @@ export function Hoja({ abierta, onCerrar, titulo, altura = "media", children, pi
     return () => window.removeEventListener("keydown", onKey);
   }, [abierta, onCerrar]);
 
-  // Hacia abajo sigue al dedo 1:1; hacia arriba opone resistencia (se mueve un cuarto: rubber band, tanda 1)
-  const mover = (dy) => { const v = dy < 0 ? dy / 4 : dy; arrastreRef.current = v; setArrastre(v); };
+  const mover = (dy) => { const v = Math.max(0, dy); arrastreRef.current = v; setArrastre(v); };
   const soltar = (dt) => {
     const dy = arrastreRef.current;
     const alto = hojaRef.current?.clientHeight || 600;
     setArrastrando(false);
-    if (dy > TIRON_PX || dy / Math.max(1, dt) > TIRON_VELOCIDAD || dy > alto * TIRON_FRACCION) { vibrarEncastre(); onCerrarRef.current?.(); } // la hoja sigue bajando desde donde estaba
+    if (dy > TIRON_PX || dy / Math.max(1, dt) > TIRON_VELOCIDAD || dy > alto * TIRON_FRACCION) onCerrarRef.current?.(); // la hoja sigue bajando desde donde estaba
     else { arrastreRef.current = 0; setArrastre(0); } // vuelve a su lugar
   };
 
@@ -93,7 +91,7 @@ export function Hoja({ abierta, onCerrar, titulo, altura = "media", children, pi
 
   return (
     <div role="presentation" style={{ position: "fixed", inset: 0, zIndex: capas.hoja, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-      <div onClick={onCerrar} style={{ position: "absolute", inset: 0, background: paleta.velo, opacity: entrando ? Math.max(0.25, 1 - Math.max(0, arrastre) / 600) : 0, transition: arrastrando ? "none" : `opacity ${duracion(movimiento.hoja.duracion)}ms ${curvas.estandar}` }} />
+      <div onClick={onCerrar} style={{ position: "absolute", inset: 0, background: paleta.velo, opacity: entrando ? Math.max(0.25, 1 - arrastre / 600) : 0, transition: arrastrando ? "none" : `opacity ${duracion(movimiento.hoja.duracion)}ms ${curvas.estandar}` }} />
       <div
         ref={hojaRef}
         role="dialog"

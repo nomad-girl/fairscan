@@ -1,5 +1,0 @@
-/* Tanda 1 de pulido (27/09): todo botón responde al toque. Los Boton del sistema ya se achican (escala 0,97);
-   los botones sueltos (círculos de los rieles, chips, miniaturas) oscurecen un poco al presionarse.
-   Es brillo, no transform, para no pisar a los que ya se mueven. Con "reducir movimiento" también vale: no es movimiento. */
-button:active:not(:disabled) { filter: brightness(0.9); }
-button { transition: filter 120ms ease; }

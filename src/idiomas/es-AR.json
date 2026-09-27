@@ -377,8 +377,7 @@
     "ponerPrecio": "Poner precio",
     "tocaPrecio": "Tocá para poner el precio",
     "guardarPrecio": "Guardar",
-    "sinPrecio": "Sin precio",
-    "agregado": "Agregado al pedido"
+    "sinPrecio": "Sin precio"
   },
   "proveedor": {
     "titulo": "Proveedor",

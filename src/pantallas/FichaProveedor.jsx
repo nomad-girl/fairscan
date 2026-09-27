@@ -76,7 +76,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
     </div>
   );
   const irA = (n) => { const el = paginasRef.current; if (!el) return; el.scrollTo?.({ left: n * el.offsetWidth, behavior: "smooth" }); setPagina(n); };
-  const PIE = { position: "absolute", left: 0, right: 0, bottom: 0, padding: `130px 18px calc(18px + env(safe-area-inset-bottom, 0px))`, background: "linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.5) 30%, rgba(0,0,0,0.1) 55%, rgba(0,0,0,0) 70%)", color: "#fff", display: "flex", flexDirection: "column", gap: 4 };
+  const PIE = { position: "absolute", left: 0, right: 0, bottom: 0, padding: `80px 18px calc(18px + env(safe-area-inset-bottom, 0px))`, background: "linear-gradient(to top, rgba(10,14,23,0.9) 60%, rgba(10,14,23,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 };
 
   // El pie del proveedor. Es UN solo elemento, fijo (27/09, Nati: "que cambie SOLO la parte de la foto y el resto
   // sean elementos fijos"): no viaja con el deslizamiento de arriba.
