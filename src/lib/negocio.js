@@ -4,8 +4,10 @@
  *
  * Viven en la tabla `config` de Supabase (fila `negocio`) y se cambian desde ahí
  * sin publicar una versión. La app los lee al arrancar y los guarda en la base
- * local para cuando no haya señal. Estos son los valores por defecto, iguales a
- * los decididos el 31/08: se usan solo si nunca se pudo leer el servidor.
+ * local para cuando no haya señal. Estos son los valores por defecto: se usan solo si nunca se pudo
+ * leer el servidor. Packs según la decisión del 29/09 (500 · 1.000 destacado · 2.000 "pase de feria";
+ * se fue el de 3.000). El `usd` es el precio de referencia del escalón medio (Latinoamérica); el precio
+ * real lo pone cada tienda por país en tres escalones, y lo mostrará RevenueCat cuando A5/B3 existan.
  */
 
 export const NEGOCIO_POR_DEFECTO = Object.freeze({
@@ -15,7 +17,7 @@ export const NEGOCIO_POR_DEFECTO = Object.freeze({
   packs: [
     { id: 'pack_500', escaneos: 500, usd: 19.99 },
     { id: 'pack_1000', escaneos: 1000, usd: 29.99, ancla: true },
-    { id: 'pack_3000', escaneos: 3000, usd: 69.99 },
+    { id: 'pack_2000', escaneos: 2000, usd: 49.99 },
   ],
 });
 

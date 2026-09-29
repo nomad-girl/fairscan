@@ -3756,7 +3756,8 @@ export default function App() {
                   border:`2px solid ${destacado ? t.accent : t.border}`, background: destacado ? t.accentSoft : t.card }}>
                   <span>
                     <span style={{ display:"block", fontSize:15, fontWeight:800, color:t.text }}>{tx("avisos.escaneosPack", { cantidad: fNumero(pk.escaneos) })}</span>
-                    {destacado && <span style={{ fontSize:11, fontWeight:700, color:t.accent }}>{tx("avisos.elMasElegido")}</span>}
+                    {/* El precio por escaneo, a la vista (Clau, 29/09): es lo que hace que el pack grande convenga */}
+                    <span style={{ display:"block", fontSize:11, fontWeight:600, color: destacado ? t.accent : t.muted }}>{tx("avisos.porEscaneo", { precio: (pk.usd / pk.escaneos).toLocaleString(i18next.language, { style: "currency", currency: "USD", minimumFractionDigits: 3, maximumFractionDigits: 3 }) })}{destacado ? ` · ${tx("avisos.elMasElegido")}` : ""}</span>
                   </span>
                   <span style={{ fontSize:15, fontWeight:800, color: destacado ? t.accent : t.text }}>USD {pk.usd.toFixed(2)}</span>
                 </button>

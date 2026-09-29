@@ -11,7 +11,7 @@
  * tienda o TestFlight. En el navegador solo se explica dónde se compra.
  *
  * Ids de producto (iguales en App Store Connect, Play Console, RevenueCat y la
- * tabla config): pack_500 · pack_1000 · pack_3000.
+ * tabla config): pack_500 · pack_1000 (destacado) · pack_2000 (decisión 29/09; se fue el de 3.000).
  */
 import { Capacitor } from '@capacitor/core';
 

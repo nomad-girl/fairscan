@@ -1090,6 +1090,7 @@
     "bloqueados_other": "{{count}} products from this booth were saved and locked. Nothing is lost.",
     "escaneosPack": "{{cantidad}} scans",
     "elMasElegido": "Most popular",
+    "porEscaneo": "{{precio}} per scan",
     "despues": "Later",
     "tarjetasNoDescuentan": "Supplier cards never use up scans. Purchased scans don't expire.",
     "proveedorSimilar": "Similar supplier found",

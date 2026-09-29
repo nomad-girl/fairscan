@@ -1090,6 +1090,7 @@
     "bloqueados_other": "{{count}} productos de este stand quedaron guardados y bloqueados. No se pierde nada.",
     "escaneosPack": "{{cantidad}} escaneos",
     "elMasElegido": "El más elegido",
+    "porEscaneo": "{{precio}} por escaneo",
     "despues": "Después",
     "tarjetasNoDescuentan": "Las tarjetas de proveedor no descuentan nunca. Los escaneos comprados no vencen.",
     "proveedorSimilar": "Proveedor similar encontrado",
