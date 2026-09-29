@@ -1123,8 +1123,8 @@
     "confirmaTuEmail": "Confirmá tu email antes de ingresar",
     "emailRegistrado": "Este email ya está registrado",
     "emailNoAutorizado": "Este email no está autorizado",
-    "contrasenaCorta": "La contraseña debe tener al menos 6 caracteres",
-    "contrasenaCortaPunto": "La contraseña tiene que tener al menos 6 caracteres.",
+    "contrasenaCorta": "La contraseña tiene que tener al menos 8 caracteres.",
+    "contrasenaCortaPunto": "La contraseña tiene que tener al menos 8 caracteres.",
     "noSePudoCambiar": "No se pudo cambiar.",
     "nuevaContrasena": "Nueva contraseña",
     "nuevaContrasenaPista": "Elegí una contraseña nueva para tu cuenta de FairScan.",
@@ -1153,7 +1153,13 @@
     "confirmaTexto": "Te mandamos un mail a {{mail}} para confirmar la cuenta. Hasta que lo confirmes, tu catálogo sigue guardado en este teléfono; después queda también en la nube.",
     "reenviar": "Reenviar el mail",
     "reenviado": "Listo, te lo mandamos de nuevo. Revisá también no deseados.",
-    "yaConfirme": "Ya lo confirmé"
+    "yaConfirme": "Ya lo confirmé",
+    "contrasenaPista": "Mínimo 8 caracteres. Tip: una frase corta es fácil de recordar y segura.",
+    "contrasenaFiltrada": "Esa contraseña es muy conocida y fácil de adivinar. Probá con otra, por ejemplo tres palabras juntas.",
+    "demasiadosIntentos": "Demasiados intentos seguidos. Esperá un minuto y probá de nuevo.",
+    "mailInvalido": "Ese mail no parece válido. Revisalo.",
+    "sinConexion": "No hay conexión. Probá cuando tengas señal.",
+    "errorGenerico": "No se pudo entrar. Probá de nuevo en un momento."
   },
   "borrador": {
     "tarjetaDe": "la tarjeta de {{nombre}}",

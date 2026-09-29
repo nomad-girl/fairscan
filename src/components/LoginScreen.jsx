@@ -70,8 +70,12 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
       else if (msg.includes('Email not confirmed')) setError(tx('entrar.confirmaTuEmail'));
       else if (msg.includes('User already registered')) setError(tx('entrar.emailRegistrado'));
       else if (msg.includes('no autorizado') || msg.includes('not allowed') || msg.includes('Signups not allowed')) setError(tx('entrar.emailNoAutorizado'));
-      else if (msg.includes('Password should be')) setError(tx('entrar.contrasenaCorta'));
-      else setError(msg);
+      else if (/weak|easy to guess|pwned|leaked/i.test(msg)) setError(tx('entrar.contrasenaFiltrada'));
+      else if (/Password should be|at least \d+ characters/i.test(msg)) setError(tx('entrar.contrasenaCorta'));
+      else if (/rate limit|too many requests/i.test(msg)) setError(tx('entrar.demasiadosIntentos'));
+      else if (/invalid email|Unable to validate email|email address .* invalid/i.test(msg)) setError(tx('entrar.mailInvalido'));
+      else if (/network|fetch|Failed to fetch|timeout/i.test(msg)) setError(tx('entrar.sinConexion'));
+      else { console.warn('[entrar] error sin traducir:', msg); setError(tx('entrar.errorGenerico')); }
     } finally {
       setLoading(false);
     }
@@ -94,7 +98,7 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
     const [nueva, setNueva] = [password, setPassword];
     return (
       <div style={{ minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: t.bg, padding: 24 }}>
-        <form onSubmit={async (e) => { e.preventDefault(); if (nueva.length < 6) { setAviso(tx('entrar.contrasenaCortaPunto')); return; } try { await onAuth.cambiarContrasena(nueva); setAviso(''); } catch (err) { setAviso(err?.message || tx('entrar.noSePudoCambiar')); } }} style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <form onSubmit={async (e) => { e.preventDefault(); if (nueva.length < 8) { setAviso(tx('entrar.contrasenaCortaPunto')); return; } try { await onAuth.cambiarContrasena(nueva); setAviso(''); } catch (err) { setAviso(err?.message || tx('entrar.noSePudoCambiar')); } }} style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 12 }}>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: t.text, margin: 0 }}>{tx('entrar.nuevaContrasena')}</h1>
           <p style={{ fontSize: 14, color: t.muted, margin: 0 }}>{tx('entrar.nuevaContrasenaPista')}</p>
           <input type="password" placeholder={tx('entrar.nuevaContrasena')} value={nueva} onChange={e => setNueva(e.target.value)} autoComplete="new-password" style={inputStyle} />
@@ -167,11 +171,13 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
           <input id="login-mail" type="email" value={email} onChange={e => setEmail(e.target.value)} required style={campo} autoComplete="email" autoCapitalize="none" autoCorrect="off" inputMode="email" />
           <label style={etiqueta} htmlFor="login-pass">{tx('entrar.contrasena')}</label>
           <div style={{ position: 'relative' }}>
-            <input id="login-pass" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required minLength={6} style={{ ...campo, paddingRight: 48 }} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
+            <input id="login-pass" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required minLength={8} style={{ ...campo, paddingRight: 48 }} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
             <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? tx('entrar.ocultarContrasena') : tx('entrar.verContrasena')} tabIndex={-1} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', padding: 4, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
               <Icono nombre={showPassword ? 'ojoCerrado' : 'ojo'} tamano={20} color={t.muted} />
             </button>
           </div>
+          {/* E10 (Nati, 29/09): mínimo 8, sin reglas de símbolos; la ayuda se ve antes de escribir */}
+          {mode === 'register' && <p style={{ fontSize: 12, color: t.dim, margin: '-4px 0 0', lineHeight: 1.5 }}>{tx('entrar.contrasenaPista')}</p>}
 
           {error && <p style={{ fontSize: 13, color: t.red, margin: 0, padding: '8px 12px', borderRadius: 10, background: t.redSoft }}>{error}</p>}
           {success && <p style={{ fontSize: 13, color: t.green, margin: 0, padding: '8px 12px', borderRadius: 10, background: t.greenSoft }}>{success}</p>}
