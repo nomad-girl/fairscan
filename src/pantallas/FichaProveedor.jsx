@@ -150,7 +150,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
       {x.minimoDeCompra ? <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.75)" }}>{t("proveedor.minimoDeCompra")} {moneda} {x.minimoDeCompra}</p> : null}
       {/* La tira de miniaturas (Nati, 27/09: "me gustaba más cuando se veían las miniaturas"): tocar una abre el producto */}
       {propios.length > 0 && (
-        <div data-desliza="no" style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", marginTop: 8, paddingBottom: 2, pointerEvents: "auto" }} onTouchStart={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()}>
+        <div data-desliza="no" data-scroll-x style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", marginTop: 8, paddingBottom: 2, pointerEvents: "auto" }} onTouchStart={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()}>
           {propios.slice(0, 12).map(p => (
             <button key={p.id} type="button" onClick={() => onNavigateProduct?.(p)} aria-label={p.name || t("pedido.sinNombre")} style={{ width: 56, height: 56, flexShrink: 0, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,0.35)", padding: 0, background: "rgba(255,255,255,0.15)", cursor: "pointer" }}>{miniatura(p)}</button>
           ))}

@@ -8,8 +8,9 @@
  * Fluidez (30/09, Nati: "el scroll en general se siente tosco"): antes la escucha de touchmove era `passive: false`
  * para poder frenar el scroll con preventDefault. Eso obliga al navegador a esperar a nuestro JavaScript en cada
  * cuadro de cualquier scroll de la pantalla, y en el iPhone se nota como scroll pegajoso. Ahora las escuchas son
- * pasivas y el eje lo decide `touch-action: pan-y` en la raíz: el navegador se queda con lo vertical (scroll nativo,
- * en su propio hilo) y lo horizontal es nuestro.
+ * pasivas y sin preventDefault. No se impone `touch-action: pan-y` en la raíz: en iOS eso frenaba también el pase
+ * horizontal de las fotos del producto (Nati, 30/09: "cuesta que enganche el gesto"). En cambio, si el toque arranca
+ * sobre un carril horizontal (`data-scroll-x`) que ya está scrolleado, el gesto es del carril y no nuestro.
  */
 import { useEffect, useRef, useState } from "react";
 
@@ -25,7 +26,13 @@ export function useVolverConGesto(onVolver, { libre = () => false, borde = 28, h
     const el = ref.current;
     if (!el || !habilitado) return;
     let ini = null;
-    const start = (e) => { const t0 = e.touches[0]; ini = { x: t0.clientX, y: t0.clientY, t: Date.now(), borde: t0.clientX < borde, activo: false }; };
+    const start = (e) => {
+      const t0 = e.touches[0];
+      // Sobre un carril horizontal que tiene para scrollear hacia la izquierda (fotos del producto, tiras), el gesto es del carril
+      const carril = e.target?.closest?.("[data-scroll-x]");
+      if (carril && carril.scrollLeft > 0) { ini = null; return; }
+      ini = { x: t0.clientX, y: t0.clientY, t: Date.now(), borde: t0.clientX < borde, activo: false };
+    };
     const move = (e) => {
       if (!ini) return;
       const t0 = e.touches[0]; const dx = t0.clientX - ini.x, dy = t0.clientY - ini.y;
@@ -50,7 +57,7 @@ export function useVolverConGesto(onVolver, { libre = () => false, borde = 28, h
 
   const ancho = typeof window !== "undefined" ? window.innerWidth : 1000;
   const estilo = corrimiento
-    ? { transform: `translateX(${corrimiento}px)`, transition: corrimiento < ancho ? "none" : `transform 180ms ${CURVA}`, boxShadow: "-12px 0 30px rgba(0,0,0,0.35)", touchAction: "pan-y" }
-    : { transition: `transform 180ms ${CURVA}`, touchAction: "pan-y" };
+    ? { transform: `translateX(${corrimiento}px)`, transition: corrimiento < ancho ? "none" : `transform 180ms ${CURVA}`, boxShadow: "-12px 0 30px rgba(0,0,0,0.35)" }
+    : { transition: `transform 180ms ${CURVA}` };
   return { ref, estilo, corrimiento };
 }

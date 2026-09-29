@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, memo } from "react";
 import { i18next, cambiarIdioma, leerPreferencia } from './idiomas/index.js';
 import { MARCA } from './sistema/tokens.js';
 import { PRESETS } from "./lib/presets.js";
@@ -325,7 +325,9 @@ const FotoDeProducto = memo(({ src, respaldo = null, t, estilo }) => {
   const [cargada, setCargada] = useState(false);
   const imgRef = useRef(null);
   useEffect(() => { setIntento(src ? 0 : respaldo ? 1 : 0); setPorProxy(null); setCargada(false); }, [src, respaldo]);
-  useEffect(() => { if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) setCargada(true); });
+  // useLayoutEffect y no useEffect (30/09, Nati: "titila"): con useEffect pasaba un cuadro en opacidad 0 antes de
+  // enterarse de que la foto ya estaba en caché, y en el feed eso se veía como un parpadeo en cada producto.
+  useLayoutEffect(() => { if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) setCargada(true); });
   useEffect(() => {
     if (intento !== 2 || !respaldo || porProxy) return;
     let vivo = true;
@@ -3766,7 +3768,8 @@ export default function App() {
               background:t.botonPrincipal?.desde || t.accent, color:t.botonPrincipal?.texto || "#fff", marginBottom:10,
               display:"flex", alignItems:"center", justifyContent:"center", gap:8,
             }}>{tx("avisos.guardarEnGaleria")}</button>
-            <button onClick={async () => { setPhotosToShare(null); await dbSaveSettings({ fotosAGaleria: "nunca" }); setSettings(prev => ({ ...prev, fotosAGaleria: "nunca" })); showToast(tx("avisos.noPreguntarMasListo")); }} style={{ width:"100%", padding:"10px", borderRadius:12, border:"none", background:"none", color:t.dim, fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:"inherit", marginTop:6 }}>{tx("avisos.noPreguntarMas")}</button>
+            {/* 30/09 (Nati: "es muy chica y no se entiende que se puede clickear"): un botón secundario de verdad */}
+            <button onClick={async () => { setPhotosToShare(null); await dbSaveSettings({ fotosAGaleria: "nunca" }); setSettings(prev => ({ ...prev, fotosAGaleria: "nunca" })); showToast(tx("avisos.noPreguntarMasListo")); }} style={{ width:"100%", minHeight:48, padding:"12px", borderRadius:14, border:`1px solid ${t.border}`, background:t.card, color:t.text, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"inherit", marginBottom:10 }}>{tx("avisos.noPreguntarMas")}</button>
             <button onClick={() => setPhotosToShare(null)} style={{
               width:"100%", padding:"14px", borderRadius:14, border:`1px solid ${t.border}`, background:t.surface,
               color:t.muted, fontSize:13, fontWeight:600, cursor:"pointer",

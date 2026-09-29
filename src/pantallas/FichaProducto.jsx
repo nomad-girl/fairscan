@@ -98,7 +98,7 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
       <div key={x.id} style={{ height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative", background: "#000" }}>
         {/* La miniatura, borrosa, debajo: la foto grande aparece encima cuando termina de cargar (deslizar se siente al toque) */}
         {x.thumb && <img src={x.thumb} alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "blur(10px)", transform: "scale(1.08)" }} />}
-        <div onScroll={esta ? (e => setFoto(Math.round(e.target.scrollLeft / Math.max(1, e.target.offsetWidth)))) : undefined} style={{ position: "absolute", inset: 0, display: "flex", overflowX: fs.length > 1 ? "auto" : "hidden", scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch", touchAction: "pan-x" }}>
+        <div data-scroll-x onScroll={esta ? (e => setFoto(Math.round(e.target.scrollLeft / Math.max(1, e.target.offsetWidth)))) : undefined} style={{ position: "absolute", inset: 0, display: "flex", overflowX: fs.length > 1 ? "auto" : "hidden", scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch", touchAction: "pan-x" }}>
           {fs.length > 0 ? fs.map((ph, i) => (
             <div key={i} style={{ width: "100%", height: "100%", flexShrink: 0, scrollSnapAlign: "start" }}>
               {Foto ? <Foto src={ph} respaldo={respaldoDe(x, i)} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <img src={ph} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />}
