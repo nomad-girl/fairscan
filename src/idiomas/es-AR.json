@@ -127,7 +127,12 @@
     "masFoto": "+ foto",
     "listoStand": "Listo con este proveedor",
     "verProveedor": "Ver el proveedor",
-    "irAlCatalogo": "Ir al catálogo"
+    "irAlCatalogo": "Ir al catálogo",
+    "rotuloProducto": "Producto",
+    "rotuloTarjeta": "Tarjeta",
+    "guiaTitulo": "Cómo se usa la cámara",
+    "guiaProducto": "Sacale una foto a un producto",
+    "guiaTarjeta": "La tarjeta del proveedor va acá, cuando quieras"
   },
   "cerrarStand": {
     "titulo": "Cerrar stand",

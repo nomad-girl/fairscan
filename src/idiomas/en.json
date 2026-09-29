@@ -127,7 +127,12 @@
     "masFoto": "+ photo",
     "listoStand": "Done with this supplier",
     "verProveedor": "View supplier",
-    "irAlCatalogo": "Go to catalog"
+    "irAlCatalogo": "Go to catalog",
+    "rotuloProducto": "Product",
+    "rotuloTarjeta": "Card",
+    "guiaTitulo": "How the camera works",
+    "guiaProducto": "Take a photo of a product",
+    "guiaTarjeta": "The supplier's card goes here, whenever you want"
   },
   "cerrarStand": {
     "titulo": "Close booth",
