@@ -410,7 +410,19 @@ function DiagnosticoFotos({ t }) {
         {estado?.corriendo ? tx("diagnostico.probando") : tx("diagnostico.probar")}
       </button>
       {/* 30/09: Nati nunca sintió la vibración en el iPhone. Este botón la dispara y dice si el motor nativo está. */}
-      <button onClick={() => { vibrarExito(); setVibracion(`${Capacitor.isNativePlatform() ? tx("diagnostico.vibracionNativa") : tx("diagnostico.vibracionWeb")} · ${Capacitor.isPluginAvailable("Haptics") ? tx("diagnostico.vibracionPluginSi") : tx("diagnostico.vibracionPluginNo")}`); }}
+      <button onClick={async () => {
+        // 30/09: Nati ve "motor disponible" y no siente nada. Se llama al motor directo, tres veces distintas, y se
+        // anota qué respondió cada una: así sabemos si falla el plugin o es un ajuste del iPhone (Vibración del sistema).
+        const partes = [Capacitor.isNativePlatform() ? tx("diagnostico.vibracionNativa") : tx("diagnostico.vibracionWeb"), Capacitor.isPluginAvailable("Haptics") ? tx("diagnostico.vibracionPluginSi") : tx("diagnostico.vibracionPluginNo")];
+        try {
+          const { Haptics } = await import("@capacitor/haptics");
+          for (const [nombre, fn] of [["impact", () => Haptics.impact({ style: "HEAVY" })], ["notification", () => Haptics.notification({ type: "SUCCESS" })], ["vibrate", () => Haptics.vibrate({ duration: 400 })]]) {
+            try { await fn(); partes.push(`${nombre} ok`); } catch (e) { partes.push(`${nombre}: ${e?.message || e}`); }
+            await new Promise(r => setTimeout(r, 350));
+          }
+        } catch (e) { partes.push(`import: ${e?.message || e}`); }
+        setVibracion(partes.join(" · "));
+      }}
         style={{ marginLeft:8, padding:"8px 12px", borderRadius:10, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
         {tx("diagnostico.probarVibracion")}
       </button>
@@ -2829,6 +2841,9 @@ export default function App() {
   };
   // Paywall (5.3): al cerrar el stand, si el saldo no alcanza. Nunca al disparar.
   const [paywall, setPaywall] = useState(null); // { bloqueados }
+  // ¿Se puede comprar ya en este teléfono? Si no (RevenueCat sin configurar), la hoja lo dice en vez de fallar en silencio.
+  const [comprasListas, setComprasListas] = useState(false);
+  useEffect(() => { import("./lib/compras.js").then(m => setComprasListas(!!m.estaConfigurado?.())).catch(() => setComprasListas(false)); }, [auth.user, paywall]);
   const bloquearProductos = async (ids) => {
     for (const id of ids) await dbUpdateProduct(id, { bloqueado: 1, ai_processed: true }); // la IA no gasta en lo bloqueado
     setProducts(prev => prev.map(p => ids.includes(p.id) ? { ...p, bloqueado: 1, ai_processed: true } : p));
@@ -3716,9 +3731,11 @@ export default function App() {
 
   return (
     <div className="app-pantallas" style={{ height:"100%", background:t.bg, color:t.text, position:"relative", overflow:"hidden", fontFamily:"'DM Sans', -apple-system, sans-serif" }}>
+      {/* 30/09 (Nati: "entré a packs y no pude salir"): la hoja de packs se cierra tocando el velo, con la X o con Después */}
       {paywall && (
-        <div role="dialog" style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-          <div style={{ width:"100%", maxWidth:520, background:t.bg, borderRadius:"22px 22px 0 0", padding:"22px 20px calc(env(safe-area-inset-bottom, 0px) + 20px)", boxShadow:"0 -8px 40px rgba(0,0,0,0.35)" }}>
+        <div role="dialog" onClick={() => setPaywall(null)} style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+          <div onClick={e => e.stopPropagation()} style={{ position:"relative", width:"100%", maxWidth:520, background:t.bg, borderRadius:"22px 22px 0 0", padding:"22px 20px calc(env(safe-area-inset-bottom, 0px) + 20px)", boxShadow:"0 -8px 40px rgba(0,0,0,0.35)" }}>
+            <button type="button" onClick={() => setPaywall(null)} aria-label={tx("comun.cerrar")} style={{ position:"absolute", top:12, right:12, width:40, height:40, borderRadius:20, border:"none", background:t.surface, display:"grid", placeItems:"center", cursor:"pointer" }}><Icono nombre="cerrar" tamano={20} color={t.muted} /></button>
             <p style={{ fontSize:17, fontWeight:800, color:t.text, margin:"0 0 6px", lineHeight:1.35 }}>{paywall.desdeAjustes ? tx("configuracion.escaneosYPacks") : tx("avisos.paywallFrase", { defaultValue: FRASE_PAYWALL })}</p>
             {paywall.desdeAjustes && <p style={{ fontSize:13, color:t.muted, margin:"0 0 14px" }}>{creditos ? tx("configuracion.escaneosQuedan", { count: saldoVisible(creditos) }) : tx("configuracion.escaneosPista")}</p>}
             {paywall.bloqueados > 0 && <p style={{ fontSize:13, color:t.muted, margin:"0 0 14px" }}>{tx("avisos.bloqueados", { count: paywall.bloqueados })}</p>}
@@ -3734,8 +3751,9 @@ export default function App() {
                   <span style={{ fontSize:15, fontWeight:800, color: destacado ? t.accent : t.text }}>USD {pk.usd.toFixed(2)}</span>
                 </button>
               ); })}
-              <button onClick={() => setPaywall(null)} style={{ padding:"12px", borderRadius:12, border:"none", background:"none", color:t.muted, fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{tx("avisos.despues")}</button>
+              <button onClick={() => setPaywall(null)} style={{ minHeight:48, padding:"12px", borderRadius:14, border:`1px solid ${t.border}`, background:t.card, color:t.text, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>{tx("avisos.despues")}</button>
             </div>
+            {!comprasListas && <p style={{ fontSize:12, color:t.muted, margin:"10px 0 0", textAlign:"center" }}>{tx("avisos.compraProximaVersion")}</p>}
             <p style={{ fontSize:11, color:t.dim, margin:"10px 0 0", textAlign:"center" }}>{tx("avisos.tarjetasNoDescuentan")}</p>
           </div>
         </div>

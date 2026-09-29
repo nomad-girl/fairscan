@@ -1082,6 +1082,7 @@
     "cargandoCatalogo": "Cargando el catálogo"
   },
   "avisos": {
+    "compraProximaVersion": "La compra dentro de la app llega con la próxima versión. Los precios ya son los definitivos.",
     "cargando": "Cargando...",
     "bajandoCatalogo": "Bajando tu catálogo…",
     "bajandoDetalle": "{{hechos}} de {{total}} {{nombre}}. No cierres la app; nada se perdió.",

@@ -1082,6 +1082,7 @@
     "cargandoCatalogo": "Loading the catalog"
   },
   "avisos": {
+    "compraProximaVersion": "In-app purchase arrives with the next version. Prices shown are final.",
     "cargando": "Loading...",
     "bajandoCatalogo": "Downloading your catalog…",
     "bajandoDetalle": "{{hechos}} of {{total}} {{nombre}}. Don't close the app; nothing was lost.",

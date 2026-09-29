@@ -46,6 +46,9 @@ export async function configurar(userId) {
   }
 }
 
+/** ¿La compra dentro de la app está lista en este teléfono? (RevenueCat configurado con clave) */
+export function estaConfigurado() { return configurado; }
+
 /** @returns {Promise<{ ok: boolean, mensaje?: string, cancelada?: boolean }>} */
 export async function comprar(packId) {
   if (!Capacitor.isNativePlatform()) return { ok: false, mensaje: EN_WEB() };
