@@ -39,17 +39,24 @@ describe("Ficha de proveedor", () => {
     fireEvent.touchMove(pie, { touches: [{ clientX: 200, clientY: 504 }] });
     fireEvent.touchEnd(pie, { changedTouches: [{ clientX: 120, clientY: 504 }] });
     expect(screen.getAllByRole("tab")[1].getAttribute("aria-selected")).toBe("true");
-    // En la galería, el pie deja pasar el dedo a la grilla (un scroll ahí no cambia de proveedor); miniaturas y botones siguen tocables
-    const pieActual = pie.closest("[data-pie]");
-    expect(pieActual.style.pointerEvents).toBe("none");
-    expect(pieActual.querySelector('[data-desliza="no"]').style.pointerEvents).toBe("auto");
-    expect(screen.getByText("Ver todos los datos").closest("div").style.pointerEvents).toBe("auto");
+    // En la galería, el pie es el chico (wireframe 29/09, opción 1): nombre y cantidad, sin miniaturas, sin Ver todos los datos ni contactos
+    const pieChico = document.querySelector("[data-pie-galeria]");
+    expect(pieChico).toBeTruthy();
+    expect(pieChico.textContent).toContain("Yiwu Sunrise");
+    expect(pieChico.textContent).toContain("3 productos");
+    expect(pieChico.querySelector('[data-desliza="no"]')).toBeNull();
+    expect(screen.queryByText("Ver todos los datos")).toBeNull();
+    expect(screen.queryByText("Llamar")).toBeNull();
     // Y hacia la derecha, desde el medio (no desde el borde, que es volver), vuelve a la tarjeta
-    fireEvent.touchStart(pie, { touches: [{ clientX: 100, clientY: 500 }] });
-    fireEvent.touchMove(pie, { touches: [{ clientX: 200, clientY: 503 }] });
-    fireEvent.touchEnd(pie, { changedTouches: [{ clientX: 300, clientY: 503 }] });
+    const enGaleria = screen.getAllByText("Yiwu Sunrise")[0];
+    fireEvent.touchStart(enGaleria, { touches: [{ clientX: 100, clientY: 500 }] });
+    fireEvent.touchMove(enGaleria, { touches: [{ clientX: 200, clientY: 503 }] });
+    fireEvent.touchEnd(enGaleria, { changedTouches: [{ clientX: 300, clientY: 503 }] });
     expect(screen.getAllByRole("tab")[0].getAttribute("aria-selected")).toBe("true");
-    expect(pieActual.style.pointerEvents).toBe("auto"); // en la tarjeta, el pie vuelve a recibir el dedo (pasar de proveedor)
+    // En la tarjeta vuelven el pie completo y los contactos
+    expect(document.querySelector("[data-pie-galeria]")).toBeNull();
+    expect(screen.getByText("Ver todos los datos")).toBeTruthy();
+    expect(screen.getByText("Llamar")).toBeTruthy();
     // Tocar la pestaña también cambia
     fireEvent.click(screen.getAllByRole("tab")[1]);
     expect(screen.getAllByRole("tab")[1].getAttribute("aria-selected")).toBe("true");

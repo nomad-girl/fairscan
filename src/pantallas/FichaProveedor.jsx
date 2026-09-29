@@ -128,11 +128,23 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
 
   // El pie del proveedor. Es UN solo elemento, fijo (27/09, Nati: "que cambie SOLO la parte de la foto y el resto
   // sean elementos fijos"): no viaja con el deslizamiento de arriba.
-  // En la galería, el pie deja pasar el dedo a la grilla que tiene debajo (Nati, 29/09: "para escrolearla se va a otro
-  // proveedor"): el scroll que arrancaba sobre el nombre o el degradé no tocaba la galería sino el pie, y el pie
-  // pasaba al proveedor vecino. Las miniaturas y los botones siguen tocables.
-  const pie = (x, esta, propios) => (
-    <div data-pie style={{ ...PIE, pointerEvents: esta && pagina === 1 ? "none" : "auto" }}>
+  // El pie chico de la galería (wireframe aprobado por Nati el 29/09, opción 1: "molesta que todos los elementos se
+  // superpongan a la galería"): una sola línea con el nombre, la cantidad y el vendedor, y el botón Agregar producto.
+  // Sin miniaturas (son las mismas fotos de la grilla), sin contactos ni Ver todos los datos: quedan en la tarjeta, a un
+  // deslizamiento. Es sólido y la grilla termina arriba de él, así nada tapa una foto.
+  const pieGaleria = (x, propios) => (
+    <div data-pie data-pie-galeria style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: `14px 18px calc(18px + env(safe-area-inset-bottom, 0px))`, background: "#2B1206", borderTop: "1px solid rgba(255,243,234,0.12)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+      <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+        <p style={{ margin: 0, fontSize: 17, fontWeight: 700, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{x.company || t("proveedor.titulo")}</p>
+        <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.7)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{[t("proveedor.conProductos", { count: propios.length }), x.contact].filter(Boolean).join(" · ")}</p>
+      </div>
+      {onAddProduct && <button type="button" onClick={onAddProduct} style={{ flexShrink: 0, minHeight: 44, borderRadius: 999, border: "none", background: paleta.accent, color: paleta.botonPrincipal?.texto || "#2B1206", fontFamily: "inherit", fontSize: 14, fontWeight: 700, padding: "0 16px", display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer" }}><Icono nombre="camara" tamano={18} color={paleta.botonPrincipal?.texto || "#2B1206"} />{t("proveedor.agregarProducto")}</button>}
+    </div>
+  );
+
+  // El pie de la tarjeta (nombre, contacto, stand, miniaturas, botones). En la galería se reemplaza por `pieGaleria`.
+  const pie = (x, esta, propios) => (esta && pagina === 1 ? pieGaleria(x, propios) :
+    <div data-pie style={PIE}>
       <p style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere", paddingRight: 60 }}>{x.company || t("proveedor.titulo")}</p>
       {x.contact && <p style={{ margin: 0, fontSize: 17, fontWeight: 500, color: "rgba(255,255,255,0.92)", paddingRight: 60 }}>{x.contact}</p>}
       {subtituloDe(x) && <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.75)", paddingRight: 60 }}>{subtituloDe(x)}</p>}
@@ -176,7 +188,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
   const galeria = (propios) => (
     // El scroll de la galería es suyo: no le llega al paginador vertical de proveedores (se trababa, Nati 27/09)
     <div aria-label={t("proveedor.galeria")} onTouchStart={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}
-      style={{ height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain", touchAction: "pan-y", padding: `calc(env(safe-area-inset-top, 0px) + 116px) 10px 360px`, display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gridAutoRows: "max-content", gap: 4, alignContent: "start", alignItems: "start" }}>
+      style={{ height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain", touchAction: "pan-y", padding: `calc(env(safe-area-inset-top, 0px) + 116px) 10px calc(112px + env(safe-area-inset-bottom, 0px))`, display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gridAutoRows: "max-content", gap: 4, alignContent: "start", alignItems: "start" }}>
       {propios.map(p => (
         <button key={p.id} type="button" onClick={() => onNavigateProduct?.(p)} aria-label={p.name || t("pedido.sinNombre")} style={{ width: "100%", aspectRatio: "1", height: "auto", borderRadius: 8, overflow: "hidden", border: "none", padding: 0, background: "rgba(255,255,255,0.1)", cursor: "pointer", position: "relative", display: "block" }}>
           {miniatura(p)}
@@ -241,7 +253,8 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
       )}
 
       {/* A la derecha: los contactos, con nombre debajo (un toque y estás escribiendo) */}
-      {contactos.length > 0 && (
+      {/* Los contactos solo en la tarjeta: en la galería taparían fotos (wireframe 29/09) */}
+      {contactos.length > 0 && pagina === 0 && (
         <div style={{ position: "absolute", right: 10, bottom: `calc(230px + env(safe-area-inset-bottom, 0px))`, display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
           {contactos.map(c => (
             <a key={c.clave} href={c.href} target="_blank" rel="noopener noreferrer" onClick={c.onClick} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: "#fff", textDecoration: "none", width: 56 }}>
