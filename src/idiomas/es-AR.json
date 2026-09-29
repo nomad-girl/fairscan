@@ -47,6 +47,7 @@
     }
   },
   "visor": {
+    "guiaUnica": "Sacale una foto a un producto. La tarjeta del proveedor va en la pastilla, cuando quieras.",
     "escaneosDePrueba": "{{count}} de {{total}} escaneos de prueba",
     "escaneos": "{{count}} escaneos",
     "sinEscaneos": "0 escaneos · {{count}} esperando",
@@ -330,6 +331,8 @@
     "leidoPorIA": "La IA leyó el nombre · tocá para corregir"
   },
   "ficha": {
+    "seccionClasificacion": "Clasificación",
+    "clasificacionNota": "La propone la IA para ordenar y buscar; podés corregirla.",
     "producto": "Producto",
     "fotos_one": "{{count}} foto",
     "fotos_other": "{{count}} fotos",

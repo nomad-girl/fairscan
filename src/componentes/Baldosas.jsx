@@ -7,7 +7,7 @@ import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 
-export function SeccionDeDatos({ titulo, conDato = [], sinDato = [], extra = null }) {
+export function SeccionDeDatos({ titulo, conDato = [], sinDato = [], extra = null, nota = null, compacta = false }) {
   const { paleta, radios } = useSistema();
   const { t } = useTranslation();
   const [mostrarVacios, setMostrarVacios] = useState(false);
@@ -15,7 +15,8 @@ export function SeccionDeDatos({ titulo, conDato = [], sinDato = [], extra = nul
   return (
     <section aria-label={titulo} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: paleta.dim }}>{titulo}</h3>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+      {nota && <p style={{ margin: "-4px 0 0", fontSize: 12, color: paleta.dim, lineHeight: 1.4 }}>{nota}</p>}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }} data-compacta={compacta || undefined}>
         {conDato}
         {mostrarVacios ? sinDato : (sinDato.length > 0 && (
           <button type="button" onClick={() => setMostrarVacios(true)} style={{ minHeight: 62, borderRadius: radios.medio, border: `1.5px dashed ${paleta.border}`, background: "transparent", color: paleta.accentTexto, fontFamily: "inherit", fontSize: 14, fontWeight: 600, cursor: "pointer", textAlign: "left", padding: "10px 12px", gridColumn: conDato.length % 2 === 0 ? "1 / -1" : undefined }}>

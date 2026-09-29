@@ -47,6 +47,7 @@
     }
   },
   "visor": {
+    "guiaUnica": "Take a photo of a product. The supplier card goes in the pill, whenever you want.",
     "escaneosDePrueba": "{{count}} of {{total}} trial scans",
     "escaneos": "{{count}} scans",
     "sinEscaneos": "0 scans · {{count}} waiting",
@@ -330,6 +331,8 @@
     "leidoPorIA": "AI read the name · tap to fix"
   },
   "ficha": {
+    "seccionClasificacion": "Classification",
+    "clasificacionNota": "Suggested by the AI to sort and search; you can correct it.",
     "producto": "Product",
     "fotos_one": "{{count}} photo",
     "fotos_other": "{{count}} photos",

@@ -63,17 +63,20 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
   const parte = (items) => ({ conDato: items.filter(i => !vacio(i.valor)).map(i => i.nodo), sinDato: items.filter(i => vacio(i.valor)).map(i => i.nodo) });
   // Las baldosas de la hoja (27/09, Nati: "plain, poco contraste y muchos campos vacíos que hacen ruido"):
   // solo lo que tiene dato; lo vacío detrás de "+ Agregar dato".
-  const seccionProducto = parte([
-    { valor: p.name, nodo: <Dato key="name" ancho={2} etiqueta={t("ficha.nombre")} valor={p.name} onChange={v => { if (v) guardar({ name: v }); }} /> },
-    { valor: p.category, nodo: <Dato key="category" etiqueta={t("ficha.categoria")} valor={p.category} onChange={v => guardar({ category: v || null })} /> },
-    { valor: materiales, nodo: <Dato key="material" etiqueta={t("ficha.materiales")} valor={materiales} onChange={v => guardar({ material: v ? v.split(",").map(x => x.trim()).filter(Boolean) : [] })} /> },
-  ]);
-  const seccionCompra = parte([
+  // 30/09 (Nati): lo básico (nombre, precio, MOQ, piezas, CBM) siempre a la vista, vacío o no, para cargarlo a mano de
+  // un toque; categoría y materiales son lo que la IA usa para clasificar, no lo primero que se mira: van al final, chicos.
+  const seccionProducto = { conDato: [
+    <Dato key="name" ancho={2} etiqueta={t("ficha.nombre")} valor={p.name} onChange={v => { if (v) guardar({ name: v }); }} />,
+    ...[
     { valor: p.price, nodo: <Dato key="price" etiqueta={`${t("ficha.precio")} ${moneda}`} valor={p.price} tipo="numero" destacado color={paleta.green} onChange={v => guardar({ price: v == null ? null : String(v) })} /> },
     { valor: p.moq, nodo: <Dato key="moq" etiqueta={t("ficha.moq")} valor={p.moq} tipo="numero" destacado onChange={v => guardar({ moq: v == null ? null : String(v) })} /> },
     settings?.datosDeCompra?.piezasPorCaja !== false && { valor: p.piezasPorCaja, nodo: <Dato key="piezas" etiqueta={t("ficha.piezasPorCaja")} valor={p.piezasPorCaja} tipo="numero" onChange={v => guardar({ piezasPorCaja: v })} /> },
     settings?.datosDeCompra?.cbmPorCaja !== false && { valor: p.cbmPorCaja, nodo: <Dato key="cbm" etiqueta={t("ficha.cbmPorCaja")} valor={p.cbmPorCaja} tipo="numero" sufijo="CBM" onChange={v => guardar({ cbmPorCaja: v })} /> },
-  ].filter(Boolean));
+  ].filter(Boolean).map(i => i.nodo) ], sinDato: [] };
+  const seccionClasificacion = parte([
+    { valor: p.category, nodo: <Dato key="category" etiqueta={t("ficha.categoria")} valor={p.category} onChange={v => guardar({ category: v || null })} /> },
+    { valor: materiales, nodo: <Dato key="material" etiqueta={t("ficha.materiales")} valor={materiales} onChange={v => guardar({ material: v ? v.split(",").map(x => x.trim()).filter(Boolean) : [] })} /> },
+  ]);
   const baseMoq = (p.moq || p.moqBase) ? (
     <Dato key="moqBase" ancho={2} etiqueta={t("ficha.moqBase")} hijos={<Segmentado etiqueta={t("ficha.moqBase")} valor={p.moqBase || null} onChange={v => guardar({ moqBase: v })} estilo={{ marginTop: 4 }} opciones={[{ valor: "producto", texto: t("ficha.basePorProducto") }, { valor: "caja", texto: t("ficha.basePorCaja") }, { valor: "pedido", texto: t("ficha.basePorPedido") }]} />} />
   ) : null;
@@ -175,8 +178,7 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
           )}
           {district && <p style={{ ...texto("pie"), color: paleta.dim, margin: 0 }}>{district.name} · {t("ficha.capturado", { cuando: haceCuanto(p.createdAt) })}</p>}
 
-          <SeccionDeDatos titulo={t("ficha.seccionProducto")} {...seccionProducto} />
-          <SeccionDeDatos titulo={t("ficha.seccionCompra")} {...seccionCompra} extra={baseMoq} />
+          <SeccionDeDatos titulo={t("ficha.seccionProducto")} {...seccionProducto} extra={baseMoq} />
 
           {/* Proveedor */}
           <section>
@@ -211,6 +213,7 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
               {p.audioTranscript && <p style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.text, margin: 0, lineHeight: 1.5 }}>{p.audioTranscript}</p>}
             </div>
           ) : null} />
+          <SeccionDeDatos titulo={t("ficha.seccionClasificacion")} nota={t("ficha.clasificacionNota")} {...seccionClasificacion} compacta />
 
           <div style={{ marginTop: 8 }}><Boton variante="peligro" ancho="total" icono="borrar" onClick={() => setConfirmando(true)}>{t("ficha.eliminar")}</Boton></div>
         </div>

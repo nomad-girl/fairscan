@@ -102,12 +102,9 @@ export function Visor({
       <div aria-hidden style={{ position: "absolute", inset: 0, background: "#fff", opacity: flash ? 0.75 : 0, pointerEvents: "none", zIndex: 2, transition: `opacity ${duracion(movimiento.obturador.velo)}ms linear` }} />
       {guiaVisible && !esTarjeta && !modoAngulo && (
         <div role="note" aria-label={t("visor.guiaTitulo")} onClick={marcarGuiaVista} style={{ position: "absolute", inset: 0, zIndex: 4 }}>
-          <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 128px)", left: 24, right: 24, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, pointerEvents: "none" }}>
-            <span style={{ fontSize: 22, color: BLANCO, lineHeight: 1 }}>↑</span>
-            <span style={{ background: "rgba(255,255,255,0.96)", color: "#0F172A", borderRadius: 14, padding: "10px 14px", fontSize: 14, fontWeight: 600, textAlign: "center", lineHeight: 1.35, maxWidth: 300, boxShadow: "0 10px 30px -12px rgba(0,0,0,0.5)" }}>{t("visor.guiaTarjeta")}</span>
-          </div>
-          <div style={{ position: "absolute", bottom: "calc(env(safe-area-inset-bottom, 0px) + 150px)", left: 24, right: 24, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, pointerEvents: "none" }}>
-            <span style={{ background: "rgba(255,255,255,0.96)", color: "#0F172A", borderRadius: 14, padding: "10px 14px", fontSize: 14, fontWeight: 600, textAlign: "center", lineHeight: 1.35, maxWidth: 300, boxShadow: "0 10px 30px -12px rgba(0,0,0,0.5)" }}>{t("visor.guiaProducto")}</span>
+          {/* Una sola guía, arriba de la pastilla y del obturador (los dos quedaron abajo, al alcance del pulgar) */}
+          <div style={{ position: "absolute", bottom: "calc(env(safe-area-inset-bottom, 0px) + 216px)", left: 24, right: 24, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, pointerEvents: "none" }}>
+            <span style={{ background: "rgba(255,255,255,0.96)", color: "#0F172A", borderRadius: 14, padding: "10px 14px", fontSize: 14, fontWeight: 600, textAlign: "center", lineHeight: 1.35, maxWidth: 300, boxShadow: "0 10px 30px -12px rgba(0,0,0,0.5)" }}>{t("visor.guiaUnica")}</span>
             <span style={{ fontSize: 22, color: BLANCO, lineHeight: 1 }}>↓</span>
           </div>
         </div>
@@ -143,8 +140,10 @@ export function Visor({
           : standAbierto.tieneTarjeta ? (n === 0 ? t("visor.standTarjetaSinLeer_zero") : t("visor.standTarjetaSinLeer", { count: n }))
           : n === 0 ? t("visor.escanearTarjeta")
           : t("visor.escanearTarjetaConFotos", { count: n });
+        // 30/09 (Nati: "con una mano se queda lejos"): la pastilla estaba arriba de todo; ahora vive justo encima del
+        // obturador, donde llega el pulgar. Es la misma pastilla: escanear la tarjeta si no hay, o abrir el stand.
         return (
-          <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 68px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "center" }}>
+          <div style={{ position: "absolute", bottom: "calc(env(safe-area-inset-bottom, 0px) + 152px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "center" }}>
             <button type="button" onClick={() => { marcarGuiaVista(); (sinTarjeta ? onTarjeta : onStand)?.(); }} aria-label={sinTarjeta ? t("visor.escanearTarjeta") : t("visor.abrirStand")} style={{ maxWidth: "100%", minHeight: 50, padding: "0 20px", borderRadius: 999, border: sinTarjeta ? "1.5px solid rgba(255,255,255,0.75)" : "none", background: "rgba(43,18,6,0.7)", boxShadow: "none", color: "#fff", fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", overflow: "hidden", backdropFilter: "blur(8px)" }}>
               {/* Sin tarjeta, la pastilla es naranja y con el ícono de tarjeta (Nati, 27/09: "que sea más llamativo") */}
               <Icono nombre={conNombre ? "proveedor" : "tarjeta"} tamano={18} color="#fff" /><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{texto}</span>{!sinTarjeta && <Icono nombre="siguiente" tamano={14} color="rgba(255,255,255,0.8)" />}
@@ -168,7 +167,7 @@ export function Visor({
 
       {/* Consejo en contexto (una vez en la vida) */}
       {consejoVisible && !esTarjeta && (
-        <div role="status" onClick={onConsejoVisto} style={{ position: "absolute", left: 14, right: 14, bottom: 148, zIndex: 4, background: "rgba(43,18,6,0.86)", backdropFilter: "blur(10px)", borderRadius: 14, padding: "12px 14px", textAlign: "center", fontSize: 14, lineHeight: 1.4, color: BLANCO, cursor: "pointer" }}>
+        <div role="status" onClick={onConsejoVisto} style={{ position: "absolute", left: 14, right: 14, bottom: 216, zIndex: 4, background: "rgba(43,18,6,0.86)", backdropFilter: "blur(10px)", borderRadius: 14, padding: "12px 14px", textAlign: "center", fontSize: 14, lineHeight: 1.4, color: BLANCO, cursor: "pointer" }}>
           {t("visor.consejoTarjeta")}
         </div>
       )}

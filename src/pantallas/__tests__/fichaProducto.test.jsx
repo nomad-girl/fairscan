@@ -39,9 +39,7 @@ describe("Ficha de producto", () => {
     const onUpdate = vi.fn();
     con(<FichaProducto product={base} suppliers={suppliers} districts={districts} allProducts={[base]} onUpdate={onUpdate} />);
     fireEvent.click(screen.getByText("Ver todos los datos"));
-    // 27/09: lo vacío queda detrás de "+ Agregar dato" (Nati: los campos vacíos hacen ruido)
-    expect(screen.queryByText("CBM por caja")).toBeNull();
-    fireEvent.click(screen.getAllByRole("button", { name: /Agregar/ }).find(b => /Agregar/.test(b.textContent) && b.closest("section")?.getAttribute("aria-label") === "Compra"));
+    // 30/09 (Nati): lo básico de compra siempre a la vista, vacío o no, para cargarlo de un toque
     expect(screen.getByLabelText(/CBM por caja/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Piezas por caja/ }));
     const input = screen.getByRole("textbox");
