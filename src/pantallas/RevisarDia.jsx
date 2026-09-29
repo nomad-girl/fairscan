@@ -10,7 +10,7 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Chip, FilaDeChips, Icono, Hoja, PaginadorVertical } from "../componentes/index.js";
+import { Boton, Chip, FilaDeChips, Icono, Hoja, PaginadorVertical, BotonCamara } from "../componentes/index.js";
 import { useVolverConGesto } from "../sistema/useVolverConGesto.js";
 import { FUENTES } from "../sistema/tokens.js";
 import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
@@ -20,7 +20,7 @@ import { paresRepetidos } from "../lib/repetidos.js";
 function horaDe(ts) { const d = new Date(ts || 0); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; }
 const sinPrecio = (p) => !p.price || isNaN(parseFloat(p.price));
 
-export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, esAnonima = false, pendientesSync = 0, Foto, t: tLegacy, onActualizarProducto, onJuntar, onEliminar, onCerrar, onCrearCuenta, onVerLosDeHoy }) {
+export function RevisarDia({ onCamara, productosDeHoy = [], suppliers = [], feria = null, esAnonima = false, pendientesSync = 0, Foto, t: tLegacy, onActualizarProducto, onJuntar, onEliminar, onCerrar, onCrearCuenta, onVerLosDeHoy }) {
   const { t } = useTranslation();
   const { paleta, radios, texto } = useSistema();
 
@@ -170,7 +170,7 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px" }}>
           <button type="button" onClick={onCerrar} aria-label={t("comun.cerrar")} style={{ width: 48, height: 48, borderRadius: 24, border: "none", background: "rgba(43,18,6,0.55)", display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="cerrar" tamano={22} color="#fff" /></button>
           <span style={{ background: paleta.accent, color: "#fff", borderRadius: 999, padding: "8px 14px", fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{t("revisar.titulo")}{total > 0 && !enCierre ? ` · ${t("revisar.posicion", { n: Math.min(i + 1, total), total })}` : ""}</span>
-          <span style={{ width: 48 }} />
+          {onCamara ? <BotonCamara oscuro onClick={onCamara} /> : <span style={{ width: 48 }} />}
         </div>
         <FilaDeChips estilo={{ padding: "0 14px" }}>
           {filtros.map(([k, nombre, n]) => <Chip key={k} activo={filtro === k} onClick={() => cambiarFiltro(k)} estilo={filtro === k ? { background: paleta.accent, color: "#fff", borderColor: paleta.accent } : { background: "rgba(43,18,6,0.55)", color: "#fff", borderColor: "transparent" }}>{nombre}{n ? ` · ${n}` : ""}</Chip>)}

@@ -1,5 +1,6 @@
 {
   "comun": {
+    "abrirCamara": "Open the camera",
     "listo": "Done",
     "cancelar": "Cancel",
     "cerrar": "Close",

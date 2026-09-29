@@ -11,14 +11,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Dato, Icono, Hoja, PaginadorVertical, SeccionDeDatos } from "../componentes/index.js";
+import { Boton, Dato, Icono, Hoja, PaginadorVertical, SeccionDeDatos, BotonCamara } from "../componentes/index.js";
 import { urlDeAudio } from "../lib/audioNotes.js";
 import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
 import { pedidoDeProveedor, productosParaPedido, totalesDePedido } from "../lib/pedidos.js";
 import { useVolverConGesto } from "../sistema/useVolverConGesto.js";
 
 
-export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], pedidos = [], districts = [], moneda = "USD", Foto, tLegacy, onBack, onUpdate, onDelete, onNavigateProduct, onNavigateSupplier, onAddProduct, onArmarPedido }) {
+export function FichaProveedor({ onCamara, supplier: s, allSuppliers = [], products = [], pedidos = [], districts = [], moneda = "USD", Foto, tLegacy, onBack, onUpdate, onDelete, onNavigateProduct, onNavigateSupplier, onAddProduct, onArmarPedido }) {
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
   const [datosAbiertos, setDatosAbiertos] = useState(false);
@@ -235,7 +235,10 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(43,18,6,0.55)", color: "#fff", borderRadius: 999, padding: "6px 12px", fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
           {guardado ? <><Icono nombre="listo" tamano={14} color="#86EFAC" />{t("proveedor.guardado")}</> : posicion}
         </span>
-        {redondo("favorito", s.favorito ? t("proveedor.quitarFavorito") : t("proveedor.marcarFavorito"), () => guardar({ favorito: s.favorito ? 0 : 1 }), { activo: !!s.favorito, presionado: !!s.favorito })}
+        <span style={{ display: "flex", gap: 8 }}>
+          {onCamara && <BotonCamara oscuro onClick={onCamara} />}
+          {redondo("favorito", s.favorito ? t("proveedor.quitarFavorito") : t("proveedor.marcarFavorito"), () => guardar({ favorito: s.favorito ? 0 : 1 }), { activo: !!s.favorito, presionado: !!s.favorito })}
+        </span>
       </div>
       {/* Debajo de la posición, dos pestañas de texto: Tarjeta · Productos N. Antes eran dos puntitos y no se entendía
           que ahí había una galería (Nati, 29/09); es el mismo patrón de pestañas del catálogo. Tocarlas también cambia. */}

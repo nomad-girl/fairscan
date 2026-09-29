@@ -3,6 +3,7 @@
  * que falte se agrega acá, no se improvisa en una pantalla.
  */
 export { Boton } from "./Boton.jsx";
+export { BotonCamara } from "./BotonCamara.jsx";
 export { Chip, FilaDeChips, Segmentado } from "./Chip.jsx";
 export { Fila, Precio } from "./Fila.jsx";
 export { Campo, Bloque } from "./Campo.jsx";

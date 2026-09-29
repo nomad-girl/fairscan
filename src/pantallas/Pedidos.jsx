@@ -7,12 +7,12 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Chip, FilaDeChips, Fila, Precio, Icono, Hoja } from "../componentes/index.js";
+import { Boton, Chip, FilaDeChips, Fila, Precio, Icono, Hoja, BotonCamara } from "../componentes/index.js";
 import { totalesDePedido, totalesDeFeria, proveedoresSinPedido, productosParaPedido } from "../lib/pedidos.js";
 import { numero as fNumero, cbm as fCbm, fechaCorta } from "../idiomas/formato.js";
 import { useVolverConGesto } from "../sistema/useVolverConGesto.js";
 
-export function Pedidos({ pedidos = [], suppliers = [], products = [], districts = [], activeDistrictId = null, moneda = "USD", onBack, onAbrirPedido, onDescargarExcelFeria }) {
+export function Pedidos({ onCamara, pedidos = [], suppliers = [], products = [], districts = [], activeDistrictId = null, moneda = "USD", onBack, onAbrirPedido, onDescargarExcelFeria }) {
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
   const [feria, setFeria] = useState(activeDistrictId ?? "todas");
@@ -32,6 +32,7 @@ export function Pedidos({ pedidos = [], suppliers = [], products = [], districts
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: `calc(0px + 8px) ${espacios.margenLateral}px 8px`, minHeight: alturas.tocable + 16 }}>
         <button type="button" onClick={onBack} aria-label={t("comun.volver")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}><Icono nombre="volver" tamano={20} color={paleta.muted} /></button>
         <h1 style={{ ...texto("titulo"), margin: 0, flex: 1 }}>{t("pedidos.titulo")}</h1>
+        {onCamara && <BotonCamara onClick={onCamara} />}
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", padding: `0 ${espacios.margenLateral}px 40px`, display: "flex", flexDirection: "column", gap: espacios.entreFilas, maxWidth: 720, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>

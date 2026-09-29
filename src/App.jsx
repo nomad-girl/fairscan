@@ -103,6 +103,7 @@ import { Catalogo } from './pantallas/Catalogo.jsx';
 import { RevisarDia } from './pantallas/RevisarDia.jsx';
 import { FichaProducto } from './pantallas/FichaProducto.jsx';
 import { Ferias } from './pantallas/Ferias.jsx';
+import { BotonCamara } from './componentes/BotonCamara.jsx';
 import { FichaProveedor } from './pantallas/FichaProveedor.jsx';
 import { Icono, Hoja, Boton, Marca } from './componentes/index.js';
 import { Escritorio } from './escritorio/Escritorio.jsx';
@@ -1271,7 +1272,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
 // ═══════════════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════════════
-function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers, districts, onReload, teams, activeTeam, teamMembers, isAdmin, fetchMembers, inviteMember, onSwitchTeam, userEmail, userId, esAnonima = false, auth, onSignOut, onGoExport, onAccountDeleted, isDark = false, onToggleTheme, onEntrar, saldo = null, onVerPacks = null }) {
+function SettingsScreen({ onCamara, settings, onSave, onBack, sync, t, products, suppliers, districts, onReload, teams, activeTeam, teamMembers, isAdmin, fetchMembers, inviteMember, onSwitchTeam, userEmail, userId, esAnonima = false, auth, onSignOut, onGoExport, onAccountDeleted, isDark = false, onToggleTheme, onEntrar, saldo = null, onVerPacks = null }) {
   const { t: tx } = useTranslation();
   const handleSwitchTeam = async (teamId) => {
     if (onSwitchTeam) await onSwitchTeam(teamId);
@@ -1885,7 +1886,7 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
 
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
-      <Header title={tx("configuracion.titulo")} onBack={onBack} t={t} />
+      <Header title={tx("configuracion.titulo")} onBack={onBack} t={t} right={onCamara ? <BotonCamara onClick={onCamara} /> : null} />
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
         <MenuItem icon={<Icono nombre="camara" tamano={22} color={t.accent} />} title={tx("configuracion.capturaYPantalla")} subtitle={`${CURRENCIES[loc.currency]?.symbol || "USD"} · ${isDark ? tx("configuracion.oscuro") : tx("configuracion.claro")}`} onClick={() => setSubScreen("captura")} />
         <MenuItem icon={<Icono nombre="equipo" tamano={22} color={t.accent} />} title={tx("configuracion.equipoYSync")} subtitle={activeTeam ? activeTeam.name : tx("configuracion.sinEquipo")} onClick={() => setSubScreen("room")} />
@@ -3194,6 +3195,19 @@ export default function App() {
   // catálogo → producto → proveedor → producto → volver perdía el camino. Ahora es una pila (hasta 12).
   const pilaRef = useRef([]);
   const navigate = (s, data) => { pilaRef.current = [...pilaRef.current.slice(-11), { screen, data: screenData }]; setPrevScreen({ screen, data: screenData }); setScreenData(data); setScreen(s); };
+  // Si la app estuvo más de 10 minutos en segundo plano, al volver abre en la cámara (Nati, 30/09: "no me parece
+  // mal que se abra donde la dejaste, a menos que hayan pasado 10 minutos"). Menos que eso, sigue donde estaba.
+  const escondidaDesdeRef = useRef(null);
+  const pantallaRef = useRef(screen); pantallaRef.current = screen;
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "hidden") { escondidaDesdeRef.current = Date.now(); return; }
+      const desde = escondidaDesdeRef.current; escondidaDesdeRef.current = null;
+      if (desde && Date.now() - desde > 10 * 60 * 1000 && !esEscritorio && !String(pantallaRef.current).startsWith("capture")) navigate("capture");
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [esEscritorio]);
   const goBack = () => {
     const pila = pilaRef.current;
     const anterior = pila.length ? pila[pila.length - 1] : null;
@@ -3786,7 +3800,7 @@ export default function App() {
           onPedidoPara={asegurarPedido} onGuardarPedido={handleUpdateOrder} onEnviarProforma={enviarProforma} onDescargarExcelFeria={descargarExcelFeria}
           equipoId={sync.teamId} onActualizarVarios={handleBatchUpdate} onEliminarVarios={handleBatchDelete} onAgregarAlPedidoVarios={agregarVariosAlPedido} onEliminarPedido={handleDeleteOrder}
           renderExportar={(onVolver) => <ExportScreen compacto equipoId={sync.teamId} products={products} suppliers={suppliers} districts={districts} onBack={onVolver} onExported={msg => { onVolver(); showToast(msg); }} onUpdateProduct={handleUpdateProduct} onUpdateSupplier={handleUpdateSupplier} t={t} />}
-          renderAjustes={(onVolver, irAExportar) => <SettingsScreen saldo={creditos ? saldoVisible(creditos) : null} onVerPacks={() => setPaywall({ bloqueados: 0, desdeAjustes: true })} settings={settings} onSave={(s, silent) => handleSaveSettings(s, true).then(() => { if (!silent) { showToast(tx("configuracion.guardada")); onVolver(); } })} onBack={onVolver} sync={sync} t={t} isDark={isDark} onToggleTheme={toggleTheme}
+          renderAjustes={(onVolver, irAExportar) => <SettingsScreen onCamara={() => navigate("capture")} saldo={creditos ? saldoVisible(creditos) : null} onVerPacks={() => setPaywall({ bloqueados: 0, desdeAjustes: true })} settings={settings} onSave={(s, silent) => handleSaveSettings(s, true).then(() => { if (!silent) { showToast(tx("configuracion.guardada")); onVolver(); } })} onBack={onVolver} sync={sync} t={t} isDark={isDark} onToggleTheme={toggleTheme}
             products={products} suppliers={suppliers} districts={districts} onReload={reloadAll}
             teams={teamsHook.teams} activeTeam={teamsHook.teams.find(tm => tm.id === sync.teamId)} teamMembers={teamsHook.teamMembers}
             isAdmin={teamsHook.isAdmin} fetchMembers={teamsHook.fetchMembers} inviteMember={teamsHook.inviteMember}
@@ -3811,7 +3825,7 @@ export default function App() {
           initialSupplier={screenData?.fromSupplierId != null ? suppliers.find(s => s.id === screenData.fromSupplierId) || null : null} />
       )}
       {!esEscritorio && screen === "detail" && screenData && (
-        <FichaProducto product={products.find(p => p.id === screenData.id) || screenData} allProducts={ordenFicha ? ordenFicha.map(id => products.find(p => p.id === id)).filter(Boolean) : products} suppliers={suppliers} districts={districts}
+        <FichaProducto onCamara={() => navigate("capture")} product={products.find(p => p.id === screenData.id) || screenData} allProducts={ordenFicha ? ordenFicha.map(id => products.find(p => p.id === id)).filter(Boolean) : products} suppliers={suppliers} districts={districts}
           settings={settings} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"}
           Foto={FotoDeProducto} tLegacy={t}
           onBack={goBack} onUpdate={(id, changes) => { handleUpdateProduct(id, changes); }} onAddPhoto={agregarFotoAProducto} onDelete={handleDeleteProduct}
@@ -3819,7 +3833,7 @@ export default function App() {
           onPedir={(p) => abrirPedido(suppliers.find(x => x.id === p.supplierId), p.id)} />
       )}
       {!esEscritorio && screen === "revisar" && (
-        <RevisarDia productosDeHoy={soloDeHoy(activeDistrictId ? products.filter(p => p.districtId === activeDistrictId) : products)} suppliers={suppliers}
+        <RevisarDia onCamara={() => navigate("capture")} productosDeHoy={soloDeHoy(activeDistrictId ? products.filter(p => p.districtId === activeDistrictId) : products)} suppliers={suppliers}
           feria={activeDistrict?.name || null} esAnonima={!!auth.esAnonima} pendientesSync={queueCount}
           Foto={FotoDeProducto} t={t} onActualizarProducto={handleUpdateProduct}
           onJuntar={(a, b) => { const { cambios } = juntar(a, b); handleUpdateProduct(a.id, cambios); handleDeleteProduct(b.id, { quedarse: true }); }}
@@ -3830,25 +3844,25 @@ export default function App() {
           (29/09, Nati: "entro a un producto y no me deja escrollear": el orden guardado era el del catálogo y el
           producto podía no estar ahí, entonces no había vecino arriba ni abajo). */}
       {!esEscritorio && screen === "supplier" && screenData && (
-        <FichaProveedor supplier={suppliers.find(s => s.id === screenData.id) || screenData} allSuppliers={ordenProveedores ? ordenProveedores.map(id => suppliers.find(s => s.id === id)).filter(Boolean) : suppliers.filter(s => !proveedorVacio(s, products))} products={products} pedidos={orders} districts={districts} moneda={monedaActual} Foto={FotoDeProducto} tLegacy={t}
+        <FichaProveedor onCamara={() => navigate("capture")} supplier={suppliers.find(s => s.id === screenData.id) || screenData} allSuppliers={ordenProveedores ? ordenProveedores.map(id => suppliers.find(s => s.id === id)).filter(Boolean) : suppliers.filter(s => !proveedorVacio(s, products))} products={products} pedidos={orders} districts={districts} moneda={monedaActual} Foto={FotoDeProducto} tLegacy={t}
           onBack={goBack} onUpdate={handleUpdateSupplier} onDelete={handleDeleteSupplier} onNavigateSupplier={s => setScreenData(s)}
           onAddProduct={() => navigate("capture", { fromSupplierId: screenData.id })}
           onNavigateProduct={p => { setOrdenFicha(productosParaPedido(products, screenData.id).map(x => x.id)); navigate("detail", p); }} onArmarPedido={(s) => abrirPedido(s)} />
       )}
       {!esEscritorio && screen === "pedidos" && (
-        <Pedidos pedidos={orders} suppliers={suppliers} products={products} districts={districts} activeDistrictId={activeDistrictId} moneda={monedaActual} Foto={FotoDeProducto} tLegacy={t}
+        <Pedidos onCamara={() => navigate("capture")} pedidos={orders} suppliers={suppliers} products={products} districts={districts} activeDistrictId={activeDistrictId} moneda={monedaActual} Foto={FotoDeProducto} tLegacy={t}
           onBack={goBack} onAbrirPedido={(s) => abrirPedido(s)} onDescargarExcelFeria={descargarExcelFeria} />
       )}
       {!esEscritorio && screen === "pedido" && screenData && (() => {
         const supplier = suppliers.find(s => s.id === screenData.supplierId);
         const pedido = orders.find(o => o.id === screenData.pedidoId);
         if (!supplier || !pedido) return null;
-        return <ArmarPedido supplier={supplier} pedido={pedido} products={products} moneda={monedaActual} feria={districts.find(d => d.id === pedido.districtId) || null} Foto={FotoDeProducto} tLegacy={t} primero={screenData.primero || null}
+        return <ArmarPedido onCamara={() => navigate("capture")} supplier={supplier} pedido={pedido} products={products} moneda={monedaActual} feria={districts.find(d => d.id === pedido.districtId) || null} Foto={FotoDeProducto} tLegacy={t} primero={screenData.primero || null}
           onBack={goBack} onGuardar={(cambios) => handleUpdateOrder(pedido.id, cambios)} onEnviar={(via) => enviarProforma(pedido, supplier, via)} onNavigateProduct={p => navigate("detail", p)}
           onEliminar={() => { handleDeleteOrder(pedido.id); goBack(); }} />;
       })()}
       {!esEscritorio && screen === "districts" && (
-        <Ferias districts={districts} activeDistrictId={activeDistrictId} products={products} suppliers={suppliers}
+        <Ferias onCamara={() => navigate("capture")} districts={districts} activeDistrictId={activeDistrictId} products={products} suppliers={suppliers}
           onActivate={(id) => { switchDistrict(id); navigate("list"); }} onAdd={handleAddDistrict} onUpdate={handleUpdateDistrict} onDelete={handleDeleteDistrict}
           onBack={() => navigate("list")} />
       )}

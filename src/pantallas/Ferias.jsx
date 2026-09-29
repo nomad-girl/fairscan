@@ -14,7 +14,7 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Hoja, Icono } from "../componentes/index.js";
+import { Boton, Hoja, Icono, BotonCamara } from "../componentes/index.js";
 import { useVolverConGesto } from "../sistema/useVolverConGesto.js";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -55,7 +55,7 @@ export function fechasLegibles(dates, idioma = "es-AR") {
   return es ? `${desde ? "desde el" : "hasta el"} ${dia(d)} de ${mes(d)}` : `${desde ? "from" : "until"} ${diaMes(d)}`;
 }
 
-export function Ferias({ districts = [], activeDistrictId = null, products = [], suppliers = [], onActivate, onAdd, onUpdate, onDelete, onBack }) {
+export function Ferias({ onCamara, districts = [], activeDistrictId = null, products = [], suppliers = [], onActivate, onAdd, onUpdate, onDelete, onBack }) {
   const { t, i18n } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
   const { ref: raizRef, estilo: estiloGesto } = useVolverConGesto(onBack, { borde: 40 });
@@ -140,6 +140,7 @@ export function Ferias({ districts = [], activeDistrictId = null, products = [],
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: `8px ${espacios.margenLateral}px 8px`, minHeight: alturas.tocable + 16 }}>
         <button type="button" onClick={onBack} aria-label={t("comun.volver")} style={{ width: alturas.icono, height: alturas.icono, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="volver" tamano={22} color={paleta.text} /></button>
         <h1 style={{ ...texto("titulo"), margin: 0, flex: 1 }}>{t("ferias.titulo")}</h1>
+        {onCamara && <BotonCamara onClick={onCamara} />}
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", padding: `0 ${espacios.margenLateral}px 16px`, display: "flex", flexDirection: "column", gap: espacios.entreFilas, maxWidth: 720, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>

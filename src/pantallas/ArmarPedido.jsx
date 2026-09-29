@@ -7,7 +7,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Bloque, Campo, Fila, Icono, Hoja, Celda, Segmentado } from "../componentes/index.js";
+import { Boton, Bloque, Campo, Fila, Icono, Hoja, Celda, Segmentado, BotonCamara } from "../componentes/index.js";
 import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
 import { cantidadDe, conCantidad, lineaDePedido, productosParaPedido, totalesDePedido, porcentajeDeContenedor } from "../lib/pedidos.js";
 import { numero as fNumero, cbm as fCbm, fechaCorta } from "../idiomas/formato.js";
@@ -30,7 +30,7 @@ function useAncho(minimo = 900) {
 /** Las columnas de la tabla del pedido en la compu: foto, nombre (crece), precio, piezas, CBM, cantidad, total. */
 const COLUMNAS = "80px minmax(140px, 2fr) 72px 68px 68px 148px 96px"; // entra en una Mac de 13" con la barra lateral abierta (~1024 px)
 
-export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD", feria = null, Foto, tLegacy, primero = null, onBack, onGuardar, onEnviar, onNavigateProduct, onActualizarProducto = null, onEliminar = null }) {
+export function ArmarPedido({ onCamara, supplier: s, pedido, products = [], moneda = "USD", feria = null, Foto, tLegacy, primero = null, onBack, onGuardar, onEnviar, onNavigateProduct, onActualizarProducto = null, onEliminar = null }) {
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
   const escritorio = useAncho(900);
@@ -119,6 +119,7 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
           <h1 style={{ ...texto("titulo"), margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t("pedido.titulo")} · {s.company || t("proveedor.titulo")}</h1>
           <p style={{ ...texto("pie"), color: pedido?.estado === "enviado" ? paleta.green : paleta.muted, margin: 0 }}>{estado}{feria?.name ? ` · ${feria.name}` : ""}</p>
         </div>
+        {!escritorio && onCamara && <BotonCamara onClick={onCamara} />}
         {escritorio && (
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             {onEliminar && <Boton variante="fantasma" icono="borrar" etiqueta={t("escritorio.eliminarPedido")} onClick={() => { if (typeof window === "undefined" || typeof window.confirm !== "function" || window.confirm(t("escritorio.eliminarPedidoSeguro", { empresa: s.company || "" }))) onEliminar(); }} />}

@@ -10,14 +10,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Dato, Segmentado, Fila, Icono, Hoja, Esqueleto, PaginadorVertical, SeccionDeDatos } from "../componentes/index.js";
+import { Boton, Dato, Segmentado, Fila, Icono, Hoja, Esqueleto, PaginadorVertical, SeccionDeDatos, BotonCamara } from "../componentes/index.js";
 import { estadoIA, patchReintentoIA, explicarFalloIA } from "../lib/aiEstado.js";
 import { urlDeAudio, esPunteroMuerto } from "../lib/audioNotes.js";
 import { haceCuanto } from "../idiomas/formato.js";
 import { respaldoDe } from "../lib/miniaturas.js";
 import { useVolverConGesto } from "../sistema/useVolverConGesto.js";
 
-export function FichaProducto({ product: p, allProducts = [], suppliers = [], districts = [], settings, moneda = "USD", Foto, tLegacy, onBack, onUpdate, onAddPhoto, onDelete, onNavigateSupplier, onNavigateProduct, onPedir }) {
+export function FichaProducto({ onCamara, product: p, allProducts = [], suppliers = [], districts = [], settings, moneda = "USD", Foto, tLegacy, onBack, onUpdate, onAddPhoto, onDelete, onNavigateSupplier, onNavigateProduct, onPedir }) {
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
   const [foto, setFoto] = useState(0);
@@ -156,7 +156,7 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(43,18,6,0.55)", color: "#fff", borderRadius: 999, padding: "6px 12px", fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
           {estadoIA(p) === "fallo" && <Icono nombre="error" tamano={14} color="#FCA5A5" />}{guardado ? <><Icono nombre="listo" tamano={14} color="#86EFAC" />{t("ficha.guardado")}</> : posicion}
         </span>
-        <span style={{ display: "inline-block", width: 48 }} />
+        <span style={{ pointerEvents: "auto" }}>{onCamara ? <BotonCamara oscuro onClick={onCamara} /> : <span style={{ display: "inline-block", width: 48 }} />}</span>
       </div>
 
       {/* A la derecha: favorito, pedir, datos */}
