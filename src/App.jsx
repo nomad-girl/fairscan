@@ -1318,7 +1318,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
 // ═══════════════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════════════
-function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers, districts, onReload, teams, activeTeam, teamMembers, isAdmin, fetchMembers, inviteMember, onSwitchTeam, userEmail, userId, esAnonima = false, auth, onSignOut, onGoExport, onAccountDeleted, isDark = false, onToggleTheme, onEntrar }) {
+function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers, districts, onReload, teams, activeTeam, teamMembers, isAdmin, fetchMembers, inviteMember, onSwitchTeam, userEmail, userId, esAnonima = false, auth, onSignOut, onGoExport, onAccountDeleted, isDark = false, onToggleTheme, onEntrar, saldo = null, onVerPacks = null }) {
   const { t: tx } = useTranslation();
   const handleSwitchTeam = async (teamId) => {
     if (onSwitchTeam) await onSwitchTeam(teamId);
@@ -1532,6 +1532,15 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
         <button type="button" role="switch" aria-checked={!!isDark} onClick={onToggleTheme} style={{ width:"100%", minHeight:44, padding:"10px 12px", borderRadius:10, border:`1.5px solid ${isDark?t.accent:t.border}`, background:isDark?t.accentSoft:"transparent", color:isDark?t.accent:t.muted, fontSize:13, fontWeight:700, cursor:"pointer", textAlign:"left", fontFamily:"inherit", marginBottom:20 }}>
           {isDark ? tx("configuracion.modoOscuroActivado") : tx("configuracion.modoOscuroDesactivado")}
         </button>
+        {/* Fotos al celular (29/09): preguntar al cerrar el stand, siempre, o nunca */}
+        <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"20px 0 8px", textTransform:"uppercase" }}>{tx("configuracion.fotosAGaleria")}</p>
+        <div style={{ display:"flex", gap:6, marginBottom:8 }}>
+          {[["preguntar", tx("configuracion.fotosPreguntar")], ["siempre", tx("configuracion.fotosSiempre")], ["nunca", tx("configuracion.fotosNunca")]].map(([k, etiqueta]) => { const activo = (loc.fotosAGaleria || "preguntar") === k; return (
+            <button key={k} type="button" role="radio" aria-checked={activo} onClick={() => updateLoc(p => ({ ...p, fotosAGaleria: k }))} style={{ flex:1, minHeight:44, padding:"10px 8px", borderRadius:10, border:`1.5px solid ${activo?t.accent:t.border}`, background:activo?t.accentSoft:"transparent", color:activo?t.accent:t.muted, fontSize:12, fontWeight:700, cursor:"pointer", textAlign:"center", fontFamily:"inherit" }}>{etiqueta}</button>
+          ); })}
+        </div>
+        <p style={{ fontSize:11, color:t.dim, margin:"0 0 4px", lineHeight:1.5 }}>{tx("configuracion.fotosAGaleriaPista")}</p>
+
         {/* Idioma (E6, decisión de Nati del 27/09): sigue al teléfono, o se fija a mano */}
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"20px 0 8px", textTransform:"uppercase" }}>{tx("ajustes.idioma")}</p>
         <div style={{ display:"flex", gap:6, marginBottom:8 }}>
@@ -1928,6 +1937,8 @@ function SettingsScreen({ settings, onSave, onBack, sync, t, products, suppliers
         <MenuItem icon={<Icono nombre="camara" tamano={22} color={t.accent} />} title={tx("configuracion.capturaYPantalla")} subtitle={`${CURRENCIES[loc.currency]?.symbol || "USD"} · ${isDark ? tx("configuracion.oscuro") : tx("configuracion.claro")}`} onClick={() => setSubScreen("captura")} />
         <MenuItem icon={<Icono nombre="equipo" tamano={22} color={t.accent} />} title={tx("configuracion.equipoYSync")} subtitle={activeTeam ? activeTeam.name : tx("configuracion.sinEquipo")} onClick={() => setSubScreen("room")} />
         <MenuItem icon={<Icono nombre="nube" tamano={22} color={t.accent} />} title={tx("configuracion.backupYDatos")} subtitle={tx("configuracion.backupSub")} onClick={() => setSubScreen("backup")} />
+        {/* La parte paga, a la vista (29/09, Nati: "falta en el menú algo de packs o facturación") */}
+        {onVerPacks && <MenuItem icon={<Icono nombre="pedido" tamano={22} color={t.accent} />} title={tx("configuracion.escaneosYPacks")} subtitle={saldo == null ? tx("configuracion.escaneosPista") : tx("configuracion.escaneosQuedan", { count: saldo })} onClick={onVerPacks} />}
 
         {/* User & logout */}
         <div style={{ marginTop: 24, borderTop: `1px solid ${t.border}`, paddingTop: 20 }}>
@@ -3514,9 +3525,11 @@ export default function App() {
         setStandKey(k => k + 1);
         navigate(data.soloProveedor ? "list" : "capture");
         showToast(data.soloProveedor ? tx("avisos.proveedorGuardado") : tx("avisos.standCerrado", { count: createdIds.length }));
-        // Show share dialog so user can save photos to Camera Roll
+        // Guardar las fotos también en el celular (29/09, Nati: ¿molesta? → se configura): preguntar (por defecto), siempre o nunca
         if (sessionPhotos.length > 0) {
-          setTimeout(() => setPhotosToShare(sessionPhotos), 600);
+          const modo = settings?.fotosAGaleria || "preguntar";
+          if (modo === "siempre") setTimeout(async () => { const ok = await sharePhotosToDevice(sessionPhotos); if (ok) showToast(tx("avisos.fotosCompartidas")); }, 600);
+          else if (modo !== "nunca") setTimeout(() => setPhotosToShare(sessionPhotos), 600);
         }
         return;
       }
@@ -3731,7 +3744,8 @@ export default function App() {
       {paywall && (
         <div role="dialog" style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
           <div style={{ width:"100%", maxWidth:520, background:t.bg, borderRadius:"22px 22px 0 0", padding:"22px 20px calc(env(safe-area-inset-bottom, 0px) + 20px)", boxShadow:"0 -8px 40px rgba(0,0,0,0.35)" }}>
-            <p style={{ fontSize:17, fontWeight:800, color:t.text, margin:"0 0 6px", lineHeight:1.35 }}>{tx("avisos.paywallFrase", { defaultValue: FRASE_PAYWALL })}</p>
+            <p style={{ fontSize:17, fontWeight:800, color:t.text, margin:"0 0 6px", lineHeight:1.35 }}>{paywall.desdeAjustes ? tx("configuracion.escaneosYPacks") : tx("avisos.paywallFrase", { defaultValue: FRASE_PAYWALL })}</p>
+            {paywall.desdeAjustes && <p style={{ fontSize:13, color:t.muted, margin:"0 0 14px" }}>{creditos ? tx("configuracion.escaneosQuedan", { count: saldoVisible(creditos) }) : tx("configuracion.escaneosPista")}</p>}
             {paywall.bloqueados > 0 && <p style={{ fontSize:13, color:t.muted, margin:"0 0 14px" }}>{tx("avisos.bloqueados", { count: paywall.bloqueados })}</p>}
             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
               {(negocio.packs || []).map(pk => { const destacado = packDestacado(negocio.packs)?.id === pk.id; return (
@@ -3789,9 +3803,10 @@ export default function App() {
               if (ok) showToast(tx("avisos.fotosCompartidas"));
             }} style={{
               width:"100%", padding:"16px", borderRadius:16, border:"none", fontSize:15, fontWeight:700, cursor:"pointer",
-              background:`linear-gradient(135deg, ${t.green}, #34D399)`, color:"#fff", marginBottom:10,
+              background:t.botonPrincipal?.desde || t.accent, color:t.botonPrincipal?.texto || "#fff", marginBottom:10,
               display:"flex", alignItems:"center", justifyContent:"center", gap:8,
             }}>{tx("avisos.guardarEnGaleria")}</button>
+            <button onClick={async () => { setPhotosToShare(null); await dbSaveSettings({ fotosAGaleria: "nunca" }); setSettings(prev => ({ ...prev, fotosAGaleria: "nunca" })); showToast(tx("avisos.noPreguntarMasListo")); }} style={{ width:"100%", padding:"10px", borderRadius:12, border:"none", background:"none", color:t.dim, fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:"inherit", marginTop:6 }}>{tx("avisos.noPreguntarMas")}</button>
             <button onClick={() => setPhotosToShare(null)} style={{
               width:"100%", padding:"14px", borderRadius:14, border:`1px solid ${t.border}`, background:t.surface,
               color:t.muted, fontSize:13, fontWeight:600, cursor:"pointer",
@@ -3808,7 +3823,7 @@ export default function App() {
           onPedidoPara={asegurarPedido} onGuardarPedido={handleUpdateOrder} onEnviarProforma={enviarProforma} onDescargarExcelFeria={descargarExcelFeria}
           equipoId={sync.teamId} onActualizarVarios={handleBatchUpdate} onEliminarVarios={handleBatchDelete} onAgregarAlPedidoVarios={agregarVariosAlPedido} onEliminarPedido={handleDeleteOrder}
           renderExportar={(onVolver) => <ExportScreen compacto equipoId={sync.teamId} products={products} suppliers={suppliers} districts={districts} onBack={onVolver} onExported={msg => { onVolver(); showToast(msg); }} onUpdateProduct={handleUpdateProduct} onUpdateSupplier={handleUpdateSupplier} t={t} />}
-          renderAjustes={(onVolver, irAExportar) => <SettingsScreen settings={settings} onSave={(s, silent) => handleSaveSettings(s, true).then(() => { if (!silent) { showToast(tx("configuracion.guardada")); onVolver(); } })} onBack={onVolver} sync={sync} t={t} isDark={isDark} onToggleTheme={toggleTheme}
+          renderAjustes={(onVolver, irAExportar) => <SettingsScreen saldo={creditos ? saldoVisible(creditos) : null} onVerPacks={() => setPaywall({ bloqueados: 0, desdeAjustes: true })} settings={settings} onSave={(s, silent) => handleSaveSettings(s, true).then(() => { if (!silent) { showToast(tx("configuracion.guardada")); onVolver(); } })} onBack={onVolver} sync={sync} t={t} isDark={isDark} onToggleTheme={toggleTheme}
             products={products} suppliers={suppliers} districts={districts} onReload={reloadAll}
             teams={teamsHook.teams} activeTeam={teamsHook.teams.find(tm => tm.id === sync.teamId)} teamMembers={teamsHook.teamMembers}
             isAdmin={teamsHook.isAdmin} fetchMembers={teamsHook.fetchMembers} inviteMember={teamsHook.inviteMember}
@@ -3872,7 +3887,7 @@ export default function App() {
           onBack={() => navigate("list")} t={t} />
       )}
       {!esEscritorio && screen === "settings" && (
-        <SettingsScreen settings={settings} onSave={handleSaveSettings} onBack={() => navigate("list")} sync={sync} t={t} isDark={isDark} onToggleTheme={toggleTheme}
+        <SettingsScreen saldo={creditos ? saldoVisible(creditos) : null} onVerPacks={() => setPaywall({ bloqueados: 0, desdeAjustes: true })} settings={settings} onSave={handleSaveSettings} onBack={() => navigate("list")} sync={sync} t={t} isDark={isDark} onToggleTheme={toggleTheme}
           products={products} suppliers={suppliers} districts={districts} onReload={reloadAll}
           teams={teamsHook.teams} activeTeam={teamsHook.teams.find(tm => tm.id === sync.teamId)} teamMembers={teamsHook.teamMembers}
           isAdmin={teamsHook.isAdmin} fetchMembers={teamsHook.fetchMembers} inviteMember={teamsHook.inviteMember}

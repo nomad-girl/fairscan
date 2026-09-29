@@ -984,7 +984,16 @@
     "soporte": "Support",
     "faltaConfirmarTitulo": "Your email needs confirming",
     "faltaConfirmarTexto": "We sent an email to {{mail}}. Tap the link to finish creating your account; meanwhile everything stays saved on this phone.",
-    "reenviarMail": "Resend the email"
+    "reenviarMail": "Resend the email",
+    "fotosAGaleria": "Photos on your phone too",
+    "fotosPreguntar": "Ask",
+    "fotosSiempre": "Always",
+    "fotosNunca": "Never",
+    "fotosAGaleriaPista": "When you close a booth, the app can save the photos to your phone gallery as well as in FairScan.",
+    "escaneosYPacks": "Scans and packs",
+    "escaneosPista": "What's left and the packs",
+    "escaneosQuedan_one": "{{count}} scan left",
+    "escaneosQuedan_other": "{{count}} scans left"
   },
   "equipo": {
     "ahora": "just now",
@@ -1095,7 +1104,9 @@
     "guardarEnGaleria": "Save to my gallery",
     "ahoraNo": "Not now",
     "productoEliminado": "Product deleted",
-    "proveedorEliminado": "Supplier deleted"
+    "proveedorEliminado": "Supplier deleted",
+    "noPreguntarMas": "Don't ask again (change it in Settings)",
+    "noPreguntarMasListo": "Done. Photos stay only in FairScan; you can change it in Settings."
   },
   "bienvenida": {
     "frase": "Take the photo. The app names it, reads the card and builds the order.",

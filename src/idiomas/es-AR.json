@@ -984,7 +984,16 @@
     "soporte": "Soporte",
     "faltaConfirmarTitulo": "Falta confirmar tu mail",
     "faltaConfirmarTexto": "Te mandamos un mail a {{mail}}. Tocá el enlace para terminar de crear la cuenta; mientras, todo sigue guardado en este teléfono.",
-    "reenviarMail": "Reenviar el mail"
+    "reenviarMail": "Reenviar el mail",
+    "fotosAGaleria": "Fotos también en el celular",
+    "fotosPreguntar": "Preguntar",
+    "fotosSiempre": "Siempre",
+    "fotosNunca": "Nunca",
+    "fotosAGaleriaPista": "Al cerrar un stand, la app puede guardar las fotos en la galería del teléfono además de en FairScan.",
+    "escaneosYPacks": "Escaneos y packs",
+    "escaneosPista": "Cuánto te queda y los packs",
+    "escaneosQuedan_one": "Te queda {{count}} escaneo",
+    "escaneosQuedan_other": "Te quedan {{count}} escaneos"
   },
   "equipo": {
     "ahora": "ahora",
@@ -1095,7 +1104,9 @@
     "guardarEnGaleria": "Guardar en mi galería",
     "ahoraNo": "Ahora no",
     "productoEliminado": "Producto eliminado",
-    "proveedorEliminado": "Proveedor eliminado"
+    "proveedorEliminado": "Proveedor eliminado",
+    "noPreguntarMas": "No preguntar más (se cambia en Configuración)",
+    "noPreguntarMasListo": "Listo. Las fotos quedan solo en FairScan; lo cambiás en Configuración."
   },
   "bienvenida": {
     "frase": "Sacá la foto. La app le pone nombre, lee la tarjeta y arma el pedido.",
