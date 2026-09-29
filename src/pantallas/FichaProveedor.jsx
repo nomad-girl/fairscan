@@ -28,8 +28,10 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
   const paginaRef = useRef(0); paginaRef.current = pagina;
   // Volver a la grilla con el gesto (27/09): desde el borde, o desde cualquier lado cuando se ve la tarjeta
   const { ref: raizRef, estilo: estiloGesto } = useVolverConGesto(onBack, { libre: () => paginaRef.current === 0 }); // 0 = la tarjeta · 1 = la galería de sus productos (27/09)
-  const paginasRef = useRef(null);
-  useEffect(() => { setPagina(0); paginasRef.current?.scrollTo?.({ left: 0 }); }, [s.id]);
+  const [arrastre, setArrastre] = useState(0);   // el dedo, en píxeles, mientras se desliza tarjeta ↔ galería
+  const arrastrandoRef = useRef(false);
+  const actualRef = useRef(null);
+  useEffect(() => { setPagina(0); setArrastre(0); }, [s.id]);
 
   const suyos = useMemo(() => productosParaPedido(products, s.id), [products, s.id]);
   const pedido = pedidoDeProveedor(pedidos, s.id);
@@ -75,7 +77,53 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
       </button>
     </div>
   );
-  const irA = (n) => { const el = paginasRef.current; if (!el) return; el.scrollTo?.({ left: n * el.offsetWidth, behavior: "smooth" }); setPagina(n); };
+  const irA = (n) => setPagina(n);
+  // Tarjeta ↔ galería con el dedo, desde cualquier parte de la pantalla (Nati, 29/09: "es difícil el swipe, si no lo
+  // hacés justo en el centro no lo detecta"). Antes era el scroll nativo, y el pie con el nombre y las miniaturas,
+  // los contactos y la galería lo tapaban: solo respondía la franja del medio. Ahora es el mismo gesto que el
+  // paginador vertical: se decide el eje a los 8 px y, si es horizontal, la foto sigue al dedo. Hacia la derecha en la
+  // tarjeta no hace nada acá (ese es el gesto de volver, que está libre en esa página); desde el borde izquierdo en la
+  // galería tampoco (también es volver). La tira de miniaturas se marca `data-desliza="no"` porque tiene su propio scroll.
+  const conProductos = suyos.length > 0;
+  useEffect(() => {
+    const el = actualRef.current;
+    if (!el || !conProductos) return;
+    let ini = null;
+    const ancho = () => el.clientWidth || window.innerWidth || 1;
+    const start = (e) => {
+      const t0 = e.touches[0];
+      if (e.target?.closest?.('[data-desliza="no"]')) { ini = null; return; }
+      ini = { x: t0.clientX, y: t0.clientY, t: Date.now(), eje: null };
+    };
+    const move = (e) => {
+      if (!ini) return;
+      const t0 = e.touches[0]; const dx = t0.clientX - ini.x, dy = t0.clientY - ini.y;
+      if (!ini.eje) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        ini.eje = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+        const p = paginaRef.current;
+        if (ini.eje === "x" && ((p === 0 && dx > 0) || (p === 1 && dx < 0) || (p === 1 && ini.x < 28))) ini.eje = "y"; // lo toma otro gesto o no hay página
+      }
+      if (ini.eje !== "x") return;
+      if (e.cancelable) e.preventDefault();
+      arrastrandoRef.current = true;
+      setArrastre(dx);
+    };
+    const end = (e) => {
+      if (!ini) return;
+      const { eje, t: t0, x } = ini; ini = null;
+      if (eje !== "x") return;
+      const dx = (e.changedTouches?.[0]?.clientX ?? x) - x; const v = dx / Math.max(1, Date.now() - t0);
+      arrastrandoRef.current = false; setArrastre(0);
+      if (dx < -ancho() * 0.2 || v < -0.4) setPagina(1);
+      else if (dx > ancho() * 0.2 || v > 0.4) setPagina(0);
+    };
+    el.addEventListener("touchstart", start, { passive: true });
+    el.addEventListener("touchmove", move, { passive: false });
+    el.addEventListener("touchend", end);
+    el.addEventListener("touchcancel", end);
+    return () => { el.removeEventListener("touchstart", start); el.removeEventListener("touchmove", move); el.removeEventListener("touchend", end); el.removeEventListener("touchcancel", end); };
+  }, [s.id, conProductos]);
   const PIE = { position: "absolute", left: 0, right: 0, bottom: 0, padding: `80px 18px calc(18px + env(safe-area-inset-bottom, 0px))`, background: "linear-gradient(to top, rgba(43,18,6,0.9) 60%, rgba(43,18,6,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 };
 
   // El pie del proveedor. Es UN solo elemento, fijo (27/09, Nati: "que cambie SOLO la parte de la foto y el resto
@@ -88,7 +136,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
       {x.minimoDeCompra ? <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.75)" }}>{t("proveedor.minimoDeCompra")} {moneda} {x.minimoDeCompra}</p> : null}
       {/* La tira de miniaturas (Nati, 27/09: "me gustaba más cuando se veían las miniaturas"): tocar una abre el producto */}
       {propios.length > 0 && (
-        <div style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", marginTop: 8, paddingBottom: 2 }} onTouchStart={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()}>
+        <div data-desliza="no" style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", marginTop: 8, paddingBottom: 2 }} onTouchStart={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()}>
           {propios.slice(0, 12).map(p => (
             <button key={p.id} type="button" onClick={() => onNavigateProduct?.(p)} aria-label={p.name || t("pedido.sinNombre")} style={{ width: 56, height: 56, flexShrink: 0, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,0.35)", padding: 0, background: "rgba(255,255,255,0.15)", cursor: "pointer" }}>{miniatura(p)}</button>
           ))}
@@ -105,10 +153,19 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
     const primera = !tarjeta && propios[0] ? (elegirMiniatura(propios[0]) || respaldoDe(propios[0])) : null;
     const fondo = tarjeta || primera;
     const respaldo = tarjeta ? (x.cardPhotoUrl || null) : (propios[0] ? respaldoDe(propios[0]) : null);
-    return fondo ? (Foto
-      ? <Foto src={fondo} respaldo={respaldo} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: tarjeta ? "contain" : "cover", display: "block" }} />
-      : <img src={fondo} alt="" style={{ width: "100%", height: "100%", objectFit: tarjeta ? "contain" : "cover", display: "block" }} />)
-      : <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center" }}><span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, color: "rgba(255,255,255,0.6)", fontSize: 14 }}><Icono nombre="tarjeta" tamano={40} color="rgba(255,255,255,0.6)" />{t("proveedor.sinTarjeta")}</span></div>;
+    const imagen = (estilo) => (Foto
+      ? <Foto src={fondo} respaldo={respaldo} t={tLegacy} estilo={{ width: "100%", height: "100%", display: "block", ...estilo }} />
+      : <img src={fondo} alt="" style={{ width: "100%", height: "100%", display: "block", ...estilo }} />);
+    if (!fondo) return <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center" }}><span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, color: "rgba(255,255,255,0.6)", fontSize: 14 }}><Icono nombre="tarjeta" tamano={40} color="rgba(255,255,255,0.6)" />{t("proveedor.sinTarjeta")}</span></div>;
+    if (!tarjeta) return imagen({ objectFit: "cover" });
+    // La tarjeta se ve entera (el QR se escanea de acá) y detrás va ella misma, ampliada, desenfocada y oscurecida,
+    // en lugar del cacao liso que se leía como "márgenes" (Nati, 29/09: "debería estar más difuminada").
+    return (
+      <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", background: "#1C0D06" }}>
+        <div aria-hidden="true" style={{ position: "absolute", inset: 0, transform: "scale(1.2)", filter: "blur(28px) brightness(0.55) saturate(1.1)" }}>{imagen({ objectFit: "cover" })}</div>
+        <div style={{ position: "absolute", inset: 0 }}>{imagen({ objectFit: "contain", filter: "drop-shadow(0 12px 30px rgba(0,0,0,0.45))" })}</div>
+      </div>
+    );
   };
 
   // La galería: todos sus productos en grilla de tres (27/09, Nati: "la ficha del proveedor YA ES la galería").
@@ -116,7 +173,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
   const galeria = (propios) => (
     // El scroll de la galería es suyo: no le llega al paginador vertical de proveedores (se trababa, Nati 27/09)
     <div aria-label={t("proveedor.galeria")} onTouchStart={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}
-      style={{ height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain", touchAction: "pan-y", padding: `calc(env(safe-area-inset-top, 0px) + 96px) 10px 360px`, display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gridAutoRows: "max-content", gap: 4, alignContent: "start", alignItems: "start" }}>
+      style={{ height: "100%", overflowY: "auto", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain", touchAction: "pan-y", padding: `calc(env(safe-area-inset-top, 0px) + 116px) 10px 360px`, display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gridAutoRows: "max-content", gap: 4, alignContent: "start", alignItems: "start" }}>
       {propios.map(p => (
         <button key={p.id} type="button" onClick={() => onNavigateProduct?.(p)} aria-label={p.name || t("pedido.sinNombre")} style={{ width: "100%", aspectRatio: "1", height: "auto", borderRadius: 8, overflow: "hidden", border: "none", padding: 0, background: "rgba(255,255,255,0.1)", cursor: "pointer", position: "relative", display: "block" }}>
           {miniatura(p)}
@@ -131,12 +188,13 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
   const pantalla = (x, esta) => {
     const propios = esta ? suyos : productosParaPedido(products, x.id);
     return (
-      <div key={x.id} style={{ height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative", background: "#1C0D06" }}>
+      <div key={x.id} ref={esta ? actualRef : undefined} style={{ height: "100%", flexShrink: 0, position: "relative", background: "#1C0D06" }}>
         {esta && propios.length > 0 ? (
-          <div ref={paginasRef} onScroll={e => setPagina(Math.round(e.target.scrollLeft / Math.max(1, e.target.offsetWidth)))}
-            style={{ position: "absolute", inset: 0, display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch", touchAction: "pan-x pan-y" }}>
-            <div style={{ width: "100%", height: "100%", flexShrink: 0, scrollSnapAlign: "start" }}>{fondoTarjeta(x, propios)}</div>
-            <div style={{ width: "100%", height: "100%", flexShrink: 0, scrollSnapAlign: "start" }}>{galeria(propios)}</div>
+          <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
+            <div style={{ position: "absolute", inset: 0, display: "flex", width: "100%", transform: `translate3d(calc(${-pagina * 100}% + ${arrastre}px), 0, 0)`, transition: arrastrandoRef.current ? "none" : "transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1)", willChange: "transform" }}>
+              <div style={{ width: "100%", height: "100%", flexShrink: 0 }}>{fondoTarjeta(x, propios)}</div>
+              <div style={{ width: "100%", height: "100%", flexShrink: 0 }}>{galeria(propios)}</div>
+            </div>
           </div>
         ) : <div style={{ position: "absolute", inset: 0 }}>{fondoTarjeta(x, propios)}</div>}
         {pie(x, esta, propios)}
@@ -165,14 +223,17 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
         </span>
         {redondo("favorito", s.favorito ? t("proveedor.quitarFavorito") : t("proveedor.marcarFavorito"), () => guardar({ favorito: s.favorito ? 0 : 1 }), { activo: !!s.favorito, presionado: !!s.favorito })}
       </div>
-      {/* Dos puntos debajo de la posición: la tarjeta · la galería. Tocarlos también cambia (27/09). */}
+      {/* Debajo de la posición, dos pestañas de texto: Tarjeta · Productos N. Antes eran dos puntitos y no se entendía
+          que ahí había una galería (Nati, 29/09); es el mismo patrón de pestañas del catálogo. Tocarlas también cambia. */}
       {suyos.length > 0 && (
-        <div role="tablist" aria-label={t("proveedor.galeria")} style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 66px)`, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 6 }}>
-          {[t("proveedor.paginaTarjeta"), t("proveedor.galeria")].map((nombre, n) => (
-            <button key={n} type="button" role="tab" aria-selected={pagina === n} aria-label={nombre} onClick={() => irA(n)} style={{ width: 26, height: 22, border: "none", background: "transparent", padding: 0, cursor: "pointer", display: "grid", placeItems: "center" }}>
-              <span style={{ width: pagina === n ? 20 : 7, height: 7, borderRadius: 4, background: pagina === n ? "#fff" : "rgba(255,255,255,0.5)", transition: "width 200ms ease", boxShadow: "0 1px 3px rgba(0,0,0,0.5)" }} />
-            </button>
-          ))}
+        <div role="tablist" aria-label={t("proveedor.galeria")} style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 68px)`, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
+          <div style={{ display: "inline-flex", background: "rgba(43,18,6,0.55)", borderRadius: 999, padding: 3, backdropFilter: "blur(6px)", gap: 2 }}>
+            {[t("proveedor.paginaTarjeta"), t("proveedor.pestanaProductos", { count: suyos.length })].map((nombre, n) => (
+              <button key={n} type="button" role="tab" aria-selected={pagina === n} onClick={() => irA(n)} style={{ minHeight: 34, border: "none", borderRadius: 999, padding: "0 14px", background: pagina === n ? "#FFF3EA" : "transparent", color: pagina === n ? "#2B1206" : "rgba(255,255,255,0.85)", fontFamily: "inherit", fontSize: 14, fontWeight: 600, fontVariantNumeric: "tabular-nums", cursor: "pointer", transition: "background 200ms ease, color 200ms ease" }}>
+                {nombre}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

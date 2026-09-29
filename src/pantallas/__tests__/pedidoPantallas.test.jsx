@@ -28,6 +28,26 @@ const products = [
 const ancho = (px) => Object.defineProperty(window, "innerWidth", { value: px, configurable: true, writable: true });
 
 describe("Ficha de proveedor", () => {
+  it("tarjeta ↔ productos: pestañas de texto con la cuenta, y el gesto horizontal desde cualquier parte (29/09)", () => {
+    con(<FichaProveedor supplier={yiwu} allSuppliers={suppliers} products={products} districts={districts} />);
+    const pestanas = screen.getAllByRole("tab");
+    expect(pestanas.map(t => t.textContent)).toEqual(["Tarjeta", "Productos · 3"]);
+    expect(pestanas[0].getAttribute("aria-selected")).toBe("true");
+    // Deslizar hacia la izquierda sobre el nombre del proveedor (el pie, que antes no respondía) abre la galería
+    const pie = screen.getAllByText("Yiwu Sunrise")[0];
+    fireEvent.touchStart(pie, { touches: [{ clientX: 300, clientY: 500 }] });
+    fireEvent.touchMove(pie, { touches: [{ clientX: 200, clientY: 504 }] });
+    fireEvent.touchEnd(pie, { changedTouches: [{ clientX: 120, clientY: 504 }] });
+    expect(screen.getAllByRole("tab")[1].getAttribute("aria-selected")).toBe("true");
+    // Y hacia la derecha, desde el medio (no desde el borde, que es volver), vuelve a la tarjeta
+    fireEvent.touchStart(pie, { touches: [{ clientX: 100, clientY: 500 }] });
+    fireEvent.touchMove(pie, { touches: [{ clientX: 200, clientY: 503 }] });
+    fireEvent.touchEnd(pie, { changedTouches: [{ clientX: 300, clientY: 503 }] });
+    expect(screen.getAllByRole("tab")[0].getAttribute("aria-selected")).toBe("true");
+    // Tocar la pestaña también cambia
+    fireEvent.click(screen.getAllByRole("tab")[1]);
+    expect(screen.getAllByRole("tab")[1].getAttribute("aria-selected")).toBe("true");
+  });
   it("es un feed: muestra al proveedor vecino y la posición", () => {
     con(<FichaProveedor supplier={yiwu} allSuppliers={suppliers} products={products} districts={districts} onNavigateSupplier={vi.fn()} />);
     expect(screen.getByText("1 de 2")).toBeTruthy();

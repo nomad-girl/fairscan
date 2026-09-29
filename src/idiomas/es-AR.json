@@ -438,6 +438,7 @@
     "sacarFotos": "Sacar fotos de este proveedor",
     "compra": "Compra",
     "paginaTarjeta": "Tarjeta",
+    "pestanaProductos": "Productos · {{count}}",
     "deslizaParaVer": "deslizá para ver la galería ›",
     "tocaParaAbrir": "Tocá la foto para abrir el producto",
     "verProductos": "Productos",

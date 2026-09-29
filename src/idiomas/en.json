@@ -438,6 +438,7 @@
     "sacarFotos": "Take photos for this supplier",
     "compra": "Buying",
     "paginaTarjeta": "Card",
+    "pestanaProductos": "Products · {{count}}",
     "deslizaParaVer": "swipe to see the gallery ›",
     "tocaParaAbrir": "Tap the photo to open the product",
     "verProductos": "Products",
