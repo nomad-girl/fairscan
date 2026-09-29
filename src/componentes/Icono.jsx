@@ -21,7 +21,7 @@ const ICONOS = {
 
 export const NOMBRES_DE_ICONOS = Object.keys(ICONOS);
 
-export function Icono({ nombre, tamano = 18, color, grosor = 1.75, etiqueta, estilo }) {
+export function Icono({ nombre, tamano = 18, color, grosor = 1.75, etiqueta, estilo, relleno }) {
   const { paleta } = useSistema();
   const Dibujo = ICONOS[nombre];
   if (!Dibujo) return null;
@@ -30,6 +30,7 @@ export function Icono({ nombre, tamano = 18, color, grosor = 1.75, etiqueta, est
       size={tamano}
       color={color || paleta.text}
       strokeWidth={grosor}
+      fill={relleno || "none"}
       aria-hidden={etiqueta ? undefined : true}
       aria-label={etiqueta}
       role={etiqueta ? "img" : undefined}

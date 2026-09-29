@@ -147,8 +147,8 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
   const limpio = (k, v) => (typeof v === "string" ? v.replace(k === "email" ? /^\s*e-?mail\s*[:：]\s*/i : /^\s*(web|website|sitio web)\s*[:：]\s*/i, "") : v);
 
   const redondo = (nombre, etiqueta, onClick, { activo = false, presionado } = {}) => (
-    <button type="button" onClick={onClick} aria-label={etiqueta} aria-pressed={presionado} style={{ width: 48, height: 48, borderRadius: 24, border: "none", background: activo ? paleta.accent : "rgba(43,18,6,0.55)", display: "grid", placeItems: "center", cursor: "pointer", backdropFilter: "blur(6px)" }}>
-      <Icono nombre={nombre} tamano={22} color="#fff" />
+    <button type="button" onClick={onClick} aria-label={etiqueta} aria-pressed={presionado} style={{ width: 48, height: 48, borderRadius: 24, border: "none", background: activo ? (nombre === "favorito" ? paleta.sello : paleta.accent) : "rgba(43,18,6,0.55)", display: "grid", placeItems: "center", cursor: "pointer", backdropFilter: "blur(6px)" }}>
+      <Icono nombre={nombre} tamano={22} color={activo && nombre === "favorito" ? paleta.selloTexto : "#fff"} relleno={activo && nombre === "favorito" ? paleta.selloTexto : undefined} />
     </button>
   );
 

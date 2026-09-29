@@ -45,8 +45,8 @@ export function HomeProveedor({ proveedor: s, products = [], pedido = null, mone
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <h1 style={{ ...texto("titulo"), fontSize: 26, margin: 0, overflowWrap: "anywhere" }}>{s.company || t("proveedor.titulo")}</h1>
             <button type="button" onClick={() => guardar({ favorito: s.favorito ? 0 : 1 })} aria-pressed={!!s.favorito} aria-label={s.favorito ? t("proveedor.quitarFavorito") : t("proveedor.marcarFavorito")}
-              style={{ width: 34, height: 34, borderRadius: 17, border: `1px solid ${paleta.border}`, background: s.favorito ? paleta.accent : paleta.card, display: "grid", placeItems: "center", cursor: "pointer" }}>
-              <Icono nombre="favorito" tamano={16} color={s.favorito ? "#fff" : paleta.text} />
+              style={{ width: 34, height: 34, borderRadius: 17, border: `1px solid ${paleta.border}`, background: s.favorito ? paleta.sello : paleta.card, display: "grid", placeItems: "center", cursor: "pointer" }}>
+              <Icono nombre="favorito" tamano={16} color={s.favorito ? paleta.selloTexto : paleta.text} relleno={s.favorito ? paleta.selloTexto : undefined} />
             </button>
           </div>
           <p style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted, margin: 0 }}>
@@ -89,7 +89,7 @@ export function HomeProveedor({ proveedor: s, products = [], pedido = null, mone
               <button type="button" onClick={() => onVerProducto?.(p)} aria-label={p.name || t("catalogo.procesandoNombre")}
                 style={{ position: "relative", padding: 0, border: "none", borderRadius: radios.medio, overflow: "hidden", aspectRatio: "1", background: paleta.surface, cursor: "pointer", boxShadow: paleta.sombraTarjeta }}>
                 <Miniatura p={p} Foto={Foto} tLegacy={tLegacy} paleta={paleta} />
-                {p.favorito ? <span style={{ position: "absolute", top: 8, right: 8, width: 22, height: 22, borderRadius: 11, background: paleta.accent, display: "grid", placeItems: "center" }}><Icono nombre="favorito" tamano={12} color="#fff" /></span> : null}
+                {p.favorito ? <span style={{ position: "absolute", top: 8, right: 8, width: 22, height: 22, borderRadius: 11, background: paleta.sello, display: "grid", placeItems: "center" }}><Icono nombre="favorito" tamano={12} color={paleta.selloTexto} relleno={paleta.selloTexto} /></span> : null}
               </button>
               <p style={{ ...texto("pie"), color: paleta.muted, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 <span style={{ color: paleta.text, fontWeight: 500 }}>{p.name || t("catalogo.procesandoNombre")}</span>{p.price ? ` · ${moneda} ${p.price}` : ""}

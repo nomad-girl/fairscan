@@ -162,7 +162,7 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
                       <button type="button" onClick={() => onNavigateProduct?.(p)} aria-label={t("pedido.verProducto")} style={{ padding: 0, border: "none", background: "none", cursor: "pointer" }}>{miniatura(p, 80)}</button>
                       <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                         <button type="button" onClick={() => onNavigateProduct?.(p)} style={{ textAlign: "left", padding: 0, border: "none", background: "none", cursor: "pointer", fontFamily: "inherit", color: paleta.text, fontSize: 15, fontWeight: 600, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                          {p.favorito ? <><Icono nombre="favorito" tamano={12} color={paleta.accentTexto} /> </> : null}{p.name || t("pedido.sinNombre")}
+                          {p.favorito ? <><Icono nombre="favorito" tamano={12} color={paleta.selloTexto} relleno={paleta.sello} /> </> : null}{p.name || t("pedido.sinNombre")}
                         </button>
                         {/* Con cantidad, las cuentas de la línea (unidades, CBM) van acá, como en el teléfono; sin cantidad, MOQ y categoría */}
                         {cant > 0
@@ -205,7 +205,7 @@ export function ArmarPedido({ supplier: s, pedido, products = [], moneda = "USD"
                   <button type="button" onClick={() => onNavigateProduct?.(p)} aria-label={t("pedido.verProducto")} style={{ padding: 0, border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0, textAlign: "left", fontFamily: "inherit", color: paleta.text }}>
                     {miniatura(p)}
                     <span style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ ...texto("cuerpo"), display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.favorito ? <><Icono nombre="favorito" tamano={12} color={paleta.accentTexto} /> </> : null}{p.name || t("pedido.sinNombre")}</span>
+                      <span style={{ ...texto("cuerpo"), display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.favorito ? <><Icono nombre="favorito" tamano={12} color={paleta.selloTexto} relleno={paleta.sello} /> </> : null}{p.name || t("pedido.sinNombre")}</span>
                       <span style={{ ...texto("pie"), color: paleta.muted, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{descripcion(p, l)}</span>
                       {cant > 0 && <span style={{ ...texto("pie", { fontWeight: 600 }), color: paleta.green, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontVariantNumeric: "tabular-nums" }}>{cuentas(l)}</span>}
                     </span>

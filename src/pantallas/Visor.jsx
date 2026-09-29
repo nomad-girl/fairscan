@@ -159,7 +159,7 @@ export function Visor({
           <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 60px)", left: 0, right: 0, zIndex: 3, display: "flex", justifyContent: "center" }}>
             <Pastilla><Icono nombre="tarjeta" tamano={16} color={BLANCO} />{t("visor.buscandoTarjeta")}</Pastilla>
           </div>
-          <div aria-hidden style={{ position: "absolute", left: "8%", right: "8%", top: "30%", aspectRatio: "1.75", border: "2px dashed rgba(241,245,249,0.7)", borderRadius: 14, zIndex: 3, pointerEvents: "none" }} />
+          <div aria-hidden style={{ position: "absolute", left: "8%", right: "8%", top: "30%", aspectRatio: "1.75", border: `2px dashed ${MARCA.sello}`, borderRadius: 14, zIndex: 3, pointerEvents: "none" }} />
           <div style={{ position: "absolute", left: 14, right: 14, top: "calc(30% + 46vw + 14px)", zIndex: 3, textAlign: "center" }}>
             <span style={{ fontSize: 13, color: BLANCO_SUAVE }}>{t("visor.encuadraLaTarjeta")}</span>
           </div>
@@ -206,7 +206,7 @@ export function Visor({
               <button type="button" onClick={cerrarBarra} aria-label={t("visor.cerrarBarra")} style={{ width: 36, height: 44, border: "none", background: "transparent", display: "grid", placeItems: "center", cursor: "pointer", padding: 0, order: 3 }}><Icono nombre="cerrar" tamano={20} color="#94A3B8" /></button>
               {(
                 <button type="button" onClick={onFavorito} aria-pressed={!!datos.favorito} aria-label={datos.favorito ? t("visor.quitarFavorito") : t("visor.marcarFavorito")} style={{ width: 44, height: 44, borderRadius: 12, border: `1px solid ${datos.favorito ? MARCA.naranja : "#DCE3EC"}`, background: datos.favorito ? "rgba(234,90,34,0.12)" : "#FFFFFF", display: "grid", placeItems: "center", cursor: "pointer" }}>
-                  <Icono nombre="favorito" tamano={20} color={datos.favorito ? MARCA.naranja : "#475569"} />
+                  <Icono nombre="favorito" tamano={20} color={datos.favorito ? MARCA.cacao : "#5A3522"} relleno={datos.favorito ? MARCA.sello : undefined} />
                 </button>
               )}
             </div>
@@ -265,7 +265,7 @@ export function Visor({
           style={{ position: "relative", width: alturas.obturador, height: alturas.obturador, borderRadius: "50%", border: "5px solid #fff", background: MARCA.naranja, boxShadow: "0 0 0 3px rgba(43,18,6,0.35)", cursor: "pointer", padding: 0, transform: presionado ? `scale(${movimiento.toque.escala})` : "scale(1)", transition: `transform ${duracion(presionado ? movimiento.toque.bajada : movimiento.toque.vuelta)}ms ${curvas.estandar}`, WebkitTapHighlightColor: "transparent" }}
         >
           {!esTarjeta && itemsCount > 0 && (
-            <span aria-label={t("visor.enEsteStand", { count: itemsCount })} style={{ position: "absolute", right: -10, top: -10, minWidth: 26, height: 26, padding: "0 8px", borderRadius: 13, background: MARCA.naranja, color: "#fff", fontSize: 13, fontWeight: 700, display: "grid", placeItems: "center", boxShadow: "0 0 0 3px rgba(0,0,0,0.35)", fontVariantNumeric: "tabular-nums" }}>{itemsCount}</span>
+            <span aria-label={t("visor.enEsteStand", { count: itemsCount })} style={{ position: "absolute", right: -10, top: -10, minWidth: 26, height: 26, padding: "0 8px", borderRadius: 13, background: MARCA.sello, color: MARCA.cacao, fontSize: 13, fontWeight: 700, display: "grid", placeItems: "center", boxShadow: "0 0 0 3px rgba(43,18,6,0.5)", fontVariantNumeric: "tabular-nums" }}>{itemsCount}</span>
           )}
         </button>
         <span aria-hidden style={{ fontSize: 12, fontWeight: 700, color: BLANCO, letterSpacing: "0.04em", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>{esTarjeta ? t("visor.rotuloTarjeta") : t("visor.rotuloProducto")}</span>

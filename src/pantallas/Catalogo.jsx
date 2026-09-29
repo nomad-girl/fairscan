@@ -12,7 +12,7 @@ import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { Boton, Chip, FilaDeChips, Segmentado, Fila, Precio, Icono, Esqueleto, Hoja, GrillaDeFotos, CeldaDeFoto, CarruselDeFotos, EstadoDeDatos, esperandoNube } from "../componentes/index.js";
 import { palabrasDeBusqueda, coincideBusqueda } from "../lib/busqueda.js";
-import { soloDeHoy, resumenDelDia, conEncabezadosDeDia } from "../lib/porDia.js";
+import { soloDeHoy, resumenDelDia, conEncabezadosDeDia, claveDia } from "../lib/porDia.js";
 import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
 import { estadoIA } from "../lib/aiEstado.js";
 import { proveedorVacio } from "../lib/proveedores.js";
@@ -118,7 +118,7 @@ export function Catalogo({
         </header>
         <CarruselDeFotos fotos={p.photos || []} respaldos={p.photoUrls || []} Foto={Foto} tLegacy={tLegacy} onTocar={() => abrir(p)} etiqueta={p.name || t("catalogo.procesandoNombre")} />
         <div style={{ display: "flex", alignItems: "center", gap: 6, padding: `4px ${espacios.margenLateral - 8}px 0` }}>
-          <button type="button" onClick={() => onToggleFavorito?.(p)} aria-pressed={!!p.favorito} aria-label={p.favorito ? t("ficha.quitarFavorito") : t("ficha.marcarFavorito")} style={{ width: alturas.tocable, height: alturas.tocable, border: "none", background: "none", display: "grid", placeItems: "center", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}><Icono nombre="favorito" tamano={24} color={p.favorito ? paleta.accentTexto : paleta.text} /></button>
+          <button type="button" onClick={() => onToggleFavorito?.(p)} aria-pressed={!!p.favorito} aria-label={p.favorito ? t("ficha.quitarFavorito") : t("ficha.marcarFavorito")} style={{ width: alturas.tocable, height: alturas.tocable, border: "none", background: "none", display: "grid", placeItems: "center", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}><Icono nombre="favorito" tamano={24} color={p.favorito ? paleta.selloTexto : paleta.text} relleno={p.favorito ? paleta.sello : undefined} /></button>
           <span style={{ flex: 1 }} />
           {p.price && <span style={{ ...texto("destacado"), color: paleta.green, fontVariantNumeric: "tabular-nums", paddingRight: 8 }}>USD {p.price}</span>}
         </div>
@@ -129,7 +129,12 @@ export function Catalogo({
     );
   };
 
-  const seccion = (txt) => <h3 style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: paleta.dim, margin: "8px 2px 2px" }}>{txt}</h3>;
+  // El encabezado de cada día; el de hoy es la píldora amarilla del "hallazgo" (identidad, 29/09: "lo nuevo del día")
+  const claveHoy = claveDia(Date.now());
+  const seccion = (txt, esHoy = false) => esHoy
+    ? <h3 style={{ margin: "8px 2px 2px" }}><span style={{ display: "inline-block", background: paleta.sello, color: paleta.selloTexto, borderRadius: 999, padding: "4px 10px", fontSize: 12, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" }}>{txt}</span></h3>
+    : <h3 style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: paleta.dim, margin: "8px 2px 2px" }}>{txt}</h3>;
+  const etiquetaNuevo = <span style={{ display: "inline-block", background: paleta.sello, color: paleta.selloTexto, borderRadius: 999, padding: "1px 7px", fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", marginLeft: 6, verticalAlign: "middle" }}>{t("catalogo.nuevo")}</span>;
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit" }}>
@@ -188,7 +193,7 @@ export function Catalogo({
               <span style={{ flex: 1 }} />
               {pendientes > 0 && <span role="status" aria-label={enLinea ? t("catalogo.procesandoCorto", { count: pendientes }) : t("catalogo.pendientes", { count: pendientes })} title={enLinea ? t("catalogo.procesandoCorto", { count: pendientes }) : t("catalogo.pendientes", { count: pendientes })} style={{ ...texto("pie"), color: paleta.dim, display: "inline-flex", alignItems: "center", gap: 5, whiteSpace: "nowrap", flexShrink: 0 }}><span aria-hidden style={{ width: 6, height: 6, borderRadius: 3, background: paleta.accent, display: "inline-block" }} />{pendientes}</span>}
               <button type="button" onClick={() => setFiltro(filtro === "favoritos" ? "todos" : "favoritos")} aria-pressed={filtro === "favoritos"} aria-label={t("catalogo.favoritos")} style={{ width: 36, height: 36, borderRadius: 18, border: `1px solid ${filtro === "favoritos" ? paleta.accent : paleta.border}`, background: filtro === "favoritos" ? paleta.accentSoft : paleta.surface, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}>
-                <Icono nombre="favorito" tamano={16} color={filtro === "favoritos" ? paleta.accentTexto : paleta.dim} />
+                <Icono nombre="favorito" tamano={16} color={filtro === "favoritos" ? paleta.selloTexto : paleta.dim} relleno={filtro === "favoritos" ? paleta.sello : undefined} />
               </button>
               {onEliminarVarios && filtrados.length > 0 && (
                 <button type="button" onClick={() => setSeleccion(new Set())} aria-label={t("catalogo.seleccionar")} style={{ width: 36, height: 36, borderRadius: 18, border: `1px solid ${paleta.border}`, background: paleta.surface, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}>
@@ -234,18 +239,18 @@ export function Catalogo({
             {vista === "grilla" ? (
               <GrillaDeFotos>
                 {conEncabezadosDeDia(filtrados).map(it => it.tipo === "dia"
-                  ? <div key={it.clave} style={{ gridColumn: "1 / -1", padding: `0 ${espacios.margenLateral}px` }}>{seccion(`${it.etiqueta} · ${it.n}`)}</div>
+                  ? <div key={it.clave} style={{ gridColumn: "1 / -1", padding: `0 ${espacios.margenLateral}px` }}>{seccion(`${it.etiqueta} · ${it.n}`, it.clave === claveHoy)}</div>
                   : celda(it.p))}
               </GrillaDeFotos>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: espacios.entreFilas }}>
                 {conEncabezadosDeDia(filtrados).map(it => it.tipo === "dia"
-                  ? <div key={it.clave}>{seccion(`${it.etiqueta} · ${it.n}`)}</div>
+                  ? <div key={it.clave}>{seccion(`${it.etiqueta} · ${it.n}`, it.clave === claveHoy)}</div>
                   : (() => { const p = it.p; const sup = suppliers.find(s => s.id === p.supplierId); const sinNombre = !p.name && !p.ai_processed; return (
                     <Fila key={p.id} onClick={() => abrir(p)}
                       miniatura={miniatura(p)}
-                      titulo={sinNombre ? <Esqueleto ancho={140} alto={12} /> : (p.name || t("catalogo.procesandoNombre"))}
-                      subtitulo={<>{p.favorito && <Icono nombre="favorito" tamano={12} color={paleta.accentTexto} />} {sup?.company || p.supplierCompany || "—"}</>}
+                      titulo={sinNombre ? <Esqueleto ancho={140} alto={12} /> : <>{p.name || t("catalogo.procesandoNombre")}{claveDia(p.createdAt || 0) === claveHoy ? etiquetaNuevo : null}</>}
+                      subtitulo={<>{p.favorito && <Icono nombre="favorito" tamano={12} color={paleta.selloTexto} relleno={paleta.sello} />} {sup?.company || p.supplierCompany || "—"}</>}
                       derecha={p.price ? <Precio detalle={p.moq ? `MOQ ${p.moq}` : undefined}>USD {p.price}</Precio> : null} />
                   ); })())}
               </div>
@@ -276,7 +281,7 @@ export function Catalogo({
                       {tarjeta ? (Foto ? <Foto src={tarjeta} respaldo={s.cardPhotoUrl || null} t={tLegacy} estilo={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <img src={tarjeta} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />)
                         : primero ? <span style={{ display: "block", width: "100%", height: "100%" }}>{miniatura(primero)}</span>
                         : <span style={{ display: "grid", placeItems: "center", width: "100%", height: "100%" }}><Iniciales texto={s.company} /></span>}
-                      {s.favorito ? <span style={{ position: "absolute", top: 8, right: 8, width: 24, height: 24, borderRadius: 12, background: paleta.accent, display: "grid", placeItems: "center" }}><Icono nombre="favorito" tamano={13} color="#fff" /></span> : null}
+                      {s.favorito ? <span style={{ position: "absolute", top: 8, right: 8, width: 24, height: 24, borderRadius: 12, background: paleta.sello, display: "grid", placeItems: "center" }}><Icono nombre="favorito" tamano={13} color={paleta.selloTexto} relleno={paleta.selloTexto} /></span> : null}
                     </span>
                     <span style={{ display: "flex", flexDirection: "column", gap: 2, padding: "8px 10px 10px" }}>
                       <span style={{ ...texto("cuerpo", { fontWeight: 600 }), display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.company || `#${s.id}`}</span>

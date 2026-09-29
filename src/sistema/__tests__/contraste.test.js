@@ -42,6 +42,10 @@ describe("la paleta pasa los contrastes que promete", () => {
       expect(contraste(p.accentTexto, p.bg)).toBeGreaterThanOrEqual(4.5);
       expect(contraste(p.botonPrincipal.texto, p.botonPrincipal.desde)).toBeGreaterThanOrEqual(4.5);
     });
+    it(`${modo}: el sello amarillo siempre lleva cacao encima (≥ 4,5:1) y en claro nunca sirve como letra`, () => {
+      expect(contraste(p.selloTexto, p.sello)).toBeGreaterThanOrEqual(4.5);
+      if (modo === "claro") expect(contraste(p.sello, p.bg)).toBeLessThan(3);
+    });
     it(`${modo}: dinero y rojo legibles sobre fondo y tarjeta`, () => {
       for (const fondo of [p.bg, p.card]) {
         expect(contraste(p.green, fondo)).toBeGreaterThanOrEqual(4.5);

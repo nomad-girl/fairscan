@@ -136,7 +136,7 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
 
   const redondo = (nombre, etiqueta, onClick, { activo = false, presionado, texto: rotulo } = {}) => (
     <button type="button" onClick={onClick} aria-label={etiqueta} aria-pressed={presionado} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, border: "none", background: "none", padding: 0, cursor: "pointer", color: "#fff", fontFamily: "inherit", width: 56 }}>
-      <span style={{ width: 48, height: 48, borderRadius: 24, background: activo ? paleta.accent : "rgba(43,18,6,0.55)", display: "grid", placeItems: "center", backdropFilter: "blur(6px)" }}><Icono nombre={nombre} tamano={22} color="#fff" /></span>
+      <span style={{ width: 48, height: 48, borderRadius: 24, background: activo ? (nombre === "favorito" ? paleta.sello : paleta.accent) : "rgba(43,18,6,0.55)", display: "grid", placeItems: "center", backdropFilter: "blur(6px)" }}><Icono nombre={nombre} tamano={22} color={activo && nombre === "favorito" ? paleta.selloTexto : "#fff"} relleno={activo && nombre === "favorito" ? paleta.selloTexto : undefined} /></span>
       {rotulo && <span style={{ fontSize: 11, fontWeight: 600, textShadow: "0 1px 2px rgba(0,0,0,0.6)" }}>{rotulo}</span>}
     </button>
   );
@@ -184,7 +184,7 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
             {supplier ? (
               <Fila onClick={() => onNavigateSupplier?.(supplier)} flecha
                 miniatura={(supplier.cardPhoto || supplier.cardPhotoUrl) ? <img src={supplier.cardPhoto || supplier.cardPhotoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <Icono nombre="proveedor" tamano={20} color={paleta.dim} />}
-                titulo={<>{supplier.favorito ? <><Icono nombre="favorito" tamano={13} color={paleta.accentTexto} /> </> : null}{supplier.company || `#${supplier.id}`}</>}
+                titulo={<>{supplier.favorito ? <><Icono nombre="favorito" tamano={13} color={paleta.selloTexto} relleno={paleta.sello} /> </> : null}{supplier.company || `#${supplier.id}`}</>}
                 subtitulo={supplier.contact || supplier.boothNumber || ""} />
             ) : (
               <Boton variante="secundario" ancho="total" icono="proveedor" onClick={() => setEligiendoProveedor(true)}>{t("ficha.asignarProveedor")}</Boton>

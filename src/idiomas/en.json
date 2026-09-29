@@ -264,7 +264,8 @@
     "sinCuentaTitulo": "Already have an account? Sign in and your catalog shows up here.",
     "entrar": "Sign in to my account",
     "primeraFoto": "Take the first photo",
-    "primeraFotoPista": "Then, the supplier's card"
+    "primeraFotoPista": "Then, the supplier's card",
+    "nuevo": "New"
   },
   "revisar": {
     "titulo": "Review today",
@@ -325,7 +326,8 @@
     "favorito": "Favorite",
     "todoRevisado": "All reviewed",
     "deslizaParaSeguir": "Swipe up to continue",
-    "posicion": "{{n}} of {{total}}"
+    "posicion": "{{n}} of {{total}}",
+    "leidoPorIA": "AI read the name · tap to fix"
   },
   "ficha": {
     "producto": "Product",

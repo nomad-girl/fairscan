@@ -59,11 +59,11 @@ export function Pedidos({ pedidos = [], suppliers = [], products = [], districts
           const tp = totalesDePedido(pedido, products);
           const estado = pedido.estado === "enviado" && pedido.enviadoEl ? t("pedidos.enviado", { fecha: fechaCorta(pedido.enviadoEl) }) : t("pedidos.enCurso");
           const sub = [tp.bultos ? `${fNumero(tp.bultos)} ${t("pedido.bultosCorto")}` : `${fNumero(tp.unidades)} ${t("pedido.unidadesCorto")}`, tp.cbm ? fCbm(tp.cbm) : null, estado].filter(Boolean).join(" · ");
-          return <Fila key={pedido.id} onClick={() => onAbrirPedido?.(prov)} flecha titulo={<>{prov.favorito ? <><Icono nombre="favorito" tamano={13} color={paleta.accentTexto} /> </> : null}{prov.company || `#${prov.id}`}</>} subtitulo={sub} derecha={<Precio>{tp.total ? dinero(tp.total) : "—"}</Precio>} />;
+          return <Fila key={pedido.id} onClick={() => onAbrirPedido?.(prov)} flecha titulo={<>{prov.favorito ? <><Icono nombre="favorito" tamano={13} color={paleta.selloTexto} relleno={paleta.sello} /> </> : null}{prov.company || `#${prov.id}`}</>} subtitulo={sub} derecha={<Precio>{tp.total ? dinero(tp.total) : "—"}</Precio>} />;
         })}
 
         {sinPedido.map(({ proveedor, favoritos }) => (
-          <Fila key={`sin-${proveedor.id}`} onClick={() => onAbrirPedido?.(proveedor)} flecha titulo={<>{proveedor.favorito ? <><Icono nombre="favorito" tamano={13} color={paleta.accentTexto} /> </> : null}{proveedor.company || `#${proveedor.id}`}</>}
+          <Fila key={`sin-${proveedor.id}`} onClick={() => onAbrirPedido?.(proveedor)} flecha titulo={<>{proveedor.favorito ? <><Icono nombre="favorito" tamano={13} color={paleta.selloTexto} relleno={paleta.sello} /> </> : null}{proveedor.company || `#${proveedor.id}`}</>}
             subtitulo={`${t("pedidos.sinPedido")}${favoritos ? ` · ${t("pedidos.favoritos", { count: favoritos })}` : ""}`}
             derecha={<span style={{ ...texto("pie", { fontWeight: 600 }), color: paleta.accentTexto }}>{t("pedidos.armar")}</span>} />
         ))}
@@ -85,7 +85,7 @@ export function Pedidos({ pedidos = [], suppliers = [], products = [], districts
         {(() => {
           const conProductos = suppliers.filter(s => (filtro == null || s.districtId === filtro) && productosParaPedido(products, s.id).length > 0).sort((a, b) => (b.favorito ? 1 : 0) - (a.favorito ? 1 : 0) || (b.createdAt || 0) - (a.createdAt || 0));
           if (conProductos.length === 0) return <p style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted, margin: 0 }}>{t("pedidos.sinProveedoresConProductos")}</p>;
-          return <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{conProductos.map(s => <Fila key={s.id} onClick={() => { setEligiendo(false); onAbrirPedido?.(s); }} flecha titulo={<>{s.favorito ? <><Icono nombre="favorito" tamano={13} color={paleta.accentTexto} /> </> : null}{s.company || `#${s.id}`}</>} subtitulo={t("proveedor.conProductos", { count: productosParaPedido(products, s.id).length })} />)}</div>;
+          return <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{conProductos.map(s => <Fila key={s.id} onClick={() => { setEligiendo(false); onAbrirPedido?.(s); }} flecha titulo={<>{s.favorito ? <><Icono nombre="favorito" tamano={13} color={paleta.selloTexto} relleno={paleta.sello} /> </> : null}{s.company || `#${s.id}`}</>} subtitulo={t("proveedor.conProductos", { count: productosParaPedido(products, s.id).length })} />)}</div>;
         })()}
       </Hoja>
     </div>

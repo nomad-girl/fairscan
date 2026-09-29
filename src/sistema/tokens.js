@@ -84,6 +84,10 @@ export const PALETAS = {
     redSoft: "rgba(179, 38, 30, 0.10)",
     /** El botón principal: relleno plano naranja con texto cacao (5,4:1). Se fue el degradé y el texto blanco. */
     botonPrincipal: { desde: "#FF4F2A", hasta: "#FF4F2A", texto: "#2B1206" },
+    /** El amarillo (29/09, Nati: "le da frescura"): significa hallazgo, nunca acción ni alerta; siempre con cacao encima. */
+    sello: "#FFC53D",
+    selloSuave: "#FFE7A8",
+    selloTexto: "#2B1206",
     sombraTarjeta: "0 1px 2px rgba(43,18,6,.06), 0 4px 12px -6px rgba(43,18,6,.12)",
     velo: "rgba(43, 18, 6, 0.40)",
   },
@@ -103,6 +107,9 @@ export const PALETAS = {
     red: "#FF6B6B",               // 6,8:1
     redSoft: "rgba(255, 107, 107, 0.14)",
     botonPrincipal: { desde: "#FF6A45", hasta: "#FF6A45", texto: "#2B1206" },
+    sello: "#FFC53D",
+    selloSuave: "rgba(255, 197, 61, 0.18)", // en oscuro, un tinte sobre el fondo; el texto sigue crema
+    selloTexto: "#2B1206",
     sombraTarjeta: "none",
     velo: "rgba(0, 0, 0, 0.55)",
   },

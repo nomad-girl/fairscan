@@ -12,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { Boton, Chip, FilaDeChips, Icono, Hoja, PaginadorVertical } from "../componentes/index.js";
 import { useVolverConGesto } from "../sistema/useVolverConGesto.js";
+import { FUENTES } from "../sistema/tokens.js";
 import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
 import { fechaCorta } from "../idiomas/formato.js";
 import { paresRepetidos } from "../lib/repetidos.js";
@@ -82,7 +83,7 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
   };
   const redondo = (nombre, etiqueta, onClick, { activo = false, presionado, texto: rotulo } = {}) => (
     <button type="button" onClick={onClick} aria-label={etiqueta} aria-pressed={presionado} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, background: "none", border: "none", padding: 0, cursor: "pointer", color: "#fff", width: 56, fontFamily: "inherit" }}>
-      <span style={{ width: 48, height: 48, borderRadius: 24, background: activo ? paleta.accent : "rgba(43,18,6,0.55)", display: "grid", placeItems: "center", backdropFilter: "blur(6px)" }}><Icono nombre={nombre} tamano={22} color="#fff" /></span>
+      <span style={{ width: 48, height: 48, borderRadius: 24, background: activo ? (nombre === "favorito" ? paleta.sello : paleta.accent) : "rgba(43,18,6,0.55)", display: "grid", placeItems: "center", backdropFilter: "blur(6px)" }}><Icono nombre={nombre} tamano={22} color={activo && nombre === "favorito" ? paleta.selloTexto : "#fff"} relleno={activo && nombre === "favorito" ? paleta.selloTexto : undefined} /></span>
       {rotulo && <span style={{ fontSize: 11, fontWeight: 600, textShadow: "0 1px 2px rgba(0,0,0,0.6)" }}>{rotulo}</span>}
     </button>
   );
@@ -100,7 +101,9 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
         {/* 27/09: la etiqueta roja de arriba a la derecha se pisaba con los filtros (Nati: "está todo superpuesto"); lo que
             falta ya se dice en el pie, en amarillo, y en los botones naranjas de la derecha. */}
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: `80px 84px calc(18px + env(safe-area-inset-bottom, 0px)) 18px`, background: "linear-gradient(to top, rgba(43,18,6,0.9) 60%, rgba(43,18,6,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 }}>
-          <p style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere" }}>{p.name || t("pedido.sinNombre")}</p>
+          {/* El nombre que leyó la IA, con el resaltador del logo mientras se revisa (identidad, 29/09) */}
+          <p style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere" }}><span style={{ backgroundImage: `linear-gradient(transparent 60%, ${paleta.sello} 60%, ${paleta.sello} 96%, transparent 96%)`, boxDecorationBreak: "clone", WebkitBoxDecorationBreak: "clone", padding: "0 2px", textShadow: "0 1px 2px rgba(0,0,0,0.45)" }}>{p.name || t("pedido.sinNombre")}</span></p>
+          {esta && p.ai_processed && <span style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 5, background: "#FFE7A8", color: paleta.selloTexto, borderRadius: 999, padding: "3px 9px", fontSize: 11, fontWeight: 700 }}><Icono nombre="editar" tamano={11} color={paleta.selloTexto} />{t("revisar.leidoPorIA")}</span>}
           <p style={{ margin: 0, fontSize: 17, fontWeight: 600, color: sinPrecio(p) ? "#FCD34D" : "#fff" }}>{sinPrecio(p) ? t("revisar.tocaParaPrecio") : `USD ${p.price}`}</p>
           <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.8)" }}>{prov || t("revisar.sinProveedor")} · {horaDe(p.createdAt)}</p>
           {otro && esta && (
@@ -119,18 +122,19 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
   };
 
   const cierre = (
-    <div key="cierre" style={{ height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative", background: "#1C0D06", color: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 24px", textAlign: "center", gap: 8 }}>
-      <Icono nombre="listo" tamano={44} color="#86EFAC" />
-      <span style={{ fontSize: 32, fontWeight: 700 }}>{t("revisar.diaCerrado")}</span>
-      <span style={{ fontSize: 15, color: "rgba(255,255,255,0.75)" }}>{feria ? `${feria} · ${fechaCorta(Date.now())}` : fechaCorta(Date.now())}</span>
+    /* Momento de logro (identidad, 29/09): pantalla entera amarilla, título en Bricolage, texto y botones en cacao; sin confeti */
+    <div key="cierre" style={{ height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative", background: paleta.sello, color: paleta.selloTexto, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 24px", textAlign: "center", gap: 8 }}>
+      <Icono nombre="listo" tamano={44} color={paleta.selloTexto} />
+      <span style={{ fontSize: 34, fontWeight: 800, fontFamily: FUENTES.marca, letterSpacing: "-0.02em" }}>{t("revisar.diaCerrado")}</span>
+      <span style={{ fontSize: 15, color: "rgba(43,18,6,0.75)" }}>{feria ? `${feria} · ${fechaCorta(Date.now())}` : fechaCorta(Date.now())}</span>
       <span style={{ fontSize: 16 }}>{t("revisar.resumenCierre", { productos: t("catalogo.productos", { count: deHoy.length }), proveedores: t("cantidades.proveedores", { count: proveedoresHoy }) })}</span>
-      <span style={{ fontSize: 14, color: "rgba(255,255,255,0.75)" }}>{t("revisar.favoritosCierre", { count: favs.size })}{faltaPrecio.length > 0 ? ` · ${t("revisar.quedaronSinPrecio", { count: faltaPrecio.length })}` : ""}</span>
-      <span style={{ fontSize: 14, color: pendientesSync > 0 ? "rgba(255,255,255,0.75)" : "#86EFAC" }}>{pendientesSync > 0 ? t("revisar.pendientesSync", { count: pendientesSync }) : t("revisar.todoSincronizado")}</span>
+      <span style={{ fontSize: 14, color: "rgba(43,18,6,0.75)" }}>{t("revisar.favoritosCierre", { count: favs.size })}{faltaPrecio.length > 0 ? ` · ${t("revisar.quedaronSinPrecio", { count: faltaPrecio.length })}` : ""}</span>
+      <span style={{ fontSize: 14, color: "rgba(43,18,6,0.75)" }}>{pendientesSync > 0 ? t("revisar.pendientesSync", { count: pendientesSync }) : t("revisar.todoSincronizado")}</span>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", maxWidth: 360, marginTop: 18 }}>
         {esAnonima && (
           <>
             <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{t("revisar.tusProductosEnEsteTelefono", { count: deHoy.length })}</p>
-            <p style={{ margin: "0 0 6px", fontSize: 13, color: "rgba(255,255,255,0.75)" }}>{t("revisar.creaCuenta")}</p>
+            <p style={{ margin: "0 0 6px", fontSize: 13, color: "rgba(43,18,6,0.75)" }}>{t("revisar.creaCuenta")}</p>
             <Boton variante="principal" ancho="total" onClick={onCrearCuenta}>{t("revisar.crearCuenta")}</Boton>
           </>
         )}

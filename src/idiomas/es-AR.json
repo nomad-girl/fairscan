@@ -264,7 +264,8 @@
     "sinCuentaTitulo": "¿Ya tenés cuenta? Al entrar, tu catálogo aparece acá.",
     "entrar": "Entrar con mi cuenta",
     "primeraFoto": "Sacá la primera foto",
-    "primeraFotoPista": "Después, la tarjeta del proveedor"
+    "primeraFotoPista": "Después, la tarjeta del proveedor",
+    "nuevo": "Nuevo"
   },
   "revisar": {
     "titulo": "Revisar el día",
@@ -325,7 +326,8 @@
     "favorito": "Favorito",
     "todoRevisado": "Todo revisado",
     "deslizaParaSeguir": "Deslizá hacia arriba para seguir",
-    "posicion": "{{n}} de {{total}}"
+    "posicion": "{{n}} de {{total}}",
+    "leidoPorIA": "La IA leyó el nombre · tocá para corregir"
   },
   "ficha": {
     "producto": "Producto",
