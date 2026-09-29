@@ -3389,7 +3389,6 @@ export default function App() {
                 products: data.supplierProducts || "",
                 notes: data.supplierNotes || "",
                 minimoDeCompra: data.supplierMinimo ?? null,
-              minimoDeCompra: data.supplierMinimo ?? null,
                 cardPhoto: data.cardPhoto || null,
                 cardData: data.cardData || null,
                 districtId: activeDistrictId,
