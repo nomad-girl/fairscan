@@ -7,7 +7,11 @@
  *
  * Capa visible. La lógica de datos (borrar, favorito, navegar) llega por props desde App.
  */
-import React, { useMemo, useRef, useState } from "react";
+import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
+
+// El catálogo se desmonta al abrir una ficha; al volver reaparecía arriba de todo (Nati, 30/09: "salta").
+// Se guarda el scroll de cada pestaña fuera del componente y se restaura antes de pintar.
+const scrollGuardado = { todo: 0, proveedores: 0 };
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { Boton, Chip, FilaDeChips, Segmentado, Fila, Precio, Icono, Esqueleto, Hoja, GrillaDeFotos, CeldaDeFoto, CarruselDeFotos, EstadoDeDatos, esperandoNube } from "../componentes/index.js";
@@ -80,6 +84,9 @@ export function Catalogo({
   // Deslizar a los lados sobre el contenido cambia de pestaña (27/09, Nati: "que se pueda swipear entre uno y otro")
   const toqueRef = useRef(null);
   const alTocarContenido = (e) => { const t0 = e.touches[0]; toqueRef.current = { x: t0.clientX, y: t0.clientY }; };
+  const contenidoRef = useRef(null);
+  useLayoutEffect(() => { const el = contenidoRef.current; if (el) el.scrollTop = scrollGuardado[pestana] || 0; }, [pestana]);
+  const alScrollear = (e) => { scrollGuardado[pestana] = e.currentTarget.scrollTop; };
   const alSoltarContenido = (e) => {
     const ini = toqueRef.current; toqueRef.current = null; if (!ini || seleccion) return;
     const t0 = e.changedTouches[0]; const dx = t0.clientX - ini.x, dy = t0.clientY - ini.y;
@@ -168,7 +175,7 @@ export function Catalogo({
         </div>
       </div>
 
-      <div onTouchStart={alTocarContenido} onTouchEnd={alSoltarContenido} style={{ flex: 1, overflowY: "auto", overflowX: "hidden", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", padding: `6px ${espacios.margenLateral}px 110px`, display: "flex", flexDirection: "column", gap: espacios.entreFilas }}>
+      <div ref={contenidoRef} onScroll={alScrollear} onTouchStart={alTocarContenido} onTouchEnd={alSoltarContenido} style={{ flex: 1, overflowY: "auto", overflowX: "hidden", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch", padding: `6px ${espacios.margenLateral}px 110px`, display: "flex", flexDirection: "column", gap: espacios.entreFilas }}>
 
         {pestana === "todo" && (
           <>

@@ -54,7 +54,9 @@ export function Hoja({ abierta, onCerrar, titulo, altura = "media", children, pi
     else { arrastreRef.current = 0; setArrastre(0); } // vuelve a su lugar
   };
 
-  // El dedo, en toda la hoja (escuchas nativas: React registra touchmove como pasivo y no deja frenar el scroll)
+  // El dedo, en toda la hoja. Escuchas pasivas (30/09, fluidez): el scroll del contenido no espera a este código.
+  // El tirón hacia abajo con el contenido arriba de todo es nuestro porque el contenido lleva overscroll-behavior: none
+  // (no rebota) y no tiene a dónde scrollear.
   useEffect(() => {
     const el = hojaRef.current;
     if (!el || !visible) return;
@@ -68,12 +70,11 @@ export function Hoja({ abierta, onCerrar, titulo, altura = "media", children, pi
         if (Math.abs(dx) > Math.abs(dy) || dy < 0 || !ini.arriba) { ini = null; return; } // horizontal, hacia arriba o con scroll pendiente: no es nuestro
         ini.activo = true; setArrastrando(true);
       }
-      if (e.cancelable) e.preventDefault();
       mover(dy);
     };
     const end = () => { if (!ini) return; const { activo, t: t0 } = ini; ini = null; if (activo) soltar(Date.now() - t0); };
     el.addEventListener("touchstart", start, { passive: true });
-    el.addEventListener("touchmove", move, { passive: false });
+    el.addEventListener("touchmove", move, { passive: true });
     el.addEventListener("touchend", end);
     el.addEventListener("touchcancel", end);
     return () => { el.removeEventListener("touchstart", start); el.removeEventListener("touchmove", move); el.removeEventListener("touchend", end); el.removeEventListener("touchcancel", end); };
@@ -112,7 +113,7 @@ export function Hoja({ abierta, onCerrar, titulo, altura = "media", children, pi
           {/* La X: cerrar también tiene que ser un toque (Nati, 22/09) */}
           <button type="button" onClick={onCerrar} onPointerDown={e => e.stopPropagation()} aria-label={t("comun.cerrar")} style={{ position: "absolute", top: 12, right: 12, width: 40, height: 40, borderRadius: 20, border: "none", background: paleta.surface, display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="cerrar" tamano={20} color={paleta.muted} /></button>
         </div>
-        <div ref={contenidoRef} style={{ overflowY: "auto", padding: "8px 16px 16px", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch" }}>{children}</div>
+        <div ref={contenidoRef} style={{ overflowY: "auto", padding: "8px 16px 16px", overscrollBehavior: "none", WebkitOverflowScrolling: "touch" }}>{children}</div>
         {pie && <div style={{ padding: "8px 16px 12px", borderTop: `1px solid ${paleta.border}`, flexShrink: 0 }}>{pie}</div>}
       </div>
     </div>

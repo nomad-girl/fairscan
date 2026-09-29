@@ -121,7 +121,8 @@ import i18n from 'i18next';
 // Los textos por clave, para lo que vive en App y todavía usa `t` como paleta de colores.
 const tx = (clave, opciones) => i18n.t(clave, opciones);
 import { useTranslation, Trans } from 'react-i18next';
-import { vibrarObturador } from './sistema/vibrar.js';
+import { vibrarObturador, vibrarExito } from './sistema/vibrar.js';
+import { Capacitor } from '@capacitor/core';
 import { serializarAudio, urlDeAudio, esPunteroMuerto } from './lib/audioNotes.js';
 import { crearPapelera } from './lib/deshacer.js';
 import { estadoIA, patchReintentoIA, explicarFalloIA } from './lib/aiEstado.js';
@@ -319,7 +320,12 @@ const FotoDeProducto = memo(({ src, respaldo = null, t, estilo }) => {
   // componente se quedaba en el sin intentar nada, y "muchísimos productos" no cargaban en el iPhone de Nati.
   const [intento, setIntento] = useState(src ? 0 : respaldo ? 1 : 0);   // 0 = src, 1 = respaldo, 2 = por nuestro servidor, 3 = fallo
   const [porProxy, setPorProxy] = useState(null);
-  useEffect(() => { setIntento(src ? 0 : respaldo ? 1 : 0); setPorProxy(null); }, [src, respaldo]);
+  // 30/09 (fluidez, Nati: "la foto aparece de golpe"): la imagen entra con un fundido de 180 ms desde el color de la
+  // superficie. Si ya estaba en caché, `complete` es true al montar y se muestra sin esperar.
+  const [cargada, setCargada] = useState(false);
+  const imgRef = useRef(null);
+  useEffect(() => { setIntento(src ? 0 : respaldo ? 1 : 0); setPorProxy(null); setCargada(false); }, [src, respaldo]);
+  useEffect(() => { if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) setCargada(true); });
   useEffect(() => {
     if (intento !== 2 || !respaldo || porProxy) return;
     let vivo = true;
@@ -351,7 +357,8 @@ const FotoDeProducto = memo(({ src, respaldo = null, t, estilo }) => {
     if (i === 1) return 2;
     return 3;
   };
-  return <img src={actual} alt="" loading="lazy" decoding="async" onError={() => setIntento(siguienteIntento)} style={caja} />;
+  return <img ref={imgRef} src={actual} alt="" loading="lazy" decoding="async" onLoad={() => setCargada(true)} onError={() => setIntento(siguienteIntento)}
+    style={{ ...caja, background: t.surface, opacity: cargada ? 1 : 0, transition: "opacity 180ms ease-out" }} />;
 });
 
 
@@ -365,6 +372,7 @@ const FotoDeProducto = memo(({ src, respaldo = null, t, estilo }) => {
 function DiagnosticoFotos({ t }) {
   const { t: tx } = useTranslation();
   const [estado, setEstado] = useState(null);
+  const [vibracion, setVibracion] = useState("");
   const correr = async () => {
     setEstado({ corriendo: true });
     const crudos = await db.products.toArray();
@@ -398,6 +406,12 @@ function DiagnosticoFotos({ t }) {
       <button onClick={correr} disabled={!!estado?.corriendo} style={{ padding:"8px 12px", borderRadius:10, border:"none", background:t.accentSoft, color:t.accent, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
         {estado?.corriendo ? tx("diagnostico.probando") : tx("diagnostico.probar")}
       </button>
+      {/* 30/09: Nati nunca sintió la vibración en el iPhone. Este botón la dispara y dice si el motor nativo está. */}
+      <button onClick={() => { vibrarExito(); setVibracion(`${Capacitor.isNativePlatform() ? tx("diagnostico.vibracionNativa") : tx("diagnostico.vibracionWeb")} · ${Capacitor.isPluginAvailable("Haptics") ? tx("diagnostico.vibracionPluginSi") : tx("diagnostico.vibracionPluginNo")}`); }}
+        style={{ marginLeft:8, padding:"8px 12px", borderRadius:10, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+        {tx("diagnostico.probarVibracion")}
+      </button>
+      {vibracion && <p style={{ fontSize:11, color:t.muted, margin:"8px 0 0" }}>{vibracion}</p>}
       {estado && !estado.corriendo && (
         <div style={{ fontSize:11, color:t.text, marginTop:10, lineHeight:1.6, wordBreak:"break-all" }}>
           <div>{tx("diagnostico.productos")} <b>{estado.total}</b></div>

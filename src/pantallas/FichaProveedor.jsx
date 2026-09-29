@@ -105,7 +105,6 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
         if (ini.eje === "x" && ((p === 0 && dx > 0) || (p === 1 && dx < 0) || (p === 1 && ini.x < 28))) ini.eje = "y"; // lo toma otro gesto o no hay página
       }
       if (ini.eje !== "x") return;
-      if (e.cancelable) e.preventDefault();
       arrastrandoRef.current = true;
       setArrastre(dx);
     };
@@ -119,7 +118,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
       else if (dx > ancho() * 0.2 || v > 0.4) setPagina(0);
     };
     el.addEventListener("touchstart", start, { passive: true });
-    el.addEventListener("touchmove", move, { passive: false });
+    el.addEventListener("touchmove", move, { passive: true }); // pasiva: el scroll de la galería no espera a este código (30/09)
     el.addEventListener("touchend", end);
     el.addEventListener("touchcancel", end);
     return () => { el.removeEventListener("touchstart", start); el.removeEventListener("touchmove", move); el.removeEventListener("touchend", end); el.removeEventListener("touchcancel", end); };
@@ -220,7 +219,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
   const limpio = (k, v) => (typeof v === "string" ? v.replace(k === "email" ? /^\s*e-?mail\s*[:：]\s*/i : /^\s*(web|website|sitio web)\s*[:：]\s*/i, "") : v);
 
   const redondo = (nombre, etiqueta, onClick, { activo = false, presionado } = {}) => (
-    <button type="button" onClick={onClick} aria-label={etiqueta} aria-pressed={presionado} style={{ width: 48, height: 48, borderRadius: 24, border: "none", background: activo ? (nombre === "favorito" ? paleta.sello : paleta.accent) : "rgba(43,18,6,0.55)", display: "grid", placeItems: "center", cursor: "pointer", backdropFilter: "blur(6px)" }}>
+    <button type="button" onClick={onClick} aria-label={etiqueta} aria-pressed={presionado} style={{ width: 48, height: 48, borderRadius: 24, border: "none", background: activo ? (nombre === "favorito" ? paleta.sello : paleta.accent) : "rgba(43,18,6,0.55)", display: "grid", placeItems: "center", cursor: "pointer" }}>
       <Icono nombre={nombre} tamano={22} color={activo && nombre === "favorito" ? paleta.selloTexto : "#fff"} relleno={activo && nombre === "favorito" ? paleta.selloTexto : undefined} />
     </button>
   );
@@ -233,7 +232,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
       {/* Arriba: volver, la posición, favorito */}
       <div style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 12px)`, left: 14, right: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         {redondo("volver", t("comun.volver"), onBack)}
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(43,18,6,0.55)", color: "#fff", borderRadius: 999, padding: "6px 12px", fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums", backdropFilter: "blur(6px)" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(43,18,6,0.55)", color: "#fff", borderRadius: 999, padding: "6px 12px", fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
           {guardado ? <><Icono nombre="listo" tamano={14} color="#86EFAC" />{t("proveedor.guardado")}</> : posicion}
         </span>
         {redondo("favorito", s.favorito ? t("proveedor.quitarFavorito") : t("proveedor.marcarFavorito"), () => guardar({ favorito: s.favorito ? 0 : 1 }), { activo: !!s.favorito, presionado: !!s.favorito })}
@@ -242,7 +241,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
           que ahí había una galería (Nati, 29/09); es el mismo patrón de pestañas del catálogo. Tocarlas también cambia. */}
       {suyos.length > 0 && (
         <div role="tablist" aria-label={t("proveedor.galeria")} style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 68px)`, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
-          <div style={{ display: "inline-flex", background: "rgba(43,18,6,0.55)", borderRadius: 999, padding: 3, backdropFilter: "blur(6px)", gap: 2 }}>
+          <div style={{ display: "inline-flex", background: "rgba(43,18,6,0.55)", borderRadius: 999, padding: 3, gap: 2 }}>
             {[t("proveedor.paginaTarjeta"), t("proveedor.pestanaProductos", { count: suyos.length })].map((nombre, n) => (
               <button key={n} type="button" role="tab" aria-selected={pagina === n} onClick={() => irA(n)} style={{ minHeight: 34, border: "none", borderRadius: 999, padding: "0 14px", background: pagina === n ? "#FFF3EA" : "transparent", color: pagina === n ? "#2B1206" : "rgba(255,255,255,0.85)", fontFamily: "inherit", fontSize: 14, fontWeight: 600, fontVariantNumeric: "tabular-nums", cursor: "pointer", transition: "background 200ms ease, color 200ms ease" }}>
                 {nombre}
@@ -258,7 +257,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
         <div style={{ position: "absolute", right: 10, bottom: `calc(230px + env(safe-area-inset-bottom, 0px))`, display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
           {contactos.map(c => (
             <a key={c.clave} href={c.href} target="_blank" rel="noopener noreferrer" onClick={c.onClick} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: "#fff", textDecoration: "none", width: 56 }}>
-              <span style={{ width: 48, height: 48, borderRadius: 24, background: "rgba(43,18,6,0.55)", display: "grid", placeItems: "center", backdropFilter: "blur(6px)" }}><Icono nombre={c.icono} tamano={22} color="#fff" /></span>
+              <span style={{ width: 48, height: 48, borderRadius: 24, background: "rgba(43,18,6,0.55)", display: "grid", placeItems: "center" }}><Icono nombre={c.icono} tamano={22} color="#fff" /></span>
               <span style={{ fontSize: 11, fontWeight: 600, textShadow: "0 1px 2px rgba(0,0,0,0.6)" }}>{c.texto}</span>
             </a>
           ))}

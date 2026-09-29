@@ -1138,6 +1138,11 @@
     "permisoCamara": "El teléfono te va a pedir permiso para usar la cámara."
   },
   "diagnostico": {
+    "probarVibracion": "Probar la vibración",
+    "vibracionNativa": "App instalada",
+    "vibracionWeb": "Navegador",
+    "vibracionPluginSi": "motor de vibración disponible",
+    "vibracionPluginNo": "sin motor de vibración",
     "titulo": "Diagnóstico de fotos",
     "pista": "Para soporte: dice qué tiene guardado este teléfono y qué fotos no cargan. No cambia nada.",
     "probando": "Probando…",

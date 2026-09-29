@@ -1138,6 +1138,11 @@
     "permisoCamara": "Your phone will ask for permission to use the camera."
   },
   "diagnostico": {
+    "probarVibracion": "Test vibration",
+    "vibracionNativa": "Installed app",
+    "vibracionWeb": "Browser",
+    "vibracionPluginSi": "haptics engine available",
+    "vibracionPluginNo": "no haptics engine",
     "titulo": "Photo diagnostics",
     "pista": "For support: shows what this phone has stored and which photos don't load. It changes nothing.",
     "probando": "Testing…",
