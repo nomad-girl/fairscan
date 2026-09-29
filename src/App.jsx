@@ -109,7 +109,7 @@ import { useEsEscritorio } from './escritorio/util.jsx';
 import { useSistema } from './sistema/SistemaProvider.jsx';
 import { ArmarPedido } from './pantallas/ArmarPedido.jsx';
 import { Pedidos } from './pantallas/Pedidos.jsx';
-import { pedidoDeProveedor, pedidoNuevo, textoProforma, nombreDeArchivo, conCantidad } from './lib/pedidos.js';
+import { pedidoDeProveedor, pedidoNuevo, textoProforma, nombreDeArchivo, conCantidad, productosParaPedido } from './lib/pedidos.js';
 import { excelDeProforma, excelDeFeria } from './lib/proformaExcel.js';
 import { imagenDeProducto as imagenExcelDeProducto, pegarImagenEnCelda } from './lib/imagenesExcel.js';
 import { cargarCamposPropios } from './escritorio/camposPersonalizados.js';
@@ -3867,11 +3867,14 @@ export default function App() {
           onEliminar={(p) => handleDeleteProduct(p.id, { quedarse: true })}
           onCerrar={() => navigate("list")} onCrearCuenta={() => navigate("settings")} onVerLosDeHoy={() => { setListTab("todo"); navigate("list"); }} />
       )}
+      {/* Desde la galería del proveedor, el feed vertical del producto recorre SUS productos, en el orden de la grilla
+          (29/09, Nati: "entro a un producto y no me deja escrollear": el orden guardado era el del catálogo y el
+          producto podía no estar ahí, entonces no había vecino arriba ni abajo). */}
       {!esEscritorio && screen === "supplier" && screenData && (
         <FichaProveedor supplier={suppliers.find(s => s.id === screenData.id) || screenData} allSuppliers={ordenProveedores ? ordenProveedores.map(id => suppliers.find(s => s.id === id)).filter(Boolean) : suppliers.filter(s => !proveedorVacio(s, products))} products={products} pedidos={orders} districts={districts} moneda={monedaActual} Foto={FotoDeProducto} tLegacy={t}
           onBack={goBack} onUpdate={handleUpdateSupplier} onDelete={handleDeleteSupplier} onNavigateSupplier={s => setScreenData(s)}
           onAddProduct={() => navigate("capture", { fromSupplierId: screenData.id })}
-          onNavigateProduct={p => navigate("detail", p)} onArmarPedido={(s) => abrirPedido(s)} />
+          onNavigateProduct={p => { setOrdenFicha(productosParaPedido(products, screenData.id).map(x => x.id)); navigate("detail", p); }} onArmarPedido={(s) => abrirPedido(s)} />
       )}
       {!esEscritorio && screen === "pedidos" && (
         <Pedidos pedidos={orders} suppliers={suppliers} products={products} districts={districts} activeDistrictId={activeDistrictId} moneda={monedaActual} Foto={FotoDeProducto} tLegacy={t}
