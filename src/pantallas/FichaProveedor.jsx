@@ -70,7 +70,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
   // interfiere con dos acciones más importantes: agregar otro producto o ver los datos"). Agregar producto es el
   // principal (naranja); Ver todos los datos, el secundario. Armar pedido vive en la hoja de datos.
   const botones = (propios) => (
-    <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+    <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", pointerEvents: "auto" }}>
       {onAddProduct && <button type="button" onClick={onAddProduct} style={{ minHeight: 44, borderRadius: 999, border: "none", background: paleta.accent, color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 700, padding: "0 16px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}><Icono nombre="camara" tamano={16} color="#fff" />{propios.length === 0 ? t("proveedor.sacarFotos") : t("proveedor.agregarProducto")}</button>}
       <button type="button" onClick={() => setDatosAbiertos(true)} style={{ minHeight: 44, borderRadius: 999, border: "1px solid rgba(255,255,255,0.6)", background: "rgba(43,18,6,0.35)", color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 600, padding: "0 14px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
         <Icono nombre="abajo" tamano={16} color="#fff" style={{ transform: "rotate(180deg)" }} />{t("proveedor.verDatos")}
@@ -128,15 +128,18 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
 
   // El pie del proveedor. Es UN solo elemento, fijo (27/09, Nati: "que cambie SOLO la parte de la foto y el resto
   // sean elementos fijos"): no viaja con el deslizamiento de arriba.
+  // En la galería, el pie deja pasar el dedo a la grilla que tiene debajo (Nati, 29/09: "para escrolearla se va a otro
+  // proveedor"): el scroll que arrancaba sobre el nombre o el degradé no tocaba la galería sino el pie, y el pie
+  // pasaba al proveedor vecino. Las miniaturas y los botones siguen tocables.
   const pie = (x, esta, propios) => (
-    <div style={PIE}>
+    <div data-pie style={{ ...PIE, pointerEvents: esta && pagina === 1 ? "none" : "auto" }}>
       <p style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere", paddingRight: 60 }}>{x.company || t("proveedor.titulo")}</p>
       {x.contact && <p style={{ margin: 0, fontSize: 17, fontWeight: 500, color: "rgba(255,255,255,0.92)", paddingRight: 60 }}>{x.contact}</p>}
       {subtituloDe(x) && <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.75)", paddingRight: 60 }}>{subtituloDe(x)}</p>}
       {x.minimoDeCompra ? <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.75)" }}>{t("proveedor.minimoDeCompra")} {moneda} {x.minimoDeCompra}</p> : null}
       {/* La tira de miniaturas (Nati, 27/09: "me gustaba más cuando se veían las miniaturas"): tocar una abre el producto */}
       {propios.length > 0 && (
-        <div data-desliza="no" style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", marginTop: 8, paddingBottom: 2 }} onTouchStart={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()}>
+        <div data-desliza="no" style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", marginTop: 8, paddingBottom: 2, pointerEvents: "auto" }} onTouchStart={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()}>
           {propios.slice(0, 12).map(p => (
             <button key={p.id} type="button" onClick={() => onNavigateProduct?.(p)} aria-label={p.name || t("pedido.sinNombre")} style={{ width: 56, height: 56, flexShrink: 0, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,0.35)", padding: 0, background: "rgba(255,255,255,0.15)", cursor: "pointer" }}>{miniatura(p)}</button>
           ))}

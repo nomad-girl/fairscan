@@ -39,11 +39,17 @@ describe("Ficha de proveedor", () => {
     fireEvent.touchMove(pie, { touches: [{ clientX: 200, clientY: 504 }] });
     fireEvent.touchEnd(pie, { changedTouches: [{ clientX: 120, clientY: 504 }] });
     expect(screen.getAllByRole("tab")[1].getAttribute("aria-selected")).toBe("true");
+    // En la galería, el pie deja pasar el dedo a la grilla (un scroll ahí no cambia de proveedor); miniaturas y botones siguen tocables
+    const pieActual = pie.closest("[data-pie]");
+    expect(pieActual.style.pointerEvents).toBe("none");
+    expect(pieActual.querySelector('[data-desliza="no"]').style.pointerEvents).toBe("auto");
+    expect(screen.getByText("Ver todos los datos").closest("div").style.pointerEvents).toBe("auto");
     // Y hacia la derecha, desde el medio (no desde el borde, que es volver), vuelve a la tarjeta
     fireEvent.touchStart(pie, { touches: [{ clientX: 100, clientY: 500 }] });
     fireEvent.touchMove(pie, { touches: [{ clientX: 200, clientY: 503 }] });
     fireEvent.touchEnd(pie, { changedTouches: [{ clientX: 300, clientY: 503 }] });
     expect(screen.getAllByRole("tab")[0].getAttribute("aria-selected")).toBe("true");
+    expect(pieActual.style.pointerEvents).toBe("auto"); // en la tarjeta, el pie vuelve a recibir el dedo (pasar de proveedor)
     // Tocar la pestaña también cambia
     fireEvent.click(screen.getAllByRole("tab")[1]);
     expect(screen.getAllByRole("tab")[1].getAttribute("aria-selected")).toBe("true");
