@@ -49,12 +49,12 @@ export function CerrarStand({
     const contactos = [proveedor.wechat && `WeChat ${proveedor.wechat}`, proveedor.whatsapp && `WhatsApp ${proveedor.whatsapp}`, proveedor.phone, proveedor.email].filter(Boolean);
     const redondo = (nombre, etiqueta, onClick, { activo = false, presionado, rotulo } = {}) => (
       <button type="button" onClick={onClick} aria-label={etiqueta} aria-pressed={presionado} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, background: "none", border: "none", padding: 0, cursor: "pointer", color: "#fff", width: 56, fontFamily: "inherit" }}>
-        <span style={{ width: 48, height: 48, borderRadius: 24, background: activo ? paleta.accent : "rgba(10,14,23,0.55)", display: "grid", placeItems: "center", backdropFilter: "blur(6px)" }}><Icono nombre={nombre} tamano={22} color="#fff" /></span>
+        <span style={{ width: 48, height: 48, borderRadius: 24, background: activo ? paleta.accent : "rgba(43,18,6,0.55)", display: "grid", placeItems: "center", backdropFilter: "blur(6px)" }}><Icono nombre={nombre} tamano={22} color="#fff" /></span>
         {rotulo && <span style={{ fontSize: 11, fontWeight: 600, textShadow: "0 1px 2px rgba(0,0,0,0.6)" }}>{rotulo}</span>}
       </button>
     );
     return (
-      <div className="pantalla-fija" style={{ position: "fixed", inset: 0, background: "#0B0E17", color: "#fff", fontFamily: "inherit", zIndex: 50 }}>
+      <div className="pantalla-fija" style={{ position: "fixed", inset: 0, background: "#1C0D06", color: "#fff", fontFamily: "inherit", zIndex: 50 }}>
         <div style={{ position: "absolute", inset: 0 }}>
           {fondo
             ? <img src={fondo} alt={cardPhoto ? t("cerrarStand.tarjeta") : ""} style={{ width: "100%", height: "100%", objectFit: cardPhoto ? "contain" : "cover", display: "block" }} />
@@ -70,11 +70,11 @@ export function CerrarStand({
 
         {/* Arriba: seguir sacando (la flecha), el stand, favorito */}
         <div style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 12px)`, left: 14, right: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-          <button type="button" onClick={onVolverAlVisor} aria-label={t("cerrarStand.seguirSacando")} style={{ width: 48, height: 48, borderRadius: 24, border: "none", background: "rgba(10,14,23,0.55)", display: "grid", placeItems: "center", cursor: "pointer", backdropFilter: "blur(6px)" }}><Icono nombre="camara" tamano={22} color="#fff" /></button>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(10,14,23,0.55)", color: "#fff", borderRadius: 999, padding: "8px 14px", fontSize: 13, fontWeight: 700, backdropFilter: "blur(6px)" }}>
+          <button type="button" onClick={onVolverAlVisor} aria-label={t("cerrarStand.seguirSacando")} style={{ width: 48, height: 48, borderRadius: 24, border: "none", background: "rgba(43,18,6,0.55)", display: "grid", placeItems: "center", cursor: "pointer", backdropFilter: "blur(6px)" }}><Icono nombre="camara" tamano={22} color="#fff" /></button>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(43,18,6,0.55)", color: "#fff", borderRadius: 999, padding: "8px 14px", fontSize: 13, fontWeight: 700, backdropFilter: "blur(6px)" }}>
             {cardProcessing ? <><Esqueleto ancho={12} alto={12} radio={6} estilo={{ background: paleta.accent }} />{t("cerrarStand.leyendo")}</> : (soloProveedor ? t("cerrarStand.tituloSoloProveedor") : `${t("cerrarStand.tituloStand")} · ${t("catalogo.productos", { count: itemsCount })}`)}
           </span>
-          <button type="button" onClick={() => cambiar("favorito")(!proveedor.favorito)} aria-pressed={!!proveedor.favorito} aria-label={proveedor.favorito ? t("cerrarStand.quitarFavorito") : t("cerrarStand.marcarFavorito")} style={{ width: 48, height: 48, borderRadius: 24, border: "none", background: proveedor.favorito ? paleta.accent : "rgba(10,14,23,0.55)", display: "grid", placeItems: "center", cursor: "pointer", backdropFilter: "blur(6px)" }}><Icono nombre="favorito" tamano={22} color="#fff" /></button>
+          <button type="button" onClick={() => cambiar("favorito")(!proveedor.favorito)} aria-pressed={!!proveedor.favorito} aria-label={proveedor.favorito ? t("cerrarStand.quitarFavorito") : t("cerrarStand.marcarFavorito")} style={{ width: 48, height: 48, borderRadius: 24, border: "none", background: proveedor.favorito ? paleta.accent : "rgba(43,18,6,0.55)", display: "grid", placeItems: "center", cursor: "pointer", backdropFilter: "blur(6px)" }}><Icono nombre="favorito" tamano={22} color="#fff" /></button>
         </div>
 
         {/* A la derecha: corregir datos, la tarjeta de nuevo, el catálogo */}
@@ -85,7 +85,7 @@ export function CerrarStand({
         </div>
 
         {/* El pie: lo leído de la tarjeta, la tira de productos, Listo */}
-        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: `80px 18px calc(16px + env(safe-area-inset-bottom, 0px))`, background: "linear-gradient(to top, rgba(10,14,23,0.92) 65%, rgba(10,14,23,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: `80px 18px calc(16px + env(safe-area-inset-bottom, 0px))`, background: "linear-gradient(to top, rgba(43,18,6,0.92) 65%, rgba(43,18,6,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 }}>
           {/* La portada solo muestra (Nati, 22/09): los datos se cargan en la hoja, con el lápiz */}
           <div style={{ paddingRight: 60 }}>
             {cardProcessing && !proveedor.name ? <Esqueleto ancho={200} alto={22} estilo={{ background: "rgba(255,255,255,0.35)" }} /> : <p style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere", color: proveedor.name ? "#fff" : "rgba(255,255,255,0.6)" }}>{proveedor.name || t("cerrarStand.nombreEmpresa")}</p>}
@@ -98,8 +98,8 @@ export function CerrarStand({
               {items.map(it => (
                 <div key={it.id} style={{ position: "relative", width: 64, height: 64, flexShrink: 0, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.15)" }}>
                   <img src={it.photos?.[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                  {it.price && <span style={{ position: "absolute", left: 3, bottom: 3, fontSize: 10, fontWeight: 700, background: "rgba(10,14,23,0.7)", borderRadius: 4, padding: "1px 4px" }}>{it.price}</span>}
-                  <button type="button" onClick={() => onSacarProducto?.(it.id)} aria-label={t("cerrarStand.sacarDelStand")} style={{ position: "absolute", top: 2, right: 2, width: 22, height: 22, borderRadius: 11, border: "none", background: "rgba(10,14,23,0.75)", display: "grid", placeItems: "center", cursor: "pointer", padding: 0 }}><Icono nombre="cerrar" tamano={12} color="#fff" /></button>
+                  {it.price && <span style={{ position: "absolute", left: 3, bottom: 3, fontSize: 10, fontWeight: 700, background: "rgba(43,18,6,0.7)", borderRadius: 4, padding: "1px 4px" }}>{it.price}</span>}
+                  <button type="button" onClick={() => onSacarProducto?.(it.id)} aria-label={t("cerrarStand.sacarDelStand")} style={{ position: "absolute", top: 2, right: 2, width: 22, height: 22, borderRadius: 11, border: "none", background: "rgba(43,18,6,0.75)", display: "grid", placeItems: "center", cursor: "pointer", padding: 0 }}><Icono nombre="cerrar" tamano={12} color="#fff" /></button>
                 </div>
               ))}
             </div>

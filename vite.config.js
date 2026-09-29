@@ -30,13 +30,13 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         disable: nativeBuild,
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'],
+        includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png'],
         manifest: {
           name: 'FairScan',
           short_name: 'FairScan',
           description: 'Captura y organiza productos en ferias comerciales',
-          theme_color: '#0A0E17',
-          background_color: '#0A0E17',
+          theme_color: '#2B1206',
+          background_color: '#2B1206',
           display: 'standalone',
           orientation: 'portrait',
           lang: 'es',
@@ -44,7 +44,7 @@ export default defineConfig(({ mode }) => {
           icons: [
             { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
             { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
-            { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+            { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           ],
         },
         workbox: {

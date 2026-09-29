@@ -82,7 +82,7 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
   };
   const redondo = (nombre, etiqueta, onClick, { activo = false, presionado, texto: rotulo } = {}) => (
     <button type="button" onClick={onClick} aria-label={etiqueta} aria-pressed={presionado} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, background: "none", border: "none", padding: 0, cursor: "pointer", color: "#fff", width: 56, fontFamily: "inherit" }}>
-      <span style={{ width: 48, height: 48, borderRadius: 24, background: activo ? paleta.accent : "rgba(10,14,23,0.55)", display: "grid", placeItems: "center", backdropFilter: "blur(6px)" }}><Icono nombre={nombre} tamano={22} color="#fff" /></span>
+      <span style={{ width: 48, height: 48, borderRadius: 24, background: activo ? paleta.accent : "rgba(43,18,6,0.55)", display: "grid", placeItems: "center", backdropFilter: "blur(6px)" }}><Icono nombre={nombre} tamano={22} color="#fff" /></span>
       {rotulo && <span style={{ fontSize: 11, fontWeight: 600, textShadow: "0 1px 2px rgba(0,0,0,0.6)" }}>{rotulo}</span>}
     </button>
   );
@@ -95,11 +95,11 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
     const otro = par ? (par.a.id === p.id ? par.b : par.a) : null;
     const prov = nombreProveedor(p);
     return (
-      <div key={p.id} style={{ height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative", background: "#0B0E17" }}>
+      <div key={p.id} style={{ height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative", background: "#1C0D06" }}>
         <div style={{ position: "absolute", inset: 0 }}>{foto(p)}</div>
         {/* 27/09: la etiqueta roja de arriba a la derecha se pisaba con los filtros (Nati: "está todo superpuesto"); lo que
             falta ya se dice en el pie, en amarillo, y en los botones naranjas de la derecha. */}
-        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: `80px 84px calc(18px + env(safe-area-inset-bottom, 0px)) 18px`, background: "linear-gradient(to top, rgba(10,14,23,0.9) 60%, rgba(10,14,23,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: `80px 84px calc(18px + env(safe-area-inset-bottom, 0px)) 18px`, background: "linear-gradient(to top, rgba(43,18,6,0.9) 60%, rgba(43,18,6,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 }}>
           <p style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere" }}>{p.name || t("pedido.sinNombre")}</p>
           <p style={{ margin: 0, fontSize: 17, fontWeight: 600, color: sinPrecio(p) ? "#FCD34D" : "#fff" }}>{sinPrecio(p) ? t("revisar.tocaParaPrecio") : `USD ${p.price}`}</p>
           <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.8)" }}>{prov || t("revisar.sinProveedor")} · {horaDe(p.createdAt)}</p>
@@ -119,7 +119,7 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
   };
 
   const cierre = (
-    <div key="cierre" style={{ height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative", background: "#0B0E17", color: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 24px", textAlign: "center", gap: 8 }}>
+    <div key="cierre" style={{ height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative", background: "#1C0D06", color: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 24px", textAlign: "center", gap: 8 }}>
       <Icono nombre="listo" tamano={44} color="#86EFAC" />
       <span style={{ fontSize: 32, fontWeight: 700 }}>{t("revisar.diaCerrado")}</span>
       <span style={{ fontSize: 15, color: "rgba(255,255,255,0.75)" }}>{feria ? `${feria} · ${fechaCorta(Date.now())}` : fechaCorta(Date.now())}</span>
@@ -164,12 +164,12 @@ export function RevisarDia({ productosDeHoy = [], suppliers = [], feria = null, 
       {/* Arriba: salir, el progreso, y los filtros (los jueguitos de antes) */}
       <div style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 12px)`, left: 0, right: 0, display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px" }}>
-          <button type="button" onClick={onCerrar} aria-label={t("comun.cerrar")} style={{ width: 48, height: 48, borderRadius: 24, border: "none", background: "rgba(10,14,23,0.55)", display: "grid", placeItems: "center", cursor: "pointer", backdropFilter: "blur(6px)" }}><Icono nombre="cerrar" tamano={22} color="#fff" /></button>
+          <button type="button" onClick={onCerrar} aria-label={t("comun.cerrar")} style={{ width: 48, height: 48, borderRadius: 24, border: "none", background: "rgba(43,18,6,0.55)", display: "grid", placeItems: "center", cursor: "pointer", backdropFilter: "blur(6px)" }}><Icono nombre="cerrar" tamano={22} color="#fff" /></button>
           <span style={{ background: paleta.accent, color: "#fff", borderRadius: 999, padding: "8px 14px", fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{t("revisar.titulo")}{total > 0 && !enCierre ? ` · ${t("revisar.posicion", { n: Math.min(i + 1, total), total })}` : ""}</span>
           <span style={{ width: 48 }} />
         </div>
         <FilaDeChips estilo={{ padding: "0 14px" }}>
-          {filtros.map(([k, nombre, n]) => <Chip key={k} activo={filtro === k} onClick={() => cambiarFiltro(k)} estilo={filtro === k ? { background: paleta.accent, color: "#fff", borderColor: paleta.accent } : { background: "rgba(10,14,23,0.55)", color: "#fff", borderColor: "transparent" }}>{nombre}{n ? ` · ${n}` : ""}</Chip>)}
+          {filtros.map(([k, nombre, n]) => <Chip key={k} activo={filtro === k} onClick={() => cambiarFiltro(k)} estilo={filtro === k ? { background: paleta.accent, color: "#fff", borderColor: paleta.accent } : { background: "rgba(43,18,6,0.55)", color: "#fff", borderColor: "transparent" }}>{nombre}{n ? ` · ${n}` : ""}</Chip>)}
         </FilaDeChips>
       </div>
 

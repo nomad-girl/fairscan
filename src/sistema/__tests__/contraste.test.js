@@ -22,3 +22,31 @@ describe("contraste WCAG", () => {
     expect(() => aRGBA("naranja")).toThrow();
   });
 });
+
+// La paleta de la identidad (28/09/2026): cada par que se usa de verdad tiene que pasar WCAG.
+import { PALETAS } from "../tokens.js";
+describe("la paleta pasa los contrastes que promete", () => {
+  for (const modo of ["claro", "oscuro"]) {
+    const p = PALETAS[modo];
+    it(`${modo}: texto, secundario y terciario sobre fondo y tarjeta ≥ 4,5:1`, () => {
+      for (const fondo of [p.bg, p.card, p.surface]) {
+        expect(contraste(p.text, fondo)).toBeGreaterThanOrEqual(4.5);
+        expect(contraste(p.muted, fondo)).toBeGreaterThanOrEqual(4.5);
+        expect(contraste(p.dim, fondo)).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+    it(`${modo}: el naranja como relleno ≥ 3:1 y como texto ≥ 4,5:1; el botón principal legible`, () => {
+      expect(contraste(p.accent, p.bg)).toBeGreaterThanOrEqual(3);
+      expect(contraste(p.accent, p.card)).toBeGreaterThanOrEqual(3);
+      expect(contraste(p.accentTexto, p.card)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(p.accentTexto, p.bg)).toBeGreaterThanOrEqual(4.5);
+      expect(contraste(p.botonPrincipal.texto, p.botonPrincipal.desde)).toBeGreaterThanOrEqual(4.5);
+    });
+    it(`${modo}: dinero y rojo legibles sobre fondo y tarjeta`, () => {
+      for (const fondo of [p.bg, p.card]) {
+        expect(contraste(p.green, fondo)).toBeGreaterThanOrEqual(4.5);
+        expect(contraste(p.red, fondo)).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+  }
+});

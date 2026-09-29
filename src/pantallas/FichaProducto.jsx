@@ -105,7 +105,7 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
           )}
         </div>
         {/* El pie: nombre, precio y proveedor sobre la foto; "Ver todos los datos" abre la hoja */}
-        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: `72px 84px calc(18px + env(safe-area-inset-bottom, 0px)) 18px`, background: "linear-gradient(to top, rgba(10,14,23,0.86) 55%, rgba(10,14,23,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: `72px 84px calc(18px + env(safe-area-inset-bottom, 0px)) 18px`, background: "linear-gradient(to top, rgba(43,18,6,0.86) 55%, rgba(43,18,6,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 }}>
           {sinNombreX ? <Esqueleto ancho={200} alto={22} estilo={{ background: "rgba(255,255,255,0.35)" }} /> : <p style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere" }}>{x.name || t("ficha.producto")}</p>}
           {/* 27/09: el precio se toca y se carga desde la portada, sin ir a editar */}
           <button type="button" onClick={esta ? () => { setPrecioBorrador(x.price || ""); setPoniendoPrecio(true); } : undefined} aria-label={x.price ? `${t("ficha.precio")} ${moneda} ${x.price}` : t("ficha.tocaPrecio")}
@@ -120,7 +120,7 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
                 <Icono nombre="proveedor" tamano={17} color="#fff" /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 170 }}>{sup.company || `#${sup.id}`}</span><Icono nombre="siguiente" tamano={14} color="rgba(255,255,255,0.7)" />
               </button>
             ) : <span style={{ fontSize: 14, color: "rgba(255,255,255,0.6)" }}>{t("ficha.sinProveedor")}</span>}
-            <button type="button" onClick={() => setDatosAbiertos(true)} style={{ minHeight: 42, borderRadius: 999, border: "1px solid rgba(255,255,255,0.4)", background: "rgba(10,14,23,0.35)", color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 600, padding: "0 12px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+            <button type="button" onClick={() => setDatosAbiertos(true)} style={{ minHeight: 42, borderRadius: 999, border: "1px solid rgba(255,255,255,0.4)", background: "rgba(43,18,6,0.35)", color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 600, padding: "0 12px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
               <Icono nombre="abajo" tamano={16} color="#fff" style={{ transform: "rotate(180deg)" }} />{t("ficha.verDatos")}
             </button>
           </div>
@@ -136,7 +136,7 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
 
   const redondo = (nombre, etiqueta, onClick, { activo = false, presionado, texto: rotulo } = {}) => (
     <button type="button" onClick={onClick} aria-label={etiqueta} aria-pressed={presionado} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, border: "none", background: "none", padding: 0, cursor: "pointer", color: "#fff", fontFamily: "inherit", width: 56 }}>
-      <span style={{ width: 48, height: 48, borderRadius: 24, background: activo ? paleta.accent : "rgba(10,14,23,0.55)", display: "grid", placeItems: "center", backdropFilter: "blur(6px)" }}><Icono nombre={nombre} tamano={22} color="#fff" /></span>
+      <span style={{ width: 48, height: 48, borderRadius: 24, background: activo ? paleta.accent : "rgba(43,18,6,0.55)", display: "grid", placeItems: "center", backdropFilter: "blur(6px)" }}><Icono nombre={nombre} tamano={22} color="#fff" /></span>
       {rotulo && <span style={{ fontSize: 11, fontWeight: 600, textShadow: "0 1px 2px rgba(0,0,0,0.6)" }}>{rotulo}</span>}
     </button>
   );
@@ -150,7 +150,7 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
       {/* Arriba: volver, la posición en el catálogo, agregar foto */}
       <div style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 12px)`, left: 14, right: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, pointerEvents: "none" }}>
         <span style={{ pointerEvents: "auto" }}>{redondo("volver", t("comun.volver"), onBack)}</span>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(10,14,23,0.55)", color: "#fff", borderRadius: 999, padding: "6px 12px", fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums", backdropFilter: "blur(6px)" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(43,18,6,0.55)", color: "#fff", borderRadius: 999, padding: "6px 12px", fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums", backdropFilter: "blur(6px)" }}>
           {estadoIA(p) === "fallo" && <Icono nombre="error" tamano={14} color="#FCA5A5" />}{guardado ? <><Icono nombre="listo" tamano={14} color="#86EFAC" />{t("ficha.guardado")}</> : posicion}
         </span>
         <span style={{ display: "inline-block", width: 48 }} />

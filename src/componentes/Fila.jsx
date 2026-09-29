@@ -5,6 +5,7 @@
  */
 import React from "react";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
+import { FUENTES } from "../sistema/tokens.js";
 import { Icono } from "./Icono.jsx";
 
 export function Fila({ miniatura, titulo, subtitulo, derecha, onClick, seleccionada = false, flecha = false, etiqueta, estilo }) {
@@ -46,7 +47,7 @@ export function Precio({ children, detalle }) {
   const { paleta, texto } = useSistema();
   return (
     <div style={{ textAlign: "right" }}>
-      <span style={{ ...texto("destacado"), color: paleta.green, display: "block", fontVariantNumeric: "tabular-nums" }}>{children}</span>
+      <span style={{ ...texto("destacado"), color: paleta.green, display: "block", fontVariantNumeric: "tabular-nums", fontFamily: FUENTES.numeros }}>{children}</span>
       {detalle && <span style={{ ...texto("pie"), color: paleta.muted }}>{detalle}</span>}
     </div>
   );

@@ -8,6 +8,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
+import { FUENTES } from "../sistema/tokens.js";
 
 export function Dato({ etiqueta, valor, onChange, tipo = "texto", sufijo, multilinea = false, ancho = 1, destacado = false, color, hijos = null, estilo }) {
   const { paleta, radios } = useSistema();
@@ -33,7 +34,7 @@ export function Dato({ etiqueta, valor, onChange, tipo = "texto", sufijo, multil
     textAlign: "left", boxSizing: "border-box", transition: "border-color 150ms ease", ...estilo,
   };
   const etiquetaEstilo = { fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: paleta.muted, lineHeight: 1.3 };
-  const valorEstilo = { fontSize: destacado ? 24 : 17, fontWeight: 700, lineHeight: 1.3, color: vacio ? paleta.dim : (color || paleta.text), fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere", whiteSpace: multilinea ? "pre-wrap" : undefined };
+  const valorEstilo = { fontSize: destacado ? 24 : 17, fontWeight: 700, lineHeight: 1.3, color: vacio ? paleta.dim : (color || paleta.text), fontVariantNumeric: "tabular-nums", fontFamily: tipo === "numero" || destacado ? FUENTES.numeros : undefined, overflowWrap: "anywhere", whiteSpace: multilinea ? "pre-wrap" : undefined };
 
   if (hijos) {
     return <div style={caja}><span style={etiquetaEstilo}>{etiqueta}</span>{hijos}</div>;

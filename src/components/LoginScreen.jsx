@@ -1,4 +1,6 @@
 import { Icono } from '../componentes/Icono.jsx';
+import { Marca } from '../componentes/Marca.jsx';
+import { MARCA } from '../sistema/tokens.js';
 import { useState } from 'react';
 import { listaDeRubros, RUBRO_POR_DEFECTO } from '../lib/presets.js';
 import { useTranslation, Trans } from 'react-i18next';
@@ -114,14 +116,14 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
   const link = { background: 'none', border: 'none', padding: 0, color: t.text, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3 };
   return (
     <div className="pantalla-fija" style={{ position: 'fixed', inset: 0, background: t.bg, color: t.text, fontFamily: 'inherit', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <div style={{ position: 'relative', background: '#EA5A22', color: '#fff', padding: 'calc(env(safe-area-inset-top, 0px) + 68px) 24px 28px', display: 'flex', flexDirection: 'column', gap: 8, borderRadius: '0 0 32px 32px', flexShrink: 0 }}>
+      <div style={{ position: 'relative', background: MARCA.cacao, color: MARCA.crema, padding: 'calc(env(safe-area-inset-top, 0px) + 68px) 24px 28px', display: 'flex', flexDirection: 'column', gap: 8, borderRadius: '0 0 32px 32px', flexShrink: 0 }}>
         {onCancel && !convertir && (
           <button type="button" onClick={onCancel} aria-label={tx('comun.volver')} style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top, 0px) + 12px)', left: 14, width: 44, height: 44, borderRadius: 22, border: 'none', background: 'rgba(255,255,255,0.2)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
             <Icono nombre="volver" tamano={22} color="#fff" />
           </button>
         )}
-        <h1 style={{ fontSize: 36, fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }}>FairScan</h1>
-        <p style={{ fontSize: 16, margin: 0, lineHeight: 1.35, color: 'rgba(255,255,255,0.92)', maxWidth: 340 }}>{convertir ? tx('entrar.fraseConvertir') : tx('bienvenida.frase')}</p>
+        <Marca tamano={36} color={MARCA.crema} conIcono />
+        <p style={{ fontSize: 16, margin: 0, lineHeight: 1.35, color: 'rgba(255,243,234,0.88)', maxWidth: 340 }}>{convertir ? tx('entrar.fraseConvertir') : tx('bienvenida.frase')}</p>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '22px 22px calc(28px + env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {confirmando ? (
@@ -130,7 +132,7 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
             <p style={{ fontSize: 15, color: t.text, margin: 0, lineHeight: 1.5, padding: '12px 14px', borderRadius: 12, background: t.greenSoft }}>{tx('entrar.confirmaTexto', { mail: confirmando })}</p>
             {reenviado && <p style={{ fontSize: 13, color: t.muted, margin: 0 }}>{tx('entrar.reenviado')}</p>}
             <button type="button" onClick={async () => { try { await onAuth.reenviar?.(confirmando); setReenviado(true); } catch (err) { setError(err?.message || ''); } }} style={{ width: '100%', minHeight: 54, borderRadius: 14, border: `1px solid ${t.border}`, background: t.card, color: t.text, fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{tx('entrar.reenviar')}</button>
-            <button type="button" onClick={() => { setConfirmando(null); onCancel?.(); }} style={{ width: '100%', minHeight: 54, borderRadius: 14, border: 'none', background: '#EA5A22', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{tx('entrar.yaConfirme')}</button>
+            <button type="button" onClick={() => { setConfirmando(null); onCancel?.(); }} style={{ width: '100%', minHeight: 54, borderRadius: 14, border: 'none', background: MARCA.naranja, color: MARCA.cacao, fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{tx('entrar.yaConfirme')}</button>
           </div>
         ) : mode === 'recuperar' ? (
           <form onSubmit={olvide} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -138,7 +140,7 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
             {enviado ? (
               <>
                 <p style={{ fontSize: 15, color: t.text, margin: 0, lineHeight: 1.5, padding: '12px 14px', borderRadius: 12, background: t.greenSoft }}><Trans i18nKey="entrar.enlaceEnviado" values={{ email: email.trim() }} components={{ b: <b /> }} /></p>
-                <button type="button" onClick={() => { setMode('login'); setEnviado(false); setAviso(''); }} style={{ width: '100%', minHeight: 54, borderRadius: 14, border: 'none', background: '#EA5A22', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', marginTop: 4 }}>{tx('entrar.volverAEntrar')}</button>
+                <button type="button" onClick={() => { setMode('login'); setEnviado(false); setAviso(''); }} style={{ width: '100%', minHeight: 54, borderRadius: 14, border: 'none', background: MARCA.naranja, color: MARCA.cacao, fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', marginTop: 4 }}>{tx('entrar.volverAEntrar')}</button>
               </>
             ) : (
               <>
@@ -146,7 +148,7 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
                 <label style={etiqueta} htmlFor="recuperar-mail">{tx('entrar.mail')}</label>
                 <input id="recuperar-mail" type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus style={campo} autoComplete="email" autoCapitalize="none" autoCorrect="off" inputMode="email" />
                 {aviso && <p style={{ fontSize: 13, color: t.red, margin: 0, padding: '8px 12px', borderRadius: 10, background: t.redSoft }}>{aviso}</p>}
-                <button type="submit" style={{ width: '100%', minHeight: 54, borderRadius: 14, border: 'none', background: '#EA5A22', color: '#fff', fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', marginTop: 4 }}>{tx('entrar.mandarmeElEnlace')}</button>
+                <button type="submit" style={{ width: '100%', minHeight: 54, borderRadius: 14, border: 'none', background: MARCA.naranja, color: MARCA.cacao, fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', marginTop: 4 }}>{tx('entrar.mandarmeElEnlace')}</button>
                 <button type="button" onClick={() => { setMode('login'); setAviso(''); }} style={{ ...link, alignSelf: 'center', marginTop: 8, textDecoration: 'none', color: t.muted }}>{tx('comun.volver')}</button>
               </>
             )}
@@ -176,7 +178,7 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
           {error && <p style={{ fontSize: 13, color: t.red, margin: 0, padding: '8px 12px', borderRadius: 10, background: t.redSoft }}>{error}</p>}
           {success && <p style={{ fontSize: 13, color: t.green, margin: 0, padding: '8px 12px', borderRadius: 10, background: t.greenSoft }}>{success}</p>}
 
-          <button type="submit" disabled={loading} style={{ width: '100%', minHeight: 54, borderRadius: 14, border: 'none', background: loading ? t.border : '#EA5A22', color: '#fff', fontSize: 16, fontWeight: 700, cursor: loading ? 'default' : 'pointer', fontFamily: 'inherit', marginTop: 4 }}>
+          <button type="submit" disabled={loading} style={{ width: '100%', minHeight: 54, borderRadius: 14, border: 'none', background: loading ? t.border : MARCA.naranja, color: MARCA.cacao, fontSize: 16, fontWeight: 700, cursor: loading ? 'default' : 'pointer', fontFamily: 'inherit', marginTop: 4 }}>
             {loading ? tx('entrar.entrando') : mode === 'login' ? tx('entrar.entrar') : tx('entrar.crearCuenta')}
           </button>
         </form>
@@ -184,7 +186,7 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
         {mode === 'register' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: 13, color: t.text, lineHeight: 1.5 }}>
-              <input type="checkbox" checked={marketingOptIn} onChange={e => setMarketingOptIn(e.target.checked)} style={{ width: 18, height: 18, margin: '1px 0 0', accentColor: '#EA5A22', flexShrink: 0 }} />
+              <input type="checkbox" checked={marketingOptIn} onChange={e => setMarketingOptIn(e.target.checked)} style={{ width: 18, height: 18, margin: '1px 0 0', accentColor: MARCA.naranja, flexShrink: 0 }} />
               <span>{tx('entrar.novedades')}</span>
             </label>
             <p style={{ fontSize: 12, color: t.muted, margin: 0, lineHeight: 1.6 }}>

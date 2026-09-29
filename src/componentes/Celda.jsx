@@ -6,6 +6,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
+import { FUENTES } from "../sistema/tokens.js";
 
 const vacio = (x) => x === null || x === undefined || String(x).trim() === "";
 
@@ -48,7 +49,7 @@ export function Celda({ id, campo, etiqueta, nombre = "", valor, mostrar, numeri
   return (
     <button type="button" onClick={e => { e.stopPropagation(); setEditando(true); }} aria-label={etiquetaAccesible} title={etiqueta}
       onMouseEnter={e => { e.currentTarget.style.borderColor = paleta.border; }} onMouseLeave={e => { e.currentTarget.style.borderColor = "transparent"; }}
-      style={{ width: "100%", minWidth: 0, height: 36, borderRadius: radios.chico, border: "1px solid transparent", background: guardado ? paleta.greenSoft : "transparent", color: vacio(valor) ? paleta.dim : paleta.text, fontFamily: "inherit", fontSize: 15, fontWeight: vacio(valor) ? 400 : 500, padding: "0 6px", textAlign: alineado, cursor: "text", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", transition: "background 250ms ease", ...estilo }}>
+      style={{ width: "100%", minWidth: 0, height: 36, borderRadius: radios.chico, border: "1px solid transparent", background: guardado ? paleta.greenSoft : "transparent", color: vacio(valor) ? paleta.dim : paleta.text, fontFamily: "inherit", fontSize: 15, fontWeight: vacio(valor) ? 400 : 500, padding: "0 6px", textAlign: alineado, cursor: "text", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", fontFamily: numerico ? FUENTES.numeros : "inherit", transition: "background 250ms ease", ...estilo }}>
       {vacio(valor) ? "—" : (mostrar ?? valor)}
     </button>
   );

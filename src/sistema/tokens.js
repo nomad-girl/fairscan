@@ -65,53 +65,62 @@ export const RADIOS = { chico: 10, medio: 12, grande: 14, pildora: 999 };
  * Los "soft" son el mismo color con transparencia, para fondos de chips y botones secundarios.
  */
 export const PALETAS = {
+  // Identidad nueva (Nati, 28/09/2026; `Identidad/guia-identidad.md`): neutros cálidos cacao/crema, naranja feria,
+  // texto cacao sobre naranja. Los contrastes de cada par están en el test de contraste.
   claro: {
-    bg: "#EDF1F6",
+    bg: "#FFF3EA",                // crema
     card: "#FFFFFF",
     surface: "#FFFFFF",
-    border: "#DCE3EC",
-    text: "#0F172A",
-    muted: "#475569",
-    dim: "#64748B",
-    accent: "#EA5A22",            // relleno, borde, ícono: ≥ 3:1 sobre fondo y tarjeta
-    accentTexto: "#C2410C",       // el naranja cuando es texto (link, chip activo): ≥ 4,5:1
-    accentSoft: "rgba(234, 90, 34, 0.08)",
-    green: "#15803D",
-    greenSoft: "rgba(21, 128, 61, 0.10)",
-    red: "#DC2626",
-    redSoft: "rgba(220, 38, 38, 0.10)",
-    /** El relleno del botón principal: degradé de naranja profundo a naranja de acción. Los dos extremos aguantan texto blanco (≥ 3,5:1). */
-    botonPrincipal: { desde: "#E5561F", hasta: "#EA5A22", texto: "#FFFFFF" },
-    sombraTarjeta: "0 1px 2px rgba(15,23,42,.06), 0 4px 12px -6px rgba(15,23,42,.10)",
-    velo: "rgba(15, 23, 42, 0.40)",
+    border: "#EAD9CC",
+    text: "#2B1206",              // cacao: 16,2:1 sobre crema
+    muted: "#5A3522",             // 9,8:1
+    dim: "#8A4B2A",               // 6,2:1
+    accent: "#FF4F2A",            // naranja feria: relleno, borde, ícono (≥ 3:1 sobre crema y blanco)
+    accentTexto: "#B8341A",       // el naranja cuando es texto (≥ 4,5:1 sobre blanco y crema)
+    accentSoft: "rgba(255, 79, 42, 0.10)",
+    green: "#1F7A45",             // dinero, y solo dinero
+    greenSoft: "rgba(31, 122, 69, 0.10)",
+    red: "#B3261E",               // irreversible; se distingue del naranja por luminosidad y siempre va con ícono o palabra
+    redSoft: "rgba(179, 38, 30, 0.10)",
+    /** El botón principal: relleno plano naranja con texto cacao (5,4:1). Se fue el degradé y el texto blanco. */
+    botonPrincipal: { desde: "#FF4F2A", hasta: "#FF4F2A", texto: "#2B1206" },
+    sombraTarjeta: "0 1px 2px rgba(43,18,6,.06), 0 4px 12px -6px rgba(43,18,6,.12)",
+    velo: "rgba(43, 18, 6, 0.40)",
   },
   oscuro: {
-    bg: "#0A0E17",
-    card: "#131825",
-    surface: "#0F1420",
-    border: "#1E293B",
-    text: "#F1F5F9",
-    muted: "#94A3B8",
-    dim: "#64748B",
-    accent: "#FF6B35",
-    accentTexto: "#FF6B35",       // sobre fondo oscuro el de marca ya llega a 6,8:1
-    accentSoft: "rgba(255, 107, 53, 0.12)",
-    green: "#22C55E",
-    greenSoft: "rgba(34, 197, 94, 0.12)",
-    red: "#EF4444",
-    redSoft: "rgba(239, 68, 68, 0.12)",
-    /** En oscuro el naranja de marca (#FF6B35) sigue en textos, bordes y marcas; como relleno con texto blanco no llega a 3:1 (2,8), así que el botón usa el mismo degradé que el claro. */
-    botonPrincipal: { desde: "#E5561F", hasta: "#EA5A22", texto: "#FFFFFF" },
+    bg: "#1C0D06",
+    card: "#2B1206",
+    surface: "#241008",
+    border: "#3D2215",
+    text: "#FFF3EA",              // 17,4:1
+    muted: "#D9BFAE",             // 10,8:1
+    dim: "#A8826B",               // 5,5:1
+    accent: "#FF6A45",            // 6,7:1 sobre el fondo
+    accentTexto: "#FF6A45",
+    accentSoft: "rgba(255, 106, 69, 0.14)",
+    green: "#3FBF78",             // 8,0:1
+    greenSoft: "rgba(63, 191, 120, 0.14)",
+    red: "#FF6B6B",               // 6,8:1
+    redSoft: "rgba(255, 107, 107, 0.14)",
+    botonPrincipal: { desde: "#FF6A45", hasta: "#FF6A45", texto: "#2B1206" },
     sombraTarjeta: "none",
     velo: "rgba(0, 0, 0, 0.55)",
   },
 };
 
+/** Las fuentes: DM Sans para la interfaz; Bricolage Grotesque para la marca, los pasos grandes y las cifras en columna
+ *  (DM Sans no trae cifras de ancho fijo, así que `tabular-nums` no hacía nada). Las dos viajan dentro del paquete. */
+export const FUENTES = {
+  interfaz: "'DM Sans', -apple-system, 'Segoe UI', sans-serif",
+  marca: "'Bricolage Grotesque', 'DM Sans', -apple-system, sans-serif",
+  numeros: "'Bricolage Grotesque', 'DM Sans', -apple-system, sans-serif",
+};
+
 /** Marcas ajenas: solo dentro de sus botones. */
 export const MARCAS = { whatsapp: "#25D366", wechat: "#07C160" };
 
-/** El naranja de marca (ícono de la app, degradé del botón principal). */
-export const MARCA = { naranja: "#FF6B35", naranjaClaro: "#FF8F35" };
+/** Los colores de marca (`Identidad/guia-identidad.md`): el sello amarillo es solo para el nombre, nunca un significado en la app. */
+export const MARCA = { naranja: "#FF4F2A", naranjaClaro: "#FF6A45", cacao: "#2B1206", crema: "#FFF3EA", sello: "#FFC53D" };
 
 /**
  * Compatibilidad con las pantallas viejas, que reciben un objeto `t` con más

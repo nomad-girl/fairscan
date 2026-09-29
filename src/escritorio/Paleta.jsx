@@ -40,7 +40,7 @@ export function Paleta({ abierta, onCerrar, productos = [], proveedores = [], vi
   };
   let grupoPrevio = null;
   return (
-    <div role="dialog" aria-modal="true" aria-label={t("escritorio.paletaTitulo")} onClick={onCerrar} style={{ position: "fixed", inset: 0, zIndex: 70, background: "rgba(10,14,23,0.35)", display: "flex", justifyContent: "center", alignItems: "flex-start", paddingTop: "12vh" }}>
+    <div role="dialog" aria-modal="true" aria-label={t("escritorio.paletaTitulo")} onClick={onCerrar} style={{ position: "fixed", inset: 0, zIndex: 70, background: "rgba(43,18,6,0.35)", display: "flex", justifyContent: "center", alignItems: "flex-start", paddingTop: "12vh" }}>
       <div onClick={e => e.stopPropagation()} style={{ width: 620, maxWidth: "92vw", background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, boxShadow: "0 24px 60px rgba(0,0,0,0.35)", overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderBottom: `1px solid ${paleta.border}` }}>
           <Icono nombre="buscar" tamano={18} color={paleta.dim} />

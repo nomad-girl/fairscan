@@ -10,7 +10,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Chip, Icono, EstadoDeDatos, esperandoNube, Segmentado } from "../componentes/index.js";
+import { Boton, Chip, Icono, EstadoDeDatos, esperandoNube, Segmentado, Marca } from "../componentes/index.js";
 import { soloDeHoy } from "../lib/porDia.js";
 import { proveedorVacio } from "../lib/proveedores.js";
 import { MARCA } from "../sistema/tokens.js";
@@ -372,11 +372,11 @@ export function Escritorio({
                 <Miniatura p={p} Foto={Foto} tLegacy={tLegacy} paleta={paleta} />
               </button>
               <button type="button" className="fs-cb" role="checkbox" aria-checked={marcado} aria-label={`${t("escritorio.elegir")} ${p.name || ""}`.trim()} onClick={(e) => { e.stopPropagation(); alternar(p, e); }}
-                style={{ position: "absolute", top: 8, left: 8, width: 22, height: 22, borderRadius: 6, border: `2px solid ${marcado ? paleta.accent : "#fff"}`, background: marcado ? paleta.accent : "rgba(10,14,23,0.45)", display: "grid", placeItems: "center", cursor: "pointer", padding: 0 }}>
+                style={{ position: "absolute", top: 8, left: 8, width: 22, height: 22, borderRadius: 6, border: `2px solid ${marcado ? paleta.accent : "#fff"}`, background: marcado ? paleta.accent : "rgba(43,18,6,0.45)", display: "grid", placeItems: "center", cursor: "pointer", padding: 0 }}>
                 {marcado && <Icono nombre="listo" tamano={13} color="#fff" />}
               </button>
               {p.favorito ? <span style={{ position: "absolute", top: 8, right: 8, width: 22, height: 22, borderRadius: 11, background: paleta.accent, display: "grid", placeItems: "center", pointerEvents: "none" }}><Icono nombre="favorito" tamano={12} color="#fff" /></span> : null}
-              {(p.photos?.length || 0) > 1 && <span style={{ position: "absolute", bottom: 8, right: 8, padding: "1px 6px", borderRadius: 999, background: "rgba(10,14,23,0.55)", color: "#fff", fontSize: 11, fontWeight: 600, pointerEvents: "none" }}>{p.photos.length}</span>}
+              {(p.photos?.length || 0) > 1 && <span style={{ position: "absolute", bottom: 8, right: 8, padding: "1px 6px", borderRadius: 999, background: "rgba(43,18,6,0.55)", color: "#fff", fontSize: 11, fontWeight: 600, pointerEvents: "none" }}>{p.photos.length}</span>}
             </div>
             <p style={{ ...texto("pie"), color: paleta.muted, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               <span style={{ color: paleta.text, fontWeight: 500 }}>{p.name || t("catalogo.procesandoNombre")}</span>{p.price ? ` · ${moneda} ${p.price}` : ""}
@@ -572,7 +572,7 @@ export function Escritorio({
 
       {/* Cabecera sin texto: feria, buscador, un punto de estado, la inicial */}
       <header style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 14, padding: "0 16px", background: paleta.card, borderBottom: `1px solid ${paleta.border}` }}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontWeight: 800, fontSize: 18, color: MARCA.naranja, width: anchoLateral - 16, overflow: "hidden", whiteSpace: "nowrap", flexShrink: 0 }}><Icono nombre="camara" tamano={20} color={MARCA.naranja} />{!lateralPlegada && "FairScan"}</span>
+        <span style={{ display: "inline-flex", alignItems: "center", width: anchoLateral - 16, overflow: "hidden", whiteSpace: "nowrap", flexShrink: 0, color: paleta.text }}>{lateralPlegada ? <img src="/favicon.svg" alt="FairScan" width={26} height={26} style={{ borderRadius: 6, display: "block" }} /> : <Marca tamano={18} conIcono />}</span>
         <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
           <Icono nombre="feria" tamano={16} color={paleta.muted} />
           <select value={activeDistrictId ?? ""} onChange={e => onSwitchDistrict?.(e.target.value === "" ? null : Number(e.target.value))} aria-label={t("escritorio.feria")}
@@ -658,7 +658,7 @@ export function Escritorio({
       <Paleta abierta={paletaAbierta} onCerrar={() => setPaletaAbierta(false)} productos={enFeria} proveedores={proveedores} vistas={vistas} acciones={accionesPaleta} onProducto={verProducto} onProveedor={verProveedor} onVista={aplicarVista} />
 
       {atajosAbiertos && (
-        <div role="dialog" aria-modal="true" aria-label={t("escritorio.atajosTitulo")} onClick={() => setAtajosAbiertos(false)} style={{ position: "fixed", inset: 0, zIndex: 65, background: "rgba(10,14,23,0.35)", display: "grid", placeItems: "center" }}>
+        <div role="dialog" aria-modal="true" aria-label={t("escritorio.atajosTitulo")} onClick={() => setAtajosAbiertos(false)} style={{ position: "fixed", inset: 0, zIndex: 65, background: "rgba(43,18,6,0.35)", display: "grid", placeItems: "center" }}>
           <div onClick={e => e.stopPropagation()} style={{ width: 560, maxWidth: "92vw", background: paleta.card, border: `1px solid ${paleta.border}`, borderRadius: radios.grande, boxShadow: "0 24px 60px rgba(0,0,0,0.35)", padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ display: "flex", alignItems: "center" }}><h2 style={{ ...texto("titulo"), margin: 0, flex: 1 }}>{t("escritorio.atajosTitulo")}</h2>{botonRedondo("cerrar", t("comun.cerrar"), () => setAtajosAbiertos(false))}</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>

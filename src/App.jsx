@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, memo } from "react";
 import { i18next, cambiarIdioma, leerPreferencia } from './idiomas/index.js';
+import { MARCA } from './sistema/tokens.js';
 import { PRESETS } from "./lib/presets.js";
 import useGrabadora from "./hooks/useGrabadora.js";
 import { cargarNegocio, NEGOCIO_POR_DEFECTO } from "./lib/negocio.js";
@@ -11,7 +12,7 @@ import { evaluarCierreDeStand, packDestacado, FRASE_PAYWALL } from "./lib/paywal
 // THEME
 // ═══════════════════════════════════════════
 const T = {
-  dark: { bg:"#0A0E17",card:"#131825",accent:"#FF6B35",accentSoft:"#FF6B3520",green:"#22C55E",greenSoft:"#22C55E20",yellow:"#FBBF24",blue:"#3B82F6",blueSoft:"#3B82F620",purple:"#A855F7",purpleSoft:"#A855F720",red:"#EF4444",redSoft:"#EF444420",text:"#F1F5F9",muted:"#64748B",dim:"#94A3B8",border:"#1E293B",surface:"#0F1420" },
+  dark: { bg:"#1C0D06",card:"#131825",accent:"#FF6B35",accentSoft:"#FF6B3520",green:"#22C55E",greenSoft:"#22C55E20",yellow:"#FBBF24",blue:"#3B82F6",blueSoft:"#3B82F620",purple:"#A855F7",purpleSoft:"#A855F720",red:"#EF4444",redSoft:"#EF444420",text:"#F1F5F9",muted:"#64748B",dim:"#94A3B8",border:"#1E293B",surface:"#0F1420" },
   light: { bg:"#F8FAFC",card:"#FFFFFF",accent:"#FF6B35",accentSoft:"#FF6B3515",green:"#16A34A",greenSoft:"#16A34A12",yellow:"#D97706",blue:"#2563EB",blueSoft:"#2563EB12",purple:"#9333EA",purpleSoft:"#9333EA12",red:"#DC2626",redSoft:"#DC262612",text:"#0F172A",muted:"#64748B",dim:"#94A3B8",border:"#E2E8F0",surface:"#F1F5F9" },
 };
 
@@ -102,7 +103,7 @@ import { Catalogo } from './pantallas/Catalogo.jsx';
 import { RevisarDia } from './pantallas/RevisarDia.jsx';
 import { FichaProducto } from './pantallas/FichaProducto.jsx';
 import { FichaProveedor } from './pantallas/FichaProveedor.jsx';
-import { Icono, Hoja, Boton } from './componentes/index.js';
+import { Icono, Hoja, Boton, Marca } from './componentes/index.js';
 import { Escritorio } from './escritorio/Escritorio.jsx';
 import { useEsEscritorio } from './escritorio/util.jsx';
 import { useSistema } from './sistema/SistemaProvider.jsx';
@@ -503,15 +504,16 @@ function Bienvenida({ onEmpezar, sinCuenta, onEntrar }) {
   // Primera vez, sin foto (Nati, 22/09: "no es el código visual de la app"): el naranja de la marca arriba,
   // con FairScan y la frase en blanco; abajo, claro, los dos botones. Un toque y estás en la cámara.
   return (
-    <div className="pantalla-fija" style={{ position:"fixed", inset:0, background:"#F8FAFC", color:"#0F172A", fontFamily:"inherit", display:"flex", flexDirection:"column" }}>
-      <div style={{ flex:1, background:"#EA5A22", color:"#fff", padding:"calc(env(safe-area-inset-top, 0px) + 40px) 24px 36px", display:"flex", flexDirection:"column", justifyContent:"flex-end", gap:12, borderRadius:"0 0 32px 32px" }}>
-        <h1 style={{ fontSize:44, fontWeight:700, margin:0, letterSpacing:"-0.02em" }}>FairScan</h1>
-        <p style={{ fontSize:19, fontWeight:500, margin:0, lineHeight:1.3, maxWidth:340, color:"rgba(255,255,255,0.92)" }}>{tx("bienvenida.frase")}</p>
+    <div className="pantalla-fija" style={{ position:"fixed", inset:0, background:MARCA.crema, color:MARCA.cacao, fontFamily:"inherit", display:"flex", flexDirection:"column" }}>
+      {/* Identidad (28/09): la marca con energía sobre cacao; el naranja queda para la acción */}
+      <div style={{ flex:1, background:MARCA.cacao, color:MARCA.crema, padding:"calc(env(safe-area-inset-top, 0px) + 40px) 24px 36px", display:"flex", flexDirection:"column", justifyContent:"flex-end", gap:14, borderRadius:"0 0 32px 32px" }}>
+        <Marca tamano={44} color={MARCA.crema} conIcono />
+        <p style={{ fontSize:19, fontWeight:500, margin:0, lineHeight:1.3, maxWidth:340, color:"rgba(255,243,234,0.88)" }}>{tx("bienvenida.frase")}</p>
       </div>
       <div style={{ padding:"24px 22px calc(28px + env(safe-area-inset-bottom, 0px))", display:"flex", flexDirection:"column", gap:10 }}>
-        <button onClick={onEmpezar} style={{ width:"100%", minHeight:54, borderRadius:14, border:"none", background:"#EA5A22", color:"#fff", fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><Icono nombre="camara" tamano={20} color="#fff" />{tx("bienvenida.empezar")}</button>
-        {sinCuenta && onEntrar && <button onClick={onEntrar} style={{ width:"100%", minHeight:54, borderRadius:14, border:"1px solid #DCE3EC", background:"#FFFFFF", color:"#0F172A", fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{tx("bienvenida.yaTengoCuenta")}</button>}
-        <p style={{ fontSize:12, color:"#64748B", margin:"8px 0 0", textAlign:"center", lineHeight:1.5 }}>{sinCuenta ? tx("bienvenida.sinCuentaPista") : tx("bienvenida.permisoCamara")}</p>
+        <button onClick={onEmpezar} style={{ width:"100%", minHeight:54, borderRadius:14, border:"none", background:MARCA.naranja, color:MARCA.cacao, fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><Icono nombre="camara" tamano={20} color={MARCA.cacao} />{tx("bienvenida.empezar")}</button>
+        {sinCuenta && onEntrar && <button onClick={onEntrar} style={{ width:"100%", minHeight:54, borderRadius:14, border:"1px solid #EAD9CC", background:"#FFFFFF", color:MARCA.cacao, fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{tx("bienvenida.yaTengoCuenta")}</button>}
+        <p style={{ fontSize:12, color:"#8A4B2A", margin:"8px 0 0", textAlign:"center", lineHeight:1.5 }}>{sinCuenta ? tx("bienvenida.sinCuentaPista") : tx("bienvenida.permisoCamara")}</p>
       </div>
     </div>
   );
@@ -3712,7 +3714,7 @@ export default function App() {
   );
 
   // En la compu, el login del teléfono va centrado en una columna (la pantalla de escritorio propia se diseña después).
-  const enColumna = (nodo) => (esEscritorio ? <div style={{ height:"100%", background:"#0B0E17", display:"flex", justifyContent:"center" }}><div style={{ width:460, height:"100%", position:"relative" }}>{nodo}</div></div> : nodo);
+  const enColumna = (nodo) => (esEscritorio ? <div style={{ height:"100%", background:"#1C0D06", display:"flex", justifyContent:"center" }}><div style={{ width:460, height:"100%", position:"relative" }}>{nodo}</div></div> : nodo);
   if (!auth.user) return enColumna(<LoginScreen t={t} onAuth={auth} />);
 
   if (mostrarLogin) return enColumna(<LoginScreen t={t} onAuth={auth} onCancel={() => setMostrarLogin(false)} />);

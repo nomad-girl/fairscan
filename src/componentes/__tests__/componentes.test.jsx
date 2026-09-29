@@ -122,6 +122,6 @@ describe("Ícono", () => {
   });
   it("en modo oscuro toma el color del texto de esa paleta", () => {
     const { container } = conSistema(<Icono nombre="buscar" />, "oscuro");
-    expect(container.querySelector("svg").getAttribute("stroke")).toBe("#F1F5F9");
+    expect(container.querySelector("svg").getAttribute("stroke")).toBe("#FFF3EA"); // crema, el texto del oscuro (identidad 28/09)
   });
 });

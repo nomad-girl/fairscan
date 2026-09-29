@@ -105,7 +105,7 @@ export function Visor({
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           {estadoSync === "falla" && <Pastilla><span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, background: colorPunto, display: "inline-block" }} /><span style={{ fontSize: 12, fontWeight: 500, color: BLANCO_SUAVE }}>{textoSync}</span></Pastilla>}
           {/* 27/09: el botón de Catálogo pasó abajo, junto al obturador, grande y con nombre */}
-          {false && <button type="button" onClick={onCatalogo} aria-label={t("visor.irAlCatalogo")} style={{ minHeight: 40, padding: "0 14px 0 12px", borderRadius: 999, border: "none", background: "rgba(10,14,23,0.55)", color: BLANCO, fontSize: 14, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontFamily: "inherit", backdropFilter: "blur(8px)" }}><Icono nombre="foto" tamano={18} color={BLANCO} />{t("visor.catalogo")}</button>}
+          {false && <button type="button" onClick={onCatalogo} aria-label={t("visor.irAlCatalogo")} style={{ minHeight: 40, padding: "0 14px 0 12px", borderRadius: 999, border: "none", background: "rgba(43,18,6,0.55)", color: BLANCO, fontSize: 14, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontFamily: "inherit", backdropFilter: "blur(8px)" }}><Icono nombre="foto" tamano={18} color={BLANCO} />{t("visor.catalogo")}</button>}
         </div>
       </div>
 
@@ -113,7 +113,7 @@ export function Visor({
           stand); con tarjeta dice la empresa y abre el stand. Nati, 21/09: "la tarjeta es sinónimo de nuevo stand". */}
       {modoAngulo && !esTarjeta && (
         <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 68px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "center" }}>
-          <span style={{ background: MARCA.naranja, color: "#fff", borderRadius: 999, padding: "12px 18px", fontSize: 15, fontWeight: 600, textAlign: "center" }}>{t("visor.otraFotoMismo")}</span>
+          <span style={{ background: "rgba(43,18,6,0.7)", color: "#fff", borderRadius: 999, padding: "12px 18px", fontSize: 15, fontWeight: 600, textAlign: "center", backdropFilter: "blur(8px)" }}>{t("visor.otraFotoMismo")}</span>
         </div>
       )}
       {standAbierto && !esTarjeta && !modoAngulo && (() => {
@@ -127,7 +127,7 @@ export function Visor({
           : t("visor.escanearTarjetaConFotos", { count: n });
         return (
           <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 68px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "center" }}>
-            <button type="button" onClick={sinTarjeta ? onTarjeta : onStand} aria-label={sinTarjeta ? t("visor.escanearTarjeta") : t("visor.abrirStand")} style={{ maxWidth: "100%", minHeight: 50, padding: "0 20px", borderRadius: 999, border: "none", background: (conNombre || sinTarjeta) ? MARCA.naranja : "rgba(10,14,23,0.7)", boxShadow: sinTarjeta ? "0 6px 18px -6px rgba(234,90,34,0.7)" : "none", color: "#fff", fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", overflow: "hidden", backdropFilter: "blur(8px)" }}>
+            <button type="button" onClick={sinTarjeta ? onTarjeta : onStand} aria-label={sinTarjeta ? t("visor.escanearTarjeta") : t("visor.abrirStand")} style={{ maxWidth: "100%", minHeight: 50, padding: "0 20px", borderRadius: 999, border: sinTarjeta ? "1.5px solid rgba(255,255,255,0.75)" : "none", background: "rgba(43,18,6,0.7)", boxShadow: "none", color: "#fff", fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", overflow: "hidden", backdropFilter: "blur(8px)" }}>
               {/* Sin tarjeta, la pastilla es naranja y con el ícono de tarjeta (Nati, 27/09: "que sea más llamativo") */}
               <Icono nombre={conNombre ? "proveedor" : "tarjeta"} tamano={18} color="#fff" /><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{texto}</span>{!sinTarjeta && <Icono nombre="siguiente" tamano={14} color="rgba(255,255,255,0.8)" />}
             </button>
@@ -150,7 +150,7 @@ export function Visor({
 
       {/* Consejo en contexto (una vez en la vida) */}
       {consejoVisible && !esTarjeta && (
-        <div role="status" onClick={onConsejoVisto} style={{ position: "absolute", left: 14, right: 14, bottom: 148, zIndex: 4, background: "rgba(10,14,23,0.86)", backdropFilter: "blur(10px)", borderRadius: 14, padding: "12px 14px", textAlign: "center", fontSize: 14, lineHeight: 1.4, color: BLANCO, cursor: "pointer" }}>
+        <div role="status" onClick={onConsejoVisto} style={{ position: "absolute", left: 14, right: 14, bottom: 148, zIndex: 4, background: "rgba(43,18,6,0.86)", backdropFilter: "blur(10px)", borderRadius: 14, padding: "12px 14px", textAlign: "center", fontSize: 14, lineHeight: 1.4, color: BLANCO, cursor: "pointer" }}>
           {t("visor.consejoTarjeta")}
         </div>
       )}
@@ -243,7 +243,7 @@ export function Visor({
           onPointerUp={() => setPresionado(false)}
           onPointerLeave={() => setPresionado(false)}
           aria-label={t("visor.disparar")}
-          style={{ position: "relative", width: alturas.obturador, height: alturas.obturador, borderRadius: "50%", border: "5px solid #fff", background: "rgba(255,255,255,0.25)", cursor: "pointer", padding: 0, transform: presionado ? `scale(${movimiento.toque.escala})` : "scale(1)", transition: `transform ${duracion(presionado ? movimiento.toque.bajada : movimiento.toque.vuelta)}ms ${curvas.estandar}`, WebkitTapHighlightColor: "transparent" }}
+          style={{ position: "relative", width: alturas.obturador, height: alturas.obturador, borderRadius: "50%", border: "5px solid #fff", background: MARCA.naranja, boxShadow: "0 0 0 3px rgba(43,18,6,0.35)", cursor: "pointer", padding: 0, transform: presionado ? `scale(${movimiento.toque.escala})` : "scale(1)", transition: `transform ${duracion(presionado ? movimiento.toque.bajada : movimiento.toque.vuelta)}ms ${curvas.estandar}`, WebkitTapHighlightColor: "transparent" }}
         >
           {!esTarjeta && itemsCount > 0 && (
             <span aria-label={t("visor.enEsteStand", { count: itemsCount })} style={{ position: "absolute", right: -10, top: -10, minWidth: 26, height: 26, padding: "0 8px", borderRadius: 13, background: MARCA.naranja, color: "#fff", fontSize: 13, fontWeight: 700, display: "grid", placeItems: "center", boxShadow: "0 0 0 3px rgba(0,0,0,0.35)", fontVariantNumeric: "tabular-nums" }}>{itemsCount}</span>

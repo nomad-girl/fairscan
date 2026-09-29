@@ -50,7 +50,7 @@ export function CarruselDeFotos({ fotos = [], respaldos = [], Foto, tLegacy, onT
       </div>
       {fotos.length > 1 && (
         <>
-          <span style={{ position: "absolute", top: 10, right: 10, background: "rgba(10,14,23,0.7)", color: "#fff", borderRadius: 999, padding: "3px 9px", fontSize: 12, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{i + 1}/{fotos.length}</span>
+          <span style={{ position: "absolute", top: 10, right: 10, background: "rgba(43,18,6,0.7)", color: "#fff", borderRadius: 999, padding: "3px 9px", fontSize: 12, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{i + 1}/{fotos.length}</span>
           <div aria-hidden style={{ position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 4 }}>
             {fotos.map((_, k) => <span key={k} style={{ width: 6, height: 6, borderRadius: 3, background: k === i ? "#fff" : "rgba(255,255,255,0.5)", boxShadow: "0 0 2px rgba(0,0,0,.5)" }} />)}
           </div>

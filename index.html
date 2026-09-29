@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#0A0E17" />
+  <meta name="theme-color" content="#2B1206" />
   <meta name="description" content="Captura y organiza productos en ferias comerciales. Escanea tarjetas, fotos, notas de voz y calcula costos de importacion con IA." />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -20,14 +20,14 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { height: 100%; }
-    body { height: 100%; min-height: 100%; min-height: 100dvh; overflow: hidden; font-family: 'DM Sans', -apple-system, sans-serif; -webkit-font-smoothing: antialiased; background: #0A0E17; }
+    body { height: 100%; min-height: 100%; min-height: 100dvh; overflow: hidden; font-family: 'DM Sans', -apple-system, sans-serif; -webkit-font-smoothing: antialiased; background: #2B1206; }
     #root { height: 100%; overflow: hidden; padding-top: env(safe-area-inset-top, 0px); }
     /* En computadora (Nati, 22/09: "hay que pensar la adaptación"): lo que en el teléfono ocupa la pantalla
        entera se acota a un ancho de teléfono, centrado, sobre fondo oscuro. Es el mínimo para que una ficha
        no sea una foto gigante; la adaptación de verdad se decide con wireframe. */
     /* Tablet en vertical: la app del teléfono acotada. De 900 px en adelante aparece el escritorio (23/09). */
     @media (min-width: 760px) and (max-width: 899px) {
-      body { background: #0B0E17; }
+      body { background: #2B1206; }
       #root { max-width: 460px; margin: 0 auto; box-shadow: 0 0 0 1px rgba(255,255,255,0.08); }
       .pantalla-fija { left: 50% !important; right: auto !important; width: 460px !important; transform: translateX(-50%); }
     }
@@ -56,11 +56,12 @@
 <body>
   <div id="root">
     <!-- Loading skeleton (replaced by React on mount) -->
-    <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#0A0E17;font-family:'DM Sans',-apple-system,sans-serif">
-      <div style="font-size:48px">📸</div>
-      <div style="font-size:20px;font-weight:800;color:#F1F5F9">FairScan</div>
-      <div style="width:40px;height:3px;border-radius:2px;background:#1E293B;overflow:hidden;position:relative">
-        <div style="position:absolute;width:60%;height:100%;background:#FF6B35;border-radius:2px;animation:loadSlide 1s ease-in-out infinite"></div>
+    <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#2B1206;font-family:'DM Sans',-apple-system,sans-serif">
+      <!-- Pantalla de carga con la identidad (28/09): fondo cacao, la marca al centro -->
+      <img src="/favicon.svg" alt="" width="72" height="72" style="display:block;border-radius:18px" />
+      <div style="font-size:22px;font-weight:800;color:#FFF3EA;letter-spacing:-0.035em">FairScan</div>
+      <div style="width:40px;height:3px;border-radius:2px;background:#3D2215;overflow:hidden;position:relative">
+        <div style="position:absolute;width:60%;height:100%;background:#FF4F2A;border-radius:2px;animation:loadSlide 1s ease-in-out infinite"></div>
       </div>
     </div>
     <style>@keyframes loadSlide{0%{left:-60%}100%{left:100%}}</style>

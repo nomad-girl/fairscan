@@ -70,13 +70,13 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
   const botones = (propios) => (
     <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
       {onAddProduct && <button type="button" onClick={onAddProduct} style={{ minHeight: 44, borderRadius: 999, border: "none", background: paleta.accent, color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 700, padding: "0 16px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}><Icono nombre="camara" tamano={16} color="#fff" />{propios.length === 0 ? t("proveedor.sacarFotos") : t("proveedor.agregarProducto")}</button>}
-      <button type="button" onClick={() => setDatosAbiertos(true)} style={{ minHeight: 44, borderRadius: 999, border: "1px solid rgba(255,255,255,0.6)", background: "rgba(10,14,23,0.35)", color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 600, padding: "0 14px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+      <button type="button" onClick={() => setDatosAbiertos(true)} style={{ minHeight: 44, borderRadius: 999, border: "1px solid rgba(255,255,255,0.6)", background: "rgba(43,18,6,0.35)", color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 600, padding: "0 14px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
         <Icono nombre="abajo" tamano={16} color="#fff" style={{ transform: "rotate(180deg)" }} />{t("proveedor.verDatos")}
       </button>
     </div>
   );
   const irA = (n) => { const el = paginasRef.current; if (!el) return; el.scrollTo?.({ left: n * el.offsetWidth, behavior: "smooth" }); setPagina(n); };
-  const PIE = { position: "absolute", left: 0, right: 0, bottom: 0, padding: `80px 18px calc(18px + env(safe-area-inset-bottom, 0px))`, background: "linear-gradient(to top, rgba(10,14,23,0.9) 60%, rgba(10,14,23,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 };
+  const PIE = { position: "absolute", left: 0, right: 0, bottom: 0, padding: `80px 18px calc(18px + env(safe-area-inset-bottom, 0px))`, background: "linear-gradient(to top, rgba(43,18,6,0.9) 60%, rgba(43,18,6,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 };
 
   // El pie del proveedor. Es UN solo elemento, fijo (27/09, Nati: "que cambie SOLO la parte de la foto y el resto
   // sean elementos fijos"): no viaja con el deslizamiento de arriba.
@@ -120,7 +120,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
       {propios.map(p => (
         <button key={p.id} type="button" onClick={() => onNavigateProduct?.(p)} aria-label={p.name || t("pedido.sinNombre")} style={{ width: "100%", aspectRatio: "1", height: "auto", borderRadius: 8, overflow: "hidden", border: "none", padding: 0, background: "rgba(255,255,255,0.1)", cursor: "pointer", position: "relative", display: "block" }}>
           {miniatura(p)}
-          {p.price ? <span style={{ position: "absolute", left: 6, bottom: 6, background: "rgba(10,14,23,0.7)", color: "#fff", borderRadius: 6, padding: "2px 6px", fontSize: 11, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moneda} {p.price}</span> : null}
+          {p.price ? <span style={{ position: "absolute", left: 6, bottom: 6, background: "rgba(43,18,6,0.7)", color: "#fff", borderRadius: 6, padding: "2px 6px", fontSize: 11, fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{moneda} {p.price}</span> : null}
         </button>
       ))}
     </div>
@@ -131,7 +131,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
   const pantalla = (x, esta) => {
     const propios = esta ? suyos : productosParaPedido(products, x.id);
     return (
-      <div key={x.id} style={{ height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative", background: "#0B0E17" }}>
+      <div key={x.id} style={{ height: "100%", flexShrink: 0, scrollSnapAlign: "start", position: "relative", background: "#1C0D06" }}>
         {esta && propios.length > 0 ? (
           <div ref={paginasRef} onScroll={e => setPagina(Math.round(e.target.scrollLeft / Math.max(1, e.target.offsetWidth)))}
             style={{ position: "absolute", inset: 0, display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", scrollbarWidth: "none", WebkitOverflowScrolling: "touch", touchAction: "pan-x pan-y" }}>
@@ -147,7 +147,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
   const limpio = (k, v) => (typeof v === "string" ? v.replace(k === "email" ? /^\s*e-?mail\s*[:：]\s*/i : /^\s*(web|website|sitio web)\s*[:：]\s*/i, "") : v);
 
   const redondo = (nombre, etiqueta, onClick, { activo = false, presionado } = {}) => (
-    <button type="button" onClick={onClick} aria-label={etiqueta} aria-pressed={presionado} style={{ width: 48, height: 48, borderRadius: 24, border: "none", background: activo ? paleta.accent : "rgba(10,14,23,0.55)", display: "grid", placeItems: "center", cursor: "pointer", backdropFilter: "blur(6px)" }}>
+    <button type="button" onClick={onClick} aria-label={etiqueta} aria-pressed={presionado} style={{ width: 48, height: 48, borderRadius: 24, border: "none", background: activo ? paleta.accent : "rgba(43,18,6,0.55)", display: "grid", placeItems: "center", cursor: "pointer", backdropFilter: "blur(6px)" }}>
       <Icono nombre={nombre} tamano={22} color="#fff" />
     </button>
   );
@@ -160,7 +160,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
       {/* Arriba: volver, la posición, favorito */}
       <div style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 12px)`, left: 14, right: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         {redondo("volver", t("comun.volver"), onBack)}
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(10,14,23,0.55)", color: "#fff", borderRadius: 999, padding: "6px 12px", fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums", backdropFilter: "blur(6px)" }}>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(43,18,6,0.55)", color: "#fff", borderRadius: 999, padding: "6px 12px", fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums", backdropFilter: "blur(6px)" }}>
           {guardado ? <><Icono nombre="listo" tamano={14} color="#86EFAC" />{t("proveedor.guardado")}</> : posicion}
         </span>
         {redondo("favorito", s.favorito ? t("proveedor.quitarFavorito") : t("proveedor.marcarFavorito"), () => guardar({ favorito: s.favorito ? 0 : 1 }), { activo: !!s.favorito, presionado: !!s.favorito })}
@@ -181,7 +181,7 @@ export function FichaProveedor({ supplier: s, allSuppliers = [], products = [], 
         <div style={{ position: "absolute", right: 10, bottom: `calc(230px + env(safe-area-inset-bottom, 0px))`, display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
           {contactos.map(c => (
             <a key={c.clave} href={c.href} target="_blank" rel="noopener noreferrer" onClick={c.onClick} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: "#fff", textDecoration: "none", width: 56 }}>
-              <span style={{ width: 48, height: 48, borderRadius: 24, background: "rgba(10,14,23,0.55)", display: "grid", placeItems: "center", backdropFilter: "blur(6px)" }}><Icono nombre={c.icono} tamano={22} color="#fff" /></span>
+              <span style={{ width: 48, height: 48, borderRadius: 24, background: "rgba(43,18,6,0.55)", display: "grid", placeItems: "center", backdropFilter: "blur(6px)" }}><Icono nombre={c.icono} tamano={22} color="#fff" /></span>
               <span style={{ fontSize: 11, fontWeight: 600, textShadow: "0 1px 2px rgba(0,0,0,0.6)" }}>{c.texto}</span>
             </a>
           ))}

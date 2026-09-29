@@ -69,7 +69,7 @@ export function VistaRapida({
 
   return (
     <div role="dialog" aria-modal="true" aria-label={p.name || t("ficha.producto")} onClick={onCerrar}
-      style={{ position: "fixed", inset: 0, zIndex: 58, background: "rgba(5,8,15,0.92)", display: "flex" }}>
+      style={{ position: "fixed", inset: 0, zIndex: 58, background: "rgba(28,13,6,0.92)", display: "flex" }}>
       {/* La foto, protagonista y entera */}
       <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
         <div onClick={e => { e.stopPropagation(); if (fotos.length) setFotoGrande(true); }} title={fotos.length ? t("escritorio.fotoGrande") : undefined}
