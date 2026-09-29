@@ -102,6 +102,7 @@ import { CerrarStand } from './pantallas/CerrarStand.jsx';
 import { Catalogo } from './pantallas/Catalogo.jsx';
 import { RevisarDia } from './pantallas/RevisarDia.jsx';
 import { FichaProducto } from './pantallas/FichaProducto.jsx';
+import { Ferias } from './pantallas/Ferias.jsx';
 import { FichaProveedor } from './pantallas/FichaProveedor.jsx';
 import { Icono, Hoja, Boton, Marca } from './componentes/index.js';
 import { Escritorio } from './escritorio/Escritorio.jsx';
@@ -652,74 +653,6 @@ const parseQRContent = (qrData) => {
 // ═══════════════════════════════════════════
 // DISTRICTS
 // ═══════════════════════════════════════════
-function DistrictsScreen({ districts, activeDistrictId, products, onActivate, onAdd, onUpdate, onDelete, onBack, t }) {
-  const { t: tx } = useTranslation();
-  const [creating, setCreating] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [nn, setNn] = useState(""); const [nl, setNl] = useState(""); const [nd, setNd] = useState(""); const [ne, setNe] = useState("");
-  const emojis = ["🏮","🏪","🌏","🏭","🎪","✈️","🚢","📍","🗺","🎯","🇦🇷","🇨🇳","🇹🇷","🇭🇰"];
-  const inp = { width:"100%", padding:"10px 12px", borderRadius:10, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:16, outline:"none", marginBottom:14, boxSizing:"border-box", fontFamily:"inherit" };
-  const startEdit = (d) => { setEditingId(d.id); setNn(d.name||""); setNl(d.location||""); setNd(d.dates||""); setNe(d.emoji||"🏮"); setCreating(false); };
-  const cancelEdit = () => { setEditingId(null); setNn(""); setNl(""); setNd(""); setNe("🏮"); };
-  const emojiRow = <div style={{ display:"flex", gap:6, marginBottom:14, flexWrap:"wrap" }}>{emojis.map(e => <button key={e} onClick={() => setNe(e)} style={{ width:40, height:40, borderRadius:10, fontSize:20, border:`1.5px solid ${ne===e?t.accent:t.border}`, background:ne===e?t.accentSoft:t.surface, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>{e}</button>)}</div>;
-  const formFields = <>
-    {emojiRow}
-    <input value={nn} onChange={e=>setNn(e.target.value)} placeholder={tx("ferias.nombrePlaceholder")} style={inp} />
-    <input value={nl} onChange={e=>setNl(e.target.value)} placeholder={tx("ferias.ubicacionPlaceholder")} style={inp} />
-    <input value={nd} onChange={e=>setNd(e.target.value)} placeholder={tx("ferias.fechasPlaceholder")} style={inp} />
-  </>;
-  return (
-    <div style={{ height:"100%", display:"flex", flexDirection:"column", background:t.bg }}>
-      <Header title={tx("ferias.titulo")} onBack={onBack} t={t} />
-      <div style={{ flex:1, padding:"16px 20px", overflow:"auto" }}>
-        {districts.map(d => {
-          const count = products.filter(p => p.districtId === d.id).length;
-          if (editingId === d.id) return (
-            <div key={d.id} style={{ background:t.card, borderRadius:16, padding:16, marginBottom:10, border:`1.5px solid ${t.accent}` }}>
-              <p style={{ fontSize:14, fontWeight:700, color:t.text, margin:"0 0 14px" }}>{tx("ferias.editarFeria")}</p>
-              {formFields}
-              <div style={{ display:"flex", gap:10 }}>
-                <Btn onClick={cancelEdit} variant="ghost" t={t}>{tx("comun.cancelar")}</Btn>
-                <Btn onClick={() => { if(nn.trim()) { onUpdate(d.id, { name:nn, location:nl, dates:nd, emoji:ne }); cancelEdit(); }}} full disabled={!nn.trim()} t={t} style={{ flex:1 }}>{tx("ferias.guardar")}</Btn>
-              </div>
-            </div>
-          );
-          return (
-            <div key={d.id} style={{ background:t.card, borderRadius:16, padding:"14px 16px", marginBottom:10, border:`1.5px solid ${d.id===activeDistrictId?t.accent:t.border}` }}>
-              <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
-                <span style={{ fontSize:28 }}>{d.emoji}</span>
-                <div style={{ flex:1 }}><div style={{ fontSize:15, fontWeight:700, color:t.text }}>{d.name}</div><div style={{ fontSize:12, color:t.muted }}>{d.location} · {d.dates}</div></div>
-                {d.id===activeDistrictId && <span style={{ fontSize:10, fontWeight:700, color:t.green, background:t.greenSoft, padding:"3px 8px", borderRadius:8 }}>{tx("ferias.activa")}</span>}
-              </div>
-              <div style={{ fontSize:12, color:t.muted, marginBottom:10 }}><Trans i18nKey="ferias.cantidadProductos" count={count} components={{ b: <b style={{ color:t.text }} /> }} /></div>
-              <div style={{ display:"flex", gap:8 }}>
-                {d.id!==activeDistrictId && <Btn onClick={() => onActivate(d.id)} full t={t} style={{ flex:1 }}>{tx("ferias.activarEstaFeria")}</Btn>}
-                <button onClick={() => startEdit(d)} style={{
-                  padding:"8px 12px", borderRadius:10, border:`1px solid ${t.border}`, background:t.surface,
-                  color:t.text, fontSize:12, fontWeight:700, cursor:"pointer",
-                }}></button>
-                {d.id!==activeDistrictId && <button onClick={() => { if(confirm(tx("ferias.eliminarSeguro", { nombre: d.name, count }))) onDelete(d.id); }} style={{
-                  padding:"8px 12px", borderRadius:10, border:`1px solid ${t.red}30`, background:t.redSoft,
-                  color:t.red, fontSize:12, fontWeight:700, cursor:"pointer",
-                }}></button>}
-              </div>
-            </div>
-          );
-        })}
-        {!creating ? <Btn onClick={() => { setCreating(true); cancelEdit(); }} variant="outline" full t={t}>{tx("ferias.nuevaFeria")}</Btn>
-        : <div style={{ background:t.card, borderRadius:16, padding:16, border:`1.5px solid ${t.accent}` }}>
-            <p style={{ fontSize:14, fontWeight:700, color:t.text, margin:"0 0 14px" }}>{tx("ferias.nuevaFeriaTitulo")}</p>
-            {formFields}
-            <div style={{ display:"flex", gap:10 }}>
-              <Btn onClick={() => { setCreating(false); setNn(""); setNl(""); setNd(""); setNe("🏮"); }} variant="ghost" t={t}>{tx("comun.cancelar")}</Btn>
-              <Btn onClick={() => { if(nn.trim()) { onAdd({ name:nn, location:nl, dates:nd, emoji:ne }); setCreating(false); setNn(""); setNl(""); setNd(""); setNe("🏮"); }}} full disabled={!nn.trim()} t={t} style={{ flex:1 }}>{tx("ferias.crear")}</Btn>
-            </div>
-          </div>}
-      </div>
-    </div>
-  );
-}
-
 // ═══════════════════════════════════════════
 // QUICK CAPTURE — Single-page supplier card + product photos
 // ═══════════════════════════════════════════
@@ -3702,22 +3635,31 @@ export default function App() {
     showToast(tx("ferias.feriaActualizada"));
   };
 
-  const handleDeleteDistrict = async (id) => {
-    // Delete all products and suppliers in this district first
+  // Eliminar una feria con resguardo (30/09, wireframe A): por defecto lo que tiene pasa a otra feria (`moverA`);
+  // solo si la usuaria eligió "borrarlos también" (y escribió el nombre) se borran sus productos y proveedores.
+  // Antes se borraba todo en silencio.
+  const handleDeleteDistrict = async (id, { moverA = null } = {}) => {
     const distProducts = products.filter(p => p.districtId === id);
-    for (const p of distProducts) await dbDeleteProduct(p.id);
     const distSuppliers = suppliers.filter(s => s.districtId === id);
-    for (const s of distSuppliers) await dbDeleteSupplier(s.id);
+    const destino = moverA != null ? districts.find(d => d.id === moverA) : null;
+    if (destino) {
+      for (const p of distProducts) await dbUpdateProduct(p.id, { districtId: destino.id });
+      for (const s of distSuppliers) await dbUpdateSupplier(s.id, { districtId: destino.id });
+    } else {
+      for (const p of distProducts) await dbDeleteProduct(p.id);
+      for (const s of distSuppliers) await dbDeleteSupplier(s.id);
+    }
     await dbDeleteDistrict(id);
-    // If we deleted the active district, switch to another
+    // Si era la feria en uso, la app pasa a la de destino o a la primera que quede
     if (activeDistrictId === id) {
       const remaining = districts.filter(d => d.id !== id);
-      if (remaining.length > 0) {
-        await dbSaveSettings({ activeDistrictId: remaining[0].id });
-      }
+      const siguiente = destino || remaining[0];
+      if (siguiente) await dbSaveSettings({ activeDistrictId: siguiente.id });
     }
     await reloadAll();
-    showToast(tx("ferias.feriaEliminada"));
+    showToast(destino && (distProducts.length + distSuppliers.length) > 0
+      ? tx("ferias.movidos", { productos: tx("cantidades.productos", { count: distProducts.length }), proveedores: tx("cantidades.proveedores", { count: distSuppliers.length }), nombre: destino.name })
+      : tx("ferias.feriaEliminada"));
   };
 
   // Auth gate: show login screen if not authenticated
@@ -3889,9 +3831,9 @@ export default function App() {
           onEliminar={() => { handleDeleteOrder(pedido.id); goBack(); }} />;
       })()}
       {!esEscritorio && screen === "districts" && (
-        <DistrictsScreen districts={districts} activeDistrictId={activeDistrictId} products={products}
-          onActivate={switchDistrict} onAdd={handleAddDistrict} onUpdate={handleUpdateDistrict} onDelete={handleDeleteDistrict}
-          onBack={() => navigate("list")} t={t} />
+        <Ferias districts={districts} activeDistrictId={activeDistrictId} products={products} suppliers={suppliers}
+          onActivate={(id) => { switchDistrict(id); navigate("list"); }} onAdd={handleAddDistrict} onUpdate={handleUpdateDistrict} onDelete={handleDeleteDistrict}
+          onBack={() => navigate("list")} />
       )}
       {!esEscritorio && screen === "settings" && (
         <SettingsScreen saldo={creditos ? saldoVisible(creditos) : null} onVerPacks={() => setPaywall({ bloqueados: 0, desdeAjustes: true })} settings={settings} onSave={handleSaveSettings} onBack={() => navigate("list")} sync={sync} t={t} isDark={isDark} onToggleTheme={toggleTheme}
