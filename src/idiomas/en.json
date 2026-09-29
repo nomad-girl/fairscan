@@ -127,7 +127,12 @@
     "masFoto": "+ photo",
     "listoStand": "Done with this supplier",
     "verProveedor": "View supplier",
-    "irAlCatalogo": "Go to catalog"
+    "irAlCatalogo": "Go to catalog",
+    "rotuloProducto": "Product",
+    "rotuloTarjeta": "Card",
+    "guiaTitulo": "How the camera works",
+    "guiaProducto": "Take a photo of a product",
+    "guiaTarjeta": "The supplier's card goes here, whenever you want"
   },
   "cerrarStand": {
     "titulo": "Close booth",
@@ -1118,8 +1123,8 @@
     "confirmaTuEmail": "Confirm your email before signing in",
     "emailRegistrado": "This email is already registered",
     "emailNoAutorizado": "This email isn't authorized",
-    "contrasenaCorta": "The password must be at least 6 characters",
-    "contrasenaCortaPunto": "The password has to be at least 6 characters.",
+    "contrasenaCorta": "The password needs at least 8 characters.",
+    "contrasenaCortaPunto": "The password needs at least 8 characters.",
     "noSePudoCambiar": "Couldn't change it.",
     "nuevaContrasena": "New password",
     "nuevaContrasenaPista": "Choose a new password for your FairScan account.",
@@ -1148,7 +1153,13 @@
     "confirmaTexto": "We sent an email to {{mail}} to confirm your account. Until you confirm it, your catalog stays saved on this phone; after that it's also in the cloud.",
     "reenviar": "Resend the email",
     "reenviado": "Done, we sent it again. Check your spam folder too.",
-    "yaConfirme": "I've confirmed it"
+    "yaConfirme": "I've confirmed it",
+    "contrasenaPista": "At least 8 characters. Tip: a short phrase is easy to remember and secure.",
+    "contrasenaFiltrada": "That password is very common and easy to guess. Try another one, for example three words together.",
+    "demasiadosIntentos": "Too many attempts in a row. Wait a minute and try again.",
+    "mailInvalido": "That email doesn't look valid. Check it.",
+    "sinConexion": "You're offline. Try again when you have signal.",
+    "errorGenerico": "Couldn't sign in. Try again in a moment."
   },
   "borrador": {
     "tarjetaDe": "the card from {{nombre}}",

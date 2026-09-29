@@ -60,6 +60,12 @@ export function Visor({
     return () => clearTimeout(id);
   }, [ultimaCaptura]);
 
+  // La guía de la primera vez (28/09, Nati: "¿se entiende que el obturador saca un producto y que la tarjeta es otra
+  // acción?"): dos frases sobre la cámara, sin imponer orden (cada una hace como prefiere). Se va con el primer disparo,
+  // al ir a la tarjeta o al tocarla, y no vuelve.
+  const [guiaVisible, setGuiaVisible] = useState(() => { try { return !localStorage.getItem("fairscan.guiaCamaraVista"); } catch { return false; } });
+  const marcarGuiaVista = () => { if (!guiaVisible) return; setGuiaVisible(false); try { localStorage.setItem("fairscan.guiaCamaraVista", "1"); } catch { /* modo privado */ } };
+
   // El consejo se va solo y no vuelve.
   useEffect(() => {
     if (!consejoVisible) return;
@@ -94,6 +100,18 @@ export function Visor({
       {/* Velo blanco del obturador (80 ms) */}
       <style>{`@keyframes fairscanGuardado { 0% { transform: scale(0.4); opacity: 0 } 35% { transform: scale(1.15); opacity: 1 } 55% { transform: scale(1) } 100% { transform: scale(1); opacity: 1 } }`}</style>
       <div aria-hidden style={{ position: "absolute", inset: 0, background: "#fff", opacity: flash ? 0.75 : 0, pointerEvents: "none", zIndex: 2, transition: `opacity ${duracion(movimiento.obturador.velo)}ms linear` }} />
+      {guiaVisible && !esTarjeta && !modoAngulo && (
+        <div role="note" aria-label={t("visor.guiaTitulo")} onClick={marcarGuiaVista} style={{ position: "absolute", inset: 0, zIndex: 4 }}>
+          <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 128px)", left: 24, right: 24, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, pointerEvents: "none" }}>
+            <span style={{ fontSize: 22, color: BLANCO, lineHeight: 1 }}>↑</span>
+            <span style={{ background: "rgba(255,255,255,0.96)", color: "#0F172A", borderRadius: 14, padding: "10px 14px", fontSize: 14, fontWeight: 600, textAlign: "center", lineHeight: 1.35, maxWidth: 300, boxShadow: "0 10px 30px -12px rgba(0,0,0,0.5)" }}>{t("visor.guiaTarjeta")}</span>
+          </div>
+          <div style={{ position: "absolute", bottom: "calc(env(safe-area-inset-bottom, 0px) + 150px)", left: 24, right: 24, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, pointerEvents: "none" }}>
+            <span style={{ background: "rgba(255,255,255,0.96)", color: "#0F172A", borderRadius: 14, padding: "10px 14px", fontSize: 14, fontWeight: 600, textAlign: "center", lineHeight: 1.35, maxWidth: 300, boxShadow: "0 10px 30px -12px rgba(0,0,0,0.5)" }}>{t("visor.guiaProducto")}</span>
+            <span style={{ fontSize: 22, color: BLANCO, lineHeight: 1 }}>↓</span>
+          </div>
+        </div>
+      )}
 
       {/* Arriba: saldo y estado. Nada más. */}
       <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 12px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
@@ -127,7 +145,7 @@ export function Visor({
           : t("visor.escanearTarjetaConFotos", { count: n });
         return (
           <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 68px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "center" }}>
-            <button type="button" onClick={sinTarjeta ? onTarjeta : onStand} aria-label={sinTarjeta ? t("visor.escanearTarjeta") : t("visor.abrirStand")} style={{ maxWidth: "100%", minHeight: 50, padding: "0 20px", borderRadius: 999, border: sinTarjeta ? "1.5px solid rgba(255,255,255,0.75)" : "none", background: "rgba(43,18,6,0.7)", boxShadow: "none", color: "#fff", fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", overflow: "hidden", backdropFilter: "blur(8px)" }}>
+            <button type="button" onClick={() => { marcarGuiaVista(); (sinTarjeta ? onTarjeta : onStand)?.(); }} aria-label={sinTarjeta ? t("visor.escanearTarjeta") : t("visor.abrirStand")} style={{ maxWidth: "100%", minHeight: 50, padding: "0 20px", borderRadius: 999, border: sinTarjeta ? "1.5px solid rgba(255,255,255,0.75)" : "none", background: "rgba(43,18,6,0.7)", boxShadow: "none", color: "#fff", fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", overflow: "hidden", backdropFilter: "blur(8px)" }}>
               {/* Sin tarjeta, la pastilla es naranja y con el ícono de tarjeta (Nati, 27/09: "que sea más llamativo") */}
               <Icono nombre={conNombre ? "proveedor" : "tarjeta"} tamano={18} color="#fff" /><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{texto}</span>{!sinTarjeta && <Icono nombre="siguiente" tamano={14} color="rgba(255,255,255,0.8)" />}
             </button>
@@ -235,10 +253,11 @@ export function Visor({
           )}
         </div>
 
-        {/* Obturador */}
+        {/* Obturador, con el rótulo "Producto" debajo (28/09, Nati: que se entienda qué saca el botón) */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
         <button
           type="button"
-          onClick={onDisparar}
+          onClick={() => { marcarGuiaVista(); onDisparar?.(); }}
           onPointerDown={() => setPresionado(true)}
           onPointerUp={() => setPresionado(false)}
           onPointerLeave={() => setPresionado(false)}
@@ -249,6 +268,8 @@ export function Visor({
             <span aria-label={t("visor.enEsteStand", { count: itemsCount })} style={{ position: "absolute", right: -10, top: -10, minWidth: 26, height: 26, padding: "0 8px", borderRadius: 13, background: MARCA.naranja, color: "#fff", fontSize: 13, fontWeight: 700, display: "grid", placeItems: "center", boxShadow: "0 0 0 3px rgba(0,0,0,0.35)", fontVariantNumeric: "tabular-nums" }}>{itemsCount}</span>
           )}
         </button>
+        <span aria-hidden style={{ fontSize: 12, fontWeight: 700, color: BLANCO, letterSpacing: "0.04em", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>{esTarjeta ? t("visor.rotuloTarjeta") : t("visor.rotuloProducto")}</span>
+        </div>
 
         {/* Derecha: nada (Nati, 23/09: la pastilla de arriba es el stand; el ciclo se cierra desde ahí con Listo,
             o lo propone la app al escanear la tarjeta del stand siguiente). Queda el ancho para centrar el obturador. */}
