@@ -52,7 +52,7 @@ export function FichaProducto({ product: p, allProducts = [], suppliers = [], di
     const r = new FileReader();
     r.onload = ev => {
       const img = new Image();
-      img.onload = () => { const MAX = 800; let w = img.width, h = img.height; if (w > h && w > MAX) { h = h * MAX / w; w = MAX; } else if (h > MAX) { w = w * MAX / h; h = MAX; } const c = document.createElement("canvas"); c.width = w; c.height = h; c.getContext("2d").drawImage(img, 0, 0, w, h); onAddPhoto?.(p.id, c.toDataURL("image/jpeg", 0.8)); };
+      img.onload = () => { const MAX = 1600; let w = img.width, h = img.height; if (w > h && w > MAX) { h = h * MAX / w; w = MAX; } else if (h > MAX) { w = w * MAX / h; h = MAX; } const c = document.createElement("canvas"); c.width = w; c.height = h; c.getContext("2d").drawImage(img, 0, 0, w, h); onAddPhoto?.(p.id, c.toDataURL("image/jpeg", 0.85)); };
       img.src = ev.target.result;
     };
     r.readAsDataURL(f);

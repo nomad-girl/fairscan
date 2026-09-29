@@ -40,6 +40,33 @@ export function necesitaMiniatura(p) {
 }
 
 /**
+ * Achica una foto (data URL) para que su lado mayor no pase de `ladoMax`, sin recortar. Si ya es más chica, la
+ * devuelve igual. La usan los envíos a la IA (29/09): el producto se guarda a 1600 px pero viaja a 1200, así el
+ * costo por escaneo no sube; la tarjeta viaja a 1568, lo máximo que Claude mira. En Node devuelve null.
+ */
+export async function reducirFoto(src, ladoMax, calidad = 0.85) {
+  if (!src || typeof document === 'undefined') return null;
+  try {
+    let img;
+    if (typeof createImageBitmap === 'function') {
+      img = await createImageBitmap(await (await fetch(src)).blob());
+    } else {
+      img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+    }
+    const w = img.width, h = img.height;
+    if (Math.max(w, h) <= ladoMax) { img.close?.(); return src; }
+    const k = ladoMax / Math.max(w, h);
+    const c = document.createElement('canvas');
+    c.width = Math.round(w * k); c.height = Math.round(h * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    img.close?.();
+    return c.toDataURL('image/jpeg', calidad);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Genera una miniatura cuadrada (recorte centrado) a partir de una foto en
  * data URL. Solo en el navegador; en Node devuelve null.
  */

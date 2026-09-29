@@ -13,6 +13,7 @@ import db, { updateProduct, updateSupplier } from '../db.js';
 import * as api from '../api/client.js';
 import { fotosSinSubir, esperaReintento, esFotoLocal } from '../lib/fotosPendientes.js';
 import { aDataUrl } from '../lib/fotosBinario.js';
+import { reducirFoto } from '../lib/miniaturas.js';
 
 // Foto que vive en este teléfono (texto, bytes o blob:), no una dirección web.
 const isBase64Photo = esFotoLocal;
@@ -139,7 +140,9 @@ export function useSyncWithAI(settings) {
 
     try {
       console.log(`[AI Sync] Processing product ${product.id} (attempt ${(product.ai_retry_count || 0) + 1})...`);
-      const result = await api.processImage(await aDataUrl(photo), {
+      // La foto se guarda a 1600 px pero a la IA va a 1200 (29/09): mismo costo por escaneo que antes
+      const original = await aDataUrl(photo);
+      const result = await api.processImage((await reducirFoto(original, 1200)) || original, {
         categories: settings?.categories,
         materials: settings?.materials,
       });

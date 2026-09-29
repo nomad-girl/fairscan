@@ -129,7 +129,7 @@ import { debeLimpiarBaseLocal } from './lib/cuentaLocal.js';
 import { guardarResguardo, restaurarResguardo, borrarResguardos, claveDeEquipo } from './lib/resguardoLocal.js';
 import { copiaParaRestaurar } from './lib/syncEngine';
 import { leerBorrador, guardarBorrador, borrarBorrador, describirBorrador, ESPERA_BORRADOR_MS } from './lib/borradorCaptura.js';
-import { elegirMiniatura, miniaturaDe, generarMiniaturasFaltantes } from './lib/miniaturas.js';
+import { elegirMiniatura, miniaturaDe, generarMiniaturasFaltantes, reducirFoto } from './lib/miniaturas.js';
 import { aDataUrl, sinDerivados, tipoDeFoto, productoParaUI } from './lib/fotosBinario.js';
 import { supabase } from './lib/supabase.js';
 
@@ -250,10 +250,10 @@ function FilePickerBtn({ onFile, onFiles, accept = "image/*", capture, multiple,
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
     if (multiple && onFiles && files.length > 1) {
-      const results = await Promise.all(files.map(f => resizeImage(f, 800, 0.80)));
+      const results = await Promise.all(files.map(f => resizeImage(f, 1600, 0.85)));
       onFiles(results);
     } else {
-      const dataUrl = await resizeImage(files[0], 1200, 0.85);
+      const dataUrl = await resizeImage(files[0], 1600, 0.85);
       onFile(dataUrl, files[0]); // pass original file for high-res QR decoding
     }
     if (ref.current) ref.current.value = "";
@@ -848,7 +848,9 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 960 } }
+        // Se pide el video más grande que el teléfono dé (29/09, Nati: "¿se puede subir la calidad?"): la foto es un
+        // cuadro de este video, así que su nitidez nace acá. Antes 1280 × 960 y las fotos salían blandas.
+        video: { facingMode: "environment", width: { ideal: 2560 }, height: { ideal: 1920 } }
       });
       streamRef.current = stream;
       // Wait for video element to mount
@@ -870,9 +872,10 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   };
   useEffect(() => () => { clearTimeout(apagadoRef.current); apagarCamara(); }, []);
 
-  // Productos a 800 px (alcanza para nombrarlos y pesan poco); la tarjeta a 1600 px, porque la letra
-  // chica de un mail o un WeChat a 800 px se lee mal (Nati, 17/09: "el scan me leyó bastante mal").
-  const captureFrame = (max = 800) => {
+  // Producto a 1600 px y tarjeta a 2000 px, JPEG 0,85 (29/09, Nati: subir la calidad; antes 1200/1600 a 0,8 desde
+  // un video de 1280). La IA no recibe estas: el producto le llega a 1200 px (mismo costo que antes) y la tarjeta a
+  // 1568 px, que es lo máximo que Claude mira antes de achicarla él mismo (Nati, 17/09: "el scan me leyó bastante mal").
+  const captureFrame = (max = 1600, calidad = 0.85) => {
     const video = videoRef.current;
     if (!video || !video.videoWidth) return null;
     const MAX = max;
@@ -882,7 +885,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     const canvas = document.createElement("canvas");
     canvas.width = w; canvas.height = h;
     canvas.getContext("2d").drawImage(video, 0, 0, w, h);
-    return canvas.toDataURL("image/jpeg", 0.8);
+    return canvas.toDataURL("image/jpeg", calidad);
   };
 
   // ─── El stand es un grupo de productos ya guardados (4.3) ───
@@ -1018,8 +1021,8 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     .map(p => ({ id: p.id, photos: p.photos || [], price: p.price || "", notes: p.notes || "" }));
 
   const handleCameraShutter = async () => {
-    // Producto a 1200 px (antes 800: Nati, 21/09, "que se vea grande y en alta calidad"); tarjeta a 1600 para leerla bien.
-    const photo = captureFrame(cameraMode === "card" ? 1600 : 1200);
+    // Producto a 1600 px, tarjeta a 2000 (29/09; antes 1200/1600, y antes de eso 800: Nati, 21/09, "que se vea grande y en alta calidad").
+    const photo = captureFrame(cameraMode === "card" ? 2000 : 1600);
     if (!photo) return;
     // Visual + haptic feedback
     setFlashVisible(true);
@@ -1056,19 +1059,19 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     }
   };
 
-  const resizeImage = (file) => new Promise((resolve) => {
+  // Las fotos que entran desde la galería del teléfono: mismo tamaño que las de la cámara (29/09; antes 800 px)
+  const resizeImage = (file, MAX = 1600) => new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
-        const MAX = 800;
         let w = img.width, h = img.height;
         if (w > h && w > MAX) { h = h * MAX / w; w = MAX; }
         else if (h > MAX) { w = w * MAX / h; h = MAX; }
         const canvas = document.createElement("canvas");
         canvas.width = w; canvas.height = h;
         canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL("image/jpeg", 0.8));
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
       };
       img.src = e.target.result;
     };
@@ -1098,7 +1101,8 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
       }
       // AI card processing
       try {
-        const result = await processCard(photo);
+        // La tarjeta va grande a la IA (Nati, 29/09): 1568 px es lo máximo que Claude mira; más no mejora y pesa
+        const result = await processCard((await reducirFoto(photo, 1568)) || photo);
         if (result) {
           setCardData(result);
           if (result.company) setSupplierName(prev => prev || result.company);
@@ -1120,7 +1124,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
-    const photo = await resizeImage(file);
+    const photo = await resizeImage(file, 2000);
     setCardPhoto(photo);
     processCardPhoto(photo);
   };
