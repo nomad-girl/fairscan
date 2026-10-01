@@ -68,7 +68,9 @@ describe("Catálogo", () => {
   it("vacío del todo: una sola acción, sacar la primera foto", () => {
     const onNavigate = vi.fn();
     con(<Catalogo products={[]} suppliers={[]} districts={districts} activeDistrictId={1} activeDistrict={districts[0]} pestana="todo" onNavigate={onNavigate} />);
-    fireEvent.click(screen.getByText("Sacar la primera foto"));
+    // 01/10: un solo botón para empezar (antes había dos, "Sacá la primera foto" y "Sacar la primera foto")
+    expect(screen.queryByText("Sacar la primera foto")).toBeNull();
+    fireEvent.click(screen.getByText("Sacá la primera foto"));
     expect(onNavigate).toHaveBeenCalledWith("capture");
   });
 });

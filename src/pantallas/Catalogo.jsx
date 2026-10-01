@@ -224,8 +224,7 @@ export function Catalogo({
                           <p style={{ ...texto("pie"), color: paleta.dim, margin: 0 }}>{t("catalogo.primeraFotoPista")}</p>
                         </>
                       )}
-                    {/* Regla 2 del protocolo: nunca "no tenés productos" mientras la app todavía no comprobó la nube */}
-                    {!bajando && !esperandoNube(estadoDatos) && <Boton variante="principal" icono="camara" onClick={() => onNavigate?.("capture")}>{t("catalogo.vacioAccion")}</Boton>}
+                    {/* 01/10: el segundo botón "Sacar la primera foto" quedó duplicado cuando el vacío pasó a ser un botón (Buddy, 27/09); se va */}
                     {/* Sin cuenta y sin productos (24/09, caso Lucas): quien ya tiene cuenta entra y recupera su catálogo */}
                     {!bajando && sinCuenta && onEntrar && (
                       <div style={{ marginTop: 18, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
