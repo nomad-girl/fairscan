@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, signIn, signUp, signOut, onAuthStateChange, getSession, signInAnonymously, convertirCuenta, resetPassword, updatePassword, reenviarConfirmacion } from '../lib/supabase.js';
+import { entrarCon as entrarConProveedor } from '../lib/entrarCon.js';
 
 const CLAVE_CIERRE = 'fairscan_cerro_sesion';
 const recordarCierreDeSesion = () => { try { localStorage.setItem(CLAVE_CIERRE, '1'); } catch { /* modo privado */ } };
@@ -61,6 +62,14 @@ export default function useAuth() {
     return convertirCuenta(email, password, displayName, teamName, marketingOptIn, rubro);
   }, []);
 
+  // E11 (02/10): entrar con Apple o Google. Quien está sin cuenta (anónima) vincula la identidad a la que ya tiene,
+  // así el catálogo del teléfono queda donde está; quien no tiene sesión, entra.
+  const handleEntrarCon = useCallback(async (proveedor) => {
+    const r = await entrarConProveedor(proveedor, { vincular: !!user?.is_anonymous });
+    olvidarCierreDeSesion();
+    return r;
+  }, [user?.is_anonymous]);
+
   const handleSignOut = useCallback(async () => {
     recordarCierreDeSesion();
     await signOut();
@@ -80,5 +89,5 @@ export default function useAuth() {
   // `mailPendiente` es ese mail, para avisarlo en la app y poder reenviar.
   const mailPendiente = user?.is_anonymous && user?.new_email ? user.new_email : null;
   const reenviar = async (email = mailPendiente) => reenviarConfirmacion(email, user?.is_anonymous ? 'email_change' : 'signup');
-  return { user, loading, esAnonima: !!user?.is_anonymous, mailPendiente, reenviar, signIn: handleSignIn, signUp: handleSignUp, convertir: handleConvertir, signOut: handleSignOut, recuperar, cambiarContrasena, recuperando };
+  return { user, loading, esAnonima: !!user?.is_anonymous, mailPendiente, reenviar, signIn: handleSignIn, signUp: handleSignUp, convertir: handleConvertir, entrarCon: handleEntrarCon, signOut: handleSignOut, recuperar, cambiarContrasena, recuperando };
 }

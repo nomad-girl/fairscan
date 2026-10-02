@@ -30,6 +30,17 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.builddigitalthings.fairscan</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.builddigitalthings.fairscan</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>FairScan usa la cámara para fotografiar productos y tarjetas de proveedores en la feria y armar tu catálogo.</string>
 	<key>NSMicrophoneUsageDescription</key>

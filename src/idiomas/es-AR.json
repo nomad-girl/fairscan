@@ -1160,6 +1160,12 @@
     "fallanPorTipo": "Fallan por tipo: {{tipos}}"
   },
   "entrar": {
+    "conApple": "Continuar con Apple",
+    "conGoogle": "Continuar con Google",
+    "oConTuMail": "o con tu mail",
+    "esperandoProveedor": "Esperando…",
+    "mailYaTieneCuenta": "Ese mail ya tiene una cuenta en FairScan. Para no pisar lo que tenés en este teléfono, entrá con esa cuenta desde \"Ya tengo cuenta · Entrar\".",
+    "proveedorFallo": "No se pudo entrar con esa cuenta. Probá de nuevo o entrá con tu mail.",
     "escribiTuMail": "Escribí tu mail.",
     "noSePudoMandarMail": "No se pudo mandar el mail.",
     "revisaTuEmail": "Revisá tu email para confirmar la cuenta",

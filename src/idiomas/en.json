@@ -1160,6 +1160,12 @@
     "fallanPorTipo": "Failing by type: {{tipos}}"
   },
   "entrar": {
+    "conApple": "Continue with Apple",
+    "conGoogle": "Continue with Google",
+    "oConTuMail": "or with your email",
+    "esperandoProveedor": "Waiting…",
+    "mailYaTieneCuenta": "That email already has a FairScan account. To keep what's on this phone, sign in with that account from \"I have an account · Sign in\".",
+    "proveedorFallo": "Couldn't sign in with that account. Try again or sign in with your email.",
     "escribiTuMail": "Enter your email.",
     "noSePudoMandarMail": "Couldn't send the email.",
     "revisaTuEmail": "Check your email to confirm your account",
