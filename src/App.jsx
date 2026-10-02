@@ -3717,13 +3717,10 @@ export default function App() {
   };
 
   // Auth gate: show login screen if not authenticated
-  if (auth.loading) return (
-    <div style={{ height:"100%", display:"flex", alignItems:"center", justifyContent:"center", background:t.bg, flexDirection:"column", gap:12 }}>
-      <Icono nombre="camara" tamano={36} color={t.accent} />
-      <span style={{ fontSize:18, fontWeight:800, color:t.text }}>FairScan</span>
-      <span style={{ fontSize:12, color:t.muted }}>{tx("avisos.cargando")}</span>
-    </div>
-  );
+  // 02/10: mientras se comprueba la cuenta, cacao liso. Esta era la pantalla crema con la cámara naranja y "FairScan ·
+  // Cargando…" anterior a la identidad: el "logo viejo que aparece y desaparece" que veía Nati al arrancar. La marca
+  // se ve una sola vez, en la pantalla de arranque del sistema (decisión 02/10).
+  if (auth.loading) return <div style={{ height:"100%", background:MARCA.cacao }} aria-busy="true" aria-label={tx("avisos.cargando")} />;
 
   // En la compu, el login del teléfono va centrado en una columna (la pantalla de escritorio propia se diseña después).
   const enColumna = (nodo) => (esEscritorio ? <div style={{ height:"100%", background:"#1C0D06", display:"flex", justifyContent:"center" }}><div style={{ width:460, height:"100%", position:"relative" }}>{nodo}</div></div> : nodo);
