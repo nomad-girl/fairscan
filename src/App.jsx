@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, memo } from "react";
 import { i18next, cambiarIdioma, leerPreferencia } from './idiomas/index.js';
-import { MARCA } from './sistema/tokens.js';
+import { MARCA, PALETAS } from './sistema/tokens.js';
 import { PRESETS } from "./lib/presets.js";
 import useGrabadora from "./hooks/useGrabadora.js";
 import { cargarNegocio, NEGOCIO_POR_DEFECTO } from "./lib/negocio.js";
@@ -11,10 +11,19 @@ import { evaluarCierreDeStand, packDestacado, FRASE_PAYWALL } from "./lib/paywal
 // ═══════════════════════════════════════════
 // THEME
 // ═══════════════════════════════════════════
-const T = {
-  dark: { bg:"#1C0D06",card:"#131825",accent:"#FF6B35",accentSoft:"#FF6B3520",green:"#22C55E",greenSoft:"#22C55E20",yellow:"#FBBF24",blue:"#3B82F6",blueSoft:"#3B82F620",purple:"#A855F7",purpleSoft:"#A855F720",red:"#EF4444",redSoft:"#EF444420",text:"#F1F5F9",muted:"#64748B",dim:"#94A3B8",border:"#1E293B",surface:"#0F1420" },
-  light: { bg:"#F8FAFC",card:"#FFFFFF",accent:"#FF6B35",accentSoft:"#FF6B3515",green:"#16A34A",greenSoft:"#16A34A12",yellow:"#D97706",blue:"#2563EB",blueSoft:"#2563EB12",purple:"#9333EA",purpleSoft:"#9333EA12",red:"#DC2626",redSoft:"#DC262612",text:"#0F172A",muted:"#64748B",dim:"#94A3B8",border:"#E2E8F0",surface:"#F1F5F9" },
-};
+// 02/10: el tema de las pantallas viejas (Configuración, exportar, captura, avisos) sale de la misma paleta que las
+// pantallas nuevas (`PALETAS` en tokens.js). Hasta hoy seguía con los grises azulados del 15/09 y el naranja viejo,
+// y por eso Configuración se veía de otra app y el arranque mostraba un esqueleto claro (Nati: "el logo viejo").
+// `blue`/`purple`/`yellow` quedan como alias para el código viejo: naranja-texto, apagado y sello.
+const legado = (p) => ({
+  bg: p.bg, card: p.card, surface: p.surface, border: p.border, text: p.text, muted: p.muted, dim: p.dim,
+  accent: p.accent, accentTexto: p.accentTexto, accentSoft: p.accentSoft, botonPrincipal: p.botonPrincipal,
+  green: p.green, greenSoft: p.greenSoft, red: p.red, redSoft: p.redSoft,
+  yellow: p.sello, sello: p.sello, selloSuave: p.selloSuave, selloTexto: p.selloTexto,
+  blue: p.accentTexto, blueSoft: p.accentSoft, purple: p.dim, purpleSoft: p.surface,
+  sombraTarjeta: p.sombraTarjeta, velo: p.velo,
+});
+const T = { dark: legado(PALETAS.oscuro), light: legado(PALETAS.claro) };
 
 
 // ═══════════════════════════════════════════
@@ -483,7 +492,7 @@ function PermisoAviso({ info, onRetry, onAlternativa, alternativaLabel, onClose,
         <p style={{ fontSize:14, color:t.muted, margin:"0 0 16px", lineHeight:1.5 }}>{info.texto}</p>
         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
           {info.puedeAbrirAjustes && (
-            <button onClick={() => abrirAjustesDeLaApp()} style={btn({ background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff" })}>{tx("captura.abrirAjustesDelTelefono")}</button>
+            <button onClick={() => abrirAjustesDeLaApp()} style={btn({ background:t.accent, color:t.botonPrincipal?.texto || "#2B1206" })}>{tx("captura.abrirAjustesDelTelefono")}</button>
           )}
           {onAlternativa && (
             <button onClick={() => { onClose?.(); onAlternativa(); }} style={btn({ background:t.card, color:t.text, border:`1px solid ${t.border}` })}>{alternativaLabel}</button>
@@ -559,7 +568,7 @@ const Empty = ({ icon, title, sub, t }) => (
 
 const Btn = memo(({ children, onClick, variant = "primary", full, disabled, t, style: sx }) => {
   const styles = {
-    primary: { background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff", border:"none" },
+    primary: { background:t.accent, color:t.botonPrincipal?.texto || "#2B1206", border:"none" },
     secondary: { background:t.surface, color:t.text, border:`1px solid ${t.border}` },
     outline: { background:"transparent", color:t.accent, border:`1.5px solid ${t.accent}40` },
     ghost: { background:"transparent", color:t.muted, border:"none" },
@@ -1942,7 +1951,7 @@ function SettingsScreen({ onCamara, settings, onSave, onBack, sync, t, products,
             <div style={{ background:t.accentSoft, border:`1px solid ${t.accent}40`, borderRadius:14, padding:14 }}>
               <p style={{ fontSize:13, fontWeight:700, color:t.text, margin:"0 0 4px" }}>{tx("configuracion.sinCuentaTitulo")}</p>
               <p style={{ fontSize:12, color:t.muted, margin:"0 0 10px", lineHeight:1.5 }}>{tx("configuracion.sinCuentaTexto")}</p>
-              <button onClick={() => setSubScreen("crear-cuenta")} style={{ width:"100%", padding:"12px", borderRadius:12, border:"none", background:`linear-gradient(135deg, ${t.accent}, #FF8F35)`, color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>{tx("configuracion.crearMiCuenta")}</button>
+              <button onClick={() => setSubScreen("crear-cuenta")} style={{ width:"100%", padding:"12px", borderRadius:12, border:"none", background:t.accent, color:t.botonPrincipal?.texto || "#2B1206", fontSize:13, fontWeight:700, cursor:"pointer" }}>{tx("configuracion.crearMiCuenta")}</button>
               {/* 24/09 (caso Lucas): sin sesión la app entra sin cuenta; quien ya tiene cuenta necesita un camino para volver a la suya */}
               {onEntrar && <button onClick={onEntrar} style={{ width:"100%", marginTop:8, padding:"12px", borderRadius:12, border:`1px solid ${t.border}`, background:t.card, color:t.text, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{tx("configuracion.yaTengoCuentaEntrar")}</button>}
             </div>
@@ -3721,7 +3730,9 @@ export default function App() {
   if (!auth.user) return enColumna(<LoginScreen t={t} onAuth={auth} />);
 
   if (mostrarLogin) return enColumna(<LoginScreen t={t} onAuth={auth} onCancel={() => setMostrarLogin(false)} />);
-  if (!ready) return <EsqueletoCatalogo t={t} />;
+  // 02/10 (Nati: "el logo viejo aparece y desaparece"): mientras carga la base, cacao liso. Antes se mostraba el esqueleto
+  // del catálogo en gris claro, y entre el arranque oscuro y la cámara oscura se veía como un parpadeo.
+  if (!ready) return <div style={{ height:"100%", background:MARCA.cacao }} aria-busy="true" aria-label={tx("captura.cargandoCatalogo")} />;
   // La bienvenida habla de sacar fotos: en la compu no hay cámara, se pasa directo al escritorio.
   if (!settings.bienvenidaVista && !esEscritorio) return (
     <Bienvenida sinCuenta={auth.esAnonima}
