@@ -17,6 +17,7 @@ let package = Package(
         .package(name: "CapacitorFilesystem", path: "../../../node_modules/@capacitor/filesystem"),
         .package(name: "CapacitorHaptics", path: "../../../node_modules/@capacitor/haptics"),
         .package(name: "CapacitorShare", path: "../../../node_modules/@capacitor/share"),
+        .package(name: "CapacitorSplashScreen", path: "../../../node_modules/@capacitor/splash-screen"),
         .package(name: "RevenuecatPurchasesCapacitor", path: "../../../node_modules/@revenuecat/purchases-capacitor"),
         .package(name: "CapacitorNativeSettings", path: "../../../node_modules/capacitor-native-settings")
     ],
@@ -31,6 +32,7 @@ let package = Package(
                 .product(name: "CapacitorFilesystem", package: "CapacitorFilesystem"),
                 .product(name: "CapacitorHaptics", package: "CapacitorHaptics"),
                 .product(name: "CapacitorShare", package: "CapacitorShare"),
+                .product(name: "CapacitorSplashScreen", package: "CapacitorSplashScreen"),
                 .product(name: "RevenuecatPurchasesCapacitor", package: "RevenuecatPurchasesCapacitor"),
                 .product(name: "CapacitorNativeSettings", package: "CapacitorNativeSettings")
             ]
