@@ -11,5 +11,18 @@
   "android": {
     "allowMixedContent": false
   },
-  "backgroundColor": "#2B1206"
+  "backgroundColor": "#2B1206",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1100,
+      "launchAutoHide": true,
+      "launchFadeOutDuration": 250,
+      "backgroundColor": "#2B1206",
+      "androidScaleType": "CENTER_CROP",
+      "splashFullScreen": true,
+      "splashImmersive": false,
+      "iosSpinnerStyle": "small",
+      "showSpinner": false
+    }
+  }
 }

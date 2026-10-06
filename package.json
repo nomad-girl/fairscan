@@ -25,6 +25,7 @@
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/ios": "8.5.1",
     "@capacitor/share": "8.0.1",
+    "@capacitor/splash-screen": "^8.0.2",
     "@revenuecat/purchases-capacitor": "^13.5.0",
     "@sentry/browser": "10.73.0",
     "@supabase/supabase-js": "2.97.0",
