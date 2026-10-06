@@ -8,6 +8,7 @@ import { traerTodo } from './paginado.js';
 import { feriaAutomaticaVacia } from './feriaAutomatica.js';
 
 // Las tablas que viajan a la nube, en orden de dependencia (el pedido apunta a proveedor, feria y productos).
+import { esUuid } from './uuid.js';
 const TABLAS_SYNC = ['districts', 'suppliers', 'products', 'orders'];
 
 /**
@@ -149,8 +150,19 @@ class SyncEngine {
   // ─── Push (Local → Cloud) ───
 
   /** Push a single record to Supabase */
+    /** 05/10: un registro con uuid que no es uuid (p. ej. el texto "null") recibe uno nuevo antes de viajar, y queda guardado. */
+    async _asegurarUuidValido(table, record) {
+      if (esUuid(record.uuid)) return;
+      const nuevo = crypto.randomUUID();
+      console.warn(`[sync] ${table} ${record.id}: uuid inválido (${JSON.stringify(record.uuid)}), se reemplaza`);
+      await db.table(table).update(record.id, { uuid: nuevo });
+      record.uuid = nuevo;
+      idMapper.register(table, record.id, nuevo);
+    }
+
     async pushRecord(table, localRecord) {
     if (!this.roomId) return;
+    await this._asegurarUuidValido(table, localRecord);
     await this._subirFeriaAutomaticaSiHaceFalta(table, localRecord);
     await this._asegurarMapeoDeReferencias(table, localRecord);
 
@@ -350,6 +362,7 @@ class SyncEngine {
         let pushed = 0;
         for (const record of records) {
           if (!record.uuid) continue;
+          await this._asegurarUuidValido(table, record);
           // La feria creada sola no ensucia el equipo mientras esté vacía.
           if (contenido && feriaAutomaticaVacia(record, contenido)) continue;
           await this._asegurarMapeoDeReferencias(table, record);

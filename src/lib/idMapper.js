@@ -1,3 +1,4 @@
+import { esUuid } from './uuid.js';
 // Sin importar la base: db.js ahora registra acá los ids que crea, y dos archivos
 // que se importan entre sí se rompen al arrancar. La base se pasa como parámetro.
 
@@ -38,6 +39,12 @@ class IdMapper {
   }
 
   /** Get UUID from local ID */
+  /** Referencia a otra tabla: el uuid mapeado, o null si no hay o no es un uuid válido (05/10: el texto "null" rompía el sync) */
+  _ref(table, localId) {
+    const u = localId ? this.getUuid(table, localId) : null;
+    return esUuid(u) ? u : null;
+  }
+
   getUuid(table, localId) {
     return this.cache[table]?.[`local_${localId}`] || null;
   }
@@ -71,7 +78,7 @@ class IdMapper {
     }
 
     if (table === 'suppliers') {
-      cloud.district_id = localRecord.districtId ? this.getUuid('districts', localRecord.districtId) : null;
+      cloud.district_id = this._ref('districts', localRecord.districtId);
       cloud.company = localRecord.company || null;
       cloud.contact = localRecord.contact || null;
       cloud.phone = localRecord.phone || null;
@@ -93,8 +100,8 @@ class IdMapper {
     if (table === 'orders') {
       // Pedido (16/09): los ítems viajan con el uuid del producto; lo que todavía no
       // tiene uuid (producto sin subir) no viaja, y vuelve a subir con el próximo cambio.
-      cloud.supplier_id = localRecord.supplierId ? this.getUuid('suppliers', localRecord.supplierId) : null;
-      cloud.district_id = localRecord.districtId ? this.getUuid('districts', localRecord.districtId) : null;
+      cloud.supplier_id = this._ref('suppliers', localRecord.supplierId);
+      cloud.district_id = this._ref('districts', localRecord.districtId);
       cloud.status = localRecord.estado || 'en_curso';
       cloud.comments = localRecord.comentarios || null;
       cloud.items = (localRecord.items || [])
@@ -104,8 +111,8 @@ class IdMapper {
     }
 
     if (table === 'products') {
-      cloud.district_id = localRecord.districtId ? this.getUuid('districts', localRecord.districtId) : null;
-      cloud.supplier_id = localRecord.supplierId ? this.getUuid('suppliers', localRecord.supplierId) : null;
+      cloud.district_id = this._ref('districts', localRecord.districtId);
+      cloud.supplier_id = this._ref('suppliers', localRecord.supplierId);
       cloud.name = localRecord.name || null;
       cloud.description = localRecord.description || null;
       cloud.supplier_company = localRecord.supplierCompany || null;
