@@ -16,3 +16,7 @@ dist
 
 # Config local de Claude Code (puede contener credenciales)
 .claude/settings.local.json
+
+# Cuentas de servicio de Google (RevenueCat/Play): nunca en el repo; viven en ~/.fairscan
+fairscan-*.json
+*-serviceaccount*.json
