@@ -53,7 +53,7 @@ export default defineConfig(({ mode }) => {
           navigateFallback: '/index.html',
           // Las páginas legales (/privacidad, /terminos, /soporte) son HTML estático:
           // el service worker no las tiene que reemplazar por la app.
-          navigateFallbackDenylist: [/^\/api\//, /^\/.netlify\//, /^\/(privacidad|terminos|soporte)(\/|$)/],
+          navigateFallbackDenylist: [/^\/api\//, /^\/.netlify\//, /^\/(privacidad|terminos|soporte|es|en|landing)(\/|$)/],
           runtimeCaching: [
             // API calls (Netlify functions) - always hit network first
             {
