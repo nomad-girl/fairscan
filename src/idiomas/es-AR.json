@@ -1082,6 +1082,7 @@
     "cargandoCatalogo": "Cargando el catálogo"
   },
   "avisos": {
+    "atrasParaSalir": "Tocá atrás otra vez para salir de FairScan.",
     "compraProximaVersion": "La compra dentro de la app llega con la próxima versión. Los precios ya son los definitivos.",
     "cargando": "Cargando...",
     "bajandoCatalogo": "Bajando tu catálogo…",

@@ -114,7 +114,7 @@ import { FichaProducto } from './pantallas/FichaProducto.jsx';
 import { Ferias } from './pantallas/Ferias.jsx';
 import { BotonCamara } from './componentes/BotonCamara.jsx';
 import { FichaProveedor } from './pantallas/FichaProveedor.jsx';
-import { Icono, Hoja, Boton, Marca } from './componentes/index.js';
+import { Icono, Hoja, Boton, Marca, cerrarHojaSuperior } from './componentes/index.js';
 import { Escritorio } from './escritorio/Escritorio.jsx';
 import { useEsEscritorio } from './escritorio/util.jsx';
 import { useSistema } from './sistema/SistemaProvider.jsx';
@@ -3239,6 +3239,32 @@ export default function App() {
     setPrevScreen(pilaRef.current.length ? pilaRef.current[pilaRef.current.length - 1] : null);
     if (anterior) { setScreen(anterior.screen); setScreenData(anterior.data); } else { setScreen("list"); setScreenData(null); }
   };
+  // Botón "atrás" del teléfono en Android (08/10, informe de Testers Community: desde la pantalla principal
+  // cerraba la app de golpe). Orden: hoja abierta → la cierra; paywall o login encima → los cierra; hay
+  // pantalla anterior → vuelve; en la raíz → un segundo toque dentro de 2 s sale de la app.
+  const atrasRef = useRef(null);
+  atrasRef.current = () => {
+    if (cerrarHojaSuperior()) return true;
+    if (paywall) { setPaywall(null); return true; }
+    if (mostrarLogin) { setMostrarLogin(false); return true; }
+    if (pilaRef.current.length) { goBack(); return true; }
+    return false;
+  };
+  const ultimoAtrasRef = useRef(0);
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== "android") return;
+    let quitar = null;
+    import("@capacitor/app").then(({ App: CapApp }) => {
+      CapApp.addListener("backButton", () => {
+        if (atrasRef.current()) return;
+        const ahora = Date.now();
+        if (ahora - ultimoAtrasRef.current < 2000) { CapApp.exitApp(); return; }
+        ultimoAtrasRef.current = ahora;
+        showToast(tx("avisos.atrasParaSalir"));
+      }).then(h => { quitar = h; });
+    }).catch(() => {});
+    return () => { quitar?.remove(); };
+  }, []);
 
   const toggleTheme = async () => {
     const next = !isDark;

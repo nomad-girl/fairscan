@@ -19,6 +19,16 @@ const TIRON_PX = 80;         // distancia mínima para cerrar
 const TIRON_VELOCIDAD = 0.45; // px por ms
 const TIRON_FRACCION = 0.3;   // o un tercio del alto de la hoja
 
+// Registro de hojas abiertas (08/10, informe de Testers Community): el botón "atrás" del teléfono
+// en Android cerraba la app de golpe. Ahora, si hay una hoja abierta, atrás la cierra primero.
+const hojasAbiertas = [];
+export function cerrarHojaSuperior() {
+  const ultima = hojasAbiertas[hojasAbiertas.length - 1];
+  if (!ultima) return false;
+  ultima.current?.();
+  return true;
+}
+
 export function Hoja({ abierta, onCerrar, titulo, altura = "media", children, pie }) {
   const { paleta, radios, movimiento, curvas, capas, duracion, reducido, texto } = useSistema();
   const { t } = useTranslation();
@@ -32,6 +42,12 @@ export function Hoja({ abierta, onCerrar, titulo, altura = "media", children, pi
   const inicio = useRef(null);
   const onCerrarRef = useRef(onCerrar);
   onCerrarRef.current = onCerrar;
+
+  useEffect(() => {
+    if (!abierta) return;
+    hojasAbiertas.push(onCerrarRef);
+    return () => { const i = hojasAbiertas.indexOf(onCerrarRef); if (i >= 0) hojasAbiertas.splice(i, 1); };
+  }, [abierta]);
 
   useEffect(() => {
     if (abierta) { setVisible(true); requestAnimationFrame(() => setEntrando(true)); }
