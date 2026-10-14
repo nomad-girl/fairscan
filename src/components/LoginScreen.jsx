@@ -233,10 +233,13 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
           </div>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 6 }}>
-          {mode === 'login' ? <button type="button" onClick={() => { setMode('recuperar'); setAviso(''); setError(null); }} style={link}>{tx('entrar.olvideContrasena')}</button> : <span />}
-          <button type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(null); setSuccess(null); }} style={{ ...link, color: t.accent }}>{mode === 'login' ? tx('entrar.crearCuenta') : tx('entrar.yaTengoCuenta')}</button>
-        </div>
+        {/* Nati (08/10): "Crear cuenta" quedaba chico y abajo; ahora es un botón grande debajo del principal, y
+            lo mismo "Ya tengo cuenta" desde Crear cuenta. "Olvidé mi contraseña" sigue como link, centrado. */}
+        <button type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(null); setSuccess(null); }}
+          style={{ width: '100%', minHeight: 52, borderRadius: 14, border: `2px solid ${MARCA.naranja}`, background: 'transparent', color: t.text, fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', marginTop: 10 }}>
+          {mode === 'login' ? tx('entrar.crearCuenta') : tx('entrar.yaTengoCuenta')}
+        </button>
+        {mode === 'login' && <button type="button" onClick={() => { setMode('recuperar'); setAviso(''); setError(null); }} style={{ ...link, alignSelf: 'center', marginTop: 12 }}>{tx('entrar.olvideContrasena')}</button>}
         {convertir && <button type="button" onClick={onCancel} style={{ ...link, alignSelf: 'center', marginTop: 4, textDecoration: 'none', color: t.muted }}>{tx('entrar.ahoraNo')}</button>}
         {aviso && <p style={{ textAlign: 'center', fontSize: 13, color: t.muted, margin: '6px 0 0', lineHeight: 1.4 }}>{aviso}</p>}
         </>)}

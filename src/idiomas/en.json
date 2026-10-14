@@ -1082,6 +1082,7 @@
     "cargandoCatalogo": "Loading the catalog"
   },
   "avisos": {
+    "packsProximaVersion": "Scan packs arrive with the next version of the app. Supplier cards stay free in the meantime.",
     "atrasParaSalir": "Press back again to exit FairScan.",
     "compraProximaVersion": "In-app purchase arrives with the next version. Prices shown are final.",
     "cargando": "Loading...",

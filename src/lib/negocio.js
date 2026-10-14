@@ -14,6 +14,9 @@ export const NEGOCIO_POR_DEFECTO = Object.freeze({
   trial: 15,
   emergencia: 20,
   tarjetas_gratis: true,
+  // Plan B (14/10): la app sale a las tiendas con la compra apagada; se prende desde la fila `negocio`
+  // (`compras_activas: true`) cuando la compra esté probada de punta a punta, sin publicar versión.
+  compras_activas: false,
   packs: [
     { id: 'pack_500', escaneos: 500, usd: 19.99 },
     { id: 'pack_1000', escaneos: 1000, usd: 29.99, ancla: true },
@@ -32,6 +35,7 @@ export function normalizarNegocio(valor) {
     trial: entero(v.trial, NEGOCIO_POR_DEFECTO.trial),
     emergencia: entero(v.emergencia, NEGOCIO_POR_DEFECTO.emergencia),
     tarjetas_gratis: typeof v.tarjetas_gratis === 'boolean' ? v.tarjetas_gratis : NEGOCIO_POR_DEFECTO.tarjetas_gratis,
+    compras_activas: v.compras_activas === true,
     packs: packs.length ? packs : NEGOCIO_POR_DEFECTO.packs,
   };
 }

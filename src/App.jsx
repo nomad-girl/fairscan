@@ -3031,9 +3031,10 @@ export default function App() {
       setReady(true);
       // Config del negocio y saldo (5.1, 5.2), sin bloquear el arranque.
       // Compras (5.4): el SDK de la tienda se configura con el id de la usuaria; en la web no hace nada.
-      import("./lib/compras.js").then(m => m.configurar(auth.user.id)).catch(() => {});
+      // Solo si el servidor dice que la compra está activa (Plan B, 14/10): sin eso, la tienda ni se inicia.
       cargarNegocio(supabase, { get: getSettings, save: dbSaveSettings }).then(async (n) => {
         setNegocio(n);
+        if (n.compras_activas) import("./lib/compras.js").then(m => m.configurar(auth.user.id)).catch(() => {});
         const previo = (await getSettings()).creditos;
         if (previo && Array.isArray(previo.pendientes)) { creditosRef.current = previo; setCreditos(previo); }
         else { await guardarCreditos(estadoInicial(n.trial)); }
@@ -3774,7 +3775,8 @@ export default function App() {
             {paywall.desdeAjustes && <p style={{ fontSize:13, color:t.muted, margin:"0 0 14px" }}>{creditos ? tx("configuracion.escaneosQuedan", { count: saldoVisible(creditos) }) : tx("configuracion.escaneosPista")}</p>}
             {paywall.bloqueados > 0 && <p style={{ fontSize:13, color:t.muted, margin:"0 0 14px" }}>{tx("avisos.bloqueados", { count: paywall.bloqueados })}</p>}
             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-              {(negocio.packs || []).map(pk => { const destacado = packDestacado(negocio.packs)?.id === pk.id; return (
+              {!negocio.compras_activas && <p style={{ fontSize:14, color:t.text, margin:"0 0 6px", lineHeight:1.5, padding:"14px 16px", borderRadius:14, background:t.card, border:`1px solid ${t.border}` }}>{tx("avisos.packsProximaVersion")}</p>}
+              {negocio.compras_activas && (negocio.packs || []).map(pk => { const destacado = packDestacado(negocio.packs)?.id === pk.id; return (
                 <button key={pk.id} onClick={() => comprarPack(pk)} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 16px", borderRadius:14, cursor:"pointer", fontFamily:"inherit", textAlign:"left",
                   border:`2px solid ${destacado ? t.accent : t.border}`, background: destacado ? t.accentSoft : t.card }}>
                   <span>
@@ -3787,7 +3789,7 @@ export default function App() {
               ); })}
               <button onClick={() => setPaywall(null)} style={{ minHeight:48, padding:"12px", borderRadius:14, border:`1px solid ${t.border}`, background:t.card, color:t.text, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>{tx("avisos.despues")}</button>
             </div>
-            {!comprasListas && <p style={{ fontSize:12, color:t.muted, margin:"10px 0 0", textAlign:"center" }}>{tx("avisos.compraProximaVersion")}</p>}
+            {negocio.compras_activas && !comprasListas && <p style={{ fontSize:12, color:t.muted, margin:"10px 0 0", textAlign:"center" }}>{tx("avisos.compraProximaVersion")}</p>}
             <p style={{ fontSize:11, color:t.dim, margin:"10px 0 0", textAlign:"center" }}>{tx("avisos.tarjetasNoDescuentan")}</p>
           </div>
         </div>
