@@ -3033,8 +3033,11 @@ export default function App() {
       // Compras (5.4): el SDK de la tienda se configura con el id de la usuaria; en la web no hace nada.
       // Solo si el servidor dice que la compra está activa (Plan B, 14/10): sin eso, la tienda ni se inicia.
       cargarNegocio(supabase, { get: getSettings, save: dbSaveSettings }).then(async (n) => {
+        // La compra se ve si está activa para todo el mundo o si esta cuenta está en la lista de prueba.
+        const comprasActivas = n.compras_activas || (n.compras_pruebas || []).includes(auth.user.id);
+        n = { ...n, compras_activas: comprasActivas };
         setNegocio(n);
-        if (n.compras_activas) import("./lib/compras.js").then(m => m.configurar(auth.user.id)).catch(() => {});
+        if (comprasActivas) import("./lib/compras.js").then(m => m.configurar(auth.user.id)).catch(() => {});
         const previo = (await getSettings()).creditos;
         if (previo && Array.isArray(previo.pendientes)) { creditosRef.current = previo; setCreditos(previo); }
         else { await guardarCreditos(estadoInicial(n.trial)); }
