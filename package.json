@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "build:native": "vite build --mode native",
-    "postinstall": "node scripts/parchar-native-settings.mjs"
+    "postinstall": "node scripts/parchar-native-settings.mjs",
+    "prebuild": "node scripts/blog.mjs"
   },
   "engines": {
     "node": ">=20"

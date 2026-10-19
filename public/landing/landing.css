@@ -60,6 +60,7 @@ header.nav nav a.btn{min-height:44px;padding:0 18px;font-size:15px;color:var(--c
 .telefono{width:300px;height:620px;border-radius:44px;background:var(--cacao);padding:12px;box-shadow:0 30px 60px -30px rgba(43,18,6,.45);position:relative;max-width:100%}
 .telefono .isla{position:absolute;left:50%;top:22px;transform:translateX(-50%);width:90px;height:22px;border-radius:999px;background:var(--cacao-2);z-index:2}
 .telefono .pantalla{width:100%;height:100%;border-radius:34px;overflow:hidden;position:relative;display:flex;flex-direction:column;background:#3a2a22}
+.telefono .pantalla img.real{width:100%;height:100%;object-fit:cover;display:block}
 .telefono .fondo{position:absolute;inset:0;background:linear-gradient(180deg,#5c4537 0%,#3a2a22 55%,#2a1d16 100%)}
 .telefono .arriba{position:relative;display:flex;justify-content:space-between;align-items:center;padding:52px 18px 0;color:var(--crema);font-size:13px;font-weight:500}
 .telefono .stand{background:var(--sello);color:var(--cacao);border-radius:999px;padding:3px 10px;font-weight:700}

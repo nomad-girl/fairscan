@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /es
+Allow: /en
+Allow: /pt
+Allow: /blog/
+Allow: /soporte
+Allow: /privacidad
+Allow: /terminos
+Disallow: /
+Sitemap: https://fairscan.app/sitemap.xml
