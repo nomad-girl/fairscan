@@ -15,8 +15,8 @@ android {
         applicationId "com.builddigitalthings.fairscan"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 5
-        versionName "1.4.0"
+        versionCode 6
+        versionName "1.5.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -41,8 +41,11 @@ android {
     }
     buildTypes {
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // Play (19/10): "optimización de código DEX por debajo del umbral" (5 %; piden 25 % antes de feb 2027).
+            // R8 achica y ofusca; las reglas de proguard-rules.pro protegen lo que Capacitor llama por reflexión.
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             if (keystoreFile.exists()) signingConfig signingConfigs.release
         }
     }
