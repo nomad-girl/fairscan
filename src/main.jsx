@@ -8,6 +8,8 @@ import { SistemaProvider } from './sistema/SistemaProvider.jsx';
 
 // Los textos de la app viven en archivos de idioma (es-AR hoy). Se inicializa
 // antes de dibujar nada para que ningún componente pida una clave sin diccionario.
+// E20 (20/10): quien abre la app en este navegador queda marcada; la próxima vez fairscan.app a secas abre la app y no la landing.
+try { localStorage.setItem('fs_usa_app', '1'); } catch { /* sin almacenamiento */ }
 const idiomaInicial = iniciarIdiomas().language;
 try { document.documentElement.lang = idiomaInicial; } catch { /* sin DOM */ }
 // iOS solo aplica :active al tocar si hay alguna escucha de touchstart en la página (fluidez, 30/09)

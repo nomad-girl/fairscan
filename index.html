@@ -2,6 +2,42 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
+  <!-- E20 (20/10, opción 1 aprobada por Nati): fairscan.app a secas muestra la landing a quien llega por
+       primera vez y la app a quien ya la usa en este navegador. La app también vive en /app. Nunca redirige en
+       la app nativa, en localhost ni en la URL de prueba (solo en fairscan.app), ni cuando la dirección trae
+       parámetros (vueltas de Entrar con Apple/Google y links de mail), ni en la app instalada (pantalla completa). -->
+  <script>
+  (function () {
+    var raiz = document.documentElement;
+    try {
+      if (!/(^|\.)fairscan\.app$/.test(location.hostname)) return;
+      var ls = null; try { ls = window.localStorage; } catch (e) {}
+      var marcar = function () { try { ls && ls.setItem('fs_usa_app', '1'); } catch (e) {} };
+      if (location.pathname !== '/') { if (location.pathname.indexOf('/app') === 0) marcar(); return; }
+      if (location.search || location.hash) return;
+      if ((window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone) return;
+      if (ls) {
+        if (ls.getItem('fs_usa_app')) return;
+        for (var i = 0; i < ls.length; i++) { if ((ls.key(i) || '').indexOf('sb-') === 0) { marcar(); return; } }
+      }
+      var ir = function () {
+        var l = String(navigator.language || '').toLowerCase();
+        location.replace(l.indexOf('pt') === 0 ? '/pt' : l.indexOf('es') === 0 ? '/es' : '/en');
+      };
+      var quedarse = function () { marcar(); raiz.style.visibility = ''; };
+      raiz.style.visibility = 'hidden';
+      if (window.indexedDB && indexedDB.databases) {
+        var listo = false;
+        setTimeout(function () { if (!listo) { listo = true; ir(); } }, 1500);
+        indexedDB.databases().then(function (dbs) {
+          if (listo) return; listo = true;
+          (dbs || []).some(function (d) { return d && d.name === 'FairScanDB'; }) ? quedarse() : ir();
+        }, function () { if (!listo) { listo = true; ir(); } });
+      } else ir();
+    } catch (e) { raiz.style.visibility = ''; }
+  })();
+  </script>
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#2B1206" />
   <meta name="description" content="Captura y organiza productos en ferias comerciales. Escanea tarjetas, fotos, notas de voz y calcula costos de importacion con IA." />
