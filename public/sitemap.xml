@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://fairscan.app/es</loc><lastmod>2026-10-19</lastmod></url>
-  <url><loc>https://fairscan.app/en</loc><lastmod>2026-10-19</lastmod></url>
-  <url><loc>https://fairscan.app/pt</loc><lastmod>2026-10-19</lastmod></url>
-  <url><loc>https://fairscan.app/soporte</loc><lastmod>2026-10-19</lastmod></url>
-  <url><loc>https://fairscan.app/privacidad</loc><lastmod>2026-10-19</lastmod></url>
-  <url><loc>https://fairscan.app/terminos</loc><lastmod>2026-10-19</lastmod></url>
-  <url><loc>https://fairscan.app/blog/es/</loc><lastmod>2026-10-19</lastmod></url>
-  <url><loc>https://fairscan.app/blog/en/</loc><lastmod>2026-10-19</lastmod></url>
-  <url><loc>https://fairscan.app/blog/pt/</loc><lastmod>2026-10-19</lastmod></url>
+  <url><loc>https://fairscan.app/es</loc></url>
+  <url><loc>https://fairscan.app/en</loc></url>
+  <url><loc>https://fairscan.app/pt</loc></url>
+  <url><loc>https://fairscan.app/soporte</loc></url>
+  <url><loc>https://fairscan.app/privacidad</loc></url>
+  <url><loc>https://fairscan.app/terminos</loc></url>
+  <url><loc>https://fairscan.app/blog/es/</loc></url>
+  <url><loc>https://fairscan.app/blog/en/</loc></url>
+  <url><loc>https://fairscan.app/blog/pt/</loc></url>
 </urlset>

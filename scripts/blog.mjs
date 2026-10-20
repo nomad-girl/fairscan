@@ -67,6 +67,7 @@ const salida = join(RAIZ, "public", "blog");
 for (const d of readdirSync(salida, { withFileTypes: true }).filter(x => x.isDirectory() && x.name !== "img")) rmSync(join(salida, d.name), { recursive: true });
 const urls = [`/es`, `/en`, `/pt`, `/soporte`, `/privacidad`, `/terminos`];
 const notasPorSlug = {};
+const fechas = {}; // lastmod solo para las notas (su fecha); así el sitemap no cambia en cada compilación
 for (const idioma of Object.keys(IDIOMAS)) {
   const dir = join(RAIZ, "blog", idioma); if (!existsSync(dir)) continue;
   for (const f of readdirSync(dir).filter(x => x.endsWith(".md"))) {
@@ -85,14 +86,13 @@ for (const idioma of Object.keys(IDIOMAS)) {
     const cuerpo = `<p class="eyebrow">${I.nombre} · ${n.fecha ? I.fecha(n.fecha) : ""}</p>\n<h1>${esc(n.titulo || n.slug)}</h1>\n${n.descripcion ? `<p class="muted" style="font-size:19px">${esc(n.descripcion)}</p>` : ""}\n${n.html}\n<p style="margin-top:40px"><a href="/blog/${idioma}/">← ${I.todas}</a></p>`;
     mkdirSync(join(salida, idioma, n.slug), { recursive: true });
     writeFileSync(join(salida, idioma, n.slug, "index.html"), pagina({ idioma, titulo: n.titulo || n.slug, descripcion: n.descripcion || I.descripcion, url: n.url, cuerpo, alternas }));
-    urls.push(n.url); total++;
+    urls.push(n.url); fechas[n.url] = n.fecha; total++;
   }
   const lista = notas.length ? notas.map(n => `<article class="card" style="padding:22px 24px;margin:0 0 14px"><p class="eyebrow" style="margin:0 0 6px">${n.fecha ? I.fecha(n.fecha) : ""}</p><h2 style="margin:0 0 8px"><a href="${n.url}" style="text-decoration:none;color:var(--cacao)">${esc(n.titulo || n.slug)}</a></h2>${n.descripcion ? `<p class="muted" style="margin:0 0 10px">${esc(n.descripcion)}</p>` : ""}<a href="${n.url}">${I.leer} →</a></article>`).join("\n") : `<p class="muted">${({ es: "Todavía no hay notas. Pronto.", en: "No posts yet. Soon.", pt: "Ainda não há notas. Em breve." })[idioma]}</p>`;
   mkdirSync(join(salida, idioma), { recursive: true });
   writeFileSync(join(salida, idioma, "index.html"), pagina({ idioma, titulo: `${I.nombre} FairScan`, descripcion: I.descripcion, url: `/blog/${idioma}/`, cuerpo: `<p class="eyebrow">FairScan</p><h1>${I.nombre}</h1><p class="muted" style="font-size:19px">${I.descripcion}</p>\n${lista}`, alternas: Object.keys(IDIOMAS).map(i => ({ idioma: i, url: `/blog/${i}/` })) }));
   urls.push(`/blog/${idioma}/`);
 }
-const hoy = new Date().toISOString().slice(0, 10);
-writeFileSync(join(RAIZ, "public", "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u => `  <url><loc>${SITIO}${u}</loc><lastmod>${hoy}</lastmod></url>`).join("\n")}\n</urlset>\n`);
+writeFileSync(join(RAIZ, "public", "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u => `  <url><loc>${SITIO}${u}</loc>${fechas[u] ? `<lastmod>${fechas[u]}</lastmod>` : ""}</url>`).join("\n")}\n</urlset>\n`);
 writeFileSync(join(RAIZ, "public", "robots.txt"), `User-agent: *\nAllow: /es\nAllow: /en\nAllow: /pt\nAllow: /blog/\nAllow: /soporte\nAllow: /privacidad\nAllow: /terminos\nDisallow: /\nSitemap: ${SITIO}/sitemap.xml\n`);
 console.log(`[blog] ${total} notas publicadas, ${urls.length} direcciones en el sitemap`);
