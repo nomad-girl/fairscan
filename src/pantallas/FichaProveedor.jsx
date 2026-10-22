@@ -72,6 +72,13 @@ export function FichaProveedor({ onCamara, supplier: s, allSuppliers = [], produ
   const botones = (propios) => (
     <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", pointerEvents: "auto" }}>
       {onAddProduct && <button type="button" onClick={onAddProduct} style={{ minHeight: 44, borderRadius: 999, border: "none", background: paleta.accent, color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 700, padding: "0 16px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}><Icono nombre="camara" tamano={16} color="#fff" />{propios.length === 0 ? t("proveedor.sacarFotos") : t("proveedor.agregarProducto")}</button>}
+      {/* Armar pedido a la vista (Nati, 22/10: "falta botón de hacer pedido en la ficha del proveedor"). Antes solo
+          estaba dentro de "Ver todos los datos" y no se encontraba. Si ya hay un pedido en curso, dice Seguir pedido. */}
+      {onArmarPedido && propios.length > 0 && (
+        <button type="button" onClick={() => onArmarPedido(s)} style={{ minHeight: 44, borderRadius: 999, border: "1px solid rgba(255,255,255,0.6)", background: "rgba(43,18,6,0.35)", color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 600, padding: "0 14px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+          <Icono nombre="pedido" tamano={16} color="#fff" />{enCurso ? t("proveedor.seguirPedido") : t("proveedor.armarPedido")}
+        </button>
+      )}
       <button type="button" onClick={() => setDatosAbiertos(true)} style={{ minHeight: 44, borderRadius: 999, border: "1px solid rgba(255,255,255,0.6)", background: "rgba(43,18,6,0.35)", color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 600, padding: "0 14px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
         <Icono nombre="abajo" tamano={16} color="#fff" style={{ transform: "rotate(180deg)" }} />{t("proveedor.verDatos")}
       </button>
