@@ -116,7 +116,7 @@ export function Visor({
       {/* Arriba: saldo y estado. Nada más. */}
       <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 12px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <div style={{ display: "flex", gap: 6, alignItems: "center", minWidth: 0 }}>
-          {feria && <Pastilla estilo={{ maxWidth: "46vw", overflow: "hidden", textOverflow: "ellipsis", display: "block", lineHeight: "32px" }}>{feria}</Pastilla>}
+          {feria && <button type="button" onClick={() => { marcarGuiaVista(); onCatalogo?.(); }} aria-label={t("visor.irAlCatalogo")} style={{ maxWidth: "46vw", minHeight: 32, padding: "0 12px", borderRadius: 999, border: "none", background: VIDRIO, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", color: BLANCO, fontSize: 12, fontWeight: 600, fontFamily: "inherit", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{feria}</button>}
           {/* El saldo solo cuando está por acabarse; la nube no se muestra: en la cámara distrae (Nati, 22/09) */}
           {textoSaldo && saldoBajo && !esTarjeta && <Pastilla tono="alerta">{textoSaldo}</Pastilla>}
         </div>
@@ -242,13 +242,17 @@ export function Visor({
       <div onTouchStart={e => { barraX.current = e.touches?.[0]?.clientX ?? null; }} onTouchEnd={e => { const x1 = e.changedTouches?.[0]?.clientX; if (barraX.current === null || x1 === undefined) return; const dx = x1 - barraX.current; barraX.current = null; if (Math.abs(dx) < 50) return; e.stopPropagation(); if (dx < 0 && !esTarjeta) cambiarModo("card"); if (dx > 0 && esTarjeta) cambiarModo("product"); }}
         style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 3, padding: "18px 18px calc(20px + env(safe-area-inset-bottom, 0px))", display: "flex", alignItems: "flex-end", justifyContent: "space-between", background: "linear-gradient(180deg, rgba(43,18,6,0) 0%, rgba(43,18,6,0.55) 100%)" }}>
         <div style={{ width: 88, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, position: "relative" }}>
-          <button type="button" onClick={() => { marcarGuiaVista(); onCatalogo?.(); }} aria-label={t("visor.irAlCatalogo")} style={{ position: "relative", width: alturas.miniatura, height: alturas.miniatura, borderRadius: 14, border: "2px solid rgba(255,255,255,0.8)", background: "rgba(241,245,249,0.14)", padding: 0, overflow: "visible", cursor: "pointer", display: "grid", placeItems: "center" }}>
-            {(ultimaCaptura || ultimas[0]?.foto) ? <img src={ultimaCaptura || ultimas[0]?.foto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", borderRadius: 12, transform: miniaturaVuela && !reducido ? "scale(0.9)" : "none", transition: `transform ${duracion(movimiento.obturador.miniatura)}ms ${curvas.salida}` }} /> : <Icono nombre="foto" tamano={22} color={BLANCO} />}
-            {itemsCount > 0 && <span aria-label={t("visor.enEsteStand", { count: itemsCount })} style={{ position: "absolute", right: -9, top: -9, minWidth: 24, height: 24, padding: "0 7px", borderRadius: 12, background: MARCA.sello, color: MARCA.cacao, fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", fontVariantNumeric: "tabular-nums", boxShadow: "0 1px 3px rgba(0,0,0,0.35)" }}>{itemsCount}</span>}
-          </button>
+          <div style={{ position: "relative", width: alturas.miniatura, height: alturas.miniatura }}>
+            <button type="button" onClick={() => { marcarGuiaVista(); onCatalogo?.(); }} aria-label={t("visor.irAlCatalogo")} style={{ width: alturas.miniatura, height: alturas.miniatura, borderRadius: 14, border: "2px solid rgba(255,255,255,0.8)", background: "rgba(241,245,249,0.14)", padding: 0, overflow: "hidden", cursor: "pointer", display: "block", position: "relative" }}>
+              {(ultimaCaptura || ultimas[0]?.foto)
+                ? <img src={ultimaCaptura || ultimas[0]?.foto} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block", transform: miniaturaVuela && !reducido ? "scale(0.9)" : "none", transition: `transform ${duracion(movimiento.obturador.miniatura)}ms ${curvas.salida}` }} />
+                : <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}><Icono nombre="foto" tamano={22} color={BLANCO} /></span>}
+            </button>
+            {itemsCount > 0 && <span aria-label={t("visor.enEsteStand", { count: itemsCount })} style={{ position: "absolute", right: -9, top: -9, minWidth: 24, height: 24, padding: "0 7px", borderRadius: 12, background: MARCA.sello, color: MARCA.cacao, fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", fontVariantNumeric: "tabular-nums", boxShadow: "0 1px 3px rgba(0,0,0,0.35)", pointerEvents: "none" }}>{itemsCount}</span>}
+          </div>
           <span aria-hidden style={{ fontSize: 11, fontWeight: 700, color: BLANCO, letterSpacing: "0.05em", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>{t("visor.catalogo").toUpperCase()}</span>
           {puedeAgregarAngulo && !esTarjeta && !modoAngulo && (
-            <button type="button" onClick={onAgregarAngulo} aria-label={t("visor.agregarAngulo")} style={{ position: "absolute", top: -16, left: "50%", transform: "translateX(-50%)", minHeight: 24, padding: "0 8px", borderRadius: 12, border: "none", background: MARCA.sello, color: MARCA.cacao, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", cursor: "pointer", fontFamily: "inherit" }}>{t("visor.masAngulo")}</button>
+            <button type="button" onClick={onAgregarAngulo} aria-label={t("visor.agregarAngulo")} style={{ position: "absolute", top: -34, left: "50%", transform: "translateX(-50%)", minHeight: 24, padding: "0 8px", borderRadius: 12, border: "none", background: MARCA.sello, color: MARCA.cacao, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", cursor: "pointer", fontFamily: "inherit" }}>{t("visor.masAngulo")}</button>
           )}
         </div>
 
