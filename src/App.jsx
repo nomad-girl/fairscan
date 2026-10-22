@@ -374,89 +374,6 @@ const FotoDeProducto = memo(({ src, respaldo = null, t, estilo }) => {
 });
 
 
-/**
- * Diagnóstico de fotos (15/09/2026). Nati ve muchas fotos que no cargan en su
- * iPhone y desde acá no podemos mirar su base. Esta tarjeta lee la base local
- * tal cual está, dice de qué tipo es cada foto guardada, e intenta cargarlas
- * una por una contando cuáles fallan por tipo. Con una captura de esto se sabe
- * qué pasa sin adivinar.
- */
-function DiagnosticoFotos({ t }) {
-  const { t: tx } = useTranslation();
-  const [estado, setEstado] = useState(null);
-  const [vibracion, setVibracion] = useState("");
-  const correr = async () => {
-    setEstado({ corriendo: true });
-    const crudos = await db.products.toArray();
-    const tipos = {}; const thumbs = {};
-    for (const p of crudos) {
-      const k = tipoDeFoto(p.photos?.[0]); tipos[k] = (tipos[k] || 0) + 1;
-      const kt = tipoDeFoto(p.thumb); thumbs[kt] = (thumbs[kt] || 0) + 1;
-    }
-    // Probar cargar lo que la lista realmente muestra, en los primeros 150.
-    const fallosPorTipo = {}; let probadas = 0; let fallidas = 0; const ejemplos = [];
-    for (const p of crudos.slice(0, 150)) {
-      const ui = productoParaUI(p);
-      const src = elegirMiniatura(ui);
-      if (!src) continue;
-      probadas++;
-      const ok = await new Promise(res => { const i = new Image(); i.onload = () => res(true); i.onerror = () => res(false); i.src = src; });
-      if (!ok) {
-        fallidas++;
-        const clase = `${p.thumb ? 'thumb:' + tipoDeFoto(p.thumb) : 'foto:' + tipoDeFoto(p.photos?.[0])}`;
-        fallosPorTipo[clase] = (fallosPorTipo[clase] || 0) + 1;
-        if (ejemplos.length < 3) ejemplos.push(`${(p.name || '?').slice(0, 18)} · ${clase} · ${String(src).slice(0, 28)}…`);
-      }
-    }
-    setEstado({ total: crudos.length, tipos, thumbs, probadas, fallidas, fallosPorTipo, ejemplos });
-  };
-  const fila = (obj) => Object.entries(obj || {}).map(([k, v]) => `${k}: ${v}`).join(' · ') || '—';
-  return (
-    <div style={{ background:t.card, borderRadius:14, padding:"12px 14px", marginTop:12, border:`1px solid ${t.border}` }}>
-      <p style={{ fontSize:13, fontWeight:700, color:t.text, margin:"0 0 6px" }}>{tx("diagnostico.titulo")}</p>
-      <p style={{ fontSize:11, color:t.muted, margin:"0 0 8px" }}>{tx("diagnostico.pista")}</p>
-      <button onClick={correr} disabled={!!estado?.corriendo} style={{ padding:"8px 12px", borderRadius:10, border:"none", background:t.accentSoft, color:t.accent, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-        {estado?.corriendo ? tx("diagnostico.probando") : tx("diagnostico.probar")}
-      </button>
-      {/* 30/09: Nati nunca sintió la vibración en el iPhone. Este botón la dispara y dice si el motor nativo está. */}
-      <button onClick={async () => {
-        // 30/09: Nati ve "motor disponible" y no siente nada. Se llama al motor directo, tres veces distintas, y se
-        // anota qué respondió cada una: así sabemos si falla el plugin o es un ajuste del iPhone (Vibración del sistema).
-        const partes = [Capacitor.isNativePlatform() ? tx("diagnostico.vibracionNativa") : tx("diagnostico.vibracionWeb"), Capacitor.isPluginAvailable("Haptics") ? tx("diagnostico.vibracionPluginSi") : tx("diagnostico.vibracionPluginNo")];
-        try {
-          const { Haptics } = await import("@capacitor/haptics");
-          for (const [nombre, fn] of [["impact", () => Haptics.impact({ style: "HEAVY" })], ["notification", () => Haptics.notification({ type: "SUCCESS" })], ["vibrate", () => Haptics.vibrate({ duration: 400 })]]) {
-            try { await fn(); partes.push(`${nombre} ok`); } catch (e) { partes.push(`${nombre}: ${e?.message || e}`); }
-            await new Promise(r => setTimeout(r, 350));
-          }
-        } catch (e) { partes.push(`import: ${e?.message || e}`); }
-        setVibracion(partes.join(" · "));
-      }}
-        style={{ marginLeft:8, padding:"8px 12px", borderRadius:10, border:`1px solid ${t.border}`, background:t.surface, color:t.text, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-        {tx("diagnostico.probarVibracion")}
-      </button>
-      {vibracion && <p style={{ fontSize:11, color:t.muted, margin:"8px 0 0" }}>{vibracion}</p>}
-      {estado && !estado.corriendo && (
-        <div style={{ fontSize:11, color:t.text, marginTop:10, lineHeight:1.6, wordBreak:"break-all" }}>
-          <div>{tx("diagnostico.productos")} <b>{estado.total}</b></div>
-          <div>{tx("diagnostico.guardadasComo", { tipos: fila(estado.tipos) })}</div>
-          <div>{tx("diagnostico.miniaturasComo", { tipos: fila(estado.thumbs) })}</div>
-          <div>{tx("diagnostico.probadas")} <b>{estado.probadas}</b> · {tx("diagnostico.fallan")} <b style={{ color:t.red }}>{estado.fallidas}</b></div>
-          <div>{tx("diagnostico.fallanPorTipo", { tipos: fila(estado.fallosPorTipo) })}</div>
-          {estado.ejemplos.map((e, i) => <div key={i} style={{ color:t.muted }}>{e}</div>)}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * Aviso de que el catálogo se está bajando de la nube.
- *
- * Por qué existe: al entrar en un teléfono nuevo, el catálogo aparece vacío
- * mientras baja y parece que se perdieron los datos (Nati, 11/09: "te pegás
- * alto cagado"). Con 1.137 productos la espera es de minutos.
- */
 const BajandoCatalogo = memo(({ bajando, t }) => {
   const { t: tx } = useTranslation();
   if (!bajando) return null;
@@ -1646,7 +1563,6 @@ function SettingsScreen({ onCamara, settings, onSave, onBack, sync, t, products,
             <div style={{ height:1, background:t.border, margin:"20px 0" }} />
             <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>{tx("configuracion.backupNube")}</p>
             <p style={{ fontSize:11, color:t.dim, marginBottom:12 }}>{tx("configuracion.backupNubePista")}</p>
-            <DiagnosticoFotos t={t} />
             <div style={{ display:"flex", gap:8, marginBottom:12 }}>
               <button onClick={async () => {
                 setImportStatus(tx("configuracion.guardandoBackupNube"));
