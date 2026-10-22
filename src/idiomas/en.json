@@ -48,7 +48,7 @@
     }
   },
   "visor": {
-    "guiaUnica": "Take a photo of a product. The supplier card goes in the pill, whenever you want.",
+    "guiaUnica": "Take a photo of a product. Whenever you want, tap «Card» to scan the supplier's.",
     "escaneosDePrueba": "{{count}} of {{total}} trial scans",
     "escaneos": "{{count}} scans",
     "sinEscaneos": "0 scans · {{count}} waiting",

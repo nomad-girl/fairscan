@@ -45,6 +45,7 @@ export function Visor({
   const { t } = useTranslation();
   const { alturas, movimiento, curvas, duracion, reducido } = useSistema();
   const [presionado, setPresionado] = useState(false);
+  const [videoListo, setVideoListo] = useState(false);
   const [ultimasAbiertas, setUltimasAbiertas] = useState(false);
   const [precioEditando, setPrecioEditando] = useState(null); // en la hoja "Este stand": qué producto tiene el precio abierto
   const [precioGuardado, setPrecioGuardado] = useState(null);
@@ -94,8 +95,11 @@ export function Visor({
   }, []);
 
   return (
-    <div className="pantalla-fija" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} onClick={() => { if (datos && !esTarjeta) { inputDatoRef.current?.blur(); onConfirmarPrecio?.(); } }} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#000", display: "flex", flexDirection: "column", color: BLANCO, fontFamily: "inherit", userSelect: "none" }}>
-      <video ref={videoRef} autoPlay playsInline muted style={{ flex: 1, objectFit: "cover", width: "100%" }} />
+    <div className="pantalla-fija" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} onClick={() => { if (datos && !esTarjeta) { inputDatoRef.current?.blur(); onConfirmarPrecio?.(); } }} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#2B1206", display: "flex", flexDirection: "column", color: BLANCO, fontFamily: "inherit", userSelect: "none" }}>
+      {/* 22/10 (Android): el WebView de Samsung dibuja un ícono de "play" gris sobre un <video> sin señal; hasta que
+          la cámara realmente emite, el video queda invisible sobre el fondo oscuro. */}
+      <video ref={videoRef} autoPlay playsInline muted disablePictureInPicture controls={false} onPlaying={() => setVideoListo(true)} onEmptied={() => setVideoListo(false)}
+        style={{ flex: 1, objectFit: "cover", width: "100%", opacity: videoListo ? 1 : 0, transition: "opacity 160ms" }} />
 
       {/* Velo blanco del obturador (80 ms) */}
       <style>{`@keyframes fairscanGuardado { 0% { transform: scale(0.4); opacity: 0 } 35% { transform: scale(1.15); opacity: 1 } 55% { transform: scale(1) } 100% { transform: scale(1); opacity: 1 } }`}</style>

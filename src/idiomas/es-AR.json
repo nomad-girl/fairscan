@@ -48,7 +48,7 @@
     }
   },
   "visor": {
-    "guiaUnica": "Sacale una foto a un producto. La tarjeta del proveedor va en la pastilla, cuando quieras.",
+    "guiaUnica": "Sacale una foto a un producto. Cuando quieras, tocá «Tarjeta» para escanear la del proveedor.",
     "escaneosDePrueba": "{{count}} de {{total}} escaneos de prueba",
     "escaneos": "{{count}} escaneos",
     "sinEscaneos": "0 escaneos · {{count}} esperando",
