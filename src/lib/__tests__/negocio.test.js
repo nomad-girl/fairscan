@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizarNegocio, NEGOCIO_POR_DEFECTO } from '../negocio.js';
+import { normalizarNegocio, comprasActivasEn, NEGOCIO_POR_DEFECTO } from '../negocio.js';
 
 describe('normalizarNegocio', () => {
   it('con nada del servidor usa los valores por defecto', () => {
@@ -25,3 +25,15 @@ describe('compras apagadas por defecto (Plan B, 14/10)', () => {
     expect(normalizarNegocio({ compras_pruebas: ['abc', 3, null] }).compras_pruebas).toEqual(['abc']);
   });
 });
+
+describe('compras por plataforma (22/10)', () => {
+  it('true prende todas; un objeto prende solo las plataformas marcadas', () => {
+    expect(comprasActivasEn(normalizarNegocio({ compras_activas: true }), 'ios')).toBe(true);
+    const n = normalizarNegocio({ compras_activas: { android: true } });
+    expect(comprasActivasEn(n, 'android')).toBe(true);
+    expect(comprasActivasEn(n, 'ios')).toBe(false);
+    expect(comprasActivasEn(n, 'web')).toBe(false);
+    expect(comprasActivasEn(normalizarNegocio({ compras_activas: 'android' }), 'android')).toBe(false);
+  });
+});
+

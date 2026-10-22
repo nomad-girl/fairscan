@@ -3,7 +3,7 @@ import { i18next, cambiarIdioma, leerPreferencia } from './idiomas/index.js';
 import { MARCA, PALETAS } from './sistema/tokens.js';
 import { PRESETS } from "./lib/presets.js";
 import useGrabadora from "./hooks/useGrabadora.js";
-import { cargarNegocio, NEGOCIO_POR_DEFECTO } from "./lib/negocio.js";
+import { cargarNegocio, comprasActivasEn, NEGOCIO_POR_DEFECTO } from "./lib/negocio.js";
 import { estadoInicial, descontarStand, devolverProducto, reconciliar, saldoVisible } from "./lib/creditos.js";
 import { soloDeHoy, resumenDelDia } from "./lib/porDia.js";
 import { evaluarCierreDeStand, packDestacado, FRASE_PAYWALL } from "./lib/paywall.js";
@@ -2959,7 +2959,7 @@ export default function App() {
       // Solo si el servidor dice que la compra está activa (Plan B, 14/10): sin eso, la tienda ni se inicia.
       cargarNegocio(supabase, { get: getSettings, save: dbSaveSettings }).then(async (n) => {
         // La compra se ve si está activa para todo el mundo o si esta cuenta está en la lista de prueba.
-        const comprasActivas = n.compras_activas || (n.compras_pruebas || []).includes(auth.user.id);
+        const comprasActivas = comprasActivasEn(n, Capacitor.getPlatform()) || (n.compras_pruebas || []).includes(auth.user.id);
         n = { ...n, compras_activas: comprasActivas };
         setNegocio(n);
         if (comprasActivas) import("./lib/compras.js").then(m => m.configurar(auth.user.id)).catch(() => {});

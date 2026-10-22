@@ -28,6 +28,14 @@ export const NEGOCIO_POR_DEFECTO = Object.freeze({
 });
 
 /** Valida lo que llega del servidor; lo que falte o esté mal toma el valor por defecto. */
+/** ¿La compra está activa en esta plataforma? (`compras_activas` puede ser true o un objeto por plataforma) */
+export function comprasActivasEn(negocio, plataforma) {
+  const v = negocio?.compras_activas;
+  if (v === true) return true;
+  if (v && typeof v === 'object') return v[plataforma] === true;
+  return false;
+}
+
 export function normalizarNegocio(valor) {
   const v = valor && typeof valor === 'object' ? valor : {};
   const entero = (x, def) => (Number.isInteger(x) && x >= 0 ? x : def);
@@ -38,7 +46,11 @@ export function normalizarNegocio(valor) {
     trial: entero(v.trial, NEGOCIO_POR_DEFECTO.trial),
     emergencia: entero(v.emergencia, NEGOCIO_POR_DEFECTO.emergencia),
     tarjetas_gratis: typeof v.tarjetas_gratis === 'boolean' ? v.tarjetas_gratis : NEGOCIO_POR_DEFECTO.tarjetas_gratis,
-    compras_activas: v.compras_activas === true,
+    // true para todos, o por plataforma: { "android": true, "ios": false } (22/10: Android se prende antes que iOS,
+    // porque la 1.0 de Apple está en revisión con la compra apagada y sin los packs adjuntos).
+    compras_activas: v.compras_activas === true ? true
+      : (v.compras_activas && typeof v.compras_activas === 'object') ? { ios: v.compras_activas.ios === true, android: v.compras_activas.android === true, web: v.compras_activas.web === true }
+      : false,
     compras_pruebas: Array.isArray(v.compras_pruebas) ? v.compras_pruebas.filter(x => typeof x === 'string') : [],
     packs: packs.length ? packs : NEGOCIO_POR_DEFECTO.packs,
   };
