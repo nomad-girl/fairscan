@@ -14,8 +14,9 @@
  * tabla config): pack_500 · pack_1000 (destacado) · pack_2000 (decisión 29/09; se fue el de 3.000).
  */
 import { Capacitor } from '@capacitor/core';
+import i18next from 'i18next';
 
-const EN_WEB = 'Los escaneos se compran desde la app de App Store o Google Play.';
+const EN_WEB = () => i18next.t('compras.enWeb');
 let configurado = false;
 
 function claveApi() {
@@ -55,7 +56,9 @@ export async function comprar(packId) {
   if (!configurado) return { ok: false, mensaje: i18next.t('compras.soloTienda') };
   try {
     const { Purchases } = await sdk();
-    const { products } = await Purchases.getProducts({ productIdentifiers: [packId] });
+    // 22/10: en Android RevenueCat busca SUSCRIPCIONES si no se le dice el tipo, y los packs son compras únicas:
+    // la primera compra en Android respondía "pack no disponible". En iOS el tipo se ignora.
+    const { products } = await Purchases.getProducts({ productIdentifiers: [packId], type: 'NON_SUBSCRIPTION' });
     const product = products?.[0];
     if (!product) return { ok: false, mensaje: i18next.t('compras.packNoDisponible') };
     await Purchases.purchaseStoreProduct({ product });
