@@ -112,7 +112,7 @@ header.nav nav a.btn{min-height:44px;padding:0 18px;font-size:15px;color:var(--c
 .telefono .barra{display:flex;align-items:center;justify-content:space-between;color:var(--crema);font-size:13px;font-weight:500}
 .telefono .obturador{width:72px;height:72px;border-radius:999px;background:var(--naranja);box-shadow:0 0 0 5px rgba(255,243,234,.35)}
 figure{margin:0;display:flex;flex-direction:column;gap:10px}
-figure img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:var(--radio)}
+figure img{width:100%;height:auto;aspect-ratio:4/3;object-fit:cover;border-radius:var(--radio)}
 figcaption{font-size:14px;color:var(--crema-apagado)}
 .demo{aspect-ratio:16/9;border-radius:10px;background:var(--cacao);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
 .demo .halo{position:absolute;inset:0;background:radial-gradient(60% 60% at 50% 50%,#4a3326 0%,#2B1206 100%)}
@@ -193,3 +193,10 @@ html{scroll-behavior:smooth}
 .revelar .demo{opacity:0;transform:translateY(22px) scale(.98);transition:opacity .8s cubic-bezier(.2,.7,.2,1) .2s,transform .8s cubic-bezier(.2,.7,.2,1) .2s}
 .revelar.visto .demo{opacity:1;transform:none}
 @media (prefers-reduced-motion:reduce){.revelar .demo{opacity:1;transform:none;transition:none}}
+
+/* Antes y después, chico y al final (Nati, 22/10): dos fotos discretas antes del cierre */
+.antes-despues{padding:24px 0 64px;display:flex;flex-direction:column;gap:18px}.antes-despues>*{max-width:640px}
+.antes-despues .g2c{gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}
+.antes-despues figure img{aspect-ratio:4/3;border-radius:18px}
+.antes-despues figcaption{font-size:13px;color:var(--apagado)}
+.antes-despues figure:hover img{transform:none}
