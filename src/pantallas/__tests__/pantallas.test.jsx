@@ -33,14 +33,14 @@ describe("Visor", () => {
     con(<Visor videoRef={{ current: null }} saldo={0} esperando={2} />);
     expect(screen.getByText("0 escaneos · 2 esperando")).toBeTruthy();
   });
-  it("con la última captura ofrece otra foto del mismo producto; Catálogo muestra la última foto y abre el catálogo (opción C, 22/10)", () => {
+  it("con la última captura ofrece otra foto del mismo producto; la miniatura abre Este stand y desde ahí el catálogo (22/10)", () => {
     const onAgregarAngulo = vi.fn(), onCatalogo = vi.fn();
     con(<Visor videoRef={{ current: null }} itemsCount={1} ultimaCaptura={FOTO} ultimas={[{ id: 7, foto: FOTO }]} puedeAgregarAngulo onAgregarAngulo={onAgregarAngulo} onCatalogo={onCatalogo} />);
     fireEvent.click(screen.getByRole("button", { name: "Otra foto del mismo producto" }));
     expect(onAgregarAngulo).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Este stand" }));
     fireEvent.click(screen.getByRole("button", { name: "Ir al catálogo" }));
     expect(onCatalogo).toHaveBeenCalled();
-    expect(screen.queryByRole("button", { name: "Este stand" })).toBeNull();
   });
   it("un solo obturador con el selector PRODUCTO · TARJETA: elegir TARJETA abre la cámara de tarjeta y el obturador dice qué hace", () => {
     const onTarjeta = vi.fn(), onVolver = vi.fn();

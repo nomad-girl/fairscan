@@ -14,7 +14,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Icono } from "../componentes/index.js";
+import { Icono, Hoja, Boton } from "../componentes/index.js";
 import { MARCA } from "../sistema/tokens.js";
 
 const VIDRIO = "rgba(10, 14, 23, 0.55)";
@@ -47,6 +47,12 @@ export function Visor({
   const { alturas, movimiento, curvas, duracion, reducido } = useSistema();
   const [presionado, setPresionado] = useState(false);
   const [videoListo, setVideoListo] = useState(false);
+  // 22/10 (Nati): la miniatura vuelve a abrir "Este stand" (los últimos productos con precio rápido, otra foto, borrar),
+  // y desde ahí se va al catálogo. Sin fotos en el stand, la miniatura abre el catálogo directo.
+  const [ultimasAbiertas, setUltimasAbiertas] = useState(false);
+  const [precioEditando, setPrecioEditando] = useState(null);
+  const [precioGuardado, setPrecioGuardado] = useState(null);
+  const precioGuardadoTimer = useRef(null);
   const [miniaturaVuela, setMiniaturaVuela] = useState(false);
   const consejoTimer = useRef(null);
 
@@ -243,14 +249,14 @@ export function Visor({
         style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 3, padding: "18px 18px calc(20px + env(safe-area-inset-bottom, 0px))", display: "flex", alignItems: "flex-end", justifyContent: "space-between", background: "linear-gradient(180deg, rgba(43,18,6,0) 0%, rgba(43,18,6,0.55) 100%)" }}>
         <div style={{ width: 88, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, position: "relative" }}>
           <div style={{ position: "relative", width: alturas.miniatura, height: alturas.miniatura }}>
-            <button type="button" onClick={() => { marcarGuiaVista(); onCatalogo?.(); }} aria-label={t("visor.irAlCatalogo")} style={{ width: alturas.miniatura, height: alturas.miniatura, borderRadius: 14, border: "2px solid rgba(255,255,255,0.8)", background: "rgba(241,245,249,0.14)", padding: 0, overflow: "hidden", cursor: "pointer", display: "block", position: "relative" }}>
+            <button type="button" onClick={() => { marcarGuiaVista(); if (itemsCount > 0 && ultimas.length) setUltimasAbiertas(true); else onCatalogo?.(); }} aria-label={itemsCount > 0 && ultimas.length ? t("visor.ultimasFotos") : t("visor.irAlCatalogo")} style={{ width: alturas.miniatura, height: alturas.miniatura, borderRadius: 14, border: "2px solid rgba(255,255,255,0.8)", background: "rgba(241,245,249,0.14)", padding: 0, overflow: "hidden", cursor: "pointer", display: "block", position: "relative" }}>
               {(ultimaCaptura || ultimas[0]?.foto)
                 ? <img src={ultimaCaptura || ultimas[0]?.foto} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block", transform: miniaturaVuela && !reducido ? "scale(0.9)" : "none", transition: `transform ${duracion(movimiento.obturador.miniatura)}ms ${curvas.salida}` }} />
                 : <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}><Icono nombre="foto" tamano={22} color={BLANCO} /></span>}
             </button>
             {itemsCount > 0 && <span aria-label={t("visor.enEsteStand", { count: itemsCount })} style={{ position: "absolute", right: -9, top: -9, minWidth: 24, height: 24, padding: "0 7px", borderRadius: 12, background: MARCA.sello, color: MARCA.cacao, fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", fontVariantNumeric: "tabular-nums", boxShadow: "0 1px 3px rgba(0,0,0,0.35)", pointerEvents: "none" }}>{itemsCount}</span>}
           </div>
-          <span aria-hidden style={{ fontSize: 11, fontWeight: 700, color: BLANCO, letterSpacing: "0.05em", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>{t("visor.catalogo").toUpperCase()}</span>
+          <span aria-hidden style={{ fontSize: 11, fontWeight: 700, color: BLANCO, letterSpacing: "0.05em", textShadow: "0 1px 3px rgba(0,0,0,0.6)", whiteSpace: "nowrap" }}>{(itemsCount > 0 && ultimas.length ? t("visor.ultimasFotos") : t("visor.catalogo")).toUpperCase()}</span>
           {puedeAgregarAngulo && !esTarjeta && !modoAngulo && (
             <button type="button" onClick={onAgregarAngulo} aria-label={t("visor.agregarAngulo")} style={{ position: "absolute", top: -34, left: "50%", transform: "translateX(-50%)", minHeight: 24, padding: "0 8px", borderRadius: 12, border: "none", background: MARCA.sello, color: MARCA.cacao, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", cursor: "pointer", fontFamily: "inherit" }}>{t("visor.masAngulo")}</button>
           )}
@@ -277,6 +283,43 @@ export function Visor({
         <div style={{ width: 88 }} />
       </div>
 
+      {/* Este stand (Nati, 23/09): los últimos productos, y por cada uno otra foto, precio o borrar; abajo, cerrar el stand */}
+      <Hoja abierta={ultimasAbiertas} onCerrar={() => setUltimasAbiertas(false)} titulo={standAbierto?.nombre ? `${standAbierto.nombre} · ${t("cantidades.fotos", { count: itemsCount })}` : t("visor.ultimasFotos")} altura="completa">
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {ultimas.map((u, i) => (
+            <div key={u.id ?? i} style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <img src={u.foto} alt="" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 12, display: "block", flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+                {precioEditando === u.id ? (
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 40, background: precioGuardado === u.id ? "#DCFCE7" : "#F1F5F9", borderRadius: 10, padding: "0 10px", transition: "background 250ms ease" }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#64748B" }}>{moneda}</span>
+                    <input autoFocus type="text" inputMode="decimal" enterKeyHint="done" defaultValue={u.precio || ""} aria-label={t("visor.aCuantoEstaba")}
+                      onChange={e => { const v = e.target.value.replace(/,/g, ".").replace(/[^0-9.]/g, "").slice(0, 8); e.target.value = v; onCambiarPrecioDe?.(u.id, v); clearTimeout(precioGuardadoTimer.current); precioGuardadoTimer.current = setTimeout(() => { setPrecioGuardado(u.id); setTimeout(() => setPrecioGuardado(null), 1200); }, 450); }}
+                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); setPrecioEditando(null); } }}
+                      onBlur={() => setPrecioEditando(null)}
+                      style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", fontSize: 17, fontWeight: 700, color: "#0F172A", fontFamily: "inherit", outline: "none" }} />
+                    {precioGuardado === u.id && <Icono nombre="listo" tamano={16} color="#15803D" />}
+                  </label>
+                ) : (
+                  <span style={{ fontSize: 14, fontWeight: 600, color: u.precio ? "#0F172A" : "#64748B" }}>{u.precio ? `${moneda} ${u.precio}` : t("visor.sinPrecioCorto")}{u.fotos > 1 ? <span style={{ fontWeight: 400, color: "#64748B" }}> · {t("cantidades.fotos", { count: u.fotos })}</span> : null}</span>
+                )}
+                <div style={{ display: "flex", gap: 6 }}>
+                  <Boton variante="secundario" icono="camara" onClick={() => { setUltimasAbiertas(false); onAgregarFotoA?.(u.id); }}>{t("visor.masFoto")}</Boton>
+                  <Boton variante="secundario" onClick={() => setPrecioEditando(u.id)}>{t("visor.precio")}</Boton>
+                  <Boton variante="fantasma" icono="borrar" etiqueta={t("visor.borrarFoto")} onClick={() => { onBorrarFoto?.(u.id); if (ultimas.length <= 1) setUltimasAbiertas(false); }} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+          {onListoStand && <Boton variante="principal" ancho="total" icono="listo" onClick={() => { setUltimasAbiertas(false); onListoStand(); }}>{t("visor.listoStand")}</Boton>}
+          <div style={{ display: "flex", gap: 8 }}>
+            <Boton variante="secundario" ancho="total" icono="proveedor" onClick={() => { setUltimasAbiertas(false); onStand?.(); }} estilo={{ flex: 1 }}>{t("visor.verProveedor")}</Boton>
+            <Boton variante="secundario" ancho="total" icono="foto" onClick={() => { setUltimasAbiertas(false); onCatalogo?.(); }} estilo={{ flex: 1 }}>{t("visor.irAlCatalogo")}</Boton>
+          </div>
+        </div>
+      </Hoja>
     </div>
   );
 }
