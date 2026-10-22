@@ -532,7 +532,8 @@ const decodeQR = async (source) => {
       if (code3?.data) return code3.data;
       return null;
     };
-    for (const maxQR of [1600, 1200, 800]) {
+    for (const maxQR of [1000, 640]) { // 22/10: antes 1600/1200/800; en Android lento tardaba segundos y congelaba el velo blanco
+      await new Promise(r => setTimeout(r, 0)); // deja respirar a la pantalla entre pasadas
       let w = img.width, h = img.height;
       if (w > h && w > maxQR) { h = h * maxQR / w; w = maxQR; }
       else if (h > maxQR) { w = w * maxQR / h; h = maxQR; }
@@ -924,7 +925,9 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
       // esta tarjeta casi seguro es del stand siguiente: la app lo propone y la usuaria decide (23/09).
       if (cardPhoto && items.length > 0) { setTarjetaPendiente(photo); setCameraMode("product"); return; }
       setCardPhoto(photo);
-      processCardPhoto(photo);
+      // 22/10 (Nati, Android: "la pantalla blanca queda mucho tiempo"): el QR se busca recién cuando el velo del
+      // obturador ya se fue; si no, el hilo queda ocupado y el blanco se congela en pantalla.
+      setTimeout(() => processCardPhoto(photo), 250);
       setCameraMode("product");
     } else if (cameraMode === "product") {
       if (addPhotoToItemId) {

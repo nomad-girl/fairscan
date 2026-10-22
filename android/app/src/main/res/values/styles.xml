@@ -16,7 +16,13 @@
     </style>
 
 
+    <!-- 22/10 (Nati: "en Android no se ve el logo al abrir"): Android 12+ dibuja su propio arranque y solo lee estos
+         tres atributos; sin ellos mostraba el fondo por defecto sin nuestro ícono. Después sigue el splash del plugin
+         (@drawable/splash, la marca sobre cacao) durante 1,1 s, como en iPhone. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#2B1206</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
         <item name="android:background">@drawable/splash</item>
     </style>
 </resources>
