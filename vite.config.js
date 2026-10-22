@@ -49,6 +49,11 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+          // La landing, el blog y las páginas legales no son la app: si el service
+          // worker las precachea, cada visitante que ya abrió fairscan.app sigue
+          // viendo la versión vieja hasta que el SW se actualiza (22/10/2026, Nati
+          // vio la landing sin los cambios recién desplegados). Van siempre a la red.
+          globIgnores: ['es/**', 'en/**', 'pt/**', 'blog/**', 'landing/**', 'soporte/**', 'privacidad/**', 'terminos/**', 'privacidad.html', 'terminos.html'],
           // Don't cache API or Supabase calls in precache
           navigateFallback: '/index.html',
           // Las páginas legales (/privacidad, /terminos, /soporte) son HTML estático:

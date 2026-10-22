@@ -153,7 +153,18 @@ footer.pie .legal{margin-top:16px;font-size:13px;color:var(--crema-tenue)}
 
 /* ── Movimiento (22/10): sutil, una sola idea. Las secciones entran con un fundido corto; las tarjetas suben 2 px al pasar;
       el teléfono del hero respira. Con "reducir movimiento" todo queda quieto. ── */
-.revelar{opacity:0;transform:translateY(14px);transition:opacity .55s cubic-bezier(.2,.7,.2,1),transform .55s cubic-bezier(.2,.7,.2,1)}
+.revelar{opacity:0;transform:translateY(28px);transition:opacity .8s cubic-bezier(.2,.7,.2,1),transform .8s cubic-bezier(.2,.7,.2,1)}
+.revelar .g3>*,.revelar .g2c>*,.revelar .pantallas>figure{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+.revelar.visto .g3>*,.revelar.visto .g2c>*,.revelar.visto .pantallas>figure{opacity:1;transform:none}
+.revelar.visto .g3>*:nth-child(2),.revelar.visto .g2c>*:nth-child(2),.revelar.visto .pantallas>figure:nth-child(2){transition-delay:.12s}
+.revelar.visto .g3>*:nth-child(3),.revelar.visto .g2c>*:nth-child(3),.revelar.visto .pantallas>figure:nth-child(3){transition-delay:.24s}
+.revelar.visto .g2c>*:nth-child(4){transition-delay:.36s}
+/* Entrada del hero al cargar: el texto sube, el teléfono entra desde abajo girado apenas y se endereza (el gesto de la marca) */
+@keyframes entraTexto{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@keyframes entraTelefono{from{opacity:0;transform:translateY(60px) rotate(-6deg)}to{opacity:1;transform:translateY(0) rotate(0)}}
+#inicio .col>*,#top .col>*{animation:entraTexto .7s cubic-bezier(.2,.7,.2,1) both}
+#inicio .col>*:nth-child(2),#top .col>*:nth-child(2){animation-delay:.08s}#inicio .col>*:nth-child(3),#top .col>*:nth-child(3){animation-delay:.16s}#inicio .col>*:nth-child(4),#top .col>*:nth-child(4){animation-delay:.24s}#inicio .col>*:nth-child(5),#top .col>*:nth-child(5){animation-delay:.32s}
+.telefono-wrap{animation:entraTelefono .9s cubic-bezier(.2,.7,.2,1) .15s both}
 .revelar.visto{opacity:1;transform:none}
 .card,.rasgo,.caja-oscura{transition:transform .25s cubic-bezier(.2,.7,.2,1),box-shadow .25s cubic-bezier(.2,.7,.2,1)}
 .card:hover{transform:translateY(-2px);box-shadow:0 1px 2px rgba(43,18,6,.06),0 14px 28px -14px rgba(43,18,6,.25)}
@@ -173,4 +184,12 @@ html{scroll-behavior:smooth}
 .pantallas figcaption{font-size:15px;color:var(--apagado);max-width:28ch;line-height:1.45}
 .pantallas figcaption b{display:block;font-family:var(--marca);font-weight:800;font-size:19px;letter-spacing:-.02em;color:var(--texto);margin-bottom:4px}
 @media (max-width:860px){.pantallas{grid-template-columns:1fr;gap:36px}}
-@media (prefers-reduced-motion:reduce){.revelar{opacity:1;transform:none;transition:none}.telefono.flota{animation:none}.card:hover,.caja-oscura:hover,.btn:hover{transform:none}figure:hover img{transform:none}html{scroll-behavior:auto}}
+@media (prefers-reduced-motion:reduce){.revelar,.revelar .g3>*,.revelar .g2c>*,.revelar .pantallas>figure{opacity:1;transform:none;transition:none}.telefono.flota,.telefono-wrap,#inicio .col>*,#top .col>*{animation:none}.card:hover,.caja-oscura:hover,.btn:hover{transform:none}figure:hover img{transform:none}html{scroll-behavior:auto}}
+
+/* Demo: video 16:9 generado desde capturas reales (Remotion), en silencio y en bucle */
+.demo{margin:36px 0 0;display:flex;flex-direction:column;gap:14px}
+.demo video{display:block;width:100%;height:auto;border-radius:28px;background:var(--cacao);box-shadow:0 36px 70px -36px rgba(43,18,6,.5)}
+.demo figcaption{font-size:14px;color:var(--apagado);text-align:center;letter-spacing:.02em}
+.revelar .demo{opacity:0;transform:translateY(22px) scale(.98);transition:opacity .8s cubic-bezier(.2,.7,.2,1) .2s,transform .8s cubic-bezier(.2,.7,.2,1) .2s}
+.revelar.visto .demo{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.revelar .demo{opacity:1;transform:none;transition:none}}
