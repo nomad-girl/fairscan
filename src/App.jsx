@@ -1311,6 +1311,12 @@ function SettingsScreen({ onCamara, settings, onSave, onBack, sync, t, products,
   // Novedades por mail (pieza 1.15): se lee del perfil. null = no consintió; una
   // fecha = cuándo lo hizo. La baja es un toque: vuelve a null.
   const [marketingOptInAt, setMarketingOptInAt] = useState(undefined);
+  // 22/10: la versión de la tienda (1.5.1 (7)) delante del commit de la parte web, para que coincida con Ajustes del teléfono.
+  const [versionNativa, setVersionNativa] = useState("");
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    import("@capacitor/app").then(({ App: CapApp }) => CapApp.getInfo()).then(i => setVersionNativa(`${i.version} (${i.build})`)).catch(() => {});
+  }, []);
   useEffect(() => {
     if (!supabase || !userId) return;
     let alive = true;
@@ -1976,7 +1982,7 @@ function SettingsScreen({ onCamara, settings, onSave, onBack, sync, t, products,
             {tx("configuracion.borrarMiCuenta")}
           </button>}
 
-          <p style={{ fontSize:11, color:t.dim, textAlign:"center", margin:"18px 0 6px", fontVariantNumeric:"tabular-nums" }}>{tx("configuracion.version", { version: typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev" })}</p>
+          <p style={{ fontSize:11, color:t.dim, textAlign:"center", margin:"18px 0 6px", fontVariantNumeric:"tabular-nums" }}>{tx("configuracion.version", { version: (versionNativa ? `${versionNativa} · ` : "") + (typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev") })}</p>
           {/* Legales (pieza 10.0). Direcciones absolutas a propósito: en la app
               nativa no hay "sitio", así que un link relativo no llevaría a ningún lado. */}
           <p style={{ fontSize: 12, color: t.dim, margin: '18px 0 0', textAlign: 'center', lineHeight: 1.8 }}>
