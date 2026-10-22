@@ -190,35 +190,35 @@ export function Visor({
         const hecho = (k) => !!listos[k] || (!!datos.valores[k] && k !== campo);
         const mostrarChips = campos.length > 1; // siempre a la vista (boceto de Nati, 23/09): se sabe qué se puede cargar; precio por defecto
         const elegir = (k) => { inputDatoRef.current?.focus(); onCampo?.(k); };
-        const abajo = alturaTeclado > 0 ? `calc(${alturaTeclado + 10}px)` : `calc(150px + env(safe-area-inset-bottom, 0px))`;
+        const abajo = alturaTeclado > 0 ? `calc(${alturaTeclado + 10}px)` : `calc(196px + env(safe-area-inset-bottom, 0px))`;
         const cerrarBarra = () => { inputDatoRef.current?.blur(); onConfirmarPrecio?.(); };
         let y0 = null;
         const alTocar = e => { y0 = e.touches?.[0]?.clientY ?? null; };
         const alSoltar = e => { const y1 = e.changedTouches?.[0]?.clientY; if (y0 !== null && y1 !== undefined && y1 - y0 > 40) cerrarBarra(); y0 = null; };
         return (
-          <div onClick={e => e.stopPropagation()} onTouchStart={alTocar} onTouchEnd={alSoltar} role="dialog" aria-label={t("visor.datosDelUltimo")} style={{ position: "absolute", left: 12, right: 12, bottom: abajo, zIndex: 5, background: "rgba(255,255,255,0.97)", color: "#0F172A", borderRadius: 16, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6, boxShadow: "0 10px 30px -12px rgba(0,0,0,0.45)" }}>
-            <div aria-label={t("visor.agarradera")} style={{ width: 36, height: 4, borderRadius: 2, background: "#CBD5E1", margin: "-2px auto 0" }} />
+          <div onClick={e => e.stopPropagation()} onTouchStart={alTocar} onTouchEnd={alSoltar} role="dialog" aria-label={t("visor.datosDelUltimo")} style={{ position: "absolute", left: 12, right: 12, bottom: abajo, zIndex: 5, background: "rgba(43,18,6,0.88)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", color: BLANCO, borderRadius: 16, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6, boxShadow: "0 10px 30px -12px rgba(0,0,0,0.45)" }}>
+            <div aria-label={t("visor.agarradera")} style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,243,234,0.35)", margin: "-2px auto 0" }} />
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <label style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, minHeight: 44, background: campoGuardado === campo ? "#DCFCE7" : "#F1F5F9", borderRadius: 12, padding: "0 12px", transition: "background 250ms ease" }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "#64748B", whiteSpace: "nowrap" }}>{campo === "price" ? moneda : etiquetaDe[campo]}</span>
+              <label style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, minHeight: 44, background: campoGuardado === campo ? "rgba(34,197,94,0.25)" : "rgba(255,243,234,0.12)", borderRadius: 12, padding: "0 12px", transition: "background 250ms ease" }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: BLANCO_SUAVE, whiteSpace: "nowrap" }}>{campo === "price" ? moneda : etiquetaDe[campo]}</span>
                 <input ref={inputDatoRef} type="text" inputMode="decimal" enterKeyHint="done" value={valor} placeholder={campo === "price" ? t("visor.aCuanto") : ""} aria-label={campo === "price" ? t("visor.aCuantoEstaba") : etiquetaDe[campo]}
                   onChange={e => onEscribirDato?.(campo, e.target.value.replace(/,/g, ".").replace(/[^0-9.]/g, "").slice(0, 8))}
                   onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
-                  style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", fontSize: 18, fontWeight: 700, color: "#0F172A", fontFamily: "inherit", outline: "none", fontVariantNumeric: "tabular-nums" }} />
-                {campo === "cbmPorCaja" && <span style={{ fontSize: 12, color: "#64748B" }}>CBM</span>}
-                {campoGuardado === campo && <span role="status" aria-label={t("visor.guardado")} style={{ display: "grid", placeItems: "center", width: 22, height: 22, borderRadius: 11, background: "#15803D", animation: "fairscanGuardado 1.2s ease-out both" }}><Icono nombre="listo" tamano={14} color="#fff" /></span>}
+                  style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", fontSize: 18, fontWeight: 700, color: "#fff", fontFamily: "inherit", outline: "none", fontVariantNumeric: "tabular-nums" }} />
+                {campo === "cbmPorCaja" && <span style={{ fontSize: 12, color: BLANCO_SUAVE }}>CBM</span>}
+                {campoGuardado === campo && <span role="status" aria-label={t("visor.guardado")} style={{ display: "grid", placeItems: "center", width: 22, height: 22, borderRadius: 11, background: "#86EFAC", animation: "fairscanGuardado 1.2s ease-out both" }}><Icono nombre="listo" tamano={14} color="#fff" /></span>}
               </label>
               <button type="button" onClick={cerrarBarra} aria-label={t("visor.cerrarBarra")} style={{ width: 36, height: 44, border: "none", background: "transparent", display: "grid", placeItems: "center", cursor: "pointer", padding: 0, order: 3 }}><Icono nombre="cerrar" tamano={20} color="#94A3B8" /></button>
               {(
                 <button type="button" onClick={onFavorito} aria-pressed={!!datos.favorito} aria-label={datos.favorito ? t("visor.quitarFavorito") : t("visor.marcarFavorito")} style={{ width: 44, height: 44, borderRadius: 12, border: `1px solid ${datos.favorito ? MARCA.naranja : "#DCE3EC"}`, background: datos.favorito ? "rgba(234,90,34,0.12)" : "#FFFFFF", display: "grid", placeItems: "center", cursor: "pointer" }}>
-                  <Icono nombre="favorito" tamano={20} color={datos.favorito ? MARCA.cacao : "#5A3522"} relleno={datos.favorito ? MARCA.sello : undefined} />
+                  <Icono nombre="favorito" tamano={20} color={datos.favorito ? MARCA.cacao : BLANCO_SUAVE} relleno={datos.favorito ? MARCA.sello : undefined} />
                 </button>
               )}
             </div>
             {campo === "moq" && (
-              <div role="radiogroup" aria-label={t("visor.campoMoq")} style={{ display: "flex", gap: 2, padding: 3, borderRadius: 10, background: "#E5E7EB" }}>
+              <div role="radiogroup" aria-label={t("visor.campoMoq")} style={{ display: "flex", gap: 2, padding: 3, borderRadius: 10, background: "rgba(255,243,234,0.12)" }}>
                 {[["producto", t("visor.basePorProducto")], ["caja", t("visor.basePorCaja")], ["pedido", t("visor.basePorPedido")]].map(([b, etiqueta]) => (
-                  <button key={b} type="button" role="radio" aria-checked={datos.moqBase === b} onClick={() => onMoqBase?.(b)} style={{ flex: 1, minHeight: 30, borderRadius: 8, border: "none", background: datos.moqBase === b ? "#FFFFFF" : "transparent", boxShadow: datos.moqBase === b ? "0 1px 3px rgba(0,0,0,0.15)" : "none", color: datos.moqBase === b ? "#0F172A" : "#64748B", fontSize: 12, fontWeight: datos.moqBase === b ? 700 : 500, cursor: "pointer", fontFamily: "inherit" }}>{etiqueta}</button>
+                  <button key={b} type="button" role="radio" aria-checked={datos.moqBase === b} onClick={() => onMoqBase?.(b)} style={{ flex: 1, minHeight: 30, borderRadius: 8, border: "none", background: datos.moqBase === b ? MARCA.sello : "transparent", boxShadow: "none", color: datos.moqBase === b ? MARCA.cacao : BLANCO_SUAVE, fontSize: 12, fontWeight: datos.moqBase === b ? 700 : 500, cursor: "pointer", fontFamily: "inherit" }}>{etiqueta}</button>
                 ))}
               </div>
             )}
@@ -228,7 +228,7 @@ export function Visor({
                     la activa en negrita con una raya naranja; un puntito verde en las que ya tienen dato */}
                 {campos.map(([k, etiqueta]) => {
                   const activo = k === campo; const ok = hecho(k);
-                  return <button key={k} type="button" role="tab" aria-selected={activo} onClick={() => elegir(k)} style={{ minHeight: 32, padding: "0 4px 4px", border: "none", borderBottom: `2px solid ${activo ? MARCA.naranja : "transparent"}`, background: "transparent", color: activo ? "#0F172A" : "#64748B", fontSize: 13, fontWeight: activo ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 }}>{etiqueta}{ok && !activo && <span aria-hidden style={{ display: "inline-block", width: 6, height: 6, borderRadius: 3, background: "#15803D" }} />}</button>;
+                  return <button key={k} type="button" role="tab" aria-selected={activo} onClick={() => elegir(k)} style={{ minHeight: 32, padding: "0 4px 4px", border: "none", borderBottom: `2px solid ${activo ? MARCA.sello : "transparent"}`, background: "transparent", color: activo ? "#fff" : BLANCO_SUAVE, fontSize: 13, fontWeight: activo ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 }}>{etiqueta}{ok && !activo && <span aria-hidden style={{ display: "inline-block", width: 6, height: 6, borderRadius: 3, background: "#86EFAC" }} />}</button>;
                 })}
               </div>
             )}
@@ -257,7 +257,7 @@ export function Visor({
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-          <div role="tablist" aria-label={t("visor.queEscanear")} style={{ display: "flex", gap: 22 }}>
+          <div role="tablist" aria-label={t("visor.queEscanear")} style={{ display: "flex", gap: 22, visibility: datos && !esTarjeta ? "hidden" : "visible" }}>
             {[["product", t("visor.modoProducto")], ["card", t("visor.modoTarjeta")]].map(([m, etiqueta]) => { const activo = (m === "card") === esTarjeta; return (
               <button key={m} type="button" role="tab" aria-selected={activo} onClick={() => cambiarModo(m)} style={{ minHeight: 28, padding: "0 2px 4px", border: "none", borderBottom: `2px solid ${activo ? MARCA.sello : "transparent"}`, background: "transparent", color: activo ? MARCA.sello : BLANCO_SUAVE, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", fontFamily: "inherit", cursor: "pointer", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>{etiqueta}</button>
             ); })}
