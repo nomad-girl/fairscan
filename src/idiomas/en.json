@@ -48,7 +48,7 @@
     }
   },
   "visor": {
-    "guiaUnica": "Take a photo of a product. Whenever you want, tap «Card» to scan the supplier's.",
+    "guiaUnica": "Tap the button to scan a product. For the supplier's card, pick CARD above the button.",
     "escaneosDePrueba": "{{count}} of {{total}} trial scans",
     "escaneos": "{{count}} scans",
     "sinEscaneos": "0 scans · {{count}} waiting",
@@ -134,7 +134,17 @@
     "rotuloTarjeta": "Card",
     "guiaTitulo": "How the camera works",
     "guiaProducto": "Take a photo of a product",
-    "guiaTarjeta": "The supplier's card goes here, whenever you want"
+    "guiaTarjeta": "The supplier's card goes here, whenever you want",
+    "modoProducto": "PRODUCT",
+    "modoTarjeta": "CARD",
+    "queEscanear": "What to scan",
+    "escaneaProducto": "Scan a product",
+    "escaneaTarjeta": "Scan a card",
+    "encuadraTitulo": "Frame the card",
+    "encuadraSub": "It reads itself. The contacts stay in this booth.",
+    "seguisDespues": "Then you keep shooting products",
+    "empezarOtro": "Start another",
+    "retomado": "You're back in the booth from {{hace}}"
   },
   "cerrarStand": {
     "titulo": "Close booth",

@@ -14,7 +14,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Icono, Hoja, Boton } from "../componentes/index.js";
+import { Icono } from "../componentes/index.js";
 import { MARCA } from "../sistema/tokens.js";
 
 const VIDRIO = "rgba(10, 14, 23, 0.55)";
@@ -40,16 +40,13 @@ export function Visor({
   onAgregarFotoA, onPrecioDe, onListoStand, onCambiarPrecioDe, // la hoja "Este stand": por producto, otra foto, precio, borrar; y cerrar el stand // la barra del pulgar y el modo "otra foto del mismo producto"
   standAbierto = null, onStand, onTarjeta, // el stand: { nombre, fotos, tieneTarjeta, leyendo }; la pastilla lo abre, Cerrar stand también
   consejoVisible = false, onConsejoVisto,
+  avisoRetomado = null, // "Seguís en el stand de …" cuando la app retomó sola un stand abierto (22/10)
   onTouchStart, onTouchEnd,
 }) {
   const { t } = useTranslation();
   const { alturas, movimiento, curvas, duracion, reducido } = useSistema();
   const [presionado, setPresionado] = useState(false);
   const [videoListo, setVideoListo] = useState(false);
-  const [ultimasAbiertas, setUltimasAbiertas] = useState(false);
-  const [precioEditando, setPrecioEditando] = useState(null); // en la hoja "Este stand": qué producto tiene el precio abierto
-  const [precioGuardado, setPrecioGuardado] = useState(null);
-  const precioGuardadoTimer = useRef(null);
   const [miniaturaVuela, setMiniaturaVuela] = useState(false);
   const consejoTimer = useRef(null);
 
@@ -75,6 +72,8 @@ export function Visor({
   }, [consejoVisible]);
 
   const esTarjeta = modo === "card";
+  const barraX = useRef(null);
+  const cambiarModo = (m) => { marcarGuiaVista(); if (m === "card" && !esTarjeta) onTarjeta?.(); if (m === "product" && esTarjeta) onVolverAProductos?.(); };
   const textoSaldo = saldo === null ? null
     : saldo <= 0 ? t("visor.sinEscaneos", { count: esperando })
     : saldo <= trial ? t("visor.escaneosDePrueba", { count: saldo, total: trial })
@@ -122,6 +121,20 @@ export function Visor({
           {textoSaldo && saldoBajo && !esTarjeta && <Pastilla tono="alerta">{textoSaldo}</Pastilla>}
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {/* Opción C (Nati, 22/10): el stand abierto vive arriba a la derecha; tocarlo abre la hoja del stand.
+              La tarjeta ya no es una pastilla sobre el obturador: es un modo del obturador. */}
+          {standAbierto && !modoAngulo && (standAbierto.fotos > 0 || standAbierto.tieneTarjeta || standAbierto.leyendo) && (() => {
+            const n = standAbierto.fotos || 0; const conNombre = !!standAbierto.nombre;
+            const texto = standAbierto.leyendo ? t("visor.leyendoTarjeta")
+              : conNombre ? t("visor.standConNombre", { nombre: standAbierto.nombre, count: n })
+              : standAbierto.tieneTarjeta ? (n === 0 ? t("visor.standTarjetaSinLeer_zero") : t("visor.standTarjetaSinLeer", { count: n }))
+              : t("visor.standSinTarjeta", { count: n });
+            return (
+              <button type="button" onClick={() => onStand?.()} aria-label={t("visor.abrirStand")} style={{ maxWidth: "56vw", minHeight: 32, padding: "0 12px 0 10px", borderRadius: 999, border: "none", background: VIDRIO, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", color: BLANCO, fontSize: 12, fontWeight: 600, fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                <Icono nombre={conNombre ? "proveedor" : "camara"} tamano={14} color={MARCA.sello} /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{texto}</span>
+              </button>
+            );
+          })()}
           {estadoSync === "falla" && <Pastilla><span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, background: colorPunto, display: "inline-block" }} /><span style={{ fontSize: 12, fontWeight: 500, color: BLANCO_SUAVE }}>{textoSync}</span></Pastilla>}
           {/* 27/09: el botón de Catálogo pasó abajo, junto al obturador, grande y con nombre */}
           {false && <button type="button" onClick={onCatalogo} aria-label={t("visor.irAlCatalogo")} style={{ minHeight: 40, padding: "0 14px 0 12px", borderRadius: 999, border: "none", background: "rgba(43,18,6,0.55)", color: BLANCO, fontSize: 14, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontFamily: "inherit", backdropFilter: "blur(8px)" }}><Icono nombre="foto" tamano={18} color={BLANCO} />{t("visor.catalogo")}</button>}
@@ -135,38 +148,27 @@ export function Visor({
           <span style={{ background: "rgba(43,18,6,0.7)", color: "#fff", borderRadius: 999, padding: "12px 18px", fontSize: 15, fontWeight: 600, textAlign: "center", backdropFilter: "blur(8px)" }}>{t("visor.otraFotoMismo")}</span>
         </div>
       )}
-      {standAbierto && !esTarjeta && !modoAngulo && (() => {
-        const n = standAbierto.fotos || 0;
-        const conNombre = standAbierto.tieneTarjeta && !!standAbierto.nombre;
-        const sinTarjeta = !standAbierto.tieneTarjeta && !standAbierto.leyendo;
-        const texto = standAbierto.leyendo ? `${t("visor.leyendoTarjeta")}${n ? ` · ${t("cantidades.fotos", { count: n })}` : ""}`
-          : conNombre ? t("visor.standConNombre", { nombre: standAbierto.nombre, count: n })
-          : standAbierto.tieneTarjeta ? (n === 0 ? t("visor.standTarjetaSinLeer_zero") : t("visor.standTarjetaSinLeer", { count: n }))
-          : n === 0 ? t("visor.escanearTarjeta")
-          : t("visor.escanearTarjetaConFotos", { count: n });
-        // 30/09 (Nati: "con una mano se queda lejos"): la pastilla estaba arriba de todo; ahora vive justo encima del
-        // obturador, donde llega el pulgar. Es la misma pastilla: escanear la tarjeta si no hay, o abrir el stand.
-        return (
-          <div style={{ position: "absolute", bottom: "calc(env(safe-area-inset-bottom, 0px) + 152px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "center" }}>
-            <button type="button" onClick={() => { marcarGuiaVista(); (sinTarjeta ? onTarjeta : onStand)?.(); }} aria-label={sinTarjeta ? t("visor.escanearTarjeta") : t("visor.abrirStand")} style={{ maxWidth: "100%", minHeight: 50, padding: "0 20px", borderRadius: 999, border: sinTarjeta ? "1.5px solid rgba(255,255,255,0.75)" : "none", background: "rgba(43,18,6,0.7)", boxShadow: "none", color: "#fff", fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", overflow: "hidden", backdropFilter: "blur(8px)" }}>
-              {/* Sin tarjeta, la pastilla es naranja y con el ícono de tarjeta (Nati, 27/09: "que sea más llamativo") */}
-              <Icono nombre={conNombre ? "proveedor" : "tarjeta"} tamano={18} color="#fff" /><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{texto}</span>{!sinTarjeta && <Icono nombre="siguiente" tamano={14} color="rgba(255,255,255,0.8)" />}
-            </button>
-          </div>
-        );
-      })()}
 
       {/* Modo tarjeta: guía */}
       {esTarjeta && (
         <>
-          <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 60px)", left: 0, right: 0, zIndex: 3, display: "flex", justifyContent: "center" }}>
-            <Pastilla><Icono nombre="tarjeta" tamano={16} color={BLANCO} />{t("visor.buscandoTarjeta")}</Pastilla>
+          <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 64px)", left: 24, right: 24, zIndex: 3, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, textAlign: "center" }}>
+            <span style={{ fontFamily: "'Bricolage Grotesque', inherit", fontWeight: 800, fontSize: 22, letterSpacing: "-0.02em", color: "#fff", textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>{t("visor.encuadraTitulo")}</span>
+            <span style={{ fontSize: 13, color: BLANCO_SUAVE, textShadow: "0 1px 3px rgba(0,0,0,0.5)" }}>{t("visor.encuadraSub")}</span>
           </div>
           <div aria-hidden style={{ position: "absolute", left: "8%", right: "8%", top: "30%", aspectRatio: "1.75", border: `2px dashed ${MARCA.sello}`, borderRadius: 14, zIndex: 3, pointerEvents: "none" }} />
-          <div style={{ position: "absolute", left: 14, right: 14, top: "calc(30% + 46vw + 14px)", zIndex: 3, textAlign: "center" }}>
-            <span style={{ fontSize: 13, color: BLANCO_SUAVE }}>{t("visor.encuadraLaTarjeta")}</span>
+          <div style={{ position: "absolute", left: 14, right: 14, top: "calc(30% + 48vw + 18px)", zIndex: 3, display: "flex", justifyContent: "center" }}>
+            <Pastilla><Icono nombre="camara" tamano={14} color={BLANCO} />{t("visor.seguisDespues")}</Pastilla>
           </div>
         </>
+      )}
+
+      {avisoRetomado && !esTarjeta && (
+        <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 60px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "center" }}>
+          <button type="button" onClick={() => onStand?.()} style={{ display: "inline-flex", alignItems: "center", gap: 8, minHeight: 36, padding: "0 14px", borderRadius: 999, border: "none", background: MARCA.sello, color: MARCA.cacao, fontSize: 13, fontWeight: 700, fontFamily: "inherit", cursor: "pointer" }}>
+            {avisoRetomado}<span style={{ fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 3 }}>{t("visor.empezarOtro")}</span>
+          </button>
+        </div>
       )}
 
       {/* Consejo en contexto (una vez en la vida) */}
@@ -234,98 +236,43 @@ export function Visor({
         );
       })()}
 
-      {/* Abajo: miniatura · obturador · cerrar stand */}
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 3, padding: "24px 22px calc(22px + env(safe-area-inset-bottom, 0px))", display: "flex", alignItems: "center", justifyContent: "space-between", background: "linear-gradient(transparent, rgba(0,0,0,0.7))" }}>
-        {/* Izquierda: última captura + "+ ángulo" (o Catálogo si no hay captura) */}
-        <div style={{ width: 84, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, position: "relative" }}>
-          {esTarjeta ? (
-            <button type="button" onClick={onVolverAProductos || onCancelar} style={{ minWidth: alturas.miniatura, height: alturas.miniatura, padding: "0 10px", borderRadius: 14, border: "none", background: "rgba(241,245,249,0.14)", color: BLANCO, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 6 }}><Icono nombre="camara" tamano={16} color={BLANCO} />{t("visor.productos")}</button>
-          ) : ultimaCaptura || ultimas.length ? (
-            <>
-              <button type="button" onClick={() => setUltimasAbiertas(true)} aria-label={t("visor.ultimasFotos")} style={{ width: alturas.miniatura, height: alturas.miniatura, borderRadius: 12, border: modoAngulo ? `2px solid ${MARCA.naranja}` : "2px solid #fff", padding: 0, overflow: "hidden", background: "#111", cursor: "pointer", transform: miniaturaVuela && !reducido ? "scale(1.12)" : "scale(1)", transition: `transform ${duracion(movimiento.obturador.miniatura)}ms ${curvas.entra}` }}>
-                <img src={ultimaCaptura || ultimas[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-              </button>
-              {puedeAgregarAngulo && !esTarjeta && !modoAngulo && (
-                <button type="button" onClick={onAgregarAngulo} aria-label={t("visor.agregarAngulo")} style={{ position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)", minHeight: 24, padding: "0 8px", borderRadius: 999, border: "1.5px solid #fff", background: MARCA.naranja, color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit" }}>{t("visor.otraFoto")}</button>
-              )}
-            </>
-          ) : (
-            <button type="button" onClick={onCatalogo} aria-label={t("visor.catalogo")} style={{ width: alturas.miniatura, height: alturas.miniatura, borderRadius: 14, border: "none", background: "rgba(241,245,249,0.14)", color: BLANCO, display: "grid", placeItems: "center", cursor: "pointer" }}>
-              <Icono nombre="foto" tamano={22} color={BLANCO} />
-            </button>
+      {/* Abajo (opción C, Nati 22/10): Catálogo con la última foto adentro · un solo obturador con el selector
+          PRODUCTO · TARJETA arriba y una frase abajo que dice qué hace ahora · nada a la derecha. Deslizar sobre la
+          barra también cambia de modo, como en la cámara del teléfono. */}
+      <div onTouchStart={e => { barraX.current = e.touches?.[0]?.clientX ?? null; }} onTouchEnd={e => { const x1 = e.changedTouches?.[0]?.clientX; if (barraX.current === null || x1 === undefined) return; const dx = x1 - barraX.current; barraX.current = null; if (Math.abs(dx) < 50) return; e.stopPropagation(); if (dx < 0 && !esTarjeta) cambiarModo("card"); if (dx > 0 && esTarjeta) cambiarModo("product"); }}
+        style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 3, padding: "18px 18px calc(20px + env(safe-area-inset-bottom, 0px))", display: "flex", alignItems: "flex-end", justifyContent: "space-between", background: "linear-gradient(180deg, rgba(43,18,6,0) 0%, rgba(43,18,6,0.55) 100%)" }}>
+        <div style={{ width: 88, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, position: "relative" }}>
+          <button type="button" onClick={() => { marcarGuiaVista(); onCatalogo?.(); }} aria-label={t("visor.irAlCatalogo")} style={{ position: "relative", width: alturas.miniatura, height: alturas.miniatura, borderRadius: 14, border: "2px solid rgba(255,255,255,0.8)", background: "rgba(241,245,249,0.14)", padding: 0, overflow: "visible", cursor: "pointer", display: "grid", placeItems: "center" }}>
+            {(ultimaCaptura || ultimas[0]?.foto) ? <img src={ultimaCaptura || ultimas[0]?.foto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", borderRadius: 12, transform: miniaturaVuela && !reducido ? "scale(0.9)" : "none", transition: `transform ${duracion(movimiento.obturador.miniatura)}ms ${curvas.salida}` }} /> : <Icono nombre="foto" tamano={22} color={BLANCO} />}
+            {itemsCount > 0 && <span aria-label={t("visor.enEsteStand", { count: itemsCount })} style={{ position: "absolute", right: -9, top: -9, minWidth: 24, height: 24, padding: "0 7px", borderRadius: 12, background: MARCA.sello, color: MARCA.cacao, fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", fontVariantNumeric: "tabular-nums", boxShadow: "0 1px 3px rgba(0,0,0,0.35)" }}>{itemsCount}</span>}
+          </button>
+          <span aria-hidden style={{ fontSize: 11, fontWeight: 700, color: BLANCO, letterSpacing: "0.05em", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>{t("visor.catalogo").toUpperCase()}</span>
+          {puedeAgregarAngulo && !esTarjeta && !modoAngulo && (
+            <button type="button" onClick={onAgregarAngulo} aria-label={t("visor.agregarAngulo")} style={{ position: "absolute", top: -16, left: "50%", transform: "translateX(-50%)", minHeight: 24, padding: "0 8px", borderRadius: 12, border: "none", background: MARCA.sello, color: MARCA.cacao, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", cursor: "pointer", fontFamily: "inherit" }}>{t("visor.masAngulo")}</button>
           )}
         </div>
 
-        {/* Obturador, con el rótulo "Producto" debajo (28/09, Nati: que se entienda qué saca el botón) */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-        <button
-          type="button"
-          onClick={() => { marcarGuiaVista(); onDisparar?.(); }}
-          onPointerDown={() => setPresionado(true)}
-          onPointerUp={() => setPresionado(false)}
-          onPointerLeave={() => setPresionado(false)}
-          aria-label={t("visor.disparar")}
-          style={{ position: "relative", width: alturas.obturador, height: alturas.obturador, borderRadius: "50%", border: "5px solid #fff", background: MARCA.naranja, boxShadow: "0 0 0 3px rgba(43,18,6,0.35)", cursor: "pointer", padding: 0, transform: presionado ? `scale(${movimiento.toque.escala})` : "scale(1)", transition: `transform ${duracion(presionado ? movimiento.toque.bajada : movimiento.toque.vuelta)}ms ${curvas.estandar}`, WebkitTapHighlightColor: "transparent" }}
-        >
-          {!esTarjeta && itemsCount > 0 && (
-            <span aria-label={t("visor.enEsteStand", { count: itemsCount })} style={{ position: "absolute", right: -10, top: -10, minWidth: 26, height: 26, padding: "0 8px", borderRadius: 13, background: MARCA.sello, color: MARCA.cacao, fontSize: 13, fontWeight: 700, display: "grid", placeItems: "center", boxShadow: "0 0 0 3px rgba(43,18,6,0.5)", fontVariantNumeric: "tabular-nums" }}>{itemsCount}</span>
-          )}
-        </button>
-        <span aria-hidden style={{ fontSize: 12, fontWeight: 700, color: BLANCO, letterSpacing: "0.04em", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>{esTarjeta ? t("visor.rotuloTarjeta") : t("visor.rotuloProducto")}</span>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+          <div role="tablist" aria-label={t("visor.queEscanear")} style={{ display: "flex", gap: 22 }}>
+            {[["product", t("visor.modoProducto")], ["card", t("visor.modoTarjeta")]].map(([m, etiqueta]) => { const activo = (m === "card") === esTarjeta; return (
+              <button key={m} type="button" role="tab" aria-selected={activo} onClick={() => cambiarModo(m)} style={{ minHeight: 28, padding: "0 2px 4px", border: "none", borderBottom: `2px solid ${activo ? MARCA.sello : "transparent"}`, background: "transparent", color: activo ? MARCA.sello : BLANCO_SUAVE, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", fontFamily: "inherit", cursor: "pointer", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>{etiqueta}</button>
+            ); })}
+          </div>
+          <button
+            type="button"
+            onClick={() => { marcarGuiaVista(); onDisparar?.(); }}
+            onPointerDown={() => setPresionado(true)}
+            onPointerUp={() => setPresionado(false)}
+            onPointerLeave={() => setPresionado(false)}
+            aria-label={esTarjeta ? t("visor.escaneaTarjeta") : t("visor.disparar")}
+            style={{ position: "relative", width: alturas.obturador, height: alturas.obturador, borderRadius: "50%", border: "5px solid #fff", background: esTarjeta ? MARCA.sello : MARCA.naranja, boxShadow: "0 0 0 3px rgba(43,18,6,0.35)", cursor: "pointer", transform: presionado && !reducido ? "scale(0.92)" : "scale(1)", transition: `transform ${duracion(movimiento.obturador.presion)}ms ${curvas.salida}, background 200ms` }}
+          />
+          <span aria-hidden style={{ fontSize: 12, fontWeight: 600, color: BLANCO, textShadow: "0 1px 3px rgba(0,0,0,0.6)", whiteSpace: "nowrap" }}>{esTarjeta ? t("visor.escaneaTarjeta") : t("visor.escaneaProducto")}</span>
         </div>
 
-        {/* Derecha: nada (Nati, 23/09: la pastilla de arriba es el stand; el ciclo se cierra desde ahí con Listo,
-            o lo propone la app al escanear la tarjeta del stand siguiente). Queda el ancho para centrar el obturador. */}
-        <div style={{ width: 84, display: "flex", justifyContent: "flex-end" }}>
-          {/* 27/09 (Nati: "el botón de catálogo es casi invisible y difícil de alcanzar"): grande, con nombre, al alcance del pulgar */}
-          {!esTarjeta && (
-            <button type="button" onClick={onCatalogo} aria-label={t("visor.irAlCatalogo")} style={{ width: 84, height: alturas.miniatura, borderRadius: 14, border: "1.5px solid rgba(255,255,255,0.55)", background: "rgba(241,245,249,0.14)", color: BLANCO, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3 }}>
-              <Icono nombre="foto" tamano={22} color={BLANCO} />{t("visor.catalogo")}
-            </button>
-          )}
-          {true ? null : (
-            <button type="button" onClick={onStand} style={{ width: 84, height: alturas.miniatura, borderRadius: 14, border: "none", background: (itemsCount > 0 || standAbierto?.tieneTarjeta) ? MARCA.naranja : "rgba(241,245,249,0.14)", color: "#fff", fontSize: 12, fontWeight: 700, lineHeight: 1.15, cursor: "pointer", fontFamily: "inherit", textAlign: "center", padding: "0 6px", whiteSpace: "normal" }}>{t("visor.cerrarStand")}</button>
-          )}
-        </div>
+        <div style={{ width: 88 }} />
       </div>
 
-      {/* Este stand (Nati, 23/09): los últimos productos, y por cada uno otra foto, precio o borrar; abajo, cerrar el stand */}
-      <Hoja abierta={ultimasAbiertas} onCerrar={() => setUltimasAbiertas(false)} titulo={standAbierto?.nombre ? `${standAbierto.nombre} · ${t("cantidades.fotos", { count: itemsCount })}` : t("visor.ultimasFotos")} altura="completa">
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {ultimas.map((u, i) => (
-            <div key={u.id ?? i} style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <img src={u.foto} alt="" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 12, display: "block", flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-                {precioEditando === u.id ? (
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 40, background: precioGuardado === u.id ? "#DCFCE7" : "#F1F5F9", borderRadius: 10, padding: "0 10px", transition: "background 250ms ease" }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "#64748B" }}>{moneda}</span>
-                    <input autoFocus type="text" inputMode="decimal" enterKeyHint="done" defaultValue={u.precio || ""} aria-label={t("visor.aCuantoEstaba")}
-                      onChange={e => { const v = e.target.value.replace(/,/g, ".").replace(/[^0-9.]/g, "").slice(0, 8); e.target.value = v; onCambiarPrecioDe?.(u.id, v); clearTimeout(precioGuardadoTimer.current); precioGuardadoTimer.current = setTimeout(() => { setPrecioGuardado(u.id); setTimeout(() => setPrecioGuardado(null), 1200); }, 450); }}
-                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); setPrecioEditando(null); } }}
-                      onBlur={() => setPrecioEditando(null)}
-                      style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", fontSize: 17, fontWeight: 700, color: "#0F172A", fontFamily: "inherit", outline: "none" }} />
-                    {precioGuardado === u.id && <Icono nombre="listo" tamano={16} color="#15803D" />}
-                  </label>
-                ) : (
-                  <span style={{ fontSize: 14, fontWeight: 600, color: u.precio ? "#0F172A" : "#64748B" }}>{u.precio ? `${moneda} ${u.precio}` : t("visor.sinPrecioCorto")}{u.fotos > 1 ? <span style={{ fontWeight: 400, color: "#64748B" }}> · {t("cantidades.fotos", { count: u.fotos })}</span> : null}</span>
-                )}
-                <div style={{ display: "flex", gap: 6 }}>
-                  <Boton variante="secundario" icono="camara" onClick={() => { setUltimasAbiertas(false); onAgregarFotoA?.(u.id); }}>{t("visor.masFoto")}</Boton>
-                  <Boton variante="secundario" onClick={() => setPrecioEditando(u.id)}>{t("visor.precio")}</Boton>
-                  <Boton variante="fantasma" icono="borrar" etiqueta={t("visor.borrarFoto")} onClick={() => { onBorrarFoto?.(u.id); if (ultimas.length <= 1) setUltimasAbiertas(false); }} />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-          {onListoStand && <Boton variante="principal" ancho="total" icono="listo" onClick={() => { setUltimasAbiertas(false); onListoStand(); }}>{t("visor.listoStand")}</Boton>}
-          <div style={{ display: "flex", gap: 8 }}>
-            <Boton variante="secundario" ancho="total" icono="proveedor" onClick={() => { setUltimasAbiertas(false); onStand?.(); }} estilo={{ flex: 1 }}>{t("visor.verProveedor")}</Boton>
-            <Boton variante="secundario" ancho="total" icono="foto" onClick={() => { setUltimasAbiertas(false); onCatalogo?.(); }} estilo={{ flex: 1 }}>{t("visor.catalogo")}</Boton>
-          </div>
-        </div>
-      </Hoja>
     </div>
   );
 }

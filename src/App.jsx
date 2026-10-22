@@ -665,7 +665,9 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   const borradorListoRef = useRef(false);            // no autoguardar hasta decidir
   useEffect(() => {
     leerBorrador().then(b => {
-      if (b) { setBorrador(b); return; }
+      // 22/10 (Nati): sin cartel. Un stand que quedó abierto se retoma solo y el visor avisa arriba,
+      // con "Empezar otro" para quien no quiera seguir ahí. Las fotos ya estaban guardadas igual.
+      if (b) { aplicarBorrador(b); setAvisoRetomado(tx("visor.retomado", { hace: describirBorrador(b).hace })); setTimeout(() => setAvisoRetomado(null), 8000); openCamera("product"); return; }
       borradorListoRef.current = true;
       // Abrir es capturar (4.1): sin stand pendiente, el visor se abre solo.
       if (!soloProveedor && !initialSupplier) openCamera("product");
@@ -693,8 +695,8 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
   }, [items, cardPhoto, cardData, linkedSupplierId, supplierName, supplierContact, supplierPhone, supplierEmail,
       supplierWechat, supplierWhatsapp, supplierWhatsappLink, supplierWechatLink, supplierWebsite, supplierAddress,
       supplierProducts, supplierNotes, saving, nota.audioBlob, nota.transcripcion]);
-  const retomarBorrador = () => {
-    const b = borrador;
+  const [avisoRetomado, setAvisoRetomado] = useState(null);
+  const aplicarBorrador = (b) => {
     setItems(b.itemIds ? itemsDesdeIds(b.itemIds) : (b.items || [])); setCardPhoto(b.cardPhoto || null); setCardData(b.cardData || null);
     setLinkedSupplierId(b.linkedSupplierId || null); setSupplierName(b.supplierName || ""); setSupplierContact(b.supplierContact || "");
     setSupplierPhone(b.supplierPhone || ""); setSupplierEmail(b.supplierEmail || ""); setSupplierWechat(b.supplierWechat || "");
@@ -704,6 +706,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
     if (b.standAudio?.data) nota.cargar(new Blob([b.standAudio.data], { type: b.standAudio.type || "audio/webm" }), b.standTranscript, b.standAudio.duracion);
     setBorrador(null); borradorListoRef.current = true;
   };
+  const retomarBorrador = () => aplicarBorrador(borrador);
   const descartarBorrador = () => { borrarBorrador(); setBorrador(null); borradorListoRef.current = true; openCamera("product"); };
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -1167,7 +1170,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
           onCatalogo={() => { closeCamera(); apagarCamara(); onCatalogo?.(); }}
           onAgregarAngulo={() => { if (!items.length) return; anguloDesdeVisorRef.current = true; setAddPhotoToItemId(items[0].id); setAnguloDisponible(false); }}
           onBorrarFoto={(id) => borrarItem(id)}
-          consejoVisible={consejoVisible} onConsejoVisto={marcarConsejoVisto}
+          consejoVisible={consejoVisible} onConsejoVisto={marcarConsejoVisto} avisoRetomado={avisoRetomado}
           onTouchStart={onVisorTouchStart} onTouchEnd={onVisorTouchEnd}
         />
         <input ref={cardGalleryRef} type="file" accept="image/*" onChange={onCardGallery} style={{ display:"none" }} />

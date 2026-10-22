@@ -48,7 +48,7 @@
     }
   },
   "visor": {
-    "guiaUnica": "Sacale una foto a un producto. Cuando quieras, tocá «Tarjeta» para escanear la del proveedor.",
+    "guiaUnica": "Tocá el botón para escanear un producto. Para la tarjeta del proveedor, elegí TARJETA arriba del botón.",
     "escaneosDePrueba": "{{count}} de {{total}} escaneos de prueba",
     "escaneos": "{{count}} escaneos",
     "sinEscaneos": "0 escaneos · {{count}} esperando",
@@ -134,7 +134,17 @@
     "rotuloTarjeta": "Tarjeta",
     "guiaTitulo": "Cómo se usa la cámara",
     "guiaProducto": "Sacale una foto a un producto",
-    "guiaTarjeta": "La tarjeta del proveedor va acá, cuando quieras"
+    "guiaTarjeta": "La tarjeta del proveedor va acá, cuando quieras",
+    "modoProducto": "PRODUCTO",
+    "modoTarjeta": "TARJETA",
+    "queEscanear": "Qué escanear",
+    "escaneaProducto": "Escaneá un producto",
+    "escaneaTarjeta": "Escaneá una tarjeta",
+    "encuadraTitulo": "Encuadrá la tarjeta",
+    "encuadraSub": "Se lee sola. Los contactos quedan en este stand.",
+    "seguisDespues": "Después seguís sacando productos",
+    "empezarOtro": "Empezar otro",
+    "retomado": "Seguís en el stand de {{hace}}"
   },
   "cerrarStand": {
     "titulo": "Cerrar stand",
