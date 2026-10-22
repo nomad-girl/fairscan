@@ -149,3 +149,28 @@ footer.pie .legal{margin-top:16px;font-size:13px;color:var(--crema-tenue)}
 }
 @media (max-width:480px){.wrap{padding:0 16px}.btn{width:100%}}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn{transition:none}}
+
+
+/* ── Movimiento (22/10): sutil, una sola idea. Las secciones entran con un fundido corto; las tarjetas suben 2 px al pasar;
+      el teléfono del hero respira. Con "reducir movimiento" todo queda quieto. ── */
+.revelar{opacity:0;transform:translateY(14px);transition:opacity .55s cubic-bezier(.2,.7,.2,1),transform .55s cubic-bezier(.2,.7,.2,1)}
+.revelar.visto{opacity:1;transform:none}
+.card,.rasgo,.caja-oscura{transition:transform .25s cubic-bezier(.2,.7,.2,1),box-shadow .25s cubic-bezier(.2,.7,.2,1)}
+.card:hover{transform:translateY(-2px);box-shadow:0 1px 2px rgba(43,18,6,.06),0 14px 28px -14px rgba(43,18,6,.25)}
+.caja-oscura:hover{transform:translateY(-2px)}
+figure img{transition:transform .6s cubic-bezier(.2,.7,.2,1)}
+figure:hover img{transform:scale(1.02)}
+.btn{transition:background .2s,transform .15s,box-shadow .2s}
+.btn:hover{transform:translateY(-1px)}
+@keyframes respira{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.telefono.flota{animation:respira 7s ease-in-out infinite}
+html{scroll-behavior:smooth}
+/* Galería "Así se ve": tres pantallas reales en teléfonos chicos */
+.pantallas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px;align-items:start}
+.pantallas figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
+.pantallas .mini{width:100%;max-width:260px;aspect-ratio:276/596;border-radius:34px;background:var(--cacao);padding:9px;box-shadow:0 24px 50px -30px rgba(43,18,6,.45)}
+.pantallas .mini img{width:100%;height:100%;object-fit:cover;border-radius:26px;display:block}
+.pantallas figcaption{font-size:15px;color:var(--apagado);max-width:28ch;line-height:1.45}
+.pantallas figcaption b{display:block;font-family:var(--marca);font-weight:800;font-size:19px;letter-spacing:-.02em;color:var(--texto);margin-bottom:4px}
+@media (max-width:860px){.pantallas{grid-template-columns:1fr;gap:36px}}
+@media (prefers-reduced-motion:reduce){.revelar{opacity:1;transform:none;transition:none}.telefono.flota{animation:none}.card:hover,.caja-oscura:hover,.btn:hover{transform:none}figure:hover img{transform:none}html{scroll-behavior:auto}}

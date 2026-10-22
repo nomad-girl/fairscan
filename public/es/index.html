@@ -22,6 +22,7 @@
 <link rel="preload" href="/landing/fonts/dm-sans-latin-wght.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/landing/landing.css">
 <script src="/landing/meta.js" defer></script>
+<script src="/landing/landing.js" defer></script>
 </head>
 <body>
 <div style="display:flex;flex-direction:column;min-height:100vh">
@@ -60,14 +61,14 @@
     </div>
 
     <div class="telefono-wrap" style="display:flex;justify-content:flex-end">
-      <div class="telefono" role="img" aria-label="La cámara de FairScan apuntando a un vaso en un stand, con el stand arriba y los botones abajo">
-        <div class="pantalla"><img class="real" src="/landing/img/hero-camara.jpg" alt="" width="552" height="1196" fetchpriority="high"></div>
+      <div class="telefono flota" role="img" aria-label="El catálogo de FairScan en el teléfono: una grilla de productos fotografiados en la feria, por stand">
+        <div class="pantalla"><img class="real" src="/landing/img/hero-catalogo.jpg" alt="" width="552" height="1196" fetchpriority="high"></div>
       </div>
     </div>
   </div>
 </section>
 
-<section class="oscura seccion">
+<section class="oscura seccion revelar">
   <div class="wrap pila">
     <div class="col" style="max-width:720px">
       <div class="eyebrow">Lo que pasa hoy</div>
@@ -86,7 +87,7 @@
   </div>
 </section>
 
-<section id="como" class="wrap seccion pila">
+<section id="como" class="wrap seccion pila revelar">
   <div class="col" style="max-width:640px">
     <div class="eyebrow">Cómo funciona</div>
     <h2 class="h2">Dos fotos por producto. El resto lo hace FairScan.</h2>
@@ -96,16 +97,18 @@
     <div class="card col" style="padding:28px;gap:14px"><span class="num">02</span><h3 class="h3">Una foto a la tarjeta</h3><p class="muted" style="margin:0;font-size:16px">Lee nombre, WeChat, mail y teléfono del proveedor y los ata a todos sus productos. Las tarjetas son gratis, siempre.</p></div>
     <div class="card col" style="padding:28px;gap:14px"><span class="num">03</span><h3 class="h3">Marcás, armás, mandás</h3><p class="muted" style="margin:0;font-size:16px">Favoritos, cantidades y notas por voz. El pedido se arma por proveedor y sale como proforma por WhatsApp o mail, o como Excel con fotos.</p></div>
   </div>
-  <div class="card" style="padding:12px">
-    <div class="demo">
-      <div class="halo"></div>
-      <button type="button" aria-label="Ver la demo (próximamente)" disabled style="opacity:.9"><svg width="34" height="34" viewBox="0 0 24 24" fill="#2B1206" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></button>
-      <span>Demo de 30 segundos · próximamente</span>
-    </div>
+  <div class="col" style="max-width:640px;margin-top:24px">
+    <h3 class="h3" style="font-size:26px">Así se ve, con un catálogo de verdad</h3>
+    <p class="muted" style="margin:0;font-size:16px">Capturas reales de la app, sin retocar.</p>
+  </div>
+  <div class="pantallas">
+    <figure><div class="mini"><img src="/landing/img/pantalla-proveedor.jpg" alt="" loading="lazy" width="552" height="1196"></div><figcaption><b>La tarjeta, leída</b>Nombre, WeChat, mail y teléfono del proveedor, atados a sus productos.</figcaption></figure>
+    <figure><div class="mini"><img src="/landing/img/pantalla-pedido.jpg" alt="" loading="lazy" width="552" height="1196"></div><figcaption><b>El pedido, listo</b>Cantidades por producto y el total; sale por WhatsApp o mail.</figcaption></figure>
+    <figure><div class="mini"><img src="/landing/img/pantalla-producto.jpg" alt="" loading="lazy" width="552" height="1196"></div><figcaption><b>Cada producto, con lo suyo</b>Foto, precio, cantidad mínima y notas, pegados al proveedor.</figcaption></figure>
   </div>
 </section>
 
-<section class="seccion" style="background:var(--blanco)">
+<section class="seccion revelar" style="background:var(--blanco)">
   <div class="wrap pila">
     <div class="col" style="max-width:640px">
       <div class="eyebrow">Hecho para la feria, no para la oficina</div>
@@ -120,7 +123,7 @@
   </div>
 </section>
 
-<section id="packs" class="wrap seccion pila">
+<section id="packs" class="wrap seccion pila revelar">
   <div class="col" style="max-width:640px">
     <div class="eyebrow">Precios</div>
     <h2 class="h2">Pagás solo por producto. Los proveedores son gratis.</h2>
@@ -134,7 +137,7 @@
   <p style="margin:0;font-size:14px;color:var(--tenue)">Precios de referencia para Latinoamérica. El precio final, en tu moneda, lo muestra la tienda y varía según el país.</p>
 </section>
 
-<section class="cta-final">
+<section class="cta-final revelar">
   <div class="wrap col" style="gap:24px;align-items:flex-start">
     <h2 class="h2" style="max-width:720px">La próxima feria, volvé a cenar.</h2>
     <div style="display:flex;gap:12px;flex-wrap:wrap">
