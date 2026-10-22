@@ -6,7 +6,7 @@
   var io = new IntersectionObserver(function(entradas){ entradas.forEach(function(e){ if (e.isIntersecting) { ver(e.target); io.unobserve(e.target); } }); }, { rootMargin: "0px 0px -8% 0px", threshold: 0.08 });
   bloques.forEach(function(b){ io.observe(b); });
   // Red de seguridad: si el observador no avisa (pestaña en segundo plano, navegadores raros),
-  // al hacer scroll se revela lo que ya está en pantalla. Nunca puede quedar una sección invisible.
-  function repasar(){ bloques = bloques.filter(function(b){ if (b.classList.contains("visto")) return false; var r = b.getBoundingClientRect(); if (r.top < innerHeight * 0.92 && r.bottom > 0) { ver(b); io.unobserve(b); return false; } return true; }); }
+  // al hacer scroll se revela lo que está en pantalla o ya quedó arriba (recarga a mitad de página). Nunca puede quedar una sección invisible.
+  function repasar(){ bloques = bloques.filter(function(b){ if (b.classList.contains("visto")) return false; var r = b.getBoundingClientRect(); if (r.top < innerHeight * 0.92) { ver(b); io.unobserve(b); return false; } return true; }); }
   addEventListener("scroll", repasar, { passive: true }); addEventListener("resize", repasar, { passive: true }); setTimeout(repasar, 1200);
 })();
