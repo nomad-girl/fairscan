@@ -3802,7 +3802,7 @@ export default function App() {
       {!esEscritorio && (screen === "capture" || screen === "capture-supplier") && (
         <QuickCapture key={`${screen}-${standKey}`} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings} products={products}
           onProductoNuevo={crearProductoDesdeCaptura} onProductoCambio={handleUpdateProduct} onProductoBorrar={borrarProductoDesdeCaptura}
-          onSave={(data) => handleCaptureSave({ ...data, soloProveedor: screen === "capture-supplier" })} onClose={() => navigate("list")} onCatalogo={() => navigate("list")} t={t} isDark={isDark}
+          onSave={(data) => handleCaptureSave({ ...data, soloProveedor: screen === "capture-supplier" })} onClose={() => navigate("list")} onCatalogo={() => { setListTab("todo"); navigate("list"); }} t={t} isDark={isDark}
           soloProveedor={screen === "capture-supplier"} saldoCreditos={creditos ? saldoVisible(creditos) : null} queueCount={queueCount}
           initialSupplier={screenData?.fromSupplierId != null ? suppliers.find(s => s.id === screenData.fromSupplierId) || null : null} />
       )}

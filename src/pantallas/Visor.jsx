@@ -210,7 +210,7 @@ export function Visor({
               </label>
               <button type="button" onClick={cerrarBarra} aria-label={t("visor.cerrarBarra")} style={{ width: 36, height: 44, border: "none", background: "transparent", display: "grid", placeItems: "center", cursor: "pointer", padding: 0, order: 3 }}><Icono nombre="cerrar" tamano={20} color="#94A3B8" /></button>
               {(
-                <button type="button" onClick={onFavorito} aria-pressed={!!datos.favorito} aria-label={datos.favorito ? t("visor.quitarFavorito") : t("visor.marcarFavorito")} style={{ width: 44, height: 44, borderRadius: 12, border: `1px solid ${datos.favorito ? MARCA.naranja : "#DCE3EC"}`, background: datos.favorito ? "rgba(234,90,34,0.12)" : "#FFFFFF", display: "grid", placeItems: "center", cursor: "pointer" }}>
+                <button type="button" onClick={onFavorito} aria-pressed={!!datos.favorito} aria-label={datos.favorito ? t("visor.quitarFavorito") : t("visor.marcarFavorito")} style={{ width: 44, height: 44, borderRadius: 12, border: `1px solid ${datos.favorito ? MARCA.sello : "rgba(255,243,234,0.35)"}`, background: datos.favorito ? "rgba(255,197,61,0.22)" : "rgba(255,243,234,0.12)", display: "grid", placeItems: "center", cursor: "pointer" }}>
                   <Icono nombre="favorito" tamano={20} color={datos.favorito ? MARCA.cacao : BLANCO_SUAVE} relleno={datos.favorito ? MARCA.sello : undefined} />
                 </button>
               )}
