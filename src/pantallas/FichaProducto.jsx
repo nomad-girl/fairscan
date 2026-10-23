@@ -59,6 +59,7 @@ export function FichaProducto({ onCamara, product: p, allProducts = [], supplier
   };
 
   const vacio = (x) => x === null || x === undefined || String(x).trim() === "";
+  const [tocoMoq, setTocoMoq] = useState(false);
   const materiales = Array.isArray(p.material) ? p.material.join(", ") : (p.material || "");
   const parte = (items) => ({ conDato: items.filter(i => !vacio(i.valor)).map(i => i.nodo), sinDato: items.filter(i => vacio(i.valor)).map(i => i.nodo) });
   // Las baldosas de la hoja (27/09, Nati: "plain, poco contraste y muchos campos vacíos que hacen ruido"):
@@ -69,7 +70,7 @@ export function FichaProducto({ onCamara, product: p, allProducts = [], supplier
     <Dato key="name" ancho={2} etiqueta={t("ficha.nombre")} valor={p.name} onChange={v => { if (v) guardar({ name: v }); }} />,
     ...[
     { valor: p.price, nodo: <Dato key="price" etiqueta={`${t("ficha.precio")} ${moneda}`} valor={p.price} tipo="numero" destacado color={paleta.green} onChange={v => guardar({ price: v == null ? null : String(v) })} /> },
-    { valor: p.moq, nodo: <Dato key="moq" etiqueta={t("ficha.moq")} valor={p.moq} tipo="numero" destacado onChange={v => guardar({ moq: v == null ? null : String(v) })} /> },
+    { valor: p.moq, nodo: <Dato key="moq" etiqueta={t("ficha.moq")} valor={p.moq} tipo="numero" destacado onChange={v => guardar({ moq: v == null ? null : String(v) })} onEditando={e => { if (e) setTocoMoq(true); }} /> },
     settings?.datosDeCompra?.piezasPorCaja !== false && { valor: p.piezasPorCaja, nodo: <Dato key="piezas" etiqueta={t("ficha.piezasPorCaja")} valor={p.piezasPorCaja} tipo="numero" onChange={v => guardar({ piezasPorCaja: v })} /> },
     settings?.datosDeCompra?.cbmPorCaja !== false && { valor: p.cbmPorCaja, nodo: <Dato key="cbm" etiqueta={t("ficha.cbmPorCaja")} valor={p.cbmPorCaja} tipo="numero" sufijo="CBM" onChange={v => guardar({ cbmPorCaja: v })} /> },
   ].filter(Boolean).map(i => i.nodo) ], sinDato: [] };
@@ -77,7 +78,8 @@ export function FichaProducto({ onCamara, product: p, allProducts = [], supplier
     { valor: p.category, nodo: <Dato key="category" etiqueta={t("ficha.categoria")} valor={p.category} onChange={v => guardar({ category: v || null })} /> },
     { valor: materiales, nodo: <Dato key="material" etiqueta={t("ficha.materiales")} valor={materiales} onChange={v => guardar({ material: v ? v.split(",").map(x => x.trim()).filter(Boolean) : [] })} /> },
   ]);
-  const baseMoq = (p.moq || p.moqBase) ? (
+  // La base (por producto / por caja / por pedido) se pregunta apenas se toca el MOQ (Nati, 23/10), no recién al guardarlo.
+  const baseMoq = (p.moq || p.moqBase || tocoMoq) ? (
     <Dato key="moqBase" ancho={2} etiqueta={t("ficha.moqBase")} hijos={<Segmentado etiqueta={t("ficha.moqBase")} valor={p.moqBase || null} onChange={v => guardar({ moqBase: v })} estilo={{ marginTop: 4 }} opciones={[{ valor: "producto", texto: t("ficha.basePorProducto") }, { valor: "caja", texto: t("ficha.basePorCaja") }, { valor: "pedido", texto: t("ficha.basePorPedido") }]} />} />
   ) : null;
   const seccionNotas = parte([{ valor: p.notes, nodo: <Dato key="notes" ancho={2} etiqueta={t("ficha.notas")} valor={p.notes} multilinea onChange={v => guardar({ notes: v })} /> }]);

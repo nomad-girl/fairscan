@@ -74,7 +74,7 @@ export function ArmarPedido({ onCamara, supplier: s, pedido, products = [], mone
     <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
       <button type="button" onClick={() => sumar(p, -1)} disabled={cant <= 0} aria-label={`${t("pedido.menos")} ${p.name || ""}`.trim()} style={{ width: alturas.tocable, height: alturas.tocable, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, color: cant > 0 ? paleta.text : paleta.dim, cursor: cant > 0 ? "pointer" : "default", display: "grid", placeItems: "center", WebkitTapHighlightColor: "transparent" }}><Icono nombre="menos" tamano={18} color={cant > 0 ? paleta.text : paleta.dim} /></button>
       <input ref={foco ? refPrimero : undefined} type="text" inputMode="numeric" value={cant || ""} placeholder="0" onChange={e => cambiar(p.id, e.target.value.replace(/[^0-9]/g, ""))} onFocus={e => e.target.select()} aria-label={`${t("pedido.cantidad")} ${p.name || ""}`.trim()}
-        style={{ width: 52, height: alturas.tocable, textAlign: "center", borderRadius: radios.medio, border: `1px solid ${cant > 0 ? paleta.accent : paleta.border}`, background: cant > 0 ? paleta.accentSoft : paleta.card, color: cant > 0 ? paleta.accentTexto : paleta.text, ...texto("destacado"), fontVariantNumeric: "tabular-nums", fontFamily: "inherit", outline: "none", padding: 0 }} />
+        style={{ width: 52, height: alturas.tocable, textAlign: "center", borderRadius: radios.medio, border: `1.5px solid ${cant > 0 ? paleta.text : paleta.border}`, background: cant > 0 ? paleta.bg : paleta.card, color: paleta.text, ...texto("destacado"), fontVariantNumeric: "tabular-nums", fontFamily: "inherit", outline: "none", padding: 0 }} />
       <button type="button" onClick={() => sumar(p, 1)} aria-label={`${t("pedido.mas")} ${p.name || ""}`.trim()} style={{ width: alturas.tocable, height: alturas.tocable, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, color: paleta.text, cursor: "pointer", display: "grid", placeItems: "center", WebkitTapHighlightColor: "transparent" }}><Icono nombre="mas" tamano={18} color={paleta.text} /></button>
     </div>
   );
@@ -109,7 +109,7 @@ export function ArmarPedido({ onCamara, supplier: s, pedido, products = [], mone
   );
 
   const estado = pedido?.estado === "enviado" && pedido.enviadoEl ? t("pedido.enviado", { cuando: fechaCorta(pedido.enviadoEl) }) : t("pedido.enCurso");
-  const botonMandar = <Boton variante="principal" ancho="total" icono="compartir" deshabilitado={tot.vacio} onClick={() => setMandando(true)}>{t("pedido.mandar", { empresa: s.company || t("proveedor.titulo") })}</Boton>;
+  const botonMandar = <Boton variante="cacao" ancho="total" icono="compartir" deshabilitado={tot.vacio} onClick={() => setMandando(true)}>{t("pedido.mandar", { empresa: s.company || t("proveedor.titulo") })}</Boton>;
 
   return (
     <div ref={raizRef} style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit", ...estiloGesto }}>
@@ -124,7 +124,7 @@ export function ArmarPedido({ onCamara, supplier: s, pedido, products = [], mone
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             {onEliminar && <Boton variante="fantasma" icono="borrar" etiqueta={t("escritorio.eliminarPedido")} onClick={() => { if (typeof window === "undefined" || typeof window.confirm !== "function" || window.confirm(t("escritorio.eliminarPedidoSeguro", { empresa: s.company || "" }))) onEliminar(); }} />}
             <Boton variante="secundario" icono="excel" deshabilitado={tot.vacio} onClick={() => onEnviar?.("excel", { idioma: idiomaProforma })}>{t("pedido.descargarExcel")}</Boton>
-            <Boton variante="principal" icono="compartir" deshabilitado={tot.vacio} onClick={() => setMandando(true)}>{t("pedido.mandarCorto")}</Boton>
+            <Boton variante="cacao" icono="compartir" deshabilitado={tot.vacio} onClick={() => setMandando(true)}>{t("pedido.mandarCorto")}</Boton>
           </div>
         )}
       </div>
@@ -159,7 +159,7 @@ export function ArmarPedido({ onCamara, supplier: s, pedido, products = [], mone
                   const cant = cantidadDe(pedido, p.id); const l = lineaDePedido(p, cant);
                   const num = (v) => <span style={{ textAlign: "right", color: v === "—" ? paleta.dim : paleta.text }}>{v}</span>;
                   return (
-                    <div key={p.id} role="row" style={{ display: "grid", gridTemplateColumns: COLUMNAS, gap: 8, alignItems: "center", minHeight: 104, padding: "8px 12px", borderBottom: `1px solid ${paleta.border}`, background: cant > 0 ? paleta.accentSoft : "transparent", ...texto("cuerpo", { fontWeight: 400 }), fontVariantNumeric: "tabular-nums", transition: "background 200ms ease" }}>
+                    <div key={p.id} role="row" style={{ display: "grid", gridTemplateColumns: COLUMNAS, gap: 8, alignItems: "center", minHeight: 104, padding: "8px 12px", borderBottom: `1px solid ${paleta.border}`, background: cant > 0 ? paleta.bg : "transparent", ...texto("cuerpo", { fontWeight: 400 }), fontVariantNumeric: "tabular-nums", transition: "background 200ms ease" }}>
                       <button type="button" onClick={() => onNavigateProduct?.(p)} aria-label={t("pedido.verProducto")} style={{ padding: 0, border: "none", background: "none", cursor: "pointer" }}>{miniatura(p, 80)}</button>
                       <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                         <button type="button" onClick={() => onNavigateProduct?.(p)} style={{ textAlign: "left", padding: 0, border: "none", background: "none", cursor: "pointer", fontFamily: "inherit", color: paleta.text, fontSize: 15, fontWeight: 600, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
@@ -202,7 +202,7 @@ export function ArmarPedido({ onCamara, supplier: s, pedido, products = [], mone
             {suyos.map(p => {
               const cant = cantidadDe(pedido, p.id); const l = lineaDePedido(p, cant);
               return (
-                <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: paleta.card, border: `1px solid ${cant > 0 ? paleta.accent : paleta.border}`, borderRadius: radios.grande, boxShadow: paleta.sombraTarjeta }}>
+                <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: paleta.card, border: `1px solid ${cant > 0 ? paleta.text : paleta.border}`, borderRadius: radios.grande, boxShadow: paleta.sombraTarjeta }}>
                   <button type="button" onClick={() => onNavigateProduct?.(p)} aria-label={t("pedido.verProducto")} style={{ padding: 0, border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0, textAlign: "left", fontFamily: "inherit", color: paleta.text }}>
                     {miniatura(p)}
                     <span style={{ flex: 1, minWidth: 0 }}>

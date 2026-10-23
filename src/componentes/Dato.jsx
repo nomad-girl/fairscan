@@ -10,13 +10,17 @@ import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { FUENTES } from "../sistema/tokens.js";
 
-export function Dato({ etiqueta, valor, onChange, tipo = "texto", sufijo, multilinea = false, ancho = 1, destacado = false, color, hijos = null, estilo }) {
+export function Dato({ etiqueta, valor, onChange, tipo = "texto", sufijo, multilinea = false, ancho = 1, destacado = false, color, hijos = null, estilo, onEditando }) {
   const { paleta, radios } = useSistema();
   const { t } = useTranslation();
   const [editando, setEditando] = useState(false);
   const [borrador, setBorrador] = useState(valor ?? "");
   const [sobre, setSobre] = useState(false);
+  const [guardado, setGuardado] = useState(false); // verde y tilde 1,4 s después de guardar
   const ref = useRef(null);
+  const guardadoTimer = useRef(null);
+  useEffect(() => () => clearTimeout(guardadoTimer.current), []);
+  useEffect(() => { onEditando?.(editando); }, [editando]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!editando) setBorrador(valor ?? ""); }, [valor, editando]);
   useEffect(() => { if (editando) { ref.current?.focus(); if (!multilinea) ref.current?.select?.(); } }, [editando, multilinea]);
 
@@ -25,13 +29,13 @@ export function Dato({ etiqueta, valor, onChange, tipo = "texto", sufijo, multil
     setEditando(false);
     let nuevo = borrador;
     if (tipo === "numero") { const n = Number(String(borrador).replace(",", ".")); nuevo = borrador === "" || isNaN(n) ? null : n; }
-    if (nuevo !== valor) onChange?.(nuevo);
+    if (nuevo !== valor) { onChange?.(nuevo); setGuardado(true); clearTimeout(guardadoTimer.current); guardadoTimer.current = setTimeout(() => setGuardado(false), 1400); }
   };
 
   const caja = {
     gridColumn: ancho === 2 ? "1 / -1" : undefined, display: "flex", flexDirection: "column", alignItems: "stretch", gap: 3,
-    minHeight: 62, padding: "10px 12px", borderRadius: radios.medio, background: paleta.bg, border: `1px solid ${editando ? paleta.accent : paleta.border}`,
-    textAlign: "left", boxSizing: "border-box", transition: "border-color 150ms ease", ...estilo,
+    minHeight: 62, padding: "10px 12px", borderRadius: radios.medio, background: guardado ? paleta.greenSoft : paleta.bg, border: `1px solid ${guardado ? paleta.green : editando ? paleta.accent : paleta.border}`,
+    textAlign: "left", boxSizing: "border-box", transition: "border-color 150ms ease, background 250ms ease", ...estilo,
   };
   const etiquetaEstilo = { fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: paleta.muted, lineHeight: 1.3 };
   const valorEstilo = { fontSize: destacado ? 24 : 17, fontWeight: 700, lineHeight: 1.3, color: vacio ? paleta.dim : (color || paleta.text), fontVariantNumeric: "tabular-nums", fontFamily: tipo === "numero" || destacado ? FUENTES.numeros : undefined, overflowWrap: "anywhere", whiteSpace: multilinea ? "pre-wrap" : undefined };
@@ -44,7 +48,7 @@ export function Dato({ etiqueta, valor, onChange, tipo = "texto", sufijo, multil
       <button type="button" onClick={() => setEditando(true)} onMouseEnter={() => setSobre(true)} onMouseLeave={() => setSobre(false)}
         aria-label={`${etiqueta}: ${vacio ? t("componentes.campo.vacio") : valor}`} title={t("comun.editar")}
         style={{ ...caja, cursor: "text", fontFamily: "inherit", color: paleta.text }}>
-        <span style={etiquetaEstilo}>{etiqueta}</span>
+        <span style={{ ...etiquetaEstilo, display: "flex", alignItems: "center", gap: 6 }}>{etiqueta}{guardado && <span role="status" aria-label={t("componentes.campo.guardado")} style={{ color: paleta.green, fontSize: 12, fontWeight: 800, letterSpacing: 0, textTransform: "none" }}>✓ {t("componentes.campo.guardado")}</span>}</span>
         <span style={valorEstilo}>{vacio ? "—" : `${valor}${sufijo ? ` ${sufijo}` : ""}`}</span>
       </button>
     );

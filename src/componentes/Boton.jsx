@@ -17,9 +17,11 @@ export function Boton({ children, variante = "secundario", icono, ancho = "auto"
     secundario: { background: paleta.card, color: paleta.text, border: `1px solid ${paleta.border}`, minHeight: alturas.botonSecundario, boxShadow: paleta.sombraTarjeta },
     peligro: { background: "transparent", color: paleta.red, border: `1px solid ${paleta.red}`, minHeight: alturas.botonSecundario },
     fantasma: { background: "transparent", color: paleta.muted, border: "none", minHeight: alturas.botonSecundario },
+    // cacao (23/10, Nati): botón grande sin naranja, para acciones de cierre como mandar la proforma; en oscuro se invierte solo (text/bg).
+    cacao: { background: paleta.text, color: paleta.bg, border: "none", minHeight: alturas.botonPrincipal, boxShadow: paleta.sombraTarjeta },
   }[variante] || {};
 
-  const t = texto("cuerpo", { fontWeight: variante === "principal" ? 700 : 600 });
+  const t = texto("cuerpo", { fontWeight: variante === "principal" || variante === "cacao" ? 700 : 600 });
 
   return (
     <button
