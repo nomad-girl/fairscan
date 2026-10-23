@@ -3863,7 +3863,7 @@ export default function App() {
           onBack={() => navigate("list")} />
       )}
       {!esEscritorio && screen === "settings" && (
-        <SettingsScreen saldo={creditos ? saldoVisible(creditos) : null} onVerPacks={() => setPaywall({ bloqueados: 0, desdeAjustes: true })} settings={settings} onSave={handleSaveSettings} onBack={() => navigate("list")} sync={sync} t={t} isDark={isDark} onToggleTheme={toggleTheme}
+        <SettingsScreen onCamara={() => navigate("capture")} saldo={creditos ? saldoVisible(creditos) : null} onVerPacks={() => setPaywall({ bloqueados: 0, desdeAjustes: true })} settings={settings} onSave={handleSaveSettings} onBack={() => navigate("list")} sync={sync} t={t} isDark={isDark} onToggleTheme={toggleTheme}
           products={products} suppliers={suppliers} districts={districts} onReload={reloadAll}
           teams={teamsHook.teams} activeTeam={teamsHook.teams.find(tm => tm.id === sync.teamId)} teamMembers={teamsHook.teamMembers}
           isAdmin={teamsHook.isAdmin} fetchMembers={teamsHook.fetchMembers} inviteMember={teamsHook.inviteMember}
