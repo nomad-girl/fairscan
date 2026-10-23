@@ -9,7 +9,7 @@ import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { MARCA, FUENTES } from "../sistema/tokens.js";
 
-export function GuiaAviso({ abierto, objetivo, forma = "circulo", titulo, texto, paso, total = 3, accion = null, onSaltar = null }) {
+export function GuiaAviso({ abierto, objetivo, forma = "circulo", titulo, texto, paso, total = 4, accion = null, onSaltar = null }) {
   const { t } = useTranslation();
   const { reducido } = useSistema();
   const [caja, setCaja] = useState(null);
@@ -25,7 +25,7 @@ export function GuiaAviso({ abierto, objetivo, forma = "circulo", titulo, texto,
   useEffect(() => { if (!abierto) setCaja(null); }, [abierto]);
   if (!abierto || !caja) return null;
 
-  const margen = forma === "circulo" ? 8 : 6;
+  const margen = 6; // ajustado al control (Nati, 23/10: el aro grande "se ve medio mal")
   const hueco = { left: caja.x - margen, top: caja.y - margen, width: caja.w + margen * 2, height: caja.h + margen * 2 };
   const alto = typeof window !== "undefined" ? window.innerHeight : 800;
   const ancho = typeof window !== "undefined" ? window.innerWidth : 390;
@@ -36,8 +36,10 @@ export function GuiaAviso({ abierto, objetivo, forma = "circulo", titulo, texto,
 
   return (
     <div role="dialog" aria-live="polite" aria-label={titulo} style={{ position: "absolute", inset: 0, zIndex: 6, pointerEvents: "none" }}>
-      <style>{`@keyframes fairscanGuiaLatido { 50% { box-shadow: 0 0 0 2000px rgba(20,8,3,0.72), 0 0 0 7px rgba(255,197,61,0.55) } }`}</style>
-      <div aria-hidden style={{ position: "absolute", ...hueco, borderRadius: radio, boxShadow: `0 0 0 2000px rgba(20,8,3,0.72), 0 0 0 3px ${MARCA.sello}`, animation: reducido ? "none" : "fairscanGuiaLatido 1.8s ease-in-out infinite" }} />
+      <style>{`@keyframes fairscanGuiaAro { 50% { opacity: 0.35 } }`}</style>
+      {/* El velo es un hueco con sombra enorme; el aro amarillo va aparte, fino y limpio, y solo él late (sin halo) */}
+      <div aria-hidden style={{ position: "absolute", ...hueco, borderRadius: radio, boxShadow: "0 0 0 2000px rgba(20,8,3,0.74)" }} />
+      <div aria-hidden style={{ position: "absolute", ...hueco, borderRadius: radio, border: `2.5px solid ${MARCA.sello}`, boxSizing: "border-box", animation: reducido ? "none" : "fairscanGuiaAro 1.6s ease-in-out infinite" }} />
       <div style={{ position: "absolute", left: "max(14px, env(safe-area-inset-left, 0px))", right: "max(14px, env(safe-area-inset-right, 0px))", bottom: abajoTarjeta, maxWidth: 420, margin: "0 auto", background: MARCA.crema, color: MARCA.cacao, borderRadius: 18, padding: "16px 16px 14px", display: "flex", flexDirection: "column", gap: 8, boxShadow: "0 18px 40px -16px rgba(0,0,0,0.6)", pointerEvents: "auto" }}>
         <b style={{ fontFamily: FUENTES.marca, fontWeight: 800, fontSize: 21, letterSpacing: "-0.02em", lineHeight: 1.15 }}>{titulo}</b>
         <p style={{ margin: 0, fontSize: 15, lineHeight: 1.45, color: "#5A3522" }}>{texto}</p>

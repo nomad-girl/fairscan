@@ -15,7 +15,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { Icono, Hoja, Boton, GuiaAviso } from "../componentes/index.js";
-import { leerGuia, guardarGuia, siguienteGuia, avisoVisible } from "../lib/guiaPrimeraVez.js";
+import { leerGuia, guardarGuia, siguienteGuia, avisoVisible, PASOS_GUIA } from "../lib/guiaPrimeraVez.js";
 import { MARCA } from "../sistema/tokens.js";
 
 const VIDRIO = "rgba(10, 14, 23, 0.55)";
@@ -69,12 +69,23 @@ export function Visor({
   // control real cuando toca. Ver lib/guiaPrimeraVez.js.
   const [estadoGuia, setEstadoGuia] = useState(() => leerGuia());
   const avanzarGuia = (evento) => setEstadoGuia(e => { const n = siguienteGuia(e, evento); return n === e ? e : guardarGuia(n); });
+  // Ajustes de la primera prueba de Nati (23/10): la tarjeta aparece al segundo (no a los 4), hay un paso para el
+  // precio, y "Siguiente" deja recorrer la guía sin hacer cada cosa (después de tocarlo, nada espera).
   const [pausaGuia, setPausaGuia] = useState(false);
-  useEffect(() => { setPausaGuia(false); const id = setTimeout(() => setPausaGuia(true), 4000); return () => clearTimeout(id); }, [itemsCount, ultimaCaptura]);
-  // Después de la foto queda abierta la barra de precio, que esconde PRODUCTO · TARJETA. Si no está escribiendo, el
-  // aviso 2 la cierra y aparece; si está escribiendo el precio, espera.
+  const [manualGuia, setManualGuia] = useState(false);
   const [escribiendoDato, setEscribiendoDato] = useState(false);
-  const refObturador = useRef(null), refTabTarjeta = useRef(null), refMiniatura = useRef(null);
+  useEffect(() => { setPausaGuia(false); const id = setTimeout(() => setPausaGuia(true), 1200); return () => clearTimeout(id); }, [itemsCount, ultimaCaptura, !!datos]);
+  const barraAntes = useRef(!!datos);
+  useEffect(() => {
+    if (barraAntes.current && !datos) avanzarGuia("precioCerrado"); // escribió el precio o cerró la barra
+    barraAntes.current = !!datos;
+  }, [!!datos]);
+  useEffect(() => { // llegó al paso del precio sin barra abierta (vino con Siguiente): pasa a la tarjeta
+    if (estadoGuia !== "2" || datos || manualGuia) return;
+    const id = setTimeout(() => avanzarGuia("sinBarraDePrecio"), 1500);
+    return () => clearTimeout(id);
+  }, [estadoGuia, !!datos, manualGuia]);
+  const refObturador = useRef(null), refTabTarjeta = useRef(null), refMiniatura = useRef(null), refBarraPrecio = useRef(null);
 
   // El consejo se va solo y no vuelve.
   useEffect(() => {
@@ -116,13 +127,16 @@ export function Visor({
       <style>{`@keyframes fairscanGuardado { 0% { transform: scale(0.4); opacity: 0 } 35% { transform: scale(1.15); opacity: 1 } 55% { transform: scale(1) } 100% { transform: scale(1); opacity: 1 } }`}</style>
       <div aria-hidden style={{ position: "absolute", inset: 0, background: "#fff", opacity: flash ? 0.75 : 0, pointerEvents: "none", zIndex: 2, transition: `opacity ${duracion(movimiento.obturador.velo)}ms linear` }} />
       {(() => {
-        const ocupada = (!!datos && (estadoGuia !== "2" || escribiendoDato)) || ultimasAbiertas || modoAngulo;
-        const aviso = avisoVisible(estadoGuia, { esTarjeta, ocupada, pausa: pausaGuia });
-        if (aviso === 2 && datos) { setTimeout(() => onConfirmarPrecio?.(), 0); return null; }
+        const aviso = avisoVisible(estadoGuia, { esTarjeta, ocupada: ultimasAbiertas || modoAngulo, barraPrecio: !!datos, escribiendo: escribiendoDato, pausa: pausaGuia, manual: manualGuia });
         const saltar = () => avanzarGuia("saltar");
-        if (aviso === 1) return <GuiaAviso abierto objetivo={refObturador} forma="circulo" paso={1} titulo={t("visor.guia.paso1Titulo")} texto={t("visor.guia.paso1Texto")} onSaltar={saltar} />;
-        if (aviso === 2) return <GuiaAviso abierto objetivo={refTabTarjeta} forma="redondeado" paso={2} titulo={t("visor.guia.paso2Titulo")} texto={t("visor.guia.paso2Texto", { tarjeta: t("visor.modoTarjeta") })} accion={{ texto: t("visor.guia.entendido"), onClick: () => avanzarGuia("entendido") }} onSaltar={saltar} />;
-        if (aviso === 3) return <GuiaAviso abierto objetivo={refMiniatura} forma="redondeado" paso={3} titulo={t("visor.guia.paso3Titulo")} texto={t("visor.guia.paso3Texto")} accion={{ texto: t("visor.guia.listo"), onClick: () => avanzarGuia("listo") }} />;
+        const siguiente = { texto: t("visor.guia.siguiente"), onClick: () => { setManualGuia(true); if (estadoGuia === "2" && datos) { inputDatoRef.current?.blur(); onConfirmarPrecio?.(); } avanzarGuia("siguiente"); } };
+        const comun = { abierto: true, total: PASOS_GUIA, onSaltar: saltar };
+        if (aviso === 1) return <GuiaAviso {...comun} objetivo={refObturador} forma="circulo" paso={1} titulo={t("visor.guia.paso1Titulo")} texto={t("visor.guia.paso1Texto")} accion={siguiente} />;
+        if (aviso === 2) return datos
+          ? <GuiaAviso {...comun} objetivo={refBarraPrecio} forma="redondeado" paso={2} titulo={t("visor.guia.precioTitulo")} texto={t("visor.guia.precioTexto")} accion={siguiente} />
+          : <GuiaAviso {...comun} objetivo={refObturador} forma="circulo" paso={2} titulo={t("visor.guia.precioTitulo")} texto={t("visor.guia.precioTextoSinBarra")} accion={siguiente} />;
+        if (aviso === 3) return <GuiaAviso {...comun} objetivo={refTabTarjeta} forma="redondeado" paso={3} titulo={t("visor.guia.paso2Titulo")} texto={t("visor.guia.paso2Texto", { tarjeta: t("visor.modoTarjeta") })} accion={siguiente} />;
+        if (aviso === 4) return <GuiaAviso {...comun} onSaltar={null} objetivo={refMiniatura} forma="redondeado" paso={4} titulo={t("visor.guia.paso3Titulo")} texto={t("visor.guia.paso3Texto")} accion={{ texto: t("visor.guia.listo"), onClick: () => avanzarGuia("listo") }} />;
         return null;
       })()}
 
@@ -209,7 +223,7 @@ export function Visor({
         const alTocar = e => { y0 = e.touches?.[0]?.clientY ?? null; };
         const alSoltar = e => { const y1 = e.changedTouches?.[0]?.clientY; if (y0 !== null && y1 !== undefined && y1 - y0 > 40) cerrarBarra(); y0 = null; };
         return (
-          <div onClick={e => e.stopPropagation()} onTouchStart={alTocar} onTouchEnd={alSoltar} role="dialog" aria-label={t("visor.datosDelUltimo")} style={{ position: "absolute", left: 12, right: 12, bottom: abajo, zIndex: 5, background: "rgba(43,18,6,0.88)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", color: BLANCO, borderRadius: 16, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6, boxShadow: "0 10px 30px -12px rgba(0,0,0,0.45)" }}>
+          <div ref={refBarraPrecio} onClick={e => e.stopPropagation()} onTouchStart={alTocar} onTouchEnd={alSoltar} role="dialog" aria-label={t("visor.datosDelUltimo")} style={{ position: "absolute", left: 12, right: 12, bottom: abajo, zIndex: 5, background: "rgba(43,18,6,0.88)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", color: BLANCO, borderRadius: 16, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6, boxShadow: "0 10px 30px -12px rgba(0,0,0,0.45)" }}>
             <div aria-label={t("visor.agarradera")} style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,243,234,0.35)", margin: "-2px auto 0" }} />
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <label style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, minHeight: 44, background: campoGuardado === campo ? "rgba(34,197,94,0.25)" : "rgba(255,243,234,0.12)", borderRadius: 12, padding: "0 12px", transition: "background 250ms ease" }}>

@@ -159,7 +159,11 @@
       "pasoDe": "Step {{n}} of {{total}}",
       "verDeNuevo": "Show the guide again",
       "verDeNuevoPista": "The three camera tips, from the start",
-      "reiniciada": "Done: the guide shows up next time you open the camera"
+      "reiniciada": "Done: the guide shows up next time you open the camera",
+      "precioTitulo": "What was the price?",
+      "precioTexto": "Type the price here. If you have the MOQ, pieces per box or CBM, tap its tab. Not sure yet? Close the bar: add it later from This booth.",
+      "siguiente": "Next",
+      "precioTextoSinBarra": "After each photo a bar slides up: type the price there and, if you have them, the MOQ, pieces per box or CBM. Not sure? Close it: add it later from This booth."
     }
   },
   "cerrarStand": {
