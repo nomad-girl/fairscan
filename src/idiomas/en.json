@@ -418,7 +418,10 @@
     "ponerPrecio": "Add price",
     "tocaPrecio": "Tap to add a price",
     "guardarPrecio": "Save",
-    "sinPrecio": "No price"
+    "sinPrecio": "No price",
+    "agregarProveedor": "Add supplier",
+    "buscarProveedor": "Search supplier or WeChat",
+    "sinResultadosProveedor": "No supplier matches \"{{q}}\"."
   },
   "proveedor": {
     "titulo": "Supplier",

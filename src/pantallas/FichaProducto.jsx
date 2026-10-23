@@ -23,6 +23,8 @@ export function FichaProducto({ onCamara, product: p, allProducts = [], supplier
   const [foto, setFoto] = useState(0);
   const [guardado, setGuardado] = useState(false);
   const [eligiendoProveedor, setEligiendoProveedor] = useState(false);
+  const [buscaProveedor, setBuscaProveedor] = useState("");
+  useEffect(() => { if (!eligiendoProveedor) setBuscaProveedor(""); }, [eligiendoProveedor]);
   const [confirmando, setConfirmando] = useState(false);
   const [poniendoPrecio, setPoniendoPrecio] = useState(false); // 27/09: el precio se carga desde la portada
   // Volver al catálogo con el gesto (27/09): desde el borde, o desde cualquier lado cuando estás en la primera foto
@@ -120,11 +122,17 @@ export function FichaProducto({ onCamara, product: p, allProducts = [], supplier
           </button>
           {/* 27/09: el proveedor (grande, fácil de tocar) y "Ver todos los datos" en una sola fila: menos pila de cosas al pie */}
           <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
-            {sup ? (
+            {/* Un proveedor sin nombre ni tarjeta (el stand que todavía no escaneó la tarjeta) cuenta como "sin proveedor": se ofrece asignar */}
+            {sup && (sup.company || sup.cardPhoto || sup.cardPhotoUrl) ? (
               <button type="button" onClick={() => onNavigateSupplier?.(sup)} style={{ background: "rgba(255,255,255,0.14)", border: "1px solid rgba(255,255,255,0.4)", borderRadius: 999, padding: "0 12px 0 10px", minHeight: 42, color: "#fff", fontFamily: "inherit", fontSize: 15, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", textAlign: "left", maxWidth: "100%", minWidth: 0 }}>
-                <Icono nombre="proveedor" tamano={17} color="#fff" /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 170 }}>{sup.company || `#${sup.id}`}</span><Icono nombre="siguiente" tamano={14} color="rgba(255,255,255,0.7)" />
+                <Icono nombre="proveedor" tamano={17} color="#fff" /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 170 }}>{sup.company || t("cerrarStand.sinNombre")}</span><Icono nombre="siguiente" tamano={14} color="rgba(255,255,255,0.7)" />
               </button>
-            ) : <span style={{ fontSize: 14, color: "rgba(255,255,255,0.6)" }}>{t("ficha.sinProveedor")}</span>}
+            ) : (
+              // 23/10 (Nati): sin proveedor, se asigna desde acá mismo, sin entrar a "Ver todos los datos"
+              <button type="button" onClick={esta ? () => setEligiendoProveedor(true) : undefined} style={{ background: "rgba(255,197,61,0.16)", border: "1px dashed rgba(255,197,61,0.8)", borderRadius: 999, padding: "0 14px 0 10px", minHeight: 42, color: "#FCD34D", fontFamily: "inherit", fontSize: 15, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                <Icono nombre="mas" tamano={17} color="#FCD34D" />{t("ficha.agregarProveedor")}
+              </button>
+            )}
             <button type="button" onClick={() => setDatosAbiertos(true)} style={{ minHeight: 42, borderRadius: 999, border: "1px solid rgba(255,255,255,0.4)", background: "rgba(43,18,6,0.35)", color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 600, padding: "0 12px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
               <Icono nombre="abajo" tamano={16} color="#fff" style={{ transform: "rotate(180deg)" }} />{t("ficha.verDatos")}
             </button>
@@ -188,7 +196,7 @@ export function FichaProducto({ onCamara, product: p, allProducts = [], supplier
             {supplier ? (
               <Fila onClick={() => onNavigateSupplier?.(supplier)} flecha
                 miniatura={(supplier.cardPhoto || supplier.cardPhotoUrl) ? <img src={supplier.cardPhoto || supplier.cardPhotoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <Icono nombre="proveedor" tamano={20} color={paleta.dim} />}
-                titulo={<>{supplier.favorito ? <><Icono nombre="favorito" tamano={13} color={paleta.selloTexto} relleno={paleta.sello} /> </> : null}{supplier.company || `#${supplier.id}`}</>}
+                titulo={<>{supplier.favorito ? <><Icono nombre="favorito" tamano={13} color={paleta.selloTexto} relleno={paleta.sello} /> </> : null}{supplier.company || t("cerrarStand.sinNombre")}</>}
                 subtitulo={supplier.contact || supplier.boothNumber || ""} />
             ) : (
               <Boton variante="secundario" ancho="total" icono="proveedor" onClick={() => setEligiendoProveedor(true)}>{t("ficha.asignarProveedor")}</Boton>
@@ -233,10 +241,25 @@ export function FichaProducto({ onCamara, product: p, allProducts = [], supplier
 
       {/* Elegir proveedor */}
       <Hoja abierta={eligiendoProveedor} onCerrar={() => setEligiendoProveedor(false)} titulo={t("ficha.proveedor")}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <Fila onClick={() => cambiarProveedor(null)} seleccionada={!p.supplierId} titulo={t("ficha.sinProveedor")} />
-          {[...suppliers].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).map(s => <Fila key={s.id} onClick={() => cambiarProveedor(s)} seleccionada={s.id === p.supplierId} titulo={s.company || `#${s.id}`} subtitulo={s.contact || ""} />)}
-        </div>
+        {(() => {
+          const sinAcentos = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+          const q = sinAcentos(buscaProveedor.trim());
+          const lista = [...suppliers].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+            .filter(s => !q || [s.company, s.contact, s.wechat, s.email, s.phone, s.boothNumber].some(v => sinAcentos(v).includes(q)));
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, minHeight: alturas.tocable, padding: "0 12px", borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.card, position: "sticky", top: 0, zIndex: 1 }}>
+                <Icono nombre="buscar" tamano={18} color={paleta.muted} />
+                <input type="search" value={buscaProveedor} onChange={e => setBuscaProveedor(e.target.value)} placeholder={t("ficha.buscarProveedor")} aria-label={t("ficha.buscarProveedor")} enterKeyHint="search"
+                  style={{ flex: 1, minWidth: 0, border: "none", outline: "none", background: "transparent", color: paleta.text, fontFamily: "inherit", fontSize: 16 }} />
+                {buscaProveedor && <button type="button" onClick={() => setBuscaProveedor("")} aria-label={t("comun.borrar")} style={{ border: "none", background: "transparent", padding: 4, display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="cerrar" tamano={16} color={paleta.muted} /></button>}
+              </label>
+              {!q && <Fila onClick={() => cambiarProveedor(null)} seleccionada={!p.supplierId} titulo={t("ficha.sinProveedor")} />}
+              {lista.map(s => <Fila key={s.id} onClick={() => cambiarProveedor(s)} seleccionada={s.id === p.supplierId} titulo={s.company || t("cerrarStand.sinNombre")} subtitulo={[s.contact, s.boothNumber].filter(Boolean).join(" · ")} />)}
+              {q && lista.length === 0 && <p style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted, margin: "8px 4px" }}>{t("ficha.sinResultadosProveedor", { q: buscaProveedor.trim() })}</p>}
+            </div>
+          );
+        })()}
       </Hoja>
 
       {/* Confirmar eliminación */}

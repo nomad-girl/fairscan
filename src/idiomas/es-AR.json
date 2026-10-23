@@ -418,7 +418,10 @@
     "ponerPrecio": "Poner precio",
     "tocaPrecio": "Tocá para poner el precio",
     "guardarPrecio": "Guardar",
-    "sinPrecio": "Sin precio"
+    "sinPrecio": "Sin precio",
+    "agregarProveedor": "Agregar proveedor",
+    "buscarProveedor": "Buscar proveedor o WeChat",
+    "sinResultadosProveedor": "Ningún proveedor coincide con \"{{q}}\"."
   },
   "proveedor": {
     "titulo": "Proveedor",
