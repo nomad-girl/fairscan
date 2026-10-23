@@ -145,7 +145,22 @@
     "encuadraSub": "Se lee sola. Los contactos quedan en este stand.",
     "seguisDespues": "Después seguís sacando productos",
     "empezarOtro": "Empezar otro",
-    "retomado": "Seguís en el stand de {{hace}}"
+    "retomado": "Seguís en el stand de {{hace}}",
+    "guia": {
+      "paso1Titulo": "Sacale una foto a un producto",
+      "paso1Texto": "La IA le pone nombre y lo guarda en este stand. Podés sacar varios seguidos; el precio lo cargás después.",
+      "paso2Titulo": "Al terminar el stand, escaneá la tarjeta",
+      "paso2Texto": "Tocá {{tarjeta}}. Nombre, WeChat, mail y teléfono quedan atados a todos los productos de este stand.",
+      "paso3Titulo": "Tu catálogo está acá",
+      "paso3Texto": "Tocá acá para ver lo de este stand y, desde ahí, todo tu catálogo: cada producto con su foto, precio y proveedor. Seguí con el próximo: la cámara ya está lista.",
+      "saltar": "Saltar guía",
+      "entendido": "Entendido",
+      "listo": "Listo",
+      "pasoDe": "Paso {{n}} de {{total}}",
+      "verDeNuevo": "Ver la guía de nuevo",
+      "verDeNuevoPista": "Los tres avisos de la cámara, desde el principio",
+      "reiniciada": "Listo: la guía aparece la próxima vez que abras la cámara"
+    }
   },
   "cerrarStand": {
     "titulo": "Cerrar stand",

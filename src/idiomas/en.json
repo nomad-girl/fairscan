@@ -145,7 +145,22 @@
     "encuadraSub": "It reads itself. The contacts stay in this booth.",
     "seguisDespues": "Then you keep shooting products",
     "empezarOtro": "Start another",
-    "retomado": "You're back in the booth from {{hace}}"
+    "retomado": "You're back in the booth from {{hace}}",
+    "guia": {
+      "paso1Titulo": "Take a photo of a product",
+      "paso1Texto": "The AI names it and saves it under this booth. You can take several in a row; add the price later.",
+      "paso2Titulo": "When you finish the booth, scan the card",
+      "paso2Texto": "Tap {{tarjeta}}. Name, WeChat, email and phone get linked to every product from this booth.",
+      "paso3Titulo": "Your catalog is here",
+      "paso3Texto": "Tap here to see this booth and, from there, your whole catalog: every product with its photo, price and supplier. Keep going: the camera is ready.",
+      "saltar": "Skip guide",
+      "entendido": "Got it",
+      "listo": "Done",
+      "pasoDe": "Step {{n}} of {{total}}",
+      "verDeNuevo": "Show the guide again",
+      "verDeNuevoPista": "The three camera tips, from the start",
+      "reiniciada": "Done: the guide shows up next time you open the camera"
+    }
   },
   "cerrarStand": {
     "titulo": "Close booth",

@@ -14,7 +14,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Icono, Hoja, Boton } from "../componentes/index.js";
+import { Icono, Hoja, Boton, GuiaAviso } from "../componentes/index.js";
+import { leerGuia, guardarGuia, siguienteGuia, avisoVisible } from "../lib/guiaPrimeraVez.js";
 import { MARCA } from "../sistema/tokens.js";
 
 const VIDRIO = "rgba(10, 14, 23, 0.55)";
@@ -64,11 +65,16 @@ export function Visor({
     return () => clearTimeout(id);
   }, [ultimaCaptura]);
 
-  // La guía de la primera vez (28/09, Nati: "¿se entiende que el obturador saca un producto y que la tarjeta es otra
-  // acción?"): dos frases sobre la cámara, sin imponer orden (cada una hace como prefiere). Se va con el primer disparo,
-  // al ir a la tarjeta o al tocarla, y no vuelve.
-  const [guiaVisible, setGuiaVisible] = useState(() => { try { return !localStorage.getItem("fairscan.guiaCamaraVista"); } catch { return false; } });
-  const marcarGuiaVista = () => { if (!guiaVisible) return; setGuiaVisible(false); try { localStorage.setItem("fairscan.guiaCamaraVista", "1"); } catch { /* modo privado */ } };
+  // La guía de la primera vez (opción B, Nati 23/10; reemplaza el aviso único del 28/09): tres avisos que señalan el
+  // control real cuando toca. Ver lib/guiaPrimeraVez.js.
+  const [estadoGuia, setEstadoGuia] = useState(() => leerGuia());
+  const avanzarGuia = (evento) => setEstadoGuia(e => { const n = siguienteGuia(e, evento); return n === e ? e : guardarGuia(n); });
+  const [pausaGuia, setPausaGuia] = useState(false);
+  useEffect(() => { setPausaGuia(false); const id = setTimeout(() => setPausaGuia(true), 4000); return () => clearTimeout(id); }, [itemsCount, ultimaCaptura]);
+  // Después de la foto queda abierta la barra de precio, que esconde PRODUCTO · TARJETA. Si no está escribiendo, el
+  // aviso 2 la cierra y aparece; si está escribiendo el precio, espera.
+  const [escribiendoDato, setEscribiendoDato] = useState(false);
+  const refObturador = useRef(null), refTabTarjeta = useRef(null), refMiniatura = useRef(null);
 
   // El consejo se va solo y no vuelve.
   useEffect(() => {
@@ -79,7 +85,7 @@ export function Visor({
 
   const esTarjeta = modo === "card";
   const barraX = useRef(null);
-  const cambiarModo = (m) => { marcarGuiaVista(); if (m === "card" && !esTarjeta) onTarjeta?.(); if (m === "product" && esTarjeta) onVolverAProductos?.(); };
+  const cambiarModo = (m) => { if (m === "card") avanzarGuia("irATarjeta"); if (m === "card" && !esTarjeta) onTarjeta?.(); if (m === "product" && esTarjeta) onVolverAProductos?.(); };
   const textoSaldo = saldo === null ? null
     : saldo <= 0 ? t("visor.sinEscaneos", { count: esperando })
     : saldo <= trial ? t("visor.escaneosDePrueba", { count: saldo, total: trial })
@@ -109,20 +115,21 @@ export function Visor({
       {/* Velo blanco del obturador (80 ms) */}
       <style>{`@keyframes fairscanGuardado { 0% { transform: scale(0.4); opacity: 0 } 35% { transform: scale(1.15); opacity: 1 } 55% { transform: scale(1) } 100% { transform: scale(1); opacity: 1 } }`}</style>
       <div aria-hidden style={{ position: "absolute", inset: 0, background: "#fff", opacity: flash ? 0.75 : 0, pointerEvents: "none", zIndex: 2, transition: `opacity ${duracion(movimiento.obturador.velo)}ms linear` }} />
-      {guiaVisible && !esTarjeta && !modoAngulo && (
-        <div role="note" aria-label={t("visor.guiaTitulo")} onClick={marcarGuiaVista} style={{ position: "absolute", inset: 0, zIndex: 4 }}>
-          {/* Una sola guía, arriba de la pastilla y del obturador (los dos quedaron abajo, al alcance del pulgar) */}
-          <div style={{ position: "absolute", bottom: "calc(env(safe-area-inset-bottom, 0px) + 216px)", left: 24, right: 24, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, pointerEvents: "none" }}>
-            <span style={{ background: "rgba(255,255,255,0.96)", color: "#0F172A", borderRadius: 14, padding: "10px 14px", fontSize: 14, fontWeight: 600, textAlign: "center", lineHeight: 1.35, maxWidth: 300, boxShadow: "0 10px 30px -12px rgba(0,0,0,0.5)" }}>{t("visor.guiaUnica")}</span>
-            <span style={{ fontSize: 22, color: BLANCO, lineHeight: 1 }}>↓</span>
-          </div>
-        </div>
-      )}
+      {(() => {
+        const ocupada = (!!datos && (estadoGuia !== "2" || escribiendoDato)) || ultimasAbiertas || modoAngulo;
+        const aviso = avisoVisible(estadoGuia, { esTarjeta, ocupada, pausa: pausaGuia });
+        if (aviso === 2 && datos) { setTimeout(() => onConfirmarPrecio?.(), 0); return null; }
+        const saltar = () => avanzarGuia("saltar");
+        if (aviso === 1) return <GuiaAviso abierto objetivo={refObturador} forma="circulo" paso={1} titulo={t("visor.guia.paso1Titulo")} texto={t("visor.guia.paso1Texto")} onSaltar={saltar} />;
+        if (aviso === 2) return <GuiaAviso abierto objetivo={refTabTarjeta} forma="redondeado" paso={2} titulo={t("visor.guia.paso2Titulo")} texto={t("visor.guia.paso2Texto", { tarjeta: t("visor.modoTarjeta") })} accion={{ texto: t("visor.guia.entendido"), onClick: () => avanzarGuia("entendido") }} onSaltar={saltar} />;
+        if (aviso === 3) return <GuiaAviso abierto objetivo={refMiniatura} forma="redondeado" paso={3} titulo={t("visor.guia.paso3Titulo")} texto={t("visor.guia.paso3Texto")} accion={{ texto: t("visor.guia.listo"), onClick: () => avanzarGuia("listo") }} />;
+        return null;
+      })()}
 
       {/* Arriba: saldo y estado. Nada más. */}
       <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 12px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <div style={{ display: "flex", gap: 6, alignItems: "center", minWidth: 0 }}>
-          {feria && <button type="button" onClick={() => { marcarGuiaVista(); onCatalogo?.(); }} aria-label={t("visor.irAlCatalogo")} style={{ maxWidth: "46vw", minHeight: 32, padding: "0 12px", borderRadius: 999, border: "none", background: VIDRIO, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", color: BLANCO, fontSize: 12, fontWeight: 600, fontFamily: "inherit", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{feria}</button>}
+          {feria && <button type="button" onClick={() => { onCatalogo?.(); }} aria-label={t("visor.irAlCatalogo")} style={{ maxWidth: "46vw", minHeight: 32, padding: "0 12px", borderRadius: 999, border: "none", background: VIDRIO, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", color: BLANCO, fontSize: 12, fontWeight: 600, fontFamily: "inherit", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{feria}</button>}
           {/* El saldo solo cuando está por acabarse; la nube no se muestra: en la cámara distrae (Nati, 22/09) */}
           {textoSaldo && saldoBajo && !esTarjeta && <Pastilla tono="alerta">{textoSaldo}</Pastilla>}
         </div>
@@ -207,7 +214,7 @@ export function Visor({
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <label style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, minHeight: 44, background: campoGuardado === campo ? "rgba(34,197,94,0.25)" : "rgba(255,243,234,0.12)", borderRadius: 12, padding: "0 12px", transition: "background 250ms ease" }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: BLANCO_SUAVE, whiteSpace: "nowrap" }}>{campo === "price" ? moneda : etiquetaDe[campo]}</span>
-                <input ref={inputDatoRef} type="text" inputMode="decimal" enterKeyHint="done" value={valor} placeholder={campo === "price" ? t("visor.aCuanto") : ""} aria-label={campo === "price" ? t("visor.aCuantoEstaba") : etiquetaDe[campo]}
+                <input ref={inputDatoRef} onFocus={() => setEscribiendoDato(true)} onBlur={() => setEscribiendoDato(false)} type="text" inputMode="decimal" enterKeyHint="done" value={valor} placeholder={campo === "price" ? t("visor.aCuanto") : ""} aria-label={campo === "price" ? t("visor.aCuantoEstaba") : etiquetaDe[campo]}
                   onChange={e => onEscribirDato?.(campo, e.target.value.replace(/,/g, ".").replace(/[^0-9.]/g, "").slice(0, 8))}
                   onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
                   style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", fontSize: 18, fontWeight: 700, color: "#fff", fontFamily: "inherit", outline: "none", fontVariantNumeric: "tabular-nums" }} />
@@ -248,8 +255,8 @@ export function Visor({
       <div onTouchStart={e => { barraX.current = e.touches?.[0]?.clientX ?? null; }} onTouchEnd={e => { const x1 = e.changedTouches?.[0]?.clientX; if (barraX.current === null || x1 === undefined) return; const dx = x1 - barraX.current; barraX.current = null; if (Math.abs(dx) < 50) return; e.stopPropagation(); if (dx < 0 && !esTarjeta) cambiarModo("card"); if (dx > 0 && esTarjeta) cambiarModo("product"); }}
         style={{ position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 3, padding: "18px 18px calc(20px + env(safe-area-inset-bottom, 0px))", display: "flex", alignItems: "flex-end", justifyContent: "space-between", background: "linear-gradient(180deg, rgba(43,18,6,0) 0%, rgba(43,18,6,0.55) 100%)" }}>
         <div style={{ width: 88, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, position: "relative" }}>
-          <div style={{ position: "relative", width: alturas.miniatura, height: alturas.miniatura }}>
-            <button type="button" onClick={() => { marcarGuiaVista(); if (itemsCount > 0 && ultimas.length) setUltimasAbiertas(true); else onCatalogo?.(); }} aria-label={itemsCount > 0 && ultimas.length ? t("visor.ultimasFotos") : t("visor.irAlCatalogo")} style={{ width: alturas.miniatura, height: alturas.miniatura, borderRadius: 14, border: "2px solid rgba(255,255,255,0.8)", background: "rgba(241,245,249,0.14)", padding: 0, overflow: "hidden", cursor: "pointer", display: "block", position: "relative" }}>
+          <div ref={refMiniatura} style={{ position: "relative", width: alturas.miniatura, height: alturas.miniatura }}>
+            <button type="button" onClick={() => { avanzarGuia("abrirCatalogo"); if (itemsCount > 0 && ultimas.length) setUltimasAbiertas(true); else onCatalogo?.(); }} aria-label={itemsCount > 0 && ultimas.length ? t("visor.ultimasFotos") : t("visor.irAlCatalogo")} style={{ width: alturas.miniatura, height: alturas.miniatura, borderRadius: 14, border: "2px solid rgba(255,255,255,0.8)", background: "rgba(241,245,249,0.14)", padding: 0, overflow: "hidden", cursor: "pointer", display: "block", position: "relative" }}>
               {(ultimaCaptura || ultimas[0]?.foto)
                 ? <img src={ultimaCaptura || ultimas[0]?.foto} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block", transform: miniaturaVuela && !reducido ? "scale(0.9)" : "none", transition: `transform ${duracion(movimiento.obturador.miniatura)}ms ${curvas.salida}` }} />
                 : <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}><Icono nombre="foto" tamano={22} color={BLANCO} /></span>}
@@ -265,12 +272,13 @@ export function Visor({
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
           <div role="tablist" aria-label={t("visor.queEscanear")} style={{ display: "flex", gap: 22, visibility: datos && !esTarjeta ? "hidden" : "visible" }}>
             {[["product", t("visor.modoProducto")], ["card", t("visor.modoTarjeta")]].map(([m, etiqueta]) => { const activo = (m === "card") === esTarjeta; return (
-              <button key={m} type="button" role="tab" aria-selected={activo} onClick={() => cambiarModo(m)} style={{ minHeight: 28, padding: "0 2px 4px", border: "none", borderBottom: `2px solid ${activo ? MARCA.sello : "transparent"}`, background: "transparent", color: activo ? MARCA.sello : BLANCO_SUAVE, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", fontFamily: "inherit", cursor: "pointer", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>{etiqueta}</button>
+              <button key={m} ref={m === "card" ? refTabTarjeta : undefined} type="button" role="tab" aria-selected={activo} onClick={() => cambiarModo(m)} style={{ minHeight: 28, padding: "0 2px 4px", border: "none", borderBottom: `2px solid ${activo ? MARCA.sello : "transparent"}`, background: "transparent", color: activo ? MARCA.sello : BLANCO_SUAVE, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", fontFamily: "inherit", cursor: "pointer", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>{etiqueta}</button>
             ); })}
           </div>
           <button
             type="button"
-            onClick={() => { marcarGuiaVista(); onDisparar?.(); }}
+            ref={refObturador}
+            onClick={() => { avanzarGuia(esTarjeta ? "fotoTarjeta" : "fotoProducto"); onDisparar?.(); }}
             onPointerDown={() => setPresionado(true)}
             onPointerUp={() => setPresionado(false)}
             onPointerLeave={() => setPresionado(false)}
