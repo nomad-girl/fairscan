@@ -24,3 +24,13 @@ describe("Entrar con Apple / Google (E11)", () => {
     expect(esCancelado(new Error("otro"))).toBe(false);
   });
 });
+
+describe('nonceParaApple', () => {
+  it('el cifrado es el SHA-256 en hexadecimal del original', async () => {
+    const { nonceParaApple } = await import('../entrarCon.js');
+    const { original, cifrado } = await nonceParaApple();
+    expect(original).toMatch(/^[0-9a-f]{64}$/);
+    const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(original));
+    expect(cifrado).toBe(Array.from(new Uint8Array(h), b => b.toString(16).padStart(2, '0')).join(''));
+  });
+});

@@ -1,0 +1,9 @@
+{
+  "name": "entrar-con-apple",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Entrar con Apple nativo (ASAuthorizationController) para FairScan en iPhone/iPad. 23/10/2026: Apple rechazó la 1.0.1 porque el flujo por navegador quedó en blanco en iPad.",
+  "main": "index.js",
+  "capacitor": { "ios": { "src": "ios" } },
+  "peerDependencies": { "@capacitor/core": ">=8.0.0" }
+}

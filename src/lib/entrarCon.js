@@ -5,14 +5,14 @@
  * (`detectSessionInUrl` la toma sola). En la app instalada no hay "página a la que volver": se abre el
  * navegador del sistema con la dirección que arma Supabase, la usuaria entra, y el proveedor devuelve a
  * la app por su esquema propio (`com.builddigitalthings.fairscan://auth`) con los tokens en la dirección;
- * acá se leen y se le dan a Supabase. Mismo camino para los dos proveedores: no hace falta el SDK nativo
- * de ninguno, y Apple acepta este flujo para "Sign in with Apple".
+ * acá se leen y se le dan a Supabase. Google (y Apple en Android) siguen ese camino; Apple en iPhone/iPad usa la
+ * hoja nativa desde el 23/10/2026 (ver `entrarConAppleNativo`).
  *
  * Quien empezó sin cuenta (sesión anónima) no entra: VINCULA la identidad a la cuenta que ya tiene, así el
  * catálogo del teléfono queda donde está (`linkIdentity`). Si ese mail ya tiene otra cuenta en FairScan,
  * Supabase lo rechaza y la app lo explica (riesgo avisado el 29/09): no se pisa nada.
  */
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { supabase } from './supabase.js';
 
 export const ESQUEMA_APP = 'com.builddigitalthings.fairscan';
@@ -44,6 +44,39 @@ export function esCuentaYaExistente(err) {
 
 export function esCancelado(err) { return !!err?.cancelado; }
 
+/** Un nonce al azar y su SHA-256 en hexadecimal: a Apple va el cifrado, a Supabase el original. */
+export async function nonceParaApple() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const original = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(original));
+  const cifrado = Array.from(new Uint8Array(hash), b => b.toString(16).padStart(2, '0')).join('');
+  return { original, cifrado };
+}
+
+/**
+ * Entrar con Apple con la hoja nativa del sistema, solo en iPhone/iPad (23/10/2026). Apple rechazó la 1.0.1:
+ * en el iPad del revisor, el navegador dentro de la app quedó en blanco al tocar "Entrar con Apple".
+ * La hoja nativa devuelve un token firmado por Apple y Supabase lo valida (su lista de Client IDs de Apple tiene
+ * que incluir el identificador de la app, `com.builddigitalthings.fairscan`, además del `.web`).
+ */
+async function entrarConAppleNativo({ vincular }) {
+  const plugin = registerPlugin('EntrarConApple');
+  const { original, cifrado } = await nonceParaApple();
+  let r;
+  try { r = await plugin.entrar({ nonce: cifrado }); }
+  catch (e) {
+    if (e?.code === 'CANCELADO' || /cancel/i.test(e?.message || '')) throw Object.assign(new Error('cancelado'), { cancelado: true });
+    throw e;
+  }
+  if (!r?.identityToken) throw new Error('sin-token');
+  const credenciales = { provider: 'apple', token: r.identityToken, nonce: original };
+  const x = vincular ? await supabase.auth.linkIdentity(credenciales) : await supabase.auth.signInWithIdToken(credenciales);
+  if (x.error) throw x.error;
+  // Apple da el nombre solo la primera vez: si vino, queda en el perfil (sin frenar si falla)
+  if (r.nombre) supabase.auth.updateUser({ data: { full_name: r.nombre } }).catch(() => {});
+  return { ok: true };
+}
+
 /**
  * @param {'apple'|'google'} proveedor
  * @param {{ vincular?: boolean }} opciones  vincular: la sesión actual es anónima y se le suma la identidad
@@ -52,6 +85,7 @@ export function esCancelado(err) { return !!err?.cancelado; }
 export async function entrarCon(proveedor, { vincular = false } = {}) {
   if (!supabase) throw new Error('sin-supabase');
   const nativo = Capacitor.isNativePlatform();
+  if (proveedor === 'apple' && nativo && Capacitor.getPlatform() === 'ios') return entrarConAppleNativo({ vincular });
   const redirectTo = nativo ? VUELTA_NATIVA : `${window.location.origin}${window.location.pathname}`;
   const options = {
     redirectTo,
@@ -93,6 +127,6 @@ export async function entrarCon(proveedor, { vincular = false } = {}) {
     Browser.addListener('browserFinished', () => {
       setTimeout(() => { if (!terminado) { cerrar(); reject(Object.assign(new Error('cancelado'), { cancelado: true })); } }, 1500);
     }).then(l => { escuchaCierre = l; });
-    Browser.open({ url: r.data.url, presentationStyle: 'popover' }).catch(e => { cerrar(); reject(e); });
+    Browser.open({ url: r.data.url, presentationStyle: 'fullscreen' }).catch(e => { cerrar(); reject(e); });
   });
 }
