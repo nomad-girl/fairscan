@@ -14,6 +14,8 @@ const idiomaInicial = iniciarIdiomas().language;
 try { document.documentElement.lang = idiomaInicial; } catch { /* sin DOM */ }
 // iOS solo aplica :active al tocar si hay alguna escucha de touchstart en la página (fluidez, 30/09)
 try { document.addEventListener("touchstart", () => {}, { passive: true }); } catch { /* sin DOM */ }
+// Red de seguridad del logo de arranque (23/10): lo esconde App cuando hay algo para ver; si algo falla, a los 12 s igual.
+setTimeout(() => { import('@capacitor/splash-screen').then(({ SplashScreen }) => SplashScreen.hide()).catch(() => {}); }, 12000);
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

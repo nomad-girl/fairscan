@@ -37,3 +37,9 @@
 -keep class com.android.vending.billing.** { *; }
 -keep class com.android.billingclient.** { *; }
 -dontwarn com.revenuecat.purchases.**
+
+# Entrar con Google (Credential Manager, 23/10/2026): R8 no debe quitar el proveedor de Play Services
+-if class androidx.credentials.CredentialManager
+-keep class androidx.credentials.playservices.** {
+  *;
+}

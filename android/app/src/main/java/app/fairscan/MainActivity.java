@@ -12,7 +12,8 @@ public class MainActivity extends BridgeActivity {
     // la caché a mano. Cuando cambia el número de versión, se vacía esa caché una sola vez.
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        registerPlugin(MetaEventos.class); // eventos para la publicidad de Meta (23/10); carga diferida, falla en silencio
+        registerPlugin(MetaEventos.class);
+        registerPlugin(EntrarConGoogle.class); // Entrar con Google con la hoja del teléfono, sin navegador (23/10) // eventos para la publicidad de Meta (23/10); carga diferida, falla en silencio
         super.onCreate(savedInstanceState);
         try {
             PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);

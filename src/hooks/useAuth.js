@@ -28,7 +28,12 @@ export default function useAuth() {
       // esa sesión anónima contaba como "otra usuaria" y vaciaba el teléfono).
       recordarCuenta(u);
       if (!u && !cerroSesionAProposito() && !tuvoCuenta()) {
-        try { u = (await signInAnonymously()).user ?? null; } catch { u = null; }
+        // 23/10 (Nati: "la primera vez tarda un montón en abrir"): sin señal buena (o en China, donde el servidor
+        // no responde) esta llamada podía colgar la primera apertura. A los 8 s se sigue al login.
+        try {
+          const tope = new Promise((_, no) => setTimeout(() => no(new Error('sin-respuesta')), 8000));
+          u = (await Promise.race([signInAnonymously(), tope])).user ?? null;
+        } catch { u = null; }
       }
       setUser(u);
       setLoading(false);

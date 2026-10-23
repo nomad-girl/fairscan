@@ -77,6 +77,31 @@ async function entrarConAppleNativo({ vincular }) {
   return { ok: true };
 }
 
+/** El cliente OAuth Web del proyecto de Google (el que Supabase acepta); no es secreto. */
+export const GOOGLE_CLIENTE_WEB = '1006392719624-jqij41dpknt3seoft3ueqh4ac68du0ul.apps.googleusercontent.com';
+
+/**
+ * Entrar con Google con la hoja de cuentas del propio teléfono, en Android (23/10/2026). La página de Google en el
+ * navegador decía "continuar a retpaxynglfwruwagccw.supabase.co" y eso genera desconfianza (Nati, E19).
+ * Devuelve null si el teléfono no tiene ninguna cuenta de Google: ahí se sigue por el navegador.
+ */
+async function entrarConGoogleNativo({ vincular }) {
+  const plugin = registerPlugin('EntrarConGoogle');
+  const { original, cifrado } = await nonceParaApple();
+  let r;
+  try { r = await plugin.entrar({ clienteWeb: GOOGLE_CLIENTE_WEB, nonce: cifrado }); }
+  catch (e) {
+    if (e?.code === 'CANCELADO' || /cancel/i.test(e?.message || '')) throw Object.assign(new Error('cancelado'), { cancelado: true });
+    if (e?.code === 'SIN_CUENTAS') return null;
+    throw e;
+  }
+  if (!r?.idToken) throw new Error('sin-token');
+  const credenciales = { provider: 'google', token: r.idToken, nonce: original };
+  const x = vincular ? await supabase.auth.linkIdentity(credenciales) : await supabase.auth.signInWithIdToken(credenciales);
+  if (x.error) throw x.error;
+  return { ok: true };
+}
+
 /**
  * @param {'apple'|'google'} proveedor
  * @param {{ vincular?: boolean }} opciones  vincular: la sesión actual es anónima y se le suma la identidad
@@ -86,6 +111,10 @@ export async function entrarCon(proveedor, { vincular = false } = {}) {
   if (!supabase) throw new Error('sin-supabase');
   const nativo = Capacitor.isNativePlatform();
   if (proveedor === 'apple' && nativo && Capacitor.getPlatform() === 'ios') return entrarConAppleNativo({ vincular });
+  if (proveedor === 'google' && nativo && Capacitor.getPlatform() === 'android') {
+    const r = await entrarConGoogleNativo({ vincular });
+    if (r) return r; // null = el teléfono no tiene cuenta de Google: sigue por el navegador
+  }
   const redirectTo = nativo ? VUELTA_NATIVA : `${window.location.origin}${window.location.pathname}`;
   const options = {
     redirectTo,

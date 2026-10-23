@@ -2816,6 +2816,13 @@ export default function App() {
   // `ready` se declara acá porque los efectos de abajo lo leen: si quedara más abajo,
   // el bundle de producción rompe al arrancar ("Cannot access before initialization").
   const [ready, setReady] = useState(false);
+  // El logo de arranque queda hasta que hay algo para ver (23/10, Nati: "la primera vez tarda un montón"): antes se
+  // iba al segundo y medio y quedaba una pantalla cacao vacía mientras se creaba la sesión y se abría la base.
+  useEffect(() => {
+    if (auth.loading || (auth.user && !ready)) return;
+    if (!Capacitor.isNativePlatform()) return;
+    import('@capacitor/splash-screen').then(({ SplashScreen }) => SplashScreen.hide({ fadeOutDuration: 250 })).catch(() => {});
+  }, [auth.loading, auth.user, ready]);
 
   // Con señal y paywall pendiente (se usaron los de emergencia sin señal): se muestra al abrir.
   useEffect(() => {
