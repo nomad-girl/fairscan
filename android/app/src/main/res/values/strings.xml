@@ -4,7 +4,7 @@
     <string name="title_activity_main">FairScan</string>
     <string name="package_name">app.fairscan</string>
     <string name="custom_url_scheme">app.fairscan</string>
-    <!-- Meta (23/10/2026): los completa Code cuando Nati crea la app en Meta for Developers. Vacíos = el SDK no se inicia. -->
-    <string name="facebook_app_id" translatable="false"></string>
-    <string name="facebook_client_token" translatable="false"></string>
+    <!-- Meta (23/10/2026): los completa Code cuando Nati crea la app en Meta for Developers. App FairScan en Meta for Developers (portfolio Negocio de Natali Gerstein), 23/10. El token de cliente no es secreto: va dentro del APK. -->
+    <string name="facebook_app_id" translatable="false">992066456535465</string>
+    <string name="facebook_client_token" translatable="false">fc0f00dd7996080e42daba91cfbd9b34</string>
 </resources>
