@@ -15,6 +15,7 @@
  */
 import { Capacitor } from '@capacitor/core';
 import i18next from 'i18next';
+import { metaCompra } from './metaEventos.js';
 
 const EN_WEB = () => i18next.t('compras.enWeb');
 let configurado = false;
@@ -62,6 +63,7 @@ export async function comprar(packId) {
     const product = products?.[0];
     if (!product) return { ok: false, mensaje: i18next.t('compras.packNoDisponible') };
     await Purchases.purchaseStoreProduct({ product });
+    metaCompra(product.price, product.currencyCode || 'USD', { pack: packId }); // Meta: compra con valor y moneda de la tienda
     // El saldo lo acredita el servidor cuando la tienda confirma (webhook); la app
     // vuelve a leer el saldo enseguida y unas veces más por si tarda.
     return { ok: true };

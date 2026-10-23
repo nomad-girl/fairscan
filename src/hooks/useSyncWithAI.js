@@ -13,6 +13,7 @@ import db, { updateProduct, updateSupplier } from '../db.js';
 import * as api from '../api/client.js';
 import { fotosSinSubir, esperaReintento, esFotoLocal } from '../lib/fotosPendientes.js';
 import { aDataUrl } from '../lib/fotosBinario.js';
+import { primerEscaneo } from '../lib/metaEventos.js';
 import { reducirFoto } from '../lib/miniaturas.js';
 
 // Foto que vive en este teléfono (texto, bytes o blob:), no una dirección web.
@@ -167,6 +168,7 @@ export function useSyncWithAI(settings) {
 
       // Use updateProduct (triggers cloud sync push)
       await updateProduct(product.id, updates);
+      primerEscaneo(); // Meta: el primer producto reconocido, una vez por instalación; no se espera ni puede fallar
       // Las fotos las sube la cola de fotos pendientes (más abajo), con reintentos.
 
       return { success: true, updates };

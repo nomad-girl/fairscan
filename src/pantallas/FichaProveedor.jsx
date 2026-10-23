@@ -130,7 +130,7 @@ export function FichaProveedor({ onCamara, supplier: s, allSuppliers = [], produ
     el.addEventListener("touchcancel", end);
     return () => { el.removeEventListener("touchstart", start); el.removeEventListener("touchmove", move); el.removeEventListener("touchend", end); el.removeEventListener("touchcancel", end); };
   }, [s.id, conProductos]);
-  const PIE = { position: "absolute", left: 0, right: 0, bottom: 0, padding: `80px 18px calc(18px + env(safe-area-inset-bottom, 0px))`, background: "linear-gradient(to top, rgba(43,18,6,0.9) 60%, rgba(43,18,6,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 };
+  const PIE = { position: "absolute", left: 0, right: 0, bottom: 0, padding: `130px 18px calc(18px + env(safe-area-inset-bottom, 0px))`, background: "linear-gradient(to top, rgba(43,18,6,0.94) 50%, rgba(43,18,6,0.72) 72%, rgba(43,18,6,0.3) 88%, rgba(43,18,6,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 };
 
   // El pie del proveedor. Es UN solo elemento, fijo (27/09, Nati: "que cambie SOLO la parte de la foto y el resto
   // sean elementos fijos"): no viaja con el deslizamiento de arriba.
@@ -178,13 +178,17 @@ export function FichaProveedor({ onCamara, supplier: s, allSuppliers = [], produ
       ? <Foto src={fondo} respaldo={respaldo} t={tLegacy} estilo={{ width: "100%", height: "100%", display: "block", ...estilo }} />
       : <img src={fondo} alt="" style={{ width: "100%", height: "100%", display: "block", ...estilo }} />);
     if (!fondo) return <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center" }}><span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, color: "rgba(255,255,255,0.6)", fontSize: 14 }}><Icono nombre="tarjeta" tamano={40} color="rgba(255,255,255,0.6)" />{t("proveedor.sinTarjeta")}</span></div>;
-    if (!tarjeta) return imagen({ objectFit: "cover" });
+    // Velo arriba (Nati, 23/10: "se ve fea esa franja blanca ahí arriba"): las fotos de tarjeta suelen ser claras
+    // y los controles flotaban sobre blanco. Va debajo de los botones, por encima de la foto.
+    const veloArriba = <div aria-hidden="true" style={{ position: "absolute", left: 0, right: 0, top: 0, height: 220, background: "linear-gradient(to bottom, rgba(28,13,6,0.78), rgba(28,13,6,0.35) 55%, rgba(28,13,6,0))", pointerEvents: "none" }} />;
+    if (!tarjeta) return <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>{imagen({ objectFit: "cover" })}{veloArriba}</div>;
     // La tarjeta se ve entera (el QR se escanea de acá) y detrás va ella misma, ampliada, desenfocada y oscurecida,
     // en lugar del cacao liso que se leía como "márgenes" (Nati, 29/09: "debería estar más difuminada").
     return (
       <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", background: "#1C0D06" }}>
         <div aria-hidden="true" style={{ position: "absolute", inset: 0, transform: "scale(1.2)", filter: "blur(28px) brightness(0.55) saturate(1.1)" }}>{imagen({ objectFit: "cover" })}</div>
         <div style={{ position: "absolute", inset: 0 }}>{imagen({ objectFit: "contain", filter: "drop-shadow(0 12px 30px rgba(0,0,0,0.45))" })}</div>
+        {veloArriba}
       </div>
     );
   };

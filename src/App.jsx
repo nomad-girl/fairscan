@@ -4,6 +4,7 @@ import { MARCA, PALETAS } from './sistema/tokens.js';
 import { PRESETS } from "./lib/presets.js";
 import useGrabadora from "./hooks/useGrabadora.js";
 import { cargarNegocio, comprasActivasEn, NEGOCIO_POR_DEFECTO } from "./lib/negocio.js";
+import { metaEvento } from "./lib/metaEventos.js";
 import { estadoInicial, descontarStand, devolverProducto, reconciliar, saldoVisible } from "./lib/creditos.js";
 import { soloDeHoy, resumenDelDia } from "./lib/porDia.js";
 import { evaluarCierreDeStand, packDestacado, FRASE_PAYWALL } from "./lib/paywall.js";
@@ -2808,6 +2809,7 @@ export default function App() {
     }
     if (veredicto.usarEmergencia > 0) showToast(tx("avisos.sinSenalRegalo", { count: veredicto.usarEmergencia }));
     else if (veredicto.avisoQuedan !== null && veredicto.avisoQuedan > 0) showToast(tx("avisos.teQuedan", { count: veredicto.avisoQuedan }));
+    if (veredicto.bloquear > 0) metaEvento("fs_escaneos_agotados", { bloqueados: veredicto.bloquear }); // Meta: se quedó sin escaneos
     if (veredicto.mostrarPaywall) setPaywall({ bloqueados: veredicto.bloquear });
     sincronizarCreditos();
   };

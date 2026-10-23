@@ -4,4 +4,7 @@
     <string name="title_activity_main">FairScan</string>
     <string name="package_name">app.fairscan</string>
     <string name="custom_url_scheme">app.fairscan</string>
+    <!-- Meta (23/10/2026): los completa Code cuando Nati crea la app en Meta for Developers. Vacíos = el SDK no se inicia. -->
+    <string name="facebook_app_id" translatable="false"></string>
+    <string name="facebook_client_token" translatable="false"></string>
 </resources>
