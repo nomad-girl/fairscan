@@ -130,7 +130,7 @@ export function FichaProveedor({ onCamara, supplier: s, allSuppliers = [], produ
     el.addEventListener("touchcancel", end);
     return () => { el.removeEventListener("touchstart", start); el.removeEventListener("touchmove", move); el.removeEventListener("touchend", end); el.removeEventListener("touchcancel", end); };
   }, [s.id, conProductos]);
-  const PIE = { position: "absolute", left: 0, right: 0, bottom: 0, padding: `130px 18px calc(18px + env(safe-area-inset-bottom, 0px))`, background: "linear-gradient(to top, rgba(43,18,6,0.94) 50%, rgba(43,18,6,0.72) 72%, rgba(43,18,6,0.3) 88%, rgba(43,18,6,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 };
+  const PIE = { position: "absolute", left: 0, right: 0, bottom: 0, padding: `170px 18px calc(18px + env(safe-area-inset-bottom, 0px))`, background: "linear-gradient(to top, rgba(43,18,6,0.96) 40%, rgba(43,18,6,0.8) 58%, rgba(43,18,6,0.45) 76%, rgba(43,18,6,0.15) 90%, rgba(43,18,6,0))", color: "#fff", display: "flex", flexDirection: "column", gap: 4 };
 
   // El pie del proveedor. Es UN solo elemento, fijo (27/09, Nati: "que cambie SOLO la parte de la foto y el resto
   // sean elementos fijos"): no viaja con el deslizamiento de arriba.
@@ -180,17 +180,10 @@ export function FichaProveedor({ onCamara, supplier: s, allSuppliers = [], produ
     if (!fondo) return <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center" }}><span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, color: "rgba(255,255,255,0.6)", fontSize: 14 }}><Icono nombre="tarjeta" tamano={40} color="rgba(255,255,255,0.6)" />{t("proveedor.sinTarjeta")}</span></div>;
     // Velo arriba (Nati, 23/10: "se ve fea esa franja blanca ahí arriba"): las fotos de tarjeta suelen ser claras
     // y los controles flotaban sobre blanco. Va debajo de los botones, por encima de la foto.
-    const veloArriba = <div aria-hidden="true" style={{ position: "absolute", left: 0, right: 0, top: 0, height: 220, background: "linear-gradient(to bottom, rgba(28,13,6,0.78), rgba(28,13,6,0.35) 55%, rgba(28,13,6,0))", pointerEvents: "none" }} />;
-    if (!tarjeta) return <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>{imagen({ objectFit: "cover" })}{veloArriba}</div>;
-    // La tarjeta se ve entera (el QR se escanea de acá) y detrás va ella misma, ampliada, desenfocada y oscurecida,
-    // en lugar del cacao liso que se leía como "márgenes" (Nati, 29/09: "debería estar más difuminada").
-    return (
-      <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", background: "#1C0D06" }}>
-        <div aria-hidden="true" style={{ position: "absolute", inset: 0, transform: "scale(1.2)", filter: "blur(28px) brightness(0.55) saturate(1.1)" }}>{imagen({ objectFit: "cover" })}</div>
-        <div style={{ position: "absolute", inset: 0 }}>{imagen({ objectFit: "contain", filter: "drop-shadow(0 12px 30px rgba(0,0,0,0.45))" })}</div>
-        {veloArriba}
-      </div>
-    );
+    const veloArriba = <div aria-hidden="true" style={{ position: "absolute", left: 0, right: 0, top: 0, height: 240, background: "linear-gradient(to bottom, rgba(28,13,6,0.62), rgba(28,13,6,0.28) 55%, rgba(28,13,6,0))", pointerEvents: "none" }} />;
+    // La foto llena la pantalla (cover), sea tarjeta o producto: el QR se lee de la foto guardada, no de esta vista,
+    // y la tarjeta entera se ve en "Ver todos los datos". Antes iba "contain" con un fondo desenfocado y se notaba el corte.
+    return <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", background: "#1C0D06" }}>{imagen({ objectFit: "cover" })}{veloArriba}</div>;
   };
 
   // La galería: todos sus productos en grilla de tres (27/09, Nati: "la ficha del proveedor YA ES la galería").
@@ -254,7 +247,7 @@ export function FichaProveedor({ onCamara, supplier: s, allSuppliers = [], produ
       {/* Debajo de la posición, dos pestañas de texto: Tarjeta · Productos N. Antes eran dos puntitos y no se entendía
           que ahí había una galería (Nati, 29/09); es el mismo patrón de pestañas del catálogo. Tocarlas también cambia. */}
       {suyos.length > 0 && (
-        <div role="tablist" aria-label={t("proveedor.galeria")} style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 68px)`, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
+        <div role="tablist" aria-label={t("proveedor.galeria")} style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + 84px)`, left: 0, right: 0, display: "flex", justifyContent: "center" }}>
           <div style={{ display: "inline-flex", background: "rgba(43,18,6,0.55)", borderRadius: 999, padding: 3, gap: 2 }}>
             {[t("proveedor.paginaTarjeta"), t("proveedor.pestanaProductos", { count: suyos.length })].map((nombre, n) => (
               <button key={n} type="button" role="tab" aria-selected={pagina === n} onClick={() => irA(n)} style={{ minHeight: 34, border: "none", borderRadius: 999, padding: "0 14px", background: pagina === n ? "#FFF3EA" : "transparent", color: pagina === n ? "#2B1206" : "rgba(255,255,255,0.85)", fontFamily: "inherit", fontSize: 14, fontWeight: 600, fontVariantNumeric: "tabular-nums", cursor: "pointer", transition: "background 200ms ease, color 200ms ease" }}>
