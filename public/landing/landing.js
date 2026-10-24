@@ -16,3 +16,10 @@
   function mirar(){ barra.classList.toggle("baja", scrollY > 8); }
   addEventListener("scroll", mirar, { passive: true }); mirar();
 })();
+// Demo vertical en el teléfono (24/10): el video lo elige <source media>; acá se cambia el póster y la proporción para que no salte al cargar.
+(function(){
+  if (!matchMedia("(max-width: 640px)").matches) return;
+  Array.prototype.forEach.call(document.querySelectorAll("video[data-vertical-poster]"), function(v){
+    v.poster = v.getAttribute("data-vertical-poster"); v.setAttribute("width", "1080"); v.setAttribute("height", "1350");
+  });
+})();

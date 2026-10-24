@@ -120,3 +120,6 @@ body.v2{font-size:18px;overflow-x:hidden}
 .v2 .flecha{position:absolute;left:50%;top:calc(clamp(24px,3.4vw,44px) - 10px);transform:translate(-50%,0);z-index:3;width:56px;height:56px;border-radius:999px;background:var(--sello);color:var(--cacao);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 6px var(--crema)}
 .v2 .flecha svg{width:26px;height:26px}
 @media (max-width:760px){.v2 .flecha{top:auto;left:auto;bottom:auto}.v2 .flecha{position:relative;margin:-36px auto;transform:rotate(90deg);grid-row:2}.v2 .lado.ahora{grid-row:3}}
+
+/* Demo vertical 4:5 en el teléfono (24/10, Nati: "en mobile se ve raro horizontal"): el <source media> elige el video y landing.js el póster */
+@media (max-width:640px){.v2 .demo{aspect-ratio:auto;margin-top:40px;border-radius:24px}.v2 .demo video{aspect-ratio:4/5;object-fit:cover}}
