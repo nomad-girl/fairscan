@@ -131,10 +131,10 @@ body.v2{font-size:18px;overflow-x:hidden}
 @media (max-width:640px){
   .v2 .trio,.v2 .pasos{display:none}
   .v2 .carrusel{display:block;margin:40px calc(50% - 50vw) 0}
-  .v2 .pista{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;outline:none}
-  .v2 .pista::-webkit-scrollbar{display:none}
-  .v2 .diapo{flex:0 0 100%;scroll-snap-align:center;scroll-snap-stop:always;display:flex;flex-direction:column;align-items:center;text-align:center;padding:6px max(24px,env(safe-area-inset-left,0px)) 0}
-  .v2 .diapo .marco{width:min(64vw,270px);aspect-ratio:276/596;border-radius:38px;background:var(--cacao);padding:8px;box-shadow:0 34px 60px -34px rgba(43,18,6,.55);transform:scale(.9);opacity:.5;transition:transform .55s cubic-bezier(.2,.7,.2,1),opacity .55s}
+  .v2 .pista{overflow:hidden;touch-action:pan-y;outline:none}
+  .v2 .riel{display:flex;transition:transform .5s cubic-bezier(.2,.7,.2,1);will-change:transform}
+  .v2 .diapo{flex:0 0 100%;min-width:0;display:flex;flex-direction:column;align-items:center;text-align:center;padding:6px max(24px,env(safe-area-inset-left,0px)) 0}
+  .v2 .diapo .marco{width:min(58vw,250px);aspect-ratio:276/596;border-radius:38px;background:var(--cacao);padding:8px;box-shadow:0 34px 60px -34px rgba(43,18,6,.55);transform:scale(.9);opacity:.5;transition:transform .55s cubic-bezier(.2,.7,.2,1),opacity .55s}
   .v2 .diapo .marco img{width:100%;height:100%;object-fit:cover;border-radius:30px;display:block;-webkit-user-drag:none;user-select:none;-webkit-touch-callout:none;pointer-events:none}
   .v2 .pista{user-select:none;-webkit-user-select:none}
   .v2 .diapo.activa .marco{transform:none;opacity:1}
@@ -153,3 +153,8 @@ body.v2{font-size:18px;overflow-x:hidden}
 }
 @keyframes empujonV2{0%,100%{transform:none}50%{transform:translateX(6px)}}
 @media (prefers-reduced-motion:reduce){.v2 .desliza span{animation:none}.v2 .diapo .marco,.v2 .diapo>*{transition:none}}
+
+/* 24/10 (Nati: "se va todo para los lados y no te deja seguir bajando"): el carrusel ya no usa scroll horizontal nativo.
+   touch-action:pan-y deja el desplazamiento vertical al navegador siempre; el paso de pantalla lo decide landing.js
+   solo cuando el gesto es claramente de lado. Y la página nunca se corre para los costados (clip no rompe la barra fija). */
+html:has(body.v2),body.v2{overflow-x:clip}
