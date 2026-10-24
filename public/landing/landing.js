@@ -23,3 +23,14 @@
     v.poster = v.getAttribute("data-vertical-poster"); v.setAttribute("width", "1080"); v.setAttribute("height", "1350");
   });
 })();
+// Carrusel del inicio en el teléfono (24/10): el deslizamiento es scroll nativo; esto solo marca la pantalla activa y hace andar los puntos.
+(function(){
+  var c = document.querySelector(".carrusel"); if (!c) return;
+  var pista = c.querySelector(".pista"), diapos = c.querySelectorAll(".diapo"), puntos = c.querySelectorAll(".puntos button"), actual = 0, pedido = 0;
+  function marcar(){
+    pedido = 0; var i = Math.round(pista.scrollLeft / Math.max(1, pista.clientWidth)); if (i === actual) return; actual = i;
+    for (var k = 0; k < diapos.length; k++) { diapos[k].classList.toggle("activa", k === i); if (puntos[k]) puntos[k].setAttribute("aria-current", k === i ? "true" : "false"); }
+  }
+  pista.addEventListener("scroll", function(){ if (!pedido) pedido = requestAnimationFrame(marcar); }, { passive: true });
+  Array.prototype.forEach.call(puntos, function(b, k){ b.addEventListener("click", function(){ pista.scrollTo({ left: k * pista.clientWidth, behavior: "smooth" }); }); });
+})();
