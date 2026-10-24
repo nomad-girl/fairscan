@@ -20,7 +20,10 @@
 (function(){
   if (!matchMedia("(max-width: 640px)").matches) return;
   Array.prototype.forEach.call(document.querySelectorAll("video[data-vertical-poster]"), function(v){
+    // El iPhone no respetó <source media> (24/10): el video vertical se pone acá, a mano, antes de que cargue el horizontal.
     v.poster = v.getAttribute("data-vertical-poster"); v.setAttribute("width", "1080"); v.setAttribute("height", "1350");
+    var src = v.getAttribute("data-vertical-src");
+    if (src) { var fuentes = v.querySelectorAll("source"); for (var k = 0; k < fuentes.length; k++) fuentes[k].remove(); v.src = src; v.load(); var p = v.play(); if (p && p.catch) p.catch(function(){}); }
   });
 })();
 // Carrusel del inicio en el teléfono (24/10, rehecho el mismo día: con scroll horizontal nativo, en el iPhone los gestos
