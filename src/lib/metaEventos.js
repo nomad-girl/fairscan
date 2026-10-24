@@ -32,3 +32,13 @@ export async function primerEscaneo(store = globalThis.localStorage) {
   try { if (store?.getItem(CLAVE_PRIMER_ESCANEO)) return false; store?.setItem(CLAVE_PRIMER_ESCANEO, '1'); } catch { /* modo privado: se manda igual */ }
   return metaEvento('fs_primer_escaneo');
 }
+
+/** Diagnóstico escondido (Ajustes, 5 toques a la versión): el estado del SDK y un evento de prueba. */
+export async function metaDiagnostico() {
+  if (!metaActivo() || !nativo) return { disponible: false };
+  try {
+    const estado = await nativo.estado();
+    const prueba = await nativo.prueba();
+    return { disponible: true, ...estado, prueba };
+  } catch (e) { return { disponible: true, error: String(e?.message || e) }; }
+}

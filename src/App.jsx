@@ -4,7 +4,7 @@ import { MARCA, PALETAS } from './sistema/tokens.js';
 import { PRESETS } from "./lib/presets.js";
 import useGrabadora from "./hooks/useGrabadora.js";
 import { cargarNegocio, comprasActivasEn, NEGOCIO_POR_DEFECTO } from "./lib/negocio.js";
-import { metaEvento } from "./lib/metaEventos.js";
+import { metaEvento, metaDiagnostico } from "./lib/metaEventos.js";
 import { guardarGuia } from "./lib/guiaPrimeraVez.js";
 import { estadoInicial, descontarStand, devolverProducto, reconciliar, saldoVisible } from "./lib/creditos.js";
 import { soloDeHoy, resumenDelDia } from "./lib/porDia.js";
@@ -1238,6 +1238,9 @@ function SettingsScreen({ onCamara, settings, onSave, onBack, sync, t, products,
   const [marketingOptInAt, setMarketingOptInAt] = useState(undefined);
   // 22/10: la versión de la tienda (1.5.1 (7)) delante del commit de la parte web, para que coincida con Ajustes del teléfono.
   const [versionNativa, setVersionNativa] = useState("");
+  // Diagnóstico escondido de Meta (23/10): 5 toques a la versión. No queda a la vista de las usuarias.
+  const [diagMeta, setDiagMeta] = useState(null);
+  const toquesVersion = useRef(0);
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     import("@capacitor/app").then(({ App: CapApp }) => CapApp.getInfo()).then(i => setVersionNativa(`${i.version} (${i.build})`)).catch(() => {});
@@ -1907,7 +1910,8 @@ function SettingsScreen({ onCamara, settings, onSave, onBack, sync, t, products,
             {tx("configuracion.borrarMiCuenta")}
           </button>}
 
-          <p style={{ fontSize:11, color:t.dim, textAlign:"center", margin:"18px 0 6px", fontVariantNumeric:"tabular-nums" }}>{tx("configuracion.version", { version: (versionNativa ? `${versionNativa} · ` : "") + (typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev") })}</p>
+          {diagMeta && <pre style={{ fontSize:11, color:t.text, background:t.card, border:`1px solid ${t.border}`, borderRadius:12, padding:12, whiteSpace:"pre-wrap", wordBreak:"break-all", margin:"12px 0 0" }}>{JSON.stringify(diagMeta, null, 1)}</pre>}
+          <p onClick={() => { toquesVersion.current += 1; if (toquesVersion.current >= 5) { toquesVersion.current = 0; setDiagMeta({ cargando: true }); metaDiagnostico().then(setDiagMeta); } }} style={{ fontSize:11, color:t.dim, textAlign:"center", margin:"18px 0 6px", fontVariantNumeric:"tabular-nums" }}>{tx("configuracion.version", { version: (versionNativa ? `${versionNativa} · ` : "") + (typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev") })}</p>
           {/* Legales (pieza 10.0). Direcciones absolutas a propósito: en la app
               nativa no hay "sitio", así que un link relativo no llevaría a ningún lado. */}
           <p style={{ fontSize: 12, color: t.dim, margin: '18px 0 0', textAlign: 'center', lineHeight: 1.8 }}>

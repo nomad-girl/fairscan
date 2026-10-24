@@ -29,6 +29,8 @@ import java.util.concurrent.Executors;
 public class MetaEventos extends Plugin {
     private static final ExecutorService hilo = Executors.newSingleThreadExecutor();
     private volatile boolean listo = false;
+    private volatile String ultimoError = "";
+    private volatile long ultimoEnvio = 0;
 
     @Override
     public void load() {
@@ -56,7 +58,7 @@ public class MetaEventos extends Plugin {
             FacebookSdk.fullyInitialize();
             AppEventsLogger.activateApp((Application) app);
             listo = true;
-        } catch (Throwable ignored) { /* sin Meta la app sigue igual */ }
+        } catch (Throwable e) { ultimoError = "iniciar: " + e; /* sin Meta la app sigue igual */ }
     }
 
     private static Bundle aBundle(JSObject o) {
@@ -94,6 +96,45 @@ public class MetaEventos extends Plugin {
         hilo.execute(() -> {
             try { iniciar(); if (!listo) return; AppEventsLogger l = AppEventsLogger.newLogger(getContext()); l.logPurchase(BigDecimal.valueOf(valor), Currency.getInstance(moneda), aBundle(params)); l.flush(); }
             catch (Throwable ignored) { }
+        });
+    }
+
+    /** Diagnóstico escondido (Ajustes → 5 toques a la versión, 23/10): si la medición arrancó y con qué datos. */
+    @PluginMethod
+    public void estado(PluginCall call) {
+        JSObject r = new JSObject();
+        try {
+            r.put("appId", recurso("facebook_app_id"));
+            r.put("tieneToken", !recurso("facebook_client_token").isEmpty());
+            r.put("listo", listo);
+            r.put("inicializado", FacebookSdk.isInitialized());
+            r.put("completo", FacebookSdk.isFullyInitialized());
+            r.put("autoInit", FacebookSdk.getAutoInitEnabled());
+            r.put("autoLog", FacebookSdk.getAutoLogAppEventsEnabled());
+            r.put("idPublicidad", FacebookSdk.getAdvertiserIDCollectionEnabled());
+            r.put("sdk", FacebookSdk.getSdkVersion());
+            r.put("idAnonimo", AppEventsLogger.getAnonymousAppDeviceGUID(getContext()));
+            r.put("ultimoEnvio", ultimoEnvio);
+        } catch (Throwable e) { ultimoError = "estado: " + e; }
+        r.put("error", ultimoError);
+        call.resolve(r);
+    }
+
+    /** Manda "fs_prueba" y lo despacha ya. Devuelve si salió sin error (que llegue lo confirma Probar eventos). */
+    @PluginMethod
+    public void prueba(PluginCall call) {
+        hilo.execute(() -> {
+            JSObject r = new JSObject();
+            try {
+                iniciar();
+                AppEventsLogger l = AppEventsLogger.newLogger(getContext());
+                l.logEvent("fs_prueba");
+                l.flush();
+                ultimoEnvio = System.currentTimeMillis();
+                r.put("ok", listo);
+            } catch (Throwable e) { ultimoError = "prueba: " + e; r.put("ok", false); }
+            r.put("error", ultimoError);
+            call.resolve(r);
         });
     }
 }
