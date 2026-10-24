@@ -1241,6 +1241,12 @@ function SettingsScreen({ onCamara, settings, onSave, onBack, sync, t, products,
   // Diagnóstico escondido de Meta (23/10): 5 toques a la versión. No queda a la vista de las usuarias.
   const [diagMeta, setDiagMeta] = useState(null);
   const toquesVersion = useRef(0);
+  // 24/10: los 5 toques no respondían en el Android de prueba. Para la cuenta del equipo, el diagnóstico corre solo al abrir Ajustes.
+  const EQUIPO_DIAG = ["nataligerstein@gmail.com", "builddigitalthings@gmail.com"];
+  useEffect(() => {
+    if (!EQUIPO_DIAG.includes(String(userEmail || "").toLowerCase())) return;
+    setDiagMeta({ cargando: true }); metaDiagnostico().then(setDiagMeta).catch(e => setDiagMeta({ error: String(e?.message || e) }));
+  }, [userEmail]);
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     import("@capacitor/app").then(({ App: CapApp }) => CapApp.getInfo()).then(i => setVersionNativa(`${i.version} (${i.build})`)).catch(() => {});
@@ -1846,6 +1852,7 @@ function SettingsScreen({ onCamara, settings, onSave, onBack, sync, t, products,
         <MenuItem icon={<Icono nombre="equipo" tamano={22} color={t.accent} />} title={tx("configuracion.equipoYSync")} subtitle={activeTeam ? activeTeam.name : tx("configuracion.sinEquipo")} onClick={() => setSubScreen("room")} />
         <MenuItem icon={<Icono nombre="nube" tamano={22} color={t.accent} />} title={tx("configuracion.backupYDatos")} subtitle={tx("configuracion.backupSub")} onClick={() => setSubScreen("backup")} />
         {/* La parte paga, a la vista (29/09, Nati: "falta en el menú algo de packs o facturación") */}
+        {diagMeta && <pre style={{ fontSize:11, color:t.text, background:t.card, border:`2px solid ${t.accent}`, borderRadius:12, padding:12, whiteSpace:"pre-wrap", wordBreak:"break-all", margin:"0 0 12px" }}>{"Diagnóstico Meta (solo equipo)\n" + JSON.stringify(diagMeta, null, 1)}</pre>}
         {onCamara && <MenuItem icon={<Icono nombre="camara" tamano={22} color={t.accent} />} title={tx("visor.guia.verDeNuevo")} subtitle={tx("visor.guia.verDeNuevoPista")} onClick={() => { guardarGuia("1"); onCamara(); }} />}
         {onVerPacks && <MenuItem icon={<Icono nombre="pedido" tamano={22} color={t.accent} />} title={tx("configuracion.escaneosYPacks")} subtitle={saldo == null ? tx("configuracion.escaneosPista") : tx("configuracion.escaneosQuedan", { count: saldo })} onClick={onVerPacks} />}
 
@@ -1910,7 +1917,6 @@ function SettingsScreen({ onCamara, settings, onSave, onBack, sync, t, products,
             {tx("configuracion.borrarMiCuenta")}
           </button>}
 
-          {diagMeta && <pre style={{ fontSize:11, color:t.text, background:t.card, border:`1px solid ${t.border}`, borderRadius:12, padding:12, whiteSpace:"pre-wrap", wordBreak:"break-all", margin:"12px 0 0" }}>{JSON.stringify(diagMeta, null, 1)}</pre>}
           <p onClick={() => { toquesVersion.current += 1; if (toquesVersion.current >= 5) { toquesVersion.current = 0; setDiagMeta({ cargando: true }); metaDiagnostico().then(setDiagMeta); } }} style={{ fontSize:11, color:t.dim, textAlign:"center", margin:"18px 0 6px", fontVariantNumeric:"tabular-nums" }}>{tx("configuracion.version", { version: (versionNativa ? `${versionNativa} · ` : "") + (typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev") })}</p>
           {/* Legales (pieza 10.0). Direcciones absolutas a propósito: en la app
               nativa no hay "sitio", así que un link relativo no llevaría a ningún lado. */}
