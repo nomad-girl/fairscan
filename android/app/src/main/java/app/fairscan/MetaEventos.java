@@ -3,8 +3,6 @@ package app.fairscan;
 import android.app.Application;
 import android.content.Context;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import com.facebook.FacebookSdk;
 import com.facebook.appevents.AppEventsLogger;
 import com.getcapacitor.JSObject;
@@ -19,10 +17,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Eventos para la publicidad de Meta (23/10/2026). El SDK se inicia a mano 2,5 s después de arrancar y en un hilo
- * propio (AutoInitEnabled=false en el manifiesto): en China los dominios de Meta están bloqueados y la app se usa
- * adentro de la feria, así que nada de esto puede frenar el arranque, colgar la cámara ni mostrar un error. Todo
- * va en try/catch y, si falta el App ID o el token (strings.xml), no hace nada.
+ * Eventos para la publicidad de Meta (23/10/2026). En el manifiesto va AutoInitEnabled=false, y acá se termina de
+ * iniciar el SDK al cargar el plugin (antes de que la pantalla aparezca, para no perder el evento "abrió la app").
+ * En China los dominios de Meta están bloqueados: nada de esto hace red en el hilo de la pantalla (el SDK manda en
+ * sus propios hilos), todo va en try/catch y, si falta el App ID o el token (strings.xml), no hace nada.
+ *
+ * 23/10 (segunda versión): la primera no llamaba a setAutoInitEnabled(true) + fullyInitialize(); con el arranque
+ * automático apagado, el SDK juntaba los eventos y no mandaba ninguno (Nati: "no registró ningún evento").
  */
 @CapacitorPlugin(name = "MetaEventos")
 public class MetaEventos extends Plugin {
@@ -31,7 +32,7 @@ public class MetaEventos extends Plugin {
 
     @Override
     public void load() {
-        new Handler(Looper.getMainLooper()).postDelayed(() -> hilo.execute(this::iniciar), 2500);
+        iniciar();
     }
 
     private String recurso(String nombre) {
@@ -48,9 +49,11 @@ public class MetaEventos extends Plugin {
             Context app = getContext().getApplicationContext();
             FacebookSdk.setApplicationId(appId);
             FacebookSdk.setClientToken(token);
-            FacebookSdk.sdkInitialize(app);
+            if (!FacebookSdk.isInitialized()) FacebookSdk.sdkInitialize(app);
             FacebookSdk.setAutoLogAppEventsEnabled(true);
             FacebookSdk.setAdvertiserIDCollectionEnabled(true);
+            FacebookSdk.setAutoInitEnabled(true);
+            FacebookSdk.fullyInitialize();
             AppEventsLogger.activateApp((Application) app);
             listo = true;
         } catch (Throwable ignored) { /* sin Meta la app sigue igual */ }
@@ -76,7 +79,7 @@ public class MetaEventos extends Plugin {
         call.resolve(); // la app no espera a Meta
         if (nombre == null || nombre.isEmpty()) return;
         hilo.execute(() -> {
-            try { iniciar(); if (!listo) return; AppEventsLogger.newLogger(getContext()).logEvent(nombre, aBundle(params)); }
+            try { iniciar(); if (!listo) return; AppEventsLogger l = AppEventsLogger.newLogger(getContext()); l.logEvent(nombre, aBundle(params)); l.flush(); }
             catch (Throwable ignored) { }
         });
     }
@@ -89,7 +92,7 @@ public class MetaEventos extends Plugin {
         call.resolve();
         if (valor == null) return;
         hilo.execute(() -> {
-            try { iniciar(); if (!listo) return; AppEventsLogger.newLogger(getContext()).logPurchase(BigDecimal.valueOf(valor), Currency.getInstance(moneda), aBundle(params)); }
+            try { iniciar(); if (!listo) return; AppEventsLogger l = AppEventsLogger.newLogger(getContext()); l.logPurchase(BigDecimal.valueOf(valor), Currency.getInstance(moneda), aBundle(params)); l.flush(); }
             catch (Throwable ignored) { }
         });
     }
