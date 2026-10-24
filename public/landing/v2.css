@@ -1,0 +1,122 @@
+/* Landing v2 (24/10/2026, Nati: "tiene mucho texto… inspirarte en la web de BDT, fluidez, más minimalismo").
+   Va encima de landing.css (tokens, tipografías, botones). Tipografía grande y apretada, mucho aire, etiquetas chicas
+   en mono, una sola idea por bloque, antes/ahora como el post de Instagram, teléfonos agrupados con capturas reales. */
+:root{--mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;--ancho:1180px}
+body.v2{font-size:18px;overflow-x:hidden}
+.v2 .wrap{max-width:var(--ancho)}
+.v2 .rotulo{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--tenue);display:inline-flex;align-items:center;gap:8px}
+.v2 .rotulo::before{content:"";width:7px;height:7px;border-radius:2px;background:var(--naranja)}
+
+/* Barra: pegada arriba, con vidrio suave al bajar */
+.v2 .barra{position:sticky;top:0;z-index:20;background:rgba(255,243,234,.82);backdrop-filter:saturate(1.4) blur(14px);-webkit-backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid transparent;transition:border-color .3s}
+.v2 .barra.baja{border-bottom-color:var(--borde)}
+.v2 .barra .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:68px}
+.v2 .barra nav{display:flex;align-items:center;gap:22px;font-size:15px}
+.v2 .barra nav a{color:var(--texto);text-decoration:none}
+.v2 .barra nav a:hover{color:var(--naranja-texto)}
+.v2 .barra .idiomas{font-family:var(--mono);font-size:12px;letter-spacing:.06em;display:flex;gap:10px}
+.v2 .barra .idiomas a{color:var(--tenue)}
+.v2 .barra .idiomas a[aria-current]{color:var(--texto);text-decoration:underline;text-underline-offset:4px}
+.v2 .barra .btn{min-height:44px;padding:0 18px;font-size:15px;border-radius:999px}
+@media (max-width:760px){.v2 .barra nav .solo-ancho{display:none}}
+
+/* Hero */
+.v2 .hero{position:relative;padding:72px 0 40px;text-align:center}
+.v2 .hero::before{content:"";position:absolute;left:50%;top:40px;width:min(780px,90vw);height:420px;transform:translateX(-50%);background:radial-gradient(closest-side,rgba(255,197,61,.28),rgba(255,197,61,0));filter:blur(40px);z-index:-1;pointer-events:none}
+.v2 .titular{font-family:var(--marca);font-weight:800;font-size:clamp(46px,8.4vw,112px);line-height:.94;letter-spacing:-.045em;margin:18px auto 0;max-width:14ch;text-wrap:balance}
+.v2 .bajada{font-size:clamp(18px,2vw,21px);line-height:1.45;color:var(--apagado);max-width:34ch;margin:26px auto 0}
+.v2 .tiendas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:34px}
+.v2 .tiendas .btn{min-width:186px;border-radius:999px}
+.v2 .nota{font-size:14px;color:var(--tenue);margin:14px 0 0}
+
+/* Tres teléfonos agrupados, con capturas reales (como los proyectos de la web de BDT) */
+.v2 .trio{position:relative;height:clamp(420px,62vw,640px);margin:56px auto 0;max-width:900px}
+.v2 .tel{position:absolute;bottom:0;width:clamp(170px,26vw,270px);aspect-ratio:276/596;border-radius:clamp(26px,3.6vw,40px);background:var(--cacao);padding:clamp(6px,.8vw,9px);box-shadow:0 40px 70px -40px rgba(43,18,6,.55)}
+.v2 .tel img{width:100%;height:100%;object-fit:cover;border-radius:clamp(20px,3vw,32px)}
+.v2 .tel.c{left:50%;transform:translateX(-50%);z-index:3;width:clamp(200px,30vw,310px)}
+.v2 .tel.i{left:4%;transform:rotate(-7deg) translateY(-6%);z-index:2}
+.v2 .tel.d{right:4%;transform:rotate(7deg) translateY(-6%);z-index:2}
+@media (max-width:640px){.v2 .tel.i,.v2 .tel.d{display:none}.v2 .trio{height:auto;aspect-ratio:auto}.v2 .tel.c{position:relative;left:auto;transform:none;margin:0 auto}}
+
+/* Antes · Ahora (el post de Instagram, partido en dos) */
+.v2 .contraste{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:120px}
+.v2 .lado{position:relative;border-radius:28px;overflow:hidden;min-height:clamp(440px,52vw,620px);display:flex;flex-direction:column;justify-content:flex-end;padding:clamp(24px,3.4vw,44px)}
+.v2 .lado.antes{background:#1C0D06;color:var(--crema)}
+.v2 .lado.antes video,.v2 .lado.antes .poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.62}
+.v2 .lado.antes{justify-content:flex-start}
+.v2 .lado.antes::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,rgba(28,13,6,.94) 22%,rgba(28,13,6,.15) 70%)}
+.v2 .lado>*{position:relative;z-index:1}
+.v2 .lado.ahora{background:var(--blanco);color:var(--texto);justify-content:space-between;gap:24px}
+.v2 .pastilla{align-self:flex-start;font-family:var(--marca);font-weight:700;font-size:15px;letter-spacing:.04em;padding:8px 16px;border-radius:999px;margin-bottom:16px}
+.v2 .antes .pastilla{background:var(--crema);color:var(--cacao)}
+.v2 .ahora .pastilla{background:var(--naranja);color:var(--cacao)}
+.v2 .lado h2{font-family:var(--marca);font-weight:800;font-size:clamp(30px,3.6vw,48px);line-height:1;letter-spacing:-.035em;margin:0;text-wrap:balance;max-width:14ch}
+.v2 .lado p{margin:14px 0 0;font-size:17px;color:var(--apagado);max-width:28ch}
+.v2 .ahora .mini{align-self:center;width:min(240px,62%);aspect-ratio:276/596;border-radius:32px;background:var(--cacao);padding:7px;box-shadow:0 30px 60px -36px rgba(43,18,6,.5);transform:rotate(3deg)}
+.v2 .ahora .mini img{width:100%;height:100%;object-fit:cover;border-radius:26px}
+@media (max-width:760px){.v2 .contraste{grid-template-columns:1fr;margin-top:88px}.v2 .lado.antes{min-height:420px}}
+
+/* Cómo funciona: tres pasos en una línea cada uno, y el demo */
+.v2 .bloque{margin-top:140px}
+.v2 .bloque h2.grande{font-family:var(--marca);font-weight:800;font-size:clamp(36px,5.2vw,68px);line-height:.98;letter-spacing:-.04em;margin:16px 0 0;max-width:18ch;text-wrap:balance}
+.v2 .pasos{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:48px;padding-top:28px;border-top:1px solid var(--borde)}
+.v2 .paso .n{font-family:var(--mono);font-size:13px;color:var(--naranja-texto)}
+.v2 .paso b{display:block;font-family:var(--marca);font-weight:800;font-size:24px;letter-spacing:-.02em;margin:10px 0 6px}
+.v2 .paso span{color:var(--apagado);font-size:16px}
+.v2 .demo{margin-top:56px;border-radius:28px;overflow:hidden;background:var(--cacao);box-shadow:0 40px 80px -46px rgba(43,18,6,.6)}
+.v2 .demo video{display:block;width:100%;height:auto}
+@media (max-width:760px){.v2 .pasos{grid-template-columns:1fr;gap:22px}}
+
+/* Hecho para la feria: una fila de chips, sin párrafos */
+.v2 .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
+.v2 .chips span{font-size:15px;padding:10px 16px;border-radius:999px;background:var(--blanco);box-shadow:inset 0 0 0 1px var(--borde)}
+
+/* Precios */
+.v2 .packs{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:40px}
+.v2 .pack{background:var(--blanco);border-radius:22px;padding:26px;display:flex;flex-direction:column;gap:6px;box-shadow:inset 0 0 0 1px var(--borde)}
+.v2 .pack.estrella{box-shadow:inset 0 0 0 2px var(--cacao)}
+.v2 .pack .cant{font-family:var(--marca);font-weight:800;font-size:40px;letter-spacing:-.03em;line-height:1}
+.v2 .pack .cant small{font-size:16px;font-weight:600;letter-spacing:0;color:var(--apagado)}
+.v2 .pack .usd{font-weight:700;color:var(--verde);font-size:18px}
+.v2 .pack .etq{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--tenue)}
+.v2 .letra{font-size:14px;color:var(--tenue);margin:16px 0 0}
+@media (max-width:760px){.v2 .packs{grid-template-columns:1fr}}
+
+/* Cierre */
+.v2 .cierre{margin-top:150px;padding:110px 0 120px;background:var(--sello);text-align:center}
+.v2 .cierre h2{font-family:var(--marca);font-weight:800;font-size:clamp(40px,7vw,96px);line-height:.94;letter-spacing:-.045em;margin:0 auto;max-width:11ch;color:var(--cacao);text-wrap:balance}
+.v2 .cierre .btn{background:var(--cacao);color:var(--crema)}
+.v2 .cierre .btn:hover{background:var(--cacao-2);color:var(--crema)}
+
+/* Pie: FairScan, links chicos, y "un producto de" con el logo de BDT */
+.v2 .pie2{background:var(--cacao);color:var(--crema-apagado);padding:56px 0 40px;font-size:14px}
+.v2 .pie2 .fila{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap}
+.v2 .pie2 nav{display:flex;gap:18px;flex-wrap:wrap}
+.v2 .pie2 a{color:var(--crema-apagado);text-decoration:none}
+.v2 .pie2 a:hover{color:var(--crema)}
+.v2 .bdt{display:inline-flex;align-items:center;gap:12px;color:var(--crema-tenue);font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.v2 .bdt img{height:22px;width:auto;display:block;transition:opacity .2s}
+.v2 .bdt:hover img{opacity:.8}
+.v2 .pie2 .legal{margin-top:28px;padding-top:20px;border-top:1px solid rgba(255,243,234,.12);font-size:12px;color:var(--crema-tenue)}
+
+/* Movimiento: el revelado lo hace landing.js con .revelar (landing.css); acá solo la entrada del hero y los teléfonos */
+.v2 .hero{isolation:isolate}
+.v2 .hero .rotulo,.v2 .hero .titular,.v2 .hero .bajada,.v2 .hero .tiendas,.v2 .hero .nota{animation:subeV2 .9s cubic-bezier(.2,.7,.2,1) both}
+.v2 .hero .titular{animation-delay:.05s}.v2 .hero .bajada{animation-delay:.12s}.v2 .hero .tiendas{animation-delay:.19s}.v2 .hero .nota{animation-delay:.24s}
+.v2 .trio .tel{animation:telV2 1.1s cubic-bezier(.2,.7,.2,1) both}
+.v2 .trio .tel.c{animation-delay:.15s}.v2 .trio .tel.i{animation-delay:.3s}.v2 .trio .tel.d{animation-delay:.38s}
+@keyframes subeV2{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+@keyframes telV2{from{opacity:0;translate:0 70px}to{opacity:1;translate:0 0}}
+.v2 .lado.antes h2{color:var(--crema)}.v2 .lado.antes p{color:var(--crema-apagado)}
+.v2 .revelar .lado{opacity:0;transform:translateY(24px);transition:opacity .8s cubic-bezier(.2,.7,.2,1),transform .8s cubic-bezier(.2,.7,.2,1)}
+.v2 .revelar.visto .lado{opacity:1;transform:none}.v2 .revelar.visto .lado.ahora{transition-delay:.14s}
+.v2 .revelar .pack{opacity:0;transform:translateY(18px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+.v2 .revelar.visto .pack{opacity:1;transform:none}.v2 .revelar.visto .pack:nth-child(2){transition-delay:.1s}.v2 .revelar.visto .pack:nth-child(3){transition-delay:.2s}
+@media (max-width:480px){.v2 .barra .btn{width:auto}.v2 .barra .marca-nombre{font-size:20px}}
+@media (prefers-reduced-motion:reduce){.v2 .hero *,.v2 .trio .tel{animation:none}.v2 .revelar .lado,.v2 .revelar .pack{opacity:1;transform:none;transition:none}}
+
+/* Antes → ahora (24/10, Nati: "los carteles están desconectados, no se leen en ese orden"): las dos etiquetas y los dos títulos
+   a la misma altura arriba, y una flecha en la unión de los paneles que marca el orden (→ en computadora, ↓ en teléfono). */
+.v2 .flecha{position:absolute;left:50%;top:calc(clamp(24px,3.4vw,44px) - 10px);transform:translate(-50%,0);z-index:3;width:56px;height:56px;border-radius:999px;background:var(--sello);color:var(--cacao);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 6px var(--crema)}
+.v2 .flecha svg{width:26px;height:26px}
+@media (max-width:760px){.v2 .flecha{top:auto;left:auto;bottom:auto}.v2 .flecha{position:relative;margin:-36px auto;transform:rotate(90deg);grid-row:2}.v2 .lado.ahora{grid-row:3}}

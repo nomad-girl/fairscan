@@ -10,3 +10,9 @@
   function repasar(){ bloques = bloques.filter(function(b){ if (b.classList.contains("visto")) return false; var r = b.getBoundingClientRect(); if (r.top < innerHeight * 0.92) { ver(b); io.unobserve(b); return false; } return true; }); }
   addEventListener("scroll", repasar, { passive: true }); addEventListener("resize", repasar, { passive: true }); setTimeout(repasar, 1200);
 })();
+// Barra de la v2 (24/10): una línea fina debajo apenas se baja, como en la web de BDT.
+(function(){
+  var barra = document.querySelector(".barra"); if (!barra) return;
+  function mirar(){ barra.classList.toggle("baja", scrollY > 8); }
+  addEventListener("scroll", mirar, { passive: true }); mirar();
+})();
