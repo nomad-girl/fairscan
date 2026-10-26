@@ -8,8 +8,9 @@ import { SistemaProvider } from "../../sistema/SistemaProvider.jsx";
 
 vi.mock("../../sistema/vibrar.js", () => ({ vibrarSeleccion: vi.fn(), vibrarExito: vi.fn(), vibrarError: vi.fn(), vibrarObturador: vi.fn(), vibrarAviso: vi.fn() }));
 vi.mock("../../lib/supabase.js", () => ({ supabase: null }));
-const { HojaAyuda, mailDeAyuda, whatsappDeAyuda, PREGUNTAS_AYUDA } = await import("../HojaAyuda.jsx");
-const { normalizarNegocio, soloDigitos } = await import("../../lib/negocio.js");
+const { HojaAyuda, mailDeAyuda, PREGUNTAS_AYUDA } = await import("../HojaAyuda.jsx");
+const { normalizarNegocio } = await import("../../lib/negocio.js");
+const { configDeChat, cargarChat } = await import("../../lib/chatSoporte.js");
 
 beforeAll(() => { iniciarIdiomas("es-AR"); });
 afterEach(cleanup);
@@ -34,22 +35,24 @@ describe("Ayuda (26/10)", () => {
     expect(cuerpo).toContain("1.7.9");
     expect(cuerpo).toContain("abc-123");
   });
-  it("sin número de WhatsApp en la config, solo el mail; con número, Chatear con soporte primero", () => {
+  it("sin chat en la config, solo el mail; con Chatwoot configurado, Chatear con soporte primero", () => {
     const { unmount } = render(<SistemaProvider modo="claro"><HojaAyuda abierta onCerrar={() => {}} /></SistemaProvider>);
     expect(screen.queryByRole("button", { name: /Chatear con soporte/ })).toBeNull();
     unmount();
-    render(<SistemaProvider modo="claro"><HojaAyuda abierta onCerrar={() => {}} whatsapp="5491100000000" /></SistemaProvider>);
+    render(<SistemaProvider modo="claro"><HojaAyuda abierta onCerrar={() => {}} chat={{ url: "https://app.chatwoot.com", token: "abc123TOKEN" }} /></SistemaProvider>);
     expect(screen.getByRole("button", { name: /Chatear con soporte/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Escribinos por mail/ })).toBeTruthy();
-    expect(screen.getByText(/WhatsApp no anda sin VPN/)).toBeTruthy(); // aviso para China
   });
-  it("el WhatsApp abre wa.me con el mensaje empezado y el contexto, y el número se valida desde la config", () => {
-    const url = whatsappDeAyuda(i18next.t.bind(i18next), "5491100000000", { plataforma: "ios", version: "1.0.2", instalacion: "x1" });
-    expect(url.startsWith("https://wa.me/5491100000000?text=")).toBe(true);
-    expect(decodeURIComponent(url.split("text=")[1])).toContain("ios · versión 1.0.2");
-    expect(soloDigitos("+54 9 11 0000-0000")).toBe("5491100000000");
-    expect(soloDigitos("123")).toBe("");
-    expect(normalizarNegocio({}).soporte_whatsapp).toBe("");
-    expect(normalizarNegocio({ soporte_whatsapp: "+54 9 11 0000 0000" }).soporte_whatsapp).toBe("5491100000000");
+  it("la config del chat se valida (https y token) y viene del servidor", () => {
+    expect(configDeChat({ url: "https://app.chatwoot.com/", token: "abc123TOKEN" })).toEqual({ url: "https://app.chatwoot.com", token: "abc123TOKEN" });
+    expect(configDeChat({ url: "http://app.chatwoot.com", token: "abc123TOKEN" })).toBeNull();
+    expect(configDeChat({ url: "https://app.chatwoot.com", token: "<script>" })).toBeNull();
+    expect(normalizarNegocio({}).soporte_chat).toBeNull();
+    expect(normalizarNegocio({ soporte_chat: { url: "https://app.chatwoot.com", token: "abc123TOKEN" } }).soporte_chat).toEqual({ url: "https://app.chatwoot.com", token: "abc123TOKEN" });
+  });
+  it("si el chat no carga a tiempo, avisa que no (y la hoja cae al mail)", async () => {
+    const doc = { createElement: () => ({}), body: { appendChild: () => {} }, documentElement: { lang: "es" } };
+    const win = { addEventListener: () => {} };
+    expect(await cargarChat({ url: "https://app.chatwoot.com", token: "abc123TOKEN" }, { doc, win, espera: 20 })).toBe(false);
   });
 });

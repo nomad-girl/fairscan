@@ -3733,7 +3733,7 @@ export default function App() {
   return (
     <div className="app-pantallas" style={{ height:"100%", background:t.bg, color:t.text, position:"relative", overflow:"hidden", fontFamily:"'DM Sans', -apple-system, sans-serif" }}>
       {/* 30/09 (Nati: "entré a packs y no pude salir"): la hoja de packs se cierra tocando el velo, con la X o con Después */}
-      <HojaAyuda abierta={ayudaAbierta} whatsapp={negocio.soporte_whatsapp || ""} onCerrar={() => setAyudaAbierta(false)} onVerGuia={() => { guardarGuia("1"); setAyudaAbierta(false); navigate("capture"); }} />
+      <HojaAyuda abierta={ayudaAbierta} chat={negocio.soporte_chat || null} cuenta={auth.esAnonima ? null : { email: auth.user?.email || null }} onCerrar={() => setAyudaAbierta(false)} onVerGuia={() => { guardarGuia("1"); setAyudaAbierta(false); navigate("capture"); }} />
       {/* Pedir la cuenta en el momento justo (26/10, plan aprobado por Nati): al cerrar el primer stand sin cuenta; nunca bloquea */}
       <Hoja abierta={pedirCuenta && !!auth.esAnonima} onCerrar={() => setPedirCuenta(false)} titulo={tx("pedirCuenta.titulo")}
         pie={<div style={{ display:"flex", flexDirection:"column", gap:8 }}>

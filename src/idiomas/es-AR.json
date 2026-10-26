@@ -1337,8 +1337,7 @@
     },
     "chatear": "Chatear con soporte",
     "escribinosMail": "Escribinos por mail",
-    "chatearPista": "Te atendemos por WhatsApp. Si estás en China, WhatsApp no anda sin VPN: escribinos a {{mail}}.",
-    "whatsappTexto": "Hola, necesito ayuda con FairScan.\n\n({{plataforma}} · versión {{version}} · instalación {{instalacion}})"
+    "chatearPista": "Te respondemos en este chat. Si no carga, escribinos a {{mail}}."
   },
   "pedirCuenta": {
     "titulo": "Guardá tu catálogo",
