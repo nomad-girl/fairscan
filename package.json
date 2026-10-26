@@ -35,6 +35,7 @@
     "dexie": "4.3.0",
     "dexie-react-hooks": "1.1.7",
     "entrar-con-apple": "file:plugins/entrar-con-apple",
+    "entrar-con-google": "file:plugins/entrar-con-google",
     "exceljs": "4.4.0",
     "i18next": "^26.4.2",
     "jsqr": "1.4.0",

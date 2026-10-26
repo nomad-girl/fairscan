@@ -5,8 +5,9 @@
  * (`detectSessionInUrl` la toma sola). En la app instalada no hay "página a la que volver": se abre el
  * navegador del sistema con la dirección que arma Supabase, la usuaria entra, y el proveedor devuelve a
  * la app por su esquema propio (`com.builddigitalthings.fairscan://auth`) con los tokens en la dirección;
- * acá se leen y se le dan a Supabase. Google (y Apple en Android) siguen ese camino; Apple en iPhone/iPad usa la
- * hoja nativa desde el 23/10/2026 (ver `entrarConAppleNativo`).
+ * acá se leen y se le dan a Supabase. Apple en Android sigue ese camino (la página de Apple ya dice "FairScan"); Apple en
+ * iPhone/iPad usa la hoja nativa desde el 23/10/2026 (ver `entrarConAppleNativo`) y Google es nativo en Android desde el
+ * 23/10 y en iPhone/iPad desde el 25/10 (ver `entrarConGoogleNativo`).
  *
  * Quien empezó sin cuenta (sesión anónima) no entra: VINCULA la identidad a la cuenta que ya tiene, así el
  * catálogo del teléfono queda donde está (`linkIdentity`). Si ese mail ya tiene otra cuenta en FairScan,
@@ -79,17 +80,20 @@ async function entrarConAppleNativo({ vincular }) {
 
 /** El cliente OAuth Web del proyecto de Google (el que Supabase acepta); no es secreto. */
 export const GOOGLE_CLIENTE_WEB = '1006392719624-jqij41dpknt3seoft3ueqh4ac68du0ul.apps.googleusercontent.com';
+/** El cliente OAuth iOS (bundle com.builddigitalthings.fairscan); su esquema invertido está en ios/App/App/Info.plist. */
+export const GOOGLE_CLIENTE_IOS = '1006392719624-sg6ducp7f22fqumsvddtibn8gv9url4i.apps.googleusercontent.com';
 
 /**
- * Entrar con Google con la hoja de cuentas del propio teléfono, en Android (23/10/2026). La página de Google en el
- * navegador decía "continuar a retpaxynglfwruwagccw.supabase.co" y eso genera desconfianza (Nati, E19).
- * Devuelve null si el teléfono no tiene ninguna cuenta de Google: ahí se sigue por el navegador.
+ * Entrar con Google sin el dominio de Supabase (E19). La página de Google en el navegador decía
+ * "continuar a retpaxynglfwruwagccw.supabase.co" y eso genera desconfianza (Nati). En Android (23/10/2026) es la hoja de
+ * cuentas del propio teléfono; en iPhone/iPad (25/10/2026), la hoja de Google con el cliente iOS, que dice "Ir a FairScan".
+ * Devuelve null si el teléfono Android no tiene ninguna cuenta de Google: ahí se sigue por el navegador.
  */
 async function entrarConGoogleNativo({ vincular }) {
   const plugin = registerPlugin('EntrarConGoogle');
   const { original, cifrado } = await nonceParaApple();
   let r;
-  try { r = await plugin.entrar({ clienteWeb: GOOGLE_CLIENTE_WEB, nonce: cifrado }); }
+  try { r = await plugin.entrar({ clienteWeb: GOOGLE_CLIENTE_WEB, clienteIos: GOOGLE_CLIENTE_IOS, nonce: cifrado }); }
   catch (e) {
     if (e?.code === 'CANCELADO' || /cancel/i.test(e?.message || '')) throw Object.assign(new Error('cancelado'), { cancelado: true });
     if (e?.code === 'SIN_CUENTAS') return null;
@@ -111,7 +115,7 @@ export async function entrarCon(proveedor, { vincular = false } = {}) {
   if (!supabase) throw new Error('sin-supabase');
   const nativo = Capacitor.isNativePlatform();
   if (proveedor === 'apple' && nativo && Capacitor.getPlatform() === 'ios') return entrarConAppleNativo({ vincular });
-  if (proveedor === 'google' && nativo && Capacitor.getPlatform() === 'android') {
+  if (proveedor === 'google' && nativo) {
     const r = await entrarConGoogleNativo({ vincular });
     if (r) return r; // null = el teléfono no tiene cuenta de Google: sigue por el navegador
   }

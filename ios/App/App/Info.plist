@@ -40,6 +40,14 @@
 				<string>com.builddigitalthings.fairscan</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>google</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.1006392719624-sg6ducp7f22fqumsvddtibn8gv9url4i</string>
+			</array>
+		</dict>
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>FairScan usa la cámara para fotografiar productos y tarjetas de proveedores en la feria y armar tu catálogo.</string>

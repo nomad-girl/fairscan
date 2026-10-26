@@ -1,0 +1,9 @@
+{
+  "name": "entrar-con-google",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Entrar con Google nativo (GoogleSignIn) para FairScan en iPhone/iPad. 25/10/2026: por el navegador, la página de Google decía 'Ir a retpaxynglfwruwagccw.supabase.co' (E19); con el cliente iOS dice 'Ir a FairScan'.",
+  "main": "index.js",
+  "capacitor": { "ios": { "src": "ios" } },
+  "peerDependencies": { "@capacitor/core": ">=8.0.0" }
+}

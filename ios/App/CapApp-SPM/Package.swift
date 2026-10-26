@@ -20,7 +20,8 @@ let package = Package(
         .package(name: "CapacitorSplashScreen", path: "../../../node_modules/@capacitor/splash-screen"),
         .package(name: "RevenuecatPurchasesCapacitor", path: "../../../node_modules/@revenuecat/purchases-capacitor"),
         .package(name: "CapacitorNativeSettings", path: "../../../node_modules/capacitor-native-settings"),
-        .package(name: "EntrarConApple", path: "../../../plugins/entrar-con-apple")
+        .package(name: "EntrarConApple", path: "../../../plugins/entrar-con-apple"),
+        .package(name: "EntrarConGoogle", path: "../../../plugins/entrar-con-google")
     ],
     targets: [
         .target(
@@ -36,7 +37,8 @@ let package = Package(
                 .product(name: "CapacitorSplashScreen", package: "CapacitorSplashScreen"),
                 .product(name: "RevenuecatPurchasesCapacitor", package: "RevenuecatPurchasesCapacitor"),
                 .product(name: "CapacitorNativeSettings", package: "CapacitorNativeSettings"),
-                .product(name: "EntrarConApple", package: "EntrarConApple")
+                .product(name: "EntrarConApple", package: "EntrarConApple"),
+                .product(name: "EntrarConGoogle", package: "EntrarConGoogle")
             ]
         )
     ]
