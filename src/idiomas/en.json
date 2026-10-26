@@ -1334,7 +1334,11 @@
         "p": "I'm in China and can't sign in.",
         "r": "Use “Continue with Apple” or your email. Google doesn't work without a VPN."
       }
-    }
+    },
+    "chatear": "Chat with support",
+    "escribinosMail": "Email us",
+    "chatearPista": "We answer on WhatsApp. If you're in China, WhatsApp doesn't work without a VPN: email us at {{mail}}.",
+    "whatsappTexto": "Hi, I need help with FairScan.\n\n({{plataforma}} · version {{version}} · install {{instalacion}})"
   },
   "pedirCuenta": {
     "titulo": "Save your catalog",

@@ -20,6 +20,9 @@ export const NEGOCIO_POR_DEFECTO = Object.freeze({
   // Cuentas (ids de Supabase) que ven la compra aunque esté apagada para todo el mundo: para probar la
   // compra sandbox en el teléfono de Nati sin prenderla para la revisión de Apple (16/10).
   compras_pruebas: [],
+  // WhatsApp de soporte (26/10, Nati: "chatear con soporte"): solo dígitos con código de país (ej. 5491100000000).
+  // Vacío = no se muestra el botón. Se cambia desde la fila `negocio` sin publicar versión.
+  soporte_whatsapp: '',
   packs: [
     { id: 'pack_500', escaneos: 500, usd: 19.99 },
     { id: 'pack_1000', escaneos: 1000, usd: 29.99, ancla: true },
@@ -34,6 +37,12 @@ export function comprasActivasEn(negocio, plataforma) {
   if (v === true) return true;
   if (v && typeof v === 'object') return v[plataforma] === true;
   return false;
+}
+
+/** Un número de WhatsApp usable para wa.me: solo dígitos, entre 8 y 15 (estándar E.164). Si no, vacío. */
+export function soloDigitos(x) {
+  const d = typeof x === 'string' ? x.replace(/\D/g, '') : '';
+  return d.length >= 8 && d.length <= 15 ? d : '';
 }
 
 export function normalizarNegocio(valor) {
@@ -53,6 +62,7 @@ export function normalizarNegocio(valor) {
       : false,
     compras_pruebas: Array.isArray(v.compras_pruebas) ? v.compras_pruebas.filter(x => typeof x === 'string') : [],
     packs: packs.length ? packs : NEGOCIO_POR_DEFECTO.packs,
+    soporte_whatsapp: soloDigitos(v.soporte_whatsapp),
   };
 }
 
