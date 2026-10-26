@@ -19,3 +19,4 @@ export { Dato } from "./Dato.jsx";
 export { SeccionDeDatos } from "./Baldosas.jsx";
 export { Marca } from "./Marca.jsx";
 export { GuiaAviso } from "./GuiaAviso.jsx";
+export { HojaAyuda } from "./HojaAyuda.jsx";

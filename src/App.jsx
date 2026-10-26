@@ -116,7 +116,7 @@ import { FichaProducto } from './pantallas/FichaProducto.jsx';
 import { Ferias } from './pantallas/Ferias.jsx';
 import { BotonCamara } from './componentes/BotonCamara.jsx';
 import { FichaProveedor } from './pantallas/FichaProveedor.jsx';
-import { Icono, Hoja, Boton, Marca, cerrarHojaSuperior } from './componentes/index.js';
+import { Icono, Hoja, Boton, Marca, cerrarHojaSuperior, HojaAyuda } from './componentes/index.js';
 import { Escritorio } from './escritorio/Escritorio.jsx';
 import { useEsEscritorio } from './escritorio/util.jsx';
 import { useSistema } from './sistema/SistemaProvider.jsx';
@@ -600,7 +600,7 @@ const parseQRContent = (qrData) => {
  * stand es la tarjeta del proveedor (4.4). El catálogo sube desde abajo con un
  * gesto o con el botón "Catálogo". Un solo modo (4.5).
  */
-function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave, onClose, onCatalogo, t, isDark, initialSupplier = null, products = [], onProductoNuevo, onProductoCambio, onProductoBorrar, soloProveedor = false, saldoCreditos = null, queueCount = 0 }) {
+function QuickCapture({ onAyuda, suppliers, districts, activeDistrictId, settings, onSave, onClose, onCatalogo, t, isDark, initialSupplier = null, products = [], onProductoNuevo, onProductoCambio, onProductoBorrar, soloProveedor = false, saldoCreditos = null, queueCount = 0 }) {
   const { t: tx } = useTranslation();
   const [cardPhoto, setCardPhoto] = useState(null);
   const [cardData, setCardData] = useState(null);
@@ -1141,6 +1141,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
       <>
         {hojaTarjetaNueva}
         <Visor
+          onAyuda={onAyuda}
           videoRef={videoRef} modo={cameraMode} feria={activeDistrict?.name || null}
           itemsCount={items.length} saldo={saldoCreditos} esperando={esperando} estadoSync={estadoSync} pendientesSync={queueCount}
           flash={flashVisible} ultimaCaptura={lastCapture} ultimas={ultimas} puedeAgregarAngulo={anguloDisponible && items.length > 0 && !addPhotoToItemId}
@@ -1200,7 +1201,7 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
 // ═══════════════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════════════
-function SettingsScreen({ onCamara, settings, onSave, onBack, sync, t, products, suppliers, districts, onReload, teams, activeTeam, teamMembers, isAdmin, fetchMembers, inviteMember, onSwitchTeam, userEmail, userId, esAnonima = false, auth, onSignOut, onGoExport, onAccountDeleted, isDark = false, onToggleTheme, onEntrar, saldo = null, onVerPacks = null }) {
+function SettingsScreen({ onCamara, onAyuda, settings, onSave, onBack, sync, t, products, suppliers, districts, onReload, teams, activeTeam, teamMembers, isAdmin, fetchMembers, inviteMember, onSwitchTeam, userEmail, userId, esAnonima = false, auth, onSignOut, onGoExport, onAccountDeleted, isDark = false, onToggleTheme, onEntrar, saldo = null, onVerPacks = null }) {
   const { t: tx } = useTranslation();
   const handleSwitchTeam = async (teamId) => {
     if (onSwitchTeam) await onSwitchTeam(teamId);
@@ -1836,6 +1837,7 @@ function SettingsScreen({ onCamara, settings, onSave, onBack, sync, t, products,
         {/* La parte paga, a la vista (29/09, Nati: "falta en el menú algo de packs o facturación") */}
         {diagMeta && <pre style={{ fontSize:11, color:t.text, background:t.card, border:`2px solid ${t.accent}`, borderRadius:12, padding:12, whiteSpace:"pre-wrap", wordBreak:"break-all", margin:"0 0 12px" }}>{"Diagnóstico Meta (solo equipo)\n" + JSON.stringify(diagMeta, null, 1)}</pre>}
         {onCamara && <MenuItem icon={<Icono nombre="camara" tamano={22} color={t.accent} />} title={tx("visor.guia.verDeNuevo")} subtitle={tx("visor.guia.verDeNuevoPista")} onClick={() => { guardarGuia("1"); onCamara(); }} />}
+        {onAyuda && <MenuItem icon={<Icono nombre="ayuda" tamano={22} color={t.accent} />} title={tx("ayuda.titulo")} subtitle={tx("ayuda.escribinosPista", { mail: "hola@fairscan.app" })} onClick={onAyuda} />}
         {onVerPacks && <MenuItem icon={<Icono nombre="pedido" tamano={22} color={t.accent} />} title={tx("configuracion.escaneosYPacks")} subtitle={saldo == null ? tx("configuracion.escaneosPista") : tx("configuracion.escaneosQuedan", { count: saldo })} onClick={onVerPacks} />}
 
         {/* User & logout */}
@@ -2773,6 +2775,19 @@ export default function App() {
   };
   // Paywall (5.3): al cerrar el stand, si el saldo no alcanza. Nunca al disparar.
   const [paywall, setPaywall] = useState(null); // { bloqueados }
+  const [ayudaAbierta, setAyudaAbierta] = useState(false); // Ayuda (26/10): "?" de la cámara y Ajustes
+  // Embudo (26/10): "cuenta_creada" con el método, una vez por cuenta. Cuenta como nueva si su identidad más reciente
+  // nació hace menos de 15 minutos (crear cuenta o convertir la sesión sin cuenta); las cuentas viejas solo se marcan.
+  useEffect(() => {
+    const u = auth.user;
+    if (!u || auth.esAnonima) return;
+    const clave = "fs_cuenta_vista_" + u.id;
+    try { if (localStorage.getItem(clave)) return; localStorage.setItem(clave, "1"); } catch { return; }
+    const ids = [...(u.identities || [])].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const nueva = ids[0] && Date.now() - new Date(ids[0].created_at).getTime() < 15 * 60 * 1000;
+    if (nueva) anotar("cuenta_creada", { metodo: ids[0].provider === "email" ? "mail" : ids[0].provider });
+  }, [auth.user?.id, auth.esAnonima]);
+  const [pedirCuenta, setPedirCuenta] = useState(false);   // "Guardá tu catálogo" al cerrar el 1.º y el 3.er stand sin cuenta (26/10)
   // ¿Se puede comprar ya en este teléfono? Si no (RevenueCat sin configurar), la hoja lo dice en vez de fallar en silencio.
   const [comprasListas, setComprasListas] = useState(false);
   // Precio real de la tienda en cada pack (25/10, Apple 2.1(b)/3.1.1): se pide al abrir el paywall; si no responde, queda el de la config
@@ -3472,6 +3487,14 @@ export default function App() {
         for (const id of createdIds) { const u = products.find(p => p.id === id)?.uuid; if (u) idsPorUuid[u] = id; }
         const uuidsStand = Object.keys(idsPorUuid);
         if (uuidsStand.length && !data.sinDescontar) await descontarAlCerrarStand(uuidsStand, idsPorUuid);
+        if (uuidsStand.length) {
+          anotar("stand_cerrado", { productos: uuidsStand.length, tarjeta: !!(data.cardPhoto || supplierId) }); // embudo (26/10)
+          // Sin cuenta: "Guardá tu catálogo" al cerrar el 1.º stand y, si lo saltó, el 3.º (plan aprobado por Nati, 26/10)
+          if (auth.esAnonima) {
+            let n = 0; try { n = (parseInt(localStorage.getItem("fs_stands_cerrados") || "0", 10) || 0) + 1; localStorage.setItem("fs_stands_cerrados", String(n)); } catch { /* sin almacenamiento */ }
+            if (n === 1 || n === 3) { anotar("cuenta_pedida", { stand: n }); setTimeout(() => setPedirCuenta(true), 900); }
+          }
+        }
         // Background: upload card photo
         if (data.cardPhoto && supplierId && navigator.onLine && subirTarjeta) {
           uploadPhoto(data.cardPhoto, 'cards').then(result => {
@@ -3710,6 +3733,15 @@ export default function App() {
   return (
     <div className="app-pantallas" style={{ height:"100%", background:t.bg, color:t.text, position:"relative", overflow:"hidden", fontFamily:"'DM Sans', -apple-system, sans-serif" }}>
       {/* 30/09 (Nati: "entré a packs y no pude salir"): la hoja de packs se cierra tocando el velo, con la X o con Después */}
+      <HojaAyuda abierta={ayudaAbierta} onCerrar={() => setAyudaAbierta(false)} onVerGuia={() => { guardarGuia("1"); setAyudaAbierta(false); navigate("capture"); }} />
+      {/* Pedir la cuenta en el momento justo (26/10, plan aprobado por Nati): al cerrar el primer stand sin cuenta; nunca bloquea */}
+      <Hoja abierta={pedirCuenta && !!auth.esAnonima} onCerrar={() => setPedirCuenta(false)} titulo={tx("pedirCuenta.titulo")}
+        pie={<div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          <Boton variante="principal" ancho="total" onClick={() => { anotar("cuenta_abierta", { modo: "register", desde: "stand" }); setPedirCuenta(false); setMostrarLogin("register"); }}>{tx("entrar.crearCuenta")}</Boton>
+          <Boton variante="secundario" ancho="total" onClick={() => { anotar("cuenta_pedida_no"); setPedirCuenta(false); }}>{tx("entrar.ahoraNo")}</Boton>
+        </div>}>
+        <p style={{ fontSize:15, lineHeight:1.5, color:t.text, margin:0 }}>{tx("pedirCuenta.texto")}</p>
+      </Hoja>
       {paywall && (
         <div role="dialog" onClick={() => setPaywall(null)} style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
           <div onClick={e => e.stopPropagation()} style={{ position:"relative", width:"100%", maxWidth:520, background:t.bg, borderRadius:"22px 22px 0 0", padding:"22px 20px calc(env(safe-area-inset-bottom, 0px) + 20px)", boxShadow:"0 -8px 40px rgba(0,0,0,0.35)" }}>
@@ -3799,7 +3831,7 @@ export default function App() {
           onPedidoPara={asegurarPedido} onGuardarPedido={handleUpdateOrder} onEnviarProforma={enviarProforma} onDescargarExcelFeria={descargarExcelFeria}
           equipoId={sync.teamId} onActualizarVarios={handleBatchUpdate} onEliminarVarios={handleBatchDelete} onAgregarAlPedidoVarios={agregarVariosAlPedido} onEliminarPedido={handleDeleteOrder}
           renderExportar={(onVolver) => <ExportScreen compacto equipoId={sync.teamId} products={products} suppliers={suppliers} districts={districts} onBack={onVolver} onExported={msg => { onVolver(); showToast(msg); }} onUpdateProduct={handleUpdateProduct} onUpdateSupplier={handleUpdateSupplier} t={t} />}
-          renderAjustes={(onVolver, irAExportar) => <SettingsScreen onCamara={() => navigate("capture")} saldo={creditos ? saldoVisible(creditos) : null} onVerPacks={() => setPaywall({ bloqueados: 0, desdeAjustes: true })} settings={settings} onSave={(s, silent) => handleSaveSettings(s, true).then(() => { if (!silent) { showToast(tx("configuracion.guardada")); onVolver(); } })} onBack={onVolver} sync={sync} t={t} isDark={isDark} onToggleTheme={toggleTheme}
+          renderAjustes={(onVolver, irAExportar) => <SettingsScreen onCamara={() => navigate("capture")} onAyuda={() => setAyudaAbierta(true)} saldo={creditos ? saldoVisible(creditos) : null} onVerPacks={() => setPaywall({ bloqueados: 0, desdeAjustes: true })} settings={settings} onSave={(s, silent) => handleSaveSettings(s, true).then(() => { if (!silent) { showToast(tx("configuracion.guardada")); onVolver(); } })} onBack={onVolver} sync={sync} t={t} isDark={isDark} onToggleTheme={toggleTheme}
             products={products} suppliers={suppliers} districts={districts} onReload={reloadAll}
             teams={teamsHook.teams} activeTeam={teamsHook.teams.find(tm => tm.id === sync.teamId)} teamMembers={teamsHook.teamMembers}
             isAdmin={teamsHook.isAdmin} fetchMembers={teamsHook.fetchMembers} inviteMember={teamsHook.inviteMember}
@@ -3817,7 +3849,7 @@ export default function App() {
           pestana={listTab} onPestana={setListTab} sinCuenta={!!auth.esAnonima} onEntrar={() => setMostrarLogin(true)} onCrearCuenta={() => setMostrarLogin("register")} estadoDatos={estadoDatos} onReintentar={sync.forceSync} />
       )}
       {!esEscritorio && (screen === "capture" || screen === "capture-supplier") && (
-        <QuickCapture key={`${screen}-${standKey}`} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings} products={products}
+        <QuickCapture key={`${screen}-${standKey}`} onAyuda={() => setAyudaAbierta(true)} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings} products={products}
           onProductoNuevo={crearProductoDesdeCaptura} onProductoCambio={handleUpdateProduct} onProductoBorrar={borrarProductoDesdeCaptura}
           onSave={(data) => handleCaptureSave({ ...data, soloProveedor: screen === "capture-supplier" })} onClose={() => navigate("list")} onCatalogo={() => { setListTab("todo"); navigate("list"); }} t={t} isDark={isDark}
           soloProveedor={screen === "capture-supplier"} saldoCreditos={creditos ? saldoVisible(creditos) : null} queueCount={queueCount}
@@ -3866,7 +3898,7 @@ export default function App() {
           onBack={() => navigate("list")} />
       )}
       {!esEscritorio && screen === "settings" && (
-        <SettingsScreen onCamara={() => navigate("capture")} saldo={creditos ? saldoVisible(creditos) : null} onVerPacks={() => setPaywall({ bloqueados: 0, desdeAjustes: true })} settings={settings} onSave={handleSaveSettings} onBack={() => navigate("list")} sync={sync} t={t} isDark={isDark} onToggleTheme={toggleTheme}
+        <SettingsScreen onCamara={() => navigate("capture")} onAyuda={() => setAyudaAbierta(true)} saldo={creditos ? saldoVisible(creditos) : null} onVerPacks={() => setPaywall({ bloqueados: 0, desdeAjustes: true })} settings={settings} onSave={handleSaveSettings} onBack={() => navigate("list")} sync={sync} t={t} isDark={isDark} onToggleTheme={toggleTheme}
           products={products} suppliers={suppliers} districts={districts} onReload={reloadAll}
           teams={teamsHook.teams} activeTeam={teamsHook.teams.find(tm => tm.id === sync.teamId)} teamMembers={teamsHook.teamMembers}
           isAdmin={teamsHook.isAdmin} fetchMembers={teamsHook.fetchMembers} inviteMember={teamsHook.inviteMember}

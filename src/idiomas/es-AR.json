@@ -1301,5 +1301,43 @@
     "cancelada": "Compra cancelada",
     "noCompleto": "La compra no se completó",
     "restaurarEnWeb": "Restaurar compras funciona desde la app de App Store o Google Play."
+  },
+  "ayuda": {
+    "titulo": "Ayuda",
+    "escribinos": "Escribinos",
+    "escribinosPista": "Te respondemos a tu mail desde {{mail}}.",
+    "mailAsunto": "FairScan · Ayuda",
+    "mailCuerpo": "Contanos qué pasó:\n\n\n—\nPara ayudarte mejor: {{plataforma}} · versión {{version}} · instalación {{instalacion}}",
+    "abrir": "Ayuda",
+    "preguntas": {
+      "feria": {
+        "p": "¿Necesito estar en una feria para probarla?",
+        "r": "No. Escaneá cualquier tarjeta o producto que tengas cerca."
+      },
+      "sinInternet": {
+        "p": "¿Funciona sin internet?",
+        "r": "Sí. Sacás las fotos igual; la IA las completa cuando vuelve la señal."
+      },
+      "gratis": {
+        "p": "¿Cuántos escaneos tengo gratis?",
+        "r": "15 productos. Las tarjetas de proveedor no se cuentan."
+      },
+      "pedido": {
+        "p": "¿Cómo comparto el pedido con el proveedor?",
+        "r": "En el proveedor, tocá «Armar pedido» y después «Mandar proforma»."
+      },
+      "cuenta": {
+        "p": "¿Por qué crear una cuenta?",
+        "r": "Para no perder tu catálogo si cambiás o perdés el teléfono."
+      },
+      "china": {
+        "p": "Estoy en China y no puedo entrar.",
+        "r": "Usá «Continuar con Apple» o tu mail. Google no funciona sin VPN."
+      }
+    }
+  },
+  "pedirCuenta": {
+    "titulo": "Guardá tu catálogo",
+    "texto": "Creá una cuenta y no lo pierdas si cambiás o perdés el teléfono. Es gratis y tarda un minuto."
   }
 }

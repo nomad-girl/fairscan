@@ -43,6 +43,7 @@ export function Visor({
   consejoVisible = false, onConsejoVisto,
   avisoRetomado = null, // "Seguís en el stand de …" cuando la app retomó sola un stand abierto (22/10)
   onTouchStart, onTouchEnd,
+  onAyuda, // el "?" de arriba abre la hoja de Ayuda (26/10)
 }) {
   const { t } = useTranslation();
   const { alturas, movimiento, curvas, duracion, reducido } = useSistema();
@@ -163,6 +164,8 @@ export function Visor({
             );
           })()}
           {estadoSync === "falla" && <Pastilla><span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, background: colorPunto, display: "inline-block" }} /><span style={{ fontSize: 12, fontWeight: 500, color: BLANCO_SUAVE }}>{textoSync}</span></Pastilla>}
+          {/* Ayuda (26/10, idea de la mamá de Nati): un "?" chico, en la fila de arriba y no flotando sobre la foto */}
+          {onAyuda && !modoAngulo && <button type="button" onClick={onAyuda} aria-label={t("ayuda.abrir")} style={{ width: 32, height: 32, borderRadius: 16, border: "none", background: VIDRIO, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", display: "grid", placeItems: "center", padding: 0, cursor: "pointer", flexShrink: 0 }}><Icono nombre="ayuda" tamano={18} color={BLANCO} /></button>}
           {/* 27/09: el botón de Catálogo pasó abajo, junto al obturador, grande y con nombre */}
           {false && <button type="button" onClick={onCatalogo} aria-label={t("visor.irAlCatalogo")} style={{ minHeight: 40, padding: "0 14px 0 12px", borderRadius: 999, border: "none", background: "rgba(43,18,6,0.55)", color: BLANCO, fontSize: 14, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontFamily: "inherit", backdropFilter: "blur(8px)" }}><Icono nombre="foto" tamano={18} color={BLANCO} />{t("visor.catalogo")}</button>}
         </div>

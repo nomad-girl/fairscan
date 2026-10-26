@@ -1301,5 +1301,43 @@
     "cancelada": "Purchase canceled",
     "noCompleto": "The purchase didn't complete",
     "restaurarEnWeb": "Restore purchases works from the App Store or Google Play app."
+  },
+  "ayuda": {
+    "titulo": "Help",
+    "escribinos": "Write to us",
+    "escribinosPista": "We reply to your email from {{mail}}.",
+    "mailAsunto": "FairScan · Help",
+    "mailCuerpo": "Tell us what happened:\n\n\n—\nTo help you better: {{plataforma}} · version {{version}} · install {{instalacion}}",
+    "abrir": "Help",
+    "preguntas": {
+      "feria": {
+        "p": "Do I need to be at a trade fair to try it?",
+        "r": "No. Scan any business card or product you have nearby."
+      },
+      "sinInternet": {
+        "p": "Does it work offline?",
+        "r": "Yes. You take the photos anyway; the AI completes them when the signal comes back."
+      },
+      "gratis": {
+        "p": "How many free scans do I get?",
+        "r": "15 products. Supplier cards don't count."
+      },
+      "pedido": {
+        "p": "How do I share the order with the supplier?",
+        "r": "On the supplier, tap “Build order” and then “Send proforma”."
+      },
+      "cuenta": {
+        "p": "Why create an account?",
+        "r": "So you don't lose your catalog if you change or lose your phone."
+      },
+      "china": {
+        "p": "I'm in China and can't sign in.",
+        "r": "Use “Continue with Apple” or your email. Google doesn't work without a VPN."
+      }
+    }
+  },
+  "pedirCuenta": {
+    "titulo": "Save your catalog",
+    "texto": "Create an account so you don't lose it if you change or lose your phone. It's free and takes a minute."
   }
 }
