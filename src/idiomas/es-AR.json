@@ -297,7 +297,10 @@
     "entrar": "Entrar con mi cuenta",
     "primeraFoto": "Sacá la primera foto",
     "primeraFotoPista": "Después, la tarjeta del proveedor",
-    "nuevo": "Nuevo"
+    "nuevo": "Nuevo",
+    "primerUsoTexto": "Sacale una foto a un producto y la IA le pone nombre, categoría y materiales.",
+    "empezarPista": "Probalo con cualquier cosa que tengas cerca. El teléfono te va a pedir permiso para usar la cámara.",
+    "cuentaTexto": "Con una cuenta, tu catálogo queda guardado en la nube y lo ves también en la compu."
   },
   "revisar": {
     "titulo": "Revisar el día",
@@ -1245,7 +1248,9 @@
     "demasiadosIntentos": "Demasiados intentos seguidos. Esperá un minuto y probá de nuevo.",
     "mailInvalido": "Ese mail no parece válido. Revisalo.",
     "sinConexion": "No hay conexión. Probá cuando tengas señal.",
-    "errorGenerico": "No se pudo entrar. Probá de nuevo en un momento."
+    "errorGenerico": "No se pudo entrar. Probá de nuevo en un momento.",
+    "yaTenesCuenta": "Ese mail ya tiene una cuenta en FairScan. Entrá con el botón con el que la creaste: Apple, Google o mail y contraseña.",
+    "enChina": "¿Estás en China? Google no funciona sin VPN: entrá con Apple o con tu mail."
   },
   "borrador": {
     "tarjetaDe": "la tarjeta de {{nombre}}",

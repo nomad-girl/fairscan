@@ -146,6 +146,7 @@ import { leerBorrador, guardarBorrador, borrarBorrador, describirBorrador, ESPER
 import { elegirMiniatura, miniaturaDe, generarMiniaturasFaltantes, reducirFoto } from './lib/miniaturas.js';
 import { aDataUrl, sinDerivados, tipoDeFoto, productoParaUI } from './lib/fotosBinario.js';
 import { supabase } from './lib/supabase.js';
+import { anotar } from './lib/primerUso.js';
 
 // El catálogo se muestra del más nuevo al más viejo (mismo orden que la base).
 const ordenarPorFecha = (arr) => [...arr].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -456,27 +457,6 @@ const DiaHeader = ({ etiqueta, n, grid, t }) => (
   </div>
 );
 
-/** Bienvenida de un solo golpe: el "para qué" antes de pedir la cámara (4.1, 1.5). */
-function Bienvenida({ onEmpezar, sinCuenta, onEntrar }) {
-  const { t: tx } = useTranslation();
-  // Primera vez, sin foto (Nati, 22/09: "no es el código visual de la app"): el naranja de la marca arriba,
-  // con FairScan y la frase en blanco; abajo, claro, los dos botones. Un toque y estás en la cámara.
-  return (
-    <div className="pantalla-fija" style={{ position:"fixed", inset:0, background:MARCA.crema, color:MARCA.cacao, fontFamily:"inherit", display:"flex", flexDirection:"column" }}>
-      {/* Identidad (28/09): la marca con energía sobre cacao; el naranja queda para la acción */}
-      <div style={{ flex:1, background:MARCA.cacao, color:MARCA.crema, padding:"calc(env(safe-area-inset-top, 0px) + 40px) 24px 36px", display:"flex", flexDirection:"column", justifyContent:"flex-end", gap:14, borderRadius:"0 0 32px 32px" }}>
-        <Marca tamano={44} color={MARCA.crema} conIcono />
-        <p style={{ fontSize:19, fontWeight:500, margin:0, lineHeight:1.3, maxWidth:340, color:"rgba(255,243,234,0.88)" }}>{tx("bienvenida.frase")}</p>
-      </div>
-      <div style={{ padding:"24px 22px calc(28px + env(safe-area-inset-bottom, 0px))", display:"flex", flexDirection:"column", gap:10 }}>
-        <button onClick={onEmpezar} style={{ width:"100%", minHeight:54, borderRadius:14, border:"none", background:MARCA.naranja, color:MARCA.cacao, fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}><Icono nombre="camara" tamano={20} color={MARCA.cacao} />{tx("bienvenida.empezar")}</button>
-        {sinCuenta && onEntrar && <button onClick={onEntrar} style={{ width:"100%", minHeight:54, borderRadius:14, border:"1px solid #EAD9CC", background:"#FFFFFF", color:MARCA.cacao, fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{tx("bienvenida.yaTengoCuenta")}</button>}
-        <p style={{ fontSize:12, color:"#8A4B2A", margin:"8px 0 0", textAlign:"center", lineHeight:1.5 }}>{sinCuenta ? tx("bienvenida.sinCuentaPista") : tx("bienvenida.permisoCamara")}</p>
-      </div>
-    </div>
-  );
-}
-
 const Empty = ({ icon, title, sub, t }) => (
   <div style={{ textAlign:"center", padding:"60px 20px" }}>
     <span style={{ fontSize:48, display:"block", marginBottom:16 }}>{icon}</span>
@@ -747,12 +727,14 @@ function QuickCapture({ suppliers, districts, activeDistrictId, settings, onSave
         video: { facingMode: "environment", width: { ideal: 2560 }, height: { ideal: 1920 } }
       });
       streamRef.current = stream;
+      anotar("camara_ok", {}, { unaVez: true }); // primer uso (25/10): llegó a la cámara con permiso
       // Wait for video element to mount
       setTimeout(() => { if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play().catch(() => {}); } }, 50);
     } catch (err) {
       // Permiso denegado, cámara ocupada o inexistente: se cierra el visor y se
       // explica qué pasó, con el camino a los ajustes y la galería como salida (N5).
       console.warn("Camera error:", err);
+      anotar("camara_error", { tipo: String(err?.name || "desconocido").slice(0, 40) }, { unaVez: true });
       setCameraMode(null);
       setCameraError({ ...explicarErrorDeCamara(err), modo: mode });
     }
@@ -2793,6 +2775,13 @@ export default function App() {
   const [paywall, setPaywall] = useState(null); // { bloqueados }
   // ¿Se puede comprar ya en este teléfono? Si no (RevenueCat sin configurar), la hoja lo dice en vez de fallar en silencio.
   const [comprasListas, setComprasListas] = useState(false);
+  // Precio real de la tienda en cada pack (25/10, Apple 2.1(b)/3.1.1): se pide al abrir el paywall; si no responde, queda el de la config
+  const [preciosTienda, setPreciosTienda] = useState({});
+  useEffect(() => {
+    if (!paywall || !negocio.compras_activas) return;
+    const ids = (negocio.packs || []).map(pk => pk.id);
+    import("./lib/compras.js").then(m => m.preciosDeTienda?.(ids)).then(r => { if (r && Object.keys(r).length) setPreciosTienda(r); }).catch(() => {});
+  }, [!!paywall, negocio.compras_activas]);
   useEffect(() => { import("./lib/compras.js").then(m => setComprasListas(!!m.estaConfigurado?.())).catch(() => setComprasListas(false)); }, [auth.user, paywall]);
   const bloquearProductos = async (ids) => {
     for (const id of ids) await dbUpdateProduct(id, { bloqueado: 1, ai_processed: true }); // la IA no gasta en lo bloqueado
@@ -2896,11 +2885,13 @@ export default function App() {
     // Ids en la papelera (borrados que todavía no se confirmaron en la base). Una recarga desde la base en esos
     // 5 segundos los traía de vuelta a la pantalla (24/09, Nati: "eliminé imágenes y me las vuelve a mostrar").
     const borrandoRef = useRef(new Set());
+    const hayProductosRef = useRef(false); // primer uso (25/10): sin productos, la app abre en el catálogo
     const reloadAll = async () => {
     await ajustarFeriaAutomatica().catch(() => false); // la feria creada sola no tapa el catálogo real
     const [d, s, p, st, o] = await Promise.all([getDistricts(), getSuppliers(), getProducts(), getSettings(), getOrders().catch(() => [])]);
     const enPapelera = borrandoRef.current;
     setDistricts(d); setSuppliers(s); setProducts(enPapelera.size ? p.filter(x => !enPapelera.has(x.id)) : p); setSettings(st); setOrders(o);
+    hayProductosRef.current = p.length > 0;
     return st;
   };
 
@@ -2977,6 +2968,9 @@ export default function App() {
       // Claro por defecto (decisión 4 del sistema visual): el "dark" guardado de fábrica en los
       // teléfonos viejos no cuenta como elección; solo vale si la usuaria lo eligió a mano.
       setIsDark(st.theme === "dark" && !!st.temaElegido);
+      // Primer uso (25/10, Nati: "catálogo primero, cámara después"): mientras no haya ningún producto, la app abre en el
+      // catálogo, con "Empezar a escanear" y la cuenta a la vista. Desde la primera foto, abre en la cámara como siempre.
+      if (!hayProductosRef.current && !esEscritorio) { setScreen("list"); anotar("primera_apertura", { conCuenta: !auth.esAnonima }, { unaVez: true }); }
       setReady(true);
       // Config del negocio y saldo (5.1, 5.2), sin bloquear el arranque.
       // Compras (5.4): el SDK de la tienda se configura con el id de la usuaria; en la web no hace nada.
@@ -3525,6 +3519,7 @@ export default function App() {
     };
     const id = await addProduct({ ...registro });
     setProducts(prev => [{ ...registro, id, photos }, ...prev]);
+    anotar("primera_foto", {}, { unaVez: true }); // primer uso (25/10)
     return id;
   };
   const borrarProductoDesdeCaptura = async (id) => {
@@ -3705,16 +3700,12 @@ export default function App() {
   const enColumna = (nodo) => (esEscritorio ? <div style={{ height:"100%", background:"#1C0D06", display:"flex", justifyContent:"center" }}><div style={{ width:460, height:"100%", position:"relative" }}>{nodo}</div></div> : nodo);
   if (!auth.user) return enColumna(<LoginScreen t={t} onAuth={auth} />);
 
-  if (mostrarLogin) return enColumna(<LoginScreen t={t} onAuth={auth} onCancel={() => setMostrarLogin(false)} />);
+  if (mostrarLogin) return enColumna(<LoginScreen t={t} onAuth={auth} modoInicial={mostrarLogin === "register" ? "register" : undefined} onCancel={() => setMostrarLogin(false)} />);
   // 02/10 (Nati: "el logo viejo aparece y desaparece"): mientras carga la base, cacao liso. Antes se mostraba el esqueleto
   // del catálogo en gris claro, y entre el arranque oscuro y la cámara oscura se veía como un parpadeo.
   if (!ready) return <div style={{ height:"100%", background:MARCA.cacao }} aria-busy="true" aria-label={tx("captura.cargandoCatalogo")} />;
   // La bienvenida habla de sacar fotos: en la compu no hay cámara, se pasa directo al escritorio.
-  if (!settings.bienvenidaVista && !esEscritorio) return (
-    <Bienvenida sinCuenta={auth.esAnonima}
-      onEmpezar={async () => { await dbSaveSettings({ bienvenidaVista: true }); setSettings(prev => ({ ...prev, bienvenidaVista: true })); }}
-      onEntrar={async () => { await dbSaveSettings({ bienvenidaVista: true }); setSettings(prev => ({ ...prev, bienvenidaVista: true })); setMostrarLogin(true); }} />
-  );
+  // La bienvenida de un golpe se fue (25/10): el primer uso abre en el catálogo vacío (ver el efecto de arranque).
 
   return (
     <div className="app-pantallas" style={{ height:"100%", background:t.bg, color:t.text, position:"relative", overflow:"hidden", fontFamily:"'DM Sans', -apple-system, sans-serif" }}>
@@ -3734,9 +3725,11 @@ export default function App() {
                   <span>
                     <span style={{ display:"block", fontSize:15, fontWeight:800, color:t.text }}>{tx("avisos.escaneosPack", { cantidad: fNumero(pk.escaneos) })}</span>
                     {/* El precio por escaneo, a la vista (Clau, 29/09): es lo que hace que el pack grande convenga */}
-                    <span style={{ display:"block", fontSize:11, fontWeight:600, color: destacado ? t.accent : t.muted }}>{tx("avisos.porEscaneo", { precio: (pk.usd / pk.escaneos).toLocaleString(i18next.language, { style: "currency", currency: "USD", minimumFractionDigits: 3, maximumFractionDigits: 3 }) })}{destacado ? ` · ${tx("avisos.elMasElegido")}` : ""}</span>
+                    <span style={{ display:"block", fontSize:11, fontWeight:600, color: destacado ? t.accent : t.muted }}>{(() => { const pt = preciosTienda[pk.id]; const valor = pt && Number.isFinite(pt.valor) && pt.moneda ? pt.valor : pk.usd; const moneda = pt && Number.isFinite(pt.valor) && pt.moneda ? pt.moneda : "USD";
+                      let precio; try { precio = (valor / pk.escaneos).toLocaleString(i18next.language, { style: "currency", currency: moneda, minimumFractionDigits: 3, maximumFractionDigits: 3 }); } catch { precio = `${moneda} ${(valor / pk.escaneos).toFixed(3)}`; }
+                      return tx("avisos.porEscaneo", { precio }); })()}{destacado ? ` · ${tx("avisos.elMasElegido")}` : ""}</span>
                   </span>
-                  <span style={{ fontSize:15, fontWeight:800, color: destacado ? t.accent : t.text }}>USD {pk.usd.toFixed(2)}</span>
+                  <span style={{ fontSize:15, fontWeight:800, color: destacado ? t.accent : t.text }}>{preciosTienda[pk.id]?.texto || `USD ${pk.usd.toFixed(2)}`}</span>
                 </button>
               ); })}
               <button onClick={() => setPaywall(null)} style={{ minHeight:48, padding:"12px", borderRadius:14, border:`1px solid ${t.border}`, background:t.card, color:t.text, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>{tx("avisos.despues")}</button>
@@ -3821,7 +3814,7 @@ export default function App() {
           onToggleFavorito={(p) => handleUpdateProduct(p.id, { favorito: p.favorito ? 0 : 1 })}
           onToggleFavoritoProveedor={async (s) => { const favorito = s.favorito ? 0 : 1; await dbUpdateSupplier(s.id, { favorito }); setSuppliers(prev => prev.map(x => x.id === s.id ? { ...x, favorito } : x)); }}
           onRevisarDia={() => navigate("revisar")} onEliminarVarios={handleBatchDelete}
-          pestana={listTab} onPestana={setListTab} sinCuenta={!!auth.esAnonima} onEntrar={() => setMostrarLogin(true)} estadoDatos={estadoDatos} onReintentar={sync.forceSync} />
+          pestana={listTab} onPestana={setListTab} sinCuenta={!!auth.esAnonima} onEntrar={() => setMostrarLogin(true)} onCrearCuenta={() => setMostrarLogin("register")} estadoDatos={estadoDatos} onReintentar={sync.forceSync} />
       )}
       {!esEscritorio && (screen === "capture" || screen === "capture-supplier") && (
         <QuickCapture key={`${screen}-${standKey}`} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings} products={products}

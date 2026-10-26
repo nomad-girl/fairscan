@@ -26,7 +26,9 @@ describe('capa 04 · un solo modo, abrir es capturar', () => {
     const idioma = JSON.parse(fs.readFileSync(path.join(raiz, 'src/idiomas/es-AR.json'), 'utf8'));
     expect(idioma.visor.cerrarStand).toBe('Terminar'); // 23/09: sin la palabra stand ni cerrar (Nati: se confundía con el otro cerrar)
     expect(idioma.visor.catalogo).toBe('Catálogo');
-    expect(app.includes('function Bienvenida(')).toBe(true);
+    // 25/10 (Nati): la primera vez abre en el catálogo vacío, con "Empezar a escanear"; desde la primera foto, en la captura
+    expect(app.includes('if (!hayProductosRef.current && !esEscritorio) { setScreen("list")')).toBe(true);
+    expect(app.includes('function Bienvenida(')).toBe(false);
   });
   it('el paywall usa la frase decidida y tiene "Después" y "Restaurar compras"', () => {
     expect(FRASE_PAYWALL).toBe('Se te acabaron los escaneos de prueba. Los proveedores siguen siendo gratis; pagás solo por producto.');

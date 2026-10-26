@@ -65,13 +65,17 @@ describe("Catálogo", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /Eliminar/ }).pop());
     expect(onEliminarVarios).toHaveBeenCalledWith(expect.arrayContaining([1, 4]));
   });
-  it("vacío del todo: una sola acción, sacar la primera foto", () => {
-    const onNavigate = vi.fn();
-    con(<Catalogo products={[]} suppliers={[]} districts={districts} activeDistrictId={1} activeDistrict={districts[0]} pestana="todo" onNavigate={onNavigate} />);
-    // 01/10: un solo botón para empezar (antes había dos, "Sacá la primera foto" y "Sacar la primera foto")
-    expect(screen.queryByText("Sacar la primera foto")).toBeNull();
-    fireEvent.click(screen.getByText("Sacá la primera foto"));
+  it("vacío del todo (primer uso): una sola acción, empezar a escanear, y la cuenta a la vista", () => {
+    const onNavigate = vi.fn(), onEntrar = vi.fn(), onCrearCuenta = vi.fn();
+    con(<Catalogo products={[]} suppliers={[]} districts={districts} activeDistrictId={1} activeDistrict={districts[0]} pestana="todo" onNavigate={onNavigate} sinCuenta onEntrar={onEntrar} onCrearCuenta={onCrearCuenta} />);
+    expect(screen.getAllByRole("button", { name: /Empezar a escanear/ })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: /Empezar a escanear/ }));
     expect(onNavigate).toHaveBeenCalledWith("capture");
+    // 25/10 (Nati: "no ofrece crear cuenta"): crear cuenta y entrar, sin bloquear
+    fireEvent.click(screen.getByRole("button", { name: "Crear cuenta" }));
+    expect(onCrearCuenta).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Ya tengo cuenta" }));
+    expect(onEntrar).toHaveBeenCalled();
   });
 });
 

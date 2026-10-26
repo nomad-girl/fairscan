@@ -51,6 +51,22 @@ export async function configurar(userId) {
 /** ¿La compra dentro de la app está lista en este teléfono? (RevenueCat configurado con clave) */
 export function estaConfigurado() { return configurado; }
 
+/**
+ * Los precios tal como los cobra la tienda, en la moneda de cada persona (25/10). Apple rechaza que la app muestre un
+ * precio distinto del que después cobra, y el de la config es solo de referencia (USD 19,99 en Latinoamérica,
+ * 24,99 en Estados Unidos). Devuelve { pack_500: { texto: "US$ 24,99", valor: 24.99, moneda: "USD" }, … }; si la tienda no responde, {} y se usa el de la config.
+ */
+export async function preciosDeTienda(ids = []) {
+  if (!Capacitor.isNativePlatform() || !configurado || !ids.length) return {};
+  try {
+    const { Purchases } = await sdk();
+    const { products } = await Purchases.getProducts({ productIdentifiers: ids, type: 'NON_SUBSCRIPTION' });
+    const r = {};
+    for (const p of products || []) if (p?.identifier && p?.priceString) r[p.identifier] = { texto: p.priceString, valor: Number(p.price), moneda: p.currencyCode || null };
+    return r;
+  } catch (err) { console.warn('[compras] sin precios de la tienda:', err?.message || err); return {}; }
+}
+
 /** @returns {Promise<{ ok: boolean, mensaje?: string, cancelada?: boolean }>} */
 export async function comprar(packId) {
   if (!Capacitor.isNativePlatform()) return { ok: false, mensaje: EN_WEB() };

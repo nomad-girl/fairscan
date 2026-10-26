@@ -21,6 +21,7 @@ import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
 import { estadoIA } from "../lib/aiEstado.js";
 import { proveedorVacio } from "../lib/proveedores.js";
 import { haceCuanto } from "../idiomas/formato.js";
+import { anotar } from "../lib/primerUso.js";
 
 function Iniciales({ texto }) {
   const { paleta } = useSistema();
@@ -32,7 +33,7 @@ export function Catalogo({
   products = [], suppliers = [], districts = [], activeDistrictId, activeDistrict, bajando = null, queueCount = 0, enLinea = true,
   Foto, t: tLegacy,
   onNavigate, onSwitchDistrict, onToggleFavorito, onToggleFavoritoProveedor, onRevisarDia, onEliminarVarios,
-  pestana = "todo", onPestana, sinCuenta = false, onEntrar, estadoDatos = null, onReintentar,
+  pestana = "todo", onPestana, sinCuenta = false, onEntrar, onCrearCuenta, estadoDatos = null, onReintentar,
 }) {
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
@@ -219,17 +220,22 @@ export function Catalogo({
                       ? <p style={{ ...texto("cuerpo"), color: paleta.muted, margin: 0 }}>{esperandoNube(estadoDatos) ? t(`datos.${estadoDatos.clave}`, estadoDatos) : t("catalogo.bajando")}</p>
                       : (
                         <>
+                          {/* Primer uso (25/10, Nati: "catálogo primero, cámara después"): la app abre acá hasta la primera foto.
+                              "Empezar a escanear" lleva a la cámara con la guía; la cuenta queda a la vista, sin bloquear. */}
                           <span style={{ width: 84, height: 84, borderRadius: 42, background: paleta.accentSoft, display: "grid", placeItems: "center" }}><Icono nombre="camara" tamano={36} color={paleta.accentTexto} /></span>
-                          <Boton variante="principal" ancho="total" icono="camara" onClick={() => onNavigate?.("capture")} estilo={{ maxWidth: 320, minHeight: 56, fontSize: 17 }}>{t("catalogo.primeraFoto")}</Boton>
-                          <p style={{ ...texto("pie"), color: paleta.dim, margin: 0 }}>{t("catalogo.primeraFotoPista")}</p>
+                          <h2 style={{ ...texto("titulo"), color: paleta.text, margin: "4px 0 0", maxWidth: 300 }}>{t("catalogo.vacioTitulo")}</h2>
+                          <p style={{ ...texto("cuerpo"), color: paleta.muted, margin: "0 0 6px", maxWidth: 320 }}>{t("catalogo.primerUsoTexto")}</p>
+                          <Boton variante="principal" ancho="total" icono="camara" onClick={() => { anotar("empezar", { conCuenta: !sinCuenta }, { unaVez: true }); onNavigate?.("capture"); }} estilo={{ maxWidth: 320, minHeight: 56, fontSize: 17 }}>{t("bienvenida.empezar")}</Boton>
+                          <p style={{ ...texto("pie"), color: paleta.dim, margin: 0, maxWidth: 300 }}>{t("catalogo.empezarPista")}</p>
                         </>
                       )}
                     {/* 01/10: el segundo botón "Sacar la primera foto" quedó duplicado cuando el vacío pasó a ser un botón (Buddy, 27/09); se va */}
                     {/* Sin cuenta y sin productos (24/09, caso Lucas): quien ya tiene cuenta entra y recupera su catálogo */}
                     {!bajando && sinCuenta && onEntrar && (
-                      <div style={{ marginTop: 18, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-                        <p style={{ ...texto("pie"), color: paleta.muted, margin: 0, textAlign: "center" }}>{t("catalogo.sinCuentaTitulo")}</p>
-                        <Boton variante="secundario" onClick={onEntrar}>{t("catalogo.entrar")}</Boton>
+                      <div style={{ marginTop: 22, paddingTop: 20, borderTop: `1px solid ${paleta.border}`, width: "100%", maxWidth: 320, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+                        <p style={{ ...texto("pie"), color: paleta.muted, margin: 0, textAlign: "center" }}>{t("catalogo.cuentaTexto")}</p>
+                        <Boton variante="secundario" ancho="total" onClick={() => { anotar("cuenta_abierta", { modo: "register" }); (onCrearCuenta || onEntrar)(); }}>{t("entrar.crearCuenta")}</Boton>
+                        <button type="button" onClick={() => { anotar("cuenta_abierta", { modo: "login" }); onEntrar(); }} style={{ background: "none", border: "none", padding: "8px 4px", minHeight: 44, color: paleta.text, fontFamily: "inherit", fontSize: 14, fontWeight: 600, textDecoration: "underline", textUnderlineOffset: 3, cursor: "pointer" }}>{t("entrar.yaTengoCuenta")}</button>
                       </div>
                     )}
                   </>
@@ -301,10 +307,12 @@ export function Catalogo({
         )}
       </div>
 
-      {/* Capturar, siempre a mano */}
+      {/* Capturar, siempre a mano. Con el catálogo vacío no: ahí manda "Empezar a escanear" y tapaba "Ya tengo cuenta" (25/10) */}
+      {products.length > 0 && (
       <div style={{ position: "fixed", right: espacios.margenLateral, bottom: "calc(20px + env(safe-area-inset-bottom, 0px))", zIndex: 10 }}>
         <Boton variante="principal" icono="camara" onClick={() => onNavigate?.("capture")} estilo={{ borderRadius: 999, paddingInline: 20, boxShadow: "0 10px 30px -10px rgba(234,90,34,0.6)" }}>{t("catalogo.capturar")}</Boton>
       </div>
+      )}
 
       {/* Elegir feria */}
       <Hoja abierta={feriaAbierta} onCerrar={() => setFeriaAbierta(false)} titulo={t("catalogo.ferias")}>

@@ -14,6 +14,7 @@ import * as api from '../api/client.js';
 import { fotosSinSubir, esperaReintento, esFotoLocal } from '../lib/fotosPendientes.js';
 import { aDataUrl } from '../lib/fotosBinario.js';
 import { primerEscaneo } from '../lib/metaEventos.js';
+import { anotar } from '../lib/primerUso.js';
 import { reducirFoto } from '../lib/miniaturas.js';
 
 // Foto que vive en este teléfono (texto, bytes o blob:), no una dirección web.
@@ -169,11 +170,13 @@ export function useSyncWithAI(settings) {
       // Use updateProduct (triggers cloud sync push)
       await updateProduct(product.id, updates);
       primerEscaneo(); // Meta: el primer producto reconocido, una vez por instalación; no se espera ni puede fallar
+      anotar('ia_ok', {}, { unaVez: true }); // primer uso (25/10)
       // Las fotos las sube la cola de fotos pendientes (más abajo), con reintentos.
 
       return { success: true, updates };
     } catch (err) {
       console.warn(`[AI Sync] Product ${product.id} failed:`, err.message);
+      anotar('ia_error', { mensaje: String(err?.message || '').slice(0, 80) }, { unaVez: true }); // primer uso (25/10)
       const retries = (product.ai_retry_count || 0) + 1;
       if (retries >= MAX_RETRIES) {
         // Give up after MAX_RETRIES — mark as processed so it doesn't block the queue

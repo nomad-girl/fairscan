@@ -11,14 +11,17 @@ import { esCuentaYaExistente, esCancelado } from '../lib/entrarCon.js';
  * ponerle mail y contraseña. Mismo formulario de registro, pero la cuenta no se
  * crea: se completa la que ya tiene, y el catálogo queda donde está.
  */
-export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCancel }) {
+import { pareceChina } from '../lib/primerUso.js';
+export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCancel, modoInicial }) {
   const t = tTema; // tema claro: el oscuro liso quedó vacío (Nati, 22/09: "toda oscura, no dice nada")
   const { t: tx } = useTranslation();
-  const [mode, setMode] = useState(convertir ? 'register' : 'login'); // 'login' | 'register'
+  // modoInicial (25/10, Nati: "no ofrece crear cuenta"): el primer uso abre directo en "Crear cuenta"
+  const [mode, setMode] = useState(modoInicial || (convertir ? 'register' : 'login')); // 'login' | 'register'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [aviso, setAviso] = useState('');
   const recuperando = !!onAuth?.recuperando;
+  const enChina = pareceChina();
   // Olvidé mi contraseña (27/09, Nati: "debería darte solo el campo de mail"): su propia pantalla, con el mail y un botón.
   const [enviado, setEnviado] = useState(false);
   const [confirmando, setConfirmando] = useState(null); // mail pendiente de confirmar tras crear la cuenta (D3)
@@ -58,6 +61,8 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
   const logoGoogle = <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.7 6c4.5-4.2 6.9-10.3 6.9-17.2z"/><path fill="#FBBC05" d="M10.5 28.7A14.6 14.6 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.9-6.1A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.7-6c-2.1 1.4-4.9 2.3-8.2 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>;
   const botonesProveedor = onAuth?.entrarCon ? (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+      {/* En China Google no funciona sin VPN (25/10): se avisa arriba de los botones */}
+      {enChina && <p style={{ fontSize: 13, lineHeight: 1.45, color: t.text, margin: '0 0 2px', padding: '10px 12px', borderRadius: 12, background: t.accentSoft || '#FFE7A8' }}>{tx('entrar.enChina')}</p>}
       {botonProveedor('apple', '#000000', '#FFFFFF', 'none', logoApple)}
       {botonProveedor('google', '#FFFFFF', '#1F1F1F', `1px solid ${t.border}`, logoGoogle)}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: t.dim, fontSize: 12, marginTop: 2 }}>
@@ -89,6 +94,14 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
           if (pendiente) { setConfirmando(pendiente); setLoading(false); return; }
           onCancel?.(); setLoading(false); return;
         }
+        // El mail ya tenía cuenta (con Apple, Google o mail): Supabase responde "bien" y no manda nada, para no revelar
+        // qué mails existen. Se le avisa en vez de dejarla esperando un correo que no llega (caso Ganga Home, 25/10).
+        if (result?.user && Array.isArray(result.user.identities) && result.user.identities.length === 0) {
+          setError(tx('entrar.yaTenesCuenta'));
+          setMode('login');
+          setLoading(false);
+          return;
+        }
         // If email confirmation is required, show message
         if (result?.user && !result.session) {
           setSuccess(tx('entrar.revisaTuEmail'));
@@ -101,7 +114,7 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
       const msg = err.message || tx('entrar.errorDesconocido');
       if (msg.includes('Invalid login')) setError(tx('entrar.credencialesIncorrectas'));
       else if (msg.includes('Email not confirmed')) setError(tx('entrar.confirmaTuEmail'));
-      else if (msg.includes('User already registered')) setError(tx('entrar.emailRegistrado'));
+      else if (/already registered|already been registered|email_exists|already exists/i.test(msg)) { setError(tx('entrar.yaTenesCuenta')); if (!convertir) setMode('login'); }
       else if (msg.includes('no autorizado') || msg.includes('not allowed') || msg.includes('Signups not allowed')) setError(tx('entrar.emailNoAutorizado'));
       else if (/weak|easy to guess|pwned|leaked/i.test(msg)) setError(tx('entrar.contrasenaFiltrada'));
       else if (/Password should be|at least \d+ characters/i.test(msg)) setError(tx('entrar.contrasenaCorta'));

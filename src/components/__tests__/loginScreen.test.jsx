@@ -45,3 +45,18 @@ describe("Crear cuenta desde una sesión sin cuenta, con Confirm email encendido
     expect(onCancel).toHaveBeenCalled();
   });
 });
+
+describe("Crear cuenta con un mail que ya tiene cuenta (caso Ganga Home, 25/10)", () => {
+  it("no dice 'revisá tu mail': avisa que ya tiene cuenta y pasa a Entrar", async () => {
+    // Supabase responde "bien", sin sesión y sin identidades, y no manda ningún correo
+    const signUp = vi.fn().mockResolvedValue({ user: { id: "x", identities: [] }, session: null });
+    render(<LoginScreen t={tema} modoInicial="register" onAuth={{ signUp, signIn: vi.fn() }} />);
+    expect(screen.getByRole("heading", { name: "Crear cuenta" })).toBeTruthy(); // abre directo en crear cuenta
+    fireEvent.change(screen.getByLabelText("Mail"), { target: { value: "importador@ejemplo.com" } });
+    fireEvent.change(screen.getByLabelText("Contraseña"), { target: { value: "secreta-larga-1" } });
+    fireEvent.submit(screen.getByLabelText("Mail").closest("form"));
+    expect(await screen.findByText(/Ese mail ya tiene una cuenta en FairScan/)).toBeTruthy();
+    expect(screen.queryByText("Revisá tu email para confirmar la cuenta")).toBeNull();
+    expect(screen.getByRole("heading", { name: "Entrar" })).toBeTruthy();
+  });
+});

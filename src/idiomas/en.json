@@ -297,7 +297,10 @@
     "entrar": "Sign in to my account",
     "primeraFoto": "Take the first photo",
     "primeraFotoPista": "Then, the supplier's card",
-    "nuevo": "New"
+    "nuevo": "New",
+    "primerUsoTexto": "Take a photo of a product and the AI adds its name, category and materials.",
+    "empezarPista": "Try it with anything nearby. Your phone will ask for permission to use the camera.",
+    "cuentaTexto": "With an account, your catalog is saved in the cloud and you can see it on your computer too."
   },
   "revisar": {
     "titulo": "Review today",
@@ -1245,7 +1248,9 @@
     "demasiadosIntentos": "Too many attempts in a row. Wait a minute and try again.",
     "mailInvalido": "That email doesn't look valid. Check it.",
     "sinConexion": "You're offline. Try again when you have signal.",
-    "errorGenerico": "Couldn't sign in. Try again in a moment."
+    "errorGenerico": "Couldn't sign in. Try again in a moment.",
+    "yaTenesCuenta": "That email already has a FairScan account. Sign in with the button you used to create it: Apple, Google, or email and password.",
+    "enChina": "In China? Google doesn't work without a VPN: sign in with Apple or with your email."
   },
   "borrador": {
     "tarjetaDe": "the card from {{nombre}}",
