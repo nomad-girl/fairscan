@@ -15,6 +15,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { Icono, Hoja, Boton, GuiaAviso } from "../componentes/index.js";
+import { anotar } from "../lib/primerUso.js";
 import { leerGuia, guardarGuia, siguienteGuia, avisoVisible, PASOS_GUIA } from "../lib/guiaPrimeraVez.js";
 import { MARCA } from "../sistema/tokens.js";
 
@@ -31,6 +32,17 @@ function Pastilla({ children, tono = "vidrio", estilo }) {
   );
 }
 
+function InstructivoCamara({ texto }) {
+  useEffect(() => { anotar("instructivo_visto", {}, { unaVez: true }); }, []);
+  return (
+    <div aria-live="polite" style={{ position: "absolute", left: 16, right: 16, bottom: "calc(env(safe-area-inset-bottom, 0px) + 168px)", zIndex: 4, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, pointerEvents: "none" }}>
+      <p style={{ margin: 0, maxWidth: 320, textAlign: "center", fontSize: 16, fontWeight: 700, lineHeight: 1.35, color: "#FFF3EA", background: "rgba(28,13,6,0.72)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", padding: "10px 16px", borderRadius: 16 }}>{texto}</p>
+      <svg width="22" height="30" viewBox="0 0 22 30" aria-hidden style={{ animation: "fairscanBaja 1.4s ease-in-out infinite" }}><path d="M11 2v24M3 18l8 8 8-8" fill="none" stroke="#FFC53D" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      <style>{`@keyframes fairscanBaja { 0%,100% { transform: translateY(0) } 50% { transform: translateY(6px) } } @media (prefers-reduced-motion: reduce) { svg { animation: none !important } }`}</style>
+    </div>
+  );
+}
+
 export function Visor({
   datosActivos = null, // { moq, piezasPorCaja, cbmPorCaja }: false apaga la pestaña (Configuración, 17/09)
   videoRef, modo = "product", feria, itemsCount = 0, saldo = null, trial = 15, esperando = 0, estadoSync = "guardado", pendientesSync = 0,
@@ -44,6 +56,7 @@ export function Visor({
   avisoRetomado = null, // "Seguís en el stand de …" cuando la app retomó sola un stand abierto (22/10)
   onTouchStart, onTouchEnd,
   onAyuda, // el "?" de arriba abre la hoja de Ayuda (26/10)
+  onYaTengoCuenta, // sin cuenta y sin productos: "Ya tengo cuenta" arriba (27/10)
 }) {
   const { t } = useTranslation();
   const { alturas, movimiento, curvas, duracion, reducido } = useSistema();
@@ -132,7 +145,9 @@ export function Visor({
         const saltar = () => avanzarGuia("saltar");
         const siguiente = { texto: t("visor.guia.siguiente"), onClick: () => { setManualGuia(true); if (estadoGuia === "2" && datos) { inputDatoRef.current?.blur(); onConfirmarPrecio?.(); } avanzarGuia("siguiente"); } };
         const comun = { abierto: true, total: PASOS_GUIA, onSaltar: saltar };
-        if (aviso === 1) return <GuiaAviso {...comun} objetivo={refObturador} forma="circulo" paso={1} titulo={t("visor.guia.paso1Titulo")} texto={t("visor.guia.paso1Texto")} accion={siguiente} />;
+        // Paso 1 (27/10, Nati: "la app vuelve a abrir en la cámara"): una sola línea sobre la imagen con una flecha al
+        // disparador, sin velo ni botones; no tapa nada y se va sola con la primera foto.
+        if (aviso === 1) return <InstructivoCamara texto={t("visor.guia.instructivo")} />;
         if (aviso === 2) return datos
           ? <GuiaAviso {...comun} objetivo={refBarraPrecio} forma="redondeado" paso={2} titulo={t("visor.guia.precioTitulo")} texto={t("visor.guia.precioTexto")} accion={siguiente} />
           : <GuiaAviso {...comun} objetivo={refObturador} forma="circulo" paso={2} titulo={t("visor.guia.precioTitulo")} texto={t("visor.guia.precioTextoSinBarra")} accion={siguiente} />;
@@ -164,6 +179,8 @@ export function Visor({
             );
           })()}
           {estadoSync === "falla" && <Pastilla><span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, background: colorPunto, display: "inline-block" }} /><span style={{ fontSize: 12, fontWeight: 500, color: BLANCO_SUAVE }}>{textoSync}</span></Pastilla>}
+          {/* "Ya tengo cuenta" (27/10): chico, para que nadie se quede sin poder entrar (caso Ganga Home) */}
+          {onYaTengoCuenta && !modoAngulo && <button type="button" onClick={onYaTengoCuenta} style={{ minHeight: 32, padding: "0 12px", borderRadius: 999, border: "none", background: VIDRIO, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", color: BLANCO, fontSize: 12, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", whiteSpace: "nowrap" }}>{t("entrar.yaTengoCuenta")}</button>}
           {/* Ayuda (26/10, idea de la mamá de Nati): un "?" chico, en la fila de arriba y no flotando sobre la foto */}
           {onAyuda && !modoAngulo && <button type="button" onClick={onAyuda} aria-label={t("ayuda.abrir")} style={{ width: 32, height: 32, borderRadius: 16, border: "none", background: VIDRIO, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", display: "grid", placeItems: "center", padding: 0, cursor: "pointer", flexShrink: 0 }}><Icono nombre="ayuda" tamano={18} color={BLANCO} /></button>}
           {/* 27/09: el botón de Catálogo pasó abajo, junto al obturador, grande y con nombre */}

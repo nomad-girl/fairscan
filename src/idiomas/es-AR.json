@@ -163,7 +163,8 @@
       "precioTitulo": "¿A cuánto estaba?",
       "precioTexto": "Escribí el precio acá. Si tenés el MOQ, las piezas por caja o el CBM, tocá la pestaña. ¿No lo sabés todavía? Cerrá la barra: lo cargás después desde Este stand.",
       "siguiente": "Siguiente",
-      "precioTextoSinBarra": "Después de cada foto sube una barra: escribí ahí el precio y, si los tenés, el MOQ, las piezas por caja o el CBM. ¿No lo sabés? Cerrala: lo cargás después desde Este stand."
+      "precioTextoSinBarra": "Después de cada foto sube una barra: escribí ahí el precio y, si los tenés, el MOQ, las piezas por caja o el CBM. ¿No lo sabés? Cerrala: lo cargás después desde Este stand.",
+      "instructivo": "Apuntá a cualquier producto, aunque sea una taza, y tocá el botón"
     }
   },
   "cerrarStand": {
@@ -1140,7 +1141,8 @@
     "cargandoCatalogo": "Cargando el catálogo",
     "prePermisoTitulo": "Necesitamos la cámara",
     "prePermisoTexto": "Para leer productos y tarjetas. Solo se usa mientras escaneás, y las fotos quedan en tu catálogo.",
-    "activarCamara": "Activar cámara"
+    "activarCamara": "Activar cámara",
+    "verEjemplo": "Ver un catálogo de ejemplo"
   },
   "avisos": {
     "packsProximaVersion": "Los packs de escaneos llegan con la próxima versión de la app. Mientras tanto, las tarjetas de proveedor siguen siendo gratis.",

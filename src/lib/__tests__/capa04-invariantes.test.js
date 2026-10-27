@@ -26,8 +26,8 @@ describe('capa 04 · un solo modo, abrir es capturar', () => {
     const idioma = JSON.parse(fs.readFileSync(path.join(raiz, 'src/idiomas/es-AR.json'), 'utf8'));
     expect(idioma.visor.cerrarStand).toBe('Terminar'); // 23/09: sin la palabra stand ni cerrar (Nati: se confundía con el otro cerrar)
     expect(idioma.visor.catalogo).toBe('Catálogo');
-    // 25/10 (Nati): la primera vez abre en el catálogo vacío, con "Empezar a escanear"; desde la primera foto, en la captura
-    expect(app.includes('if (!hayProductosRef.current && !esEscritorio) { setScreen("list")')).toBe(true);
+    // 27/10 (Nati, con datos): la app vuelve a abrir en la cámara también la primera vez (el 25/10 se había probado el catálogo primero)
+    expect(app.includes('if (!hayProductosRef.current && !esEscritorio) { setScreen("list")')).toBe(false);
     expect(app.includes('function Bienvenida(')).toBe(false);
     // 27/10 (Nati): sin cuenta no se compra, y la cuenta siempre convierte la sesión sin cuenta
     expect(app.includes('if (auth.esAnonima && !auth.mailPendiente) { pedirCuentaPor("pago"); return; }')).toBe(true);

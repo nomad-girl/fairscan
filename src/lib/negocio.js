@@ -1,4 +1,5 @@
 import { configDeChat } from './chatSoporte.js';
+import { configDeAnalitica } from './analitica.js';
 /**
  * Los números del modelo de negocio (pieza 5.1): cuántos escaneos trae el trial,
  * el regalo de emergencia, qué packs se ofrecen y a qué precio.
@@ -24,6 +25,8 @@ export const NEGOCIO_POR_DEFECTO = Object.freeze({
   // Chat de soporte (26/10, Nati: Chatwoot, una bandeja por app): { url, token } de la bandeja de FairScan.
   // null = sin chat (queda el mail). Se cambia desde la fila `negocio` sin publicar versión.
   soporte_chat: null,
+  // PostHog (27/10, bloque D): { host, key } del proyecto de la app. null = apagado. Se enciende sin publicar versión.
+  analitica: null,
   packs: [
     { id: 'pack_500', escaneos: 500, usd: 19.99 },
     { id: 'pack_1000', escaneos: 1000, usd: 29.99, ancla: true },
@@ -58,6 +61,7 @@ export function normalizarNegocio(valor) {
     compras_pruebas: Array.isArray(v.compras_pruebas) ? v.compras_pruebas.filter(x => typeof x === 'string') : [],
     packs: packs.length ? packs : NEGOCIO_POR_DEFECTO.packs,
     soporte_chat: configDeChat(v.soporte_chat),
+    analitica: configDeAnalitica(v.analitica),
   };
 }
 

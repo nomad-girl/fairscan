@@ -147,6 +147,7 @@ import { elegirMiniatura, miniaturaDe, generarMiniaturasFaltantes, reducirFoto }
 import { aDataUrl, sinDerivados, tipoDeFoto, productoParaUI } from './lib/fotosBinario.js';
 import { supabase } from './lib/supabase.js';
 import { anotar } from './lib/primerUso.js';
+import { iniciarAnalitica, reiniciarAnalitica } from './lib/analitica.js';
 
 // El catálogo se muestra del más nuevo al más viejo (mismo orden que la base).
 const ordenarPorFecha = (arr) => [...arr].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -401,25 +402,10 @@ const BajandoCatalogo = memo(({ bajando, t }) => {
  * Aviso de permiso (cámara o micrófono) con salida clara: qué pasó, cómo se
  * arregla, botón a los ajustes del teléfono en nativo, y una alternativa.
  */
-/** Antes del pedido del sistema (27/10, bloque C): 6 de 18 rechazaban la cámara sin saber para qué era. */
-function PrePermisoCamara({ onActivar, onAlternativa, t }) {
+function PermisoAviso({ info, onRetry, onAlternativa, alternativaLabel, onClose, onEjemplo, t }) {
   const { t: tx } = useTranslation();
-  useEffect(() => { anotar("pre_permiso_visto", {}, { unaVez: true }); }, []);
-  return (
-    <div role="dialog" style={{ position:"fixed", inset:0, zIndex:200, background:"rgba(0,0,0,0.55)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
-      <div style={{ width:"100%", maxWidth:520, background:t.bg, borderRadius:"20px 20px 0 0", padding:"22px 20px calc(env(safe-area-inset-bottom, 0px) + 20px)", display:"flex", flexDirection:"column", gap:10 }}>
-        <span style={{ width:56, height:56, borderRadius:28, background:t.accentSoft || "#FFE2D8", display:"grid", placeItems:"center" }}><Icono nombre="camara" tamano={26} color={t.accent} /></span>
-        <p style={{ fontSize:19, fontWeight:800, color:t.text, margin:"4px 0 0" }}>{tx("captura.prePermisoTitulo")}</p>
-        <p style={{ fontSize:15, color:t.muted, margin:"0 0 8px", lineHeight:1.5 }}>{tx("captura.prePermisoTexto")}</p>
-        <button onClick={() => { anotar("pre_permiso_ok", {}, { unaVez: true }); onActivar(); }} style={{ minHeight:54, borderRadius:14, border:"none", background:t.accent, color:t.botonPrincipal?.texto || "#2B1206", fontSize:16, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>{tx("captura.activarCamara")}</button>
-        {onAlternativa && <button onClick={onAlternativa} style={{ minHeight:48, borderRadius:14, border:`1px solid ${t.border}`, background:t.card, color:t.text, fontSize:15, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>{tx("visor.elegirDeGaleria")}</button>}
-      </div>
-    </div>
-  );
-}
-
-function PermisoAviso({ info, onRetry, onAlternativa, alternativaLabel, onClose, t }) {
-  const { t: tx } = useTranslation();
+  // Si rechazó la cámara (27/10): recién ahí se explica para qué es, con los ajustes y el catálogo de ejemplo como salida
+  useEffect(() => { if (info?.tipo === "denegado" || /permiso|permission/i.test(info?.titulo || "")) anotar("permiso_rechazado_visto", {}, { unaVez: true }); }, [info]);
   if (!info) return null;
   const btn = (extra) => ({ padding:"12px 14px", borderRadius:12, border:"none", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit", ...extra });
   return (
@@ -433,6 +419,9 @@ function PermisoAviso({ info, onRetry, onAlternativa, alternativaLabel, onClose,
           )}
           {onAlternativa && (
             <button onClick={() => { onClose?.(); onAlternativa(); }} style={btn({ background:t.card, color:t.text, border:`1px solid ${t.border}` })}>{alternativaLabel}</button>
+          )}
+          {onEjemplo && (
+            <button onClick={() => { onClose?.(); onEjemplo(); }} style={btn({ background:t.card, color:t.text, border:`1px solid ${t.border}` })}>{tx("captura.verEjemplo")}</button>
           )}
           <div style={{ display:"flex", gap:8 }}>
             {onRetry && <button onClick={() => { onClose?.(); onRetry(); }} style={btn({ flex:1, background:t.surface, color:t.text })}>{tx("comun.reintentar")}</button>}
@@ -617,7 +606,7 @@ const parseQRContent = (qrData) => {
  * stand es la tarjeta del proveedor (4.4). El catálogo sube desde abajo con un
  * gesto o con el botón "Catálogo". Un solo modo (4.5).
  */
-function QuickCapture({ onAyuda, suppliers, districts, activeDistrictId, settings, onSave, onClose, onCatalogo, t, isDark, initialSupplier = null, products = [], onProductoNuevo, onProductoCambio, onProductoBorrar, soloProveedor = false, saldoCreditos = null, queueCount = 0 }) {
+function QuickCapture({ onAyuda, onYaTengoCuenta, suppliers, districts, activeDistrictId, settings, onSave, onClose, onCatalogo, t, isDark, initialSupplier = null, products = [], onProductoNuevo, onProductoCambio, onProductoBorrar, soloProveedor = false, saldoCreditos = null, queueCount = 0 }) {
   const { t: tx } = useTranslation();
   const [cardPhoto, setCardPhoto] = useState(null);
   const [cardData, setCardData] = useState(null);
@@ -656,7 +645,6 @@ function QuickCapture({ onAyuda, suppliers, districts, activeDistrictId, setting
   // Live camera state
   const [cameraMode, setCameraMode] = useState(null); // null | "card" | "product"
   const [cameraError, setCameraError] = useState(null); // { ...explicarErrorDeCamara(), modo }
-  const [prePermiso, setPrePermiso] = useState(null); // "product" | "card" mientras se muestra la explicación previa (27/10)
   const [flashVisible, setFlashVisible] = useState(false);
   const [lastCapture, setLastCapture] = useState(null);
   // Borrador del stand en curso (2.6): se guarda en la base local mientras se
@@ -731,9 +719,6 @@ function QuickCapture({ onAyuda, suppliers, districts, activeDistrictId, setting
       setCameraError({ ...explicarErrorDeCamara(new TypeError("mediaDevices no disponible")), modo: mode });
       return;
     }
-    // Primera vez: se explica para qué es la cámara antes del pedido del sistema (27/10). Una sola vez por instalación.
-    let explicada = true; try { explicada = !!localStorage.getItem("fs_camara_explicada"); } catch { /* sin almacenamiento: no se frena */ }
-    if (!explicada && !streamRef.current) { setPrePermiso(mode); return; }
     setCameraMode(mode);
     clearTimeout(apagadoRef.current);
     if (streamRef.current && streamRef.current.getTracks().some(tr => tr.readyState === "live")) {
@@ -1162,7 +1147,7 @@ function QuickCapture({ onAyuda, suppliers, districts, activeDistrictId, setting
       <>
         {hojaTarjetaNueva}
         <Visor
-          onAyuda={onAyuda}
+          onAyuda={onAyuda} onYaTengoCuenta={onYaTengoCuenta}
           videoRef={videoRef} modo={cameraMode} feria={activeDistrict?.name || null}
           itemsCount={items.length} saldo={saldoCreditos} esperando={esperando} estadoSync={estadoSync} pendientesSync={queueCount}
           flash={flashVisible} ultimaCaptura={lastCapture} ultimas={ultimas} puedeAgregarAngulo={anguloDisponible && items.length > 0 && !addPhotoToItemId}
@@ -1210,7 +1195,7 @@ function QuickCapture({ onAyuda, suppliers, districts, activeDistrictId, setting
         onListo={handleSave} guardando={saving} errorGuardar={saveError}
         stand={cardData?.boothNumber || null}
         borrador={borrador} onRetomar={retomarBorrador} onDescartar={descartarBorrador} descripcionBorrador={borrador ? describirBorrador(borrador) : null}
-        avisoPermiso={prePermiso ? <PrePermisoCamara t={t} onActivar={() => { try { localStorage.setItem("fs_camara_explicada", "1"); } catch { /* nada */ } const m = prePermiso; setPrePermiso(null); openCamera(m); }} onAlternativa={() => { const m = prePermiso; setPrePermiso(null); (m === "card" ? cardGalleryRef : prodGalleryRef).current?.click(); }} /> : <PermisoAviso info={cameraError} t={t} onClose={() => setCameraError(null)} onRetry={() => openCamera(cameraError?.modo)} alternativaLabel={tx("visor.elegirDeGaleria")} onAlternativa={() => (cameraError?.modo === "card" ? cardGalleryRef : prodGalleryRef).current?.click()} />}
+        avisoPermiso={<PermisoAviso info={cameraError} t={t} onEjemplo={() => { closeCamera(); apagarCamara(); onCatalogo?.(); }} onClose={() => setCameraError(null)} onRetry={() => openCamera(cameraError?.modo)} alternativaLabel={tx("visor.elegirDeGaleria")} onAlternativa={() => (cameraError?.modo === "card" ? cardGalleryRef : prodGalleryRef).current?.click()} />}
       />
       <input ref={cardGalleryRef} type="file" accept="image/*" onChange={onCardGallery} style={{ display:"none" }} />
       <input ref={prodGalleryRef} type="file" accept="image/*" onChange={onProductGallery} style={{ display:"none" }} />
@@ -2799,6 +2784,12 @@ export default function App() {
   // Paywall (5.3): al cerrar el stand, si el saldo no alcanza. Nunca al disparar.
   const [paywall, setPaywall] = useState(null); // { bloqueados }
   const [ayudaAbierta, setAyudaAbierta] = useState(false); // Ayuda (26/10): "?" de la cámara y Ajustes
+  // PostHog (27/10, bloque D): se enciende con la config del servidor; identifica solo por user_id (sin mail ni nombre)
+  useEffect(() => {
+    if (!auth.user || !negocio.analitica) return;
+    let feria = null; try { feria = localStorage.getItem("fs_feria_respuesta"); } catch { /* nada */ }
+    iniciarAnalitica(negocio.analitica, { userId: auth.user.id, propiedades: { plataforma: Capacitor.getPlatform(), version: typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev", con_cuenta: !auth.esAnonima, feria_respuesta: feria || undefined } }).catch(() => {});
+  }, [auth.user?.id, auth.esAnonima, negocio.analitica?.key]);
   // Embudo (26/10): "cuenta_creada" con el método, una vez por cuenta. Cuenta como nueva si su identidad más reciente
   // nació hace menos de 15 minutos (crear cuenta o convertir la sesión sin cuenta); las cuentas viejas solo se marcan.
   useEffect(() => {
@@ -3034,7 +3025,8 @@ export default function App() {
       setIsDark(st.theme === "dark" && !!st.temaElegido);
       // Primer uso (25/10, Nati: "catálogo primero, cámara después"): mientras no haya ningún producto, la app abre en el
       // catálogo, con "Empezar a escanear" y la cuenta a la vista. Desde la primera foto, abre en la cámara como siempre.
-      if (!hayProductosRef.current && !esEscritorio) { setScreen("list"); anotar("primera_apertura", { conCuenta: !auth.esAnonima }, { unaVez: true }); }
+      // 27/10 (Nati, con datos: cámara primero 16 % de primera foto, catálogo primero 6 %): la app vuelve a abrir en la cámara
+      if (!hayProductosRef.current && !esEscritorio) anotar("primera_apertura", { conCuenta: !auth.esAnonima }, { unaVez: true });
       setReady(true);
       // Config del negocio y saldo (5.1, 5.2), sin bloquear el arranque.
       // Compras (5.4): el SDK de la tienda se configura con el id de la usuaria; en la web no hace nada.
@@ -3891,7 +3883,7 @@ export default function App() {
             products={products} suppliers={suppliers} districts={districts} onReload={reloadAll}
             teams={teamsHook.teams} activeTeam={teamsHook.teams.find(tm => tm.id === sync.teamId)} teamMembers={teamsHook.teamMembers}
             isAdmin={teamsHook.isAdmin} fetchMembers={teamsHook.fetchMembers} inviteMember={teamsHook.inviteMember}
-            onSwitchTeam={handleSwitchTeam} userEmail={auth.user?.email} esAnonima={auth.esAnonima} auth={auth} userId={auth.user?.id} onSignOut={auth.signOut}
+            onSwitchTeam={handleSwitchTeam} userEmail={auth.user?.email} esAnonima={auth.esAnonima} auth={auth} userId={auth.user?.id} onSignOut={() => { reiniciarAnalitica(); return auth.signOut(); }}
             onGoExport={irAExportar} onAccountDeleted={handleAccountDeleted} onEntrar={() => setMostrarLogin(true)} />} />
       )}
       {!esEscritorio && screen === "list" && (
@@ -3905,7 +3897,7 @@ export default function App() {
           pestana={listTab} onPestana={setListTab} sinCuenta={!!auth.esAnonima} onEntrar={() => setMostrarLogin(true)} onCrearCuenta={() => setMostrarLogin("register")} onFeriaRespuesta={(opcion) => { supabase?.auth.updateUser({ data: { feria_respuesta: opcion } }).catch(() => {}); }} estadoDatos={estadoDatos} onReintentar={sync.forceSync} />
       )}
       {!esEscritorio && (screen === "capture" || screen === "capture-supplier") && (
-        <QuickCapture key={`${screen}-${standKey}`} onAyuda={() => setAyudaAbierta(true)} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings} products={products}
+        <QuickCapture key={`${screen}-${standKey}`} onAyuda={() => setAyudaAbierta(true)} onYaTengoCuenta={auth.esAnonima && products.length === 0 ? () => setMostrarLogin(true) : undefined} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings} products={products}
           onProductoNuevo={crearProductoDesdeCaptura} onProductoCambio={handleUpdateProduct} onProductoBorrar={borrarProductoDesdeCaptura}
           onSave={(data) => handleCaptureSave({ ...data, soloProveedor: screen === "capture-supplier" })} onClose={() => navigate("list")} onCatalogo={() => { setListTab("todo"); navigate("list"); }} t={t} isDark={isDark}
           soloProveedor={screen === "capture-supplier"} saldoCreditos={creditos ? saldoVisible(creditos) : null} queueCount={queueCount}
@@ -3958,7 +3950,7 @@ export default function App() {
           products={products} suppliers={suppliers} districts={districts} onReload={reloadAll}
           teams={teamsHook.teams} activeTeam={teamsHook.teams.find(tm => tm.id === sync.teamId)} teamMembers={teamsHook.teamMembers}
           isAdmin={teamsHook.isAdmin} fetchMembers={teamsHook.fetchMembers} inviteMember={teamsHook.inviteMember}
-          onSwitchTeam={handleSwitchTeam} userEmail={auth.user?.email} esAnonima={auth.esAnonima} auth={auth} userId={auth.user?.id} onSignOut={auth.signOut}
+          onSwitchTeam={handleSwitchTeam} userEmail={auth.user?.email} esAnonima={auth.esAnonima} auth={auth} userId={auth.user?.id} onSignOut={() => { reiniciarAnalitica(); return auth.signOut(); }}
           onGoExport={() => navigate("export")} onAccountDeleted={handleAccountDeleted} onEntrar={() => setMostrarLogin(true)} />
       )}
       {!esEscritorio && screen === "export" && (

@@ -13,6 +13,7 @@
  */
 import { Capacitor } from '@capacitor/core';
 import { supabase } from './supabase.js';
+import { capturar } from './analitica.js';
 
 const CLAVE_COLA = 'fs_eventos_cola';
 const CLAVE_INSTALACION = 'fs_instalacion';
@@ -74,6 +75,7 @@ export function anotar(nombre, datos = {}, { unaVez = false, store, cliente } = 
     if (unaVez) { if (s?.getItem(PREFIJO_UNA_VEZ + nombre)) return false; s?.setItem(PREFIJO_UNA_VEZ + nombre, '1'); }
     escribirCola(s, [...leerCola(s), fila(nombre, datos, s)]);
   } catch { return false; }
+  capturar(nombre, datos); // PostHog (27/10), si está encendido
   vaciarCola({ store: s, cliente }).catch(() => {});
   return true;
 }

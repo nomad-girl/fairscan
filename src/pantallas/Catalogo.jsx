@@ -212,6 +212,8 @@ export function Catalogo({
             </div>
             )}
 
+            {/* "¿Vas a una feria pronto?" recién después de la primera foto, nunca antes (Nati, 27/10) */}
+            {products.length > 0 && <div style={{ display: "flex", justifyContent: "center", padding: "6px 0 10px" }}><PreguntaFeria onRespuesta={onFeriaRespuesta} /></div>}
             {filtrados.length === 0 && (
               <div style={{ textAlign: "center", padding: "20px 16px 40px", display: "flex", flexDirection: "column", gap: 12, alignItems: "center" }}>
                 {products.length === 0 ? (
@@ -223,8 +225,7 @@ export function Catalogo({
                         <>
                           {/* Primer uso (25/10, Nati: "catálogo primero, cámara después"): la app abre acá hasta la primera foto.
                               "Empezar a escanear" lleva a la cámara con la guía; la cuenta queda a la vista, sin bloquear. */}
-                          {/* Activación (27/10, bloque C): la pregunta de un toque y un stand de ejemplo antes de pedir nada */}
-                          <PreguntaFeria onRespuesta={onFeriaRespuesta} />
+                          {/* Activación (27/10): el stand de ejemplo muestra el resultado sin bloquear; la pregunta de la feria va después de la primera foto */}
                           <StandDeEjemplo />
                           <h2 style={{ ...texto("titulo"), color: paleta.text, margin: "10px 0 0", maxWidth: 300 }}>{t("catalogo.vacioTitulo")}</h2>
                           <p style={{ ...texto("cuerpo"), color: paleta.muted, margin: "0 0 6px", maxWidth: 320 }}>{t("catalogo.primerUsoTexto")}</p>

@@ -163,7 +163,8 @@
       "precioTitulo": "What was the price?",
       "precioTexto": "Type the price here. If you have the MOQ, pieces per box or CBM, tap its tab. Not sure yet? Close the bar: add it later from This booth.",
       "siguiente": "Next",
-      "precioTextoSinBarra": "After each photo a bar slides up: type the price there and, if you have them, the MOQ, pieces per box or CBM. Not sure? Close it: add it later from This booth."
+      "precioTextoSinBarra": "After each photo a bar slides up: type the price there and, if you have them, the MOQ, pieces per box or CBM. Not sure? Close it: add it later from This booth.",
+      "instructivo": "Point at any product, even a cup, and tap the button"
     }
   },
   "cerrarStand": {
@@ -1140,7 +1141,8 @@
     "cargandoCatalogo": "Loading the catalog",
     "prePermisoTitulo": "We need the camera",
     "prePermisoTexto": "To read products and business cards. It's only used while you scan, and the photos stay in your catalog.",
-    "activarCamara": "Turn on camera"
+    "activarCamara": "Turn on camera",
+    "verEjemplo": "See an example catalog"
   },
   "avisos": {
     "packsProximaVersion": "Scan packs arrive with the next version of the app. Supplier cards stay free in the meantime.",
