@@ -3333,6 +3333,7 @@ export default function App() {
 
   // Handle capture save
   const handleCaptureSave = async (data) => {
+    let verResultadoSinCuenta = false; // 27/10: primer stand sin cuenta → primero el resultado, la cuenta al volver a la cámara
     try {
       // Una tarjeta vinculada llega como dirección blob: (3.2); antes de guardar o
       // subir, se vuelve base64 para que nunca quede una dirección efímera en la base.
@@ -3534,12 +3535,16 @@ export default function App() {
         for (const id of createdIds) { const u = products.find(p => p.id === id)?.uuid; if (u) idsPorUuid[u] = id; }
         const uuidsStand = Object.keys(idsPorUuid);
         if (uuidsStand.length && !data.sinDescontar) await descontarAlCerrarStand(uuidsStand, idsPorUuid);
-        if (uuidsStand.length) {
-          anotar("stand_cerrado", { productos: uuidsStand.length, tarjeta: !!(data.cardPhoto || supplierId) }); // embudo (26/10)
-          // Sin cuenta: al cerrar el primer stand la cuenta pasa a ser obligatoria para seguir (Nati, 27/10)
+        // 27/10: guardar con el stand abierto (al leerse la tarjeta) no es cerrarlo; `final` sí (otra tarjeta cierra el anterior)
+        if (uuidsStand.length && (!data.quedarse || !data.sinDescontar)) anotar("stand_cerrado", { productos: uuidsStand.length, tarjeta: !!(data.cardPhoto || supplierId) }); // embudo (26/10)
+        // El contador del bloqueo solo sube al salir del visor: si sube con el visor abierto, la cuenta tapa el stand en curso
+        if (uuidsStand.length && !data.quedarse) {
+          // Sin cuenta: al cerrar el primer stand la cuenta pasa a ser obligatoria para SEGUIR escaneando (Nati, 27/10).
+          // Antes se ve el resultado (27/10, prueba del recorrido completo): la ficha del proveedor con la tarjeta leída y
+          // sus productos. La cuenta se pide al volver a la cámara (el bloqueo de "stand" se decide ahí, antes de abrirla).
           if (auth.esAnonima) {
             let n = 0; try { n = (parseInt(localStorage.getItem("fs_stands_cerrados") || "0", 10) || 0) + 1; localStorage.setItem("fs_stands_cerrados", String(n)); } catch { /* sin almacenamiento */ }
-            if (!auth.mailPendiente) setTimeout(() => pedirCuentaPor("stand"), 900);
+            if (n === 1 && !auth.mailPendiente) verResultadoSinCuenta = true;
           }
         }
         // Background: upload card photo
@@ -3556,7 +3561,8 @@ export default function App() {
         if (data.quedarse) return { supplierId, createdIds };
         // De vuelta al visor, con un stand nuevo: nunca tocaste "guardar" (4.1).
         setStandKey(k => k + 1);
-        navigate(data.soloProveedor ? "list" : "capture");
+        if (verResultadoSinCuenta) { anotar("resultado_primer_stand", { conTarjeta: !!supplierId }); if (supplierId) navigate("supplier", { id: supplierId }); else { setListTab("todo"); navigate("list"); } }
+        else navigate(data.soloProveedor ? "list" : "capture");
         showToast(data.soloProveedor ? tx("avisos.proveedorGuardado") : tx("avisos.standCerrado", { count: createdIds.length }));
         // Guardar las fotos también en el celular (29/09, Nati: ¿molesta? → se configura): preguntar (por defecto), siempre o nunca
         if (sessionPhotos.length > 0) {
