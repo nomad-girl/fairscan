@@ -43,6 +43,23 @@ export function comprasActivasEn(negocio, plataforma) {
   return false;
 }
 
+/**
+ * Chat y analítica se pueden encender primero solo para las cuentas de prueba (27/10, pedido de Clau: la config es
+ * global y pega en producción al instante): `{ ..., "solo_pruebas": true }` las limita a `compras_pruebas`
+ * (la lista de cuentas de prueba, de Nati). Sin la marca, para todo el mundo.
+ */
+function conSoloPruebas(config, crudo) {
+  return config ? { ...config, solo_pruebas: crudo?.solo_pruebas === true } : null;
+}
+
+/** La config de `clave` ('soporte_chat' o 'analitica') tal como la ve esta cuenta: null si está limitada a las de prueba y no es una. */
+export function paraEstaCuenta(negocio, clave, userId) {
+  const c = negocio?.[clave];
+  if (!c) return null;
+  if (c.solo_pruebas && !(negocio.compras_pruebas || []).includes(userId)) return null;
+  return c;
+}
+
 export function normalizarNegocio(valor) {
   const v = valor && typeof valor === 'object' ? valor : {};
   const entero = (x, def) => (Number.isInteger(x) && x >= 0 ? x : def);
@@ -60,8 +77,8 @@ export function normalizarNegocio(valor) {
       : false,
     compras_pruebas: Array.isArray(v.compras_pruebas) ? v.compras_pruebas.filter(x => typeof x === 'string') : [],
     packs: packs.length ? packs : NEGOCIO_POR_DEFECTO.packs,
-    soporte_chat: configDeChat(v.soporte_chat),
-    analitica: configDeAnalitica(v.analitica),
+    soporte_chat: conSoloPruebas(configDeChat(v.soporte_chat), v.soporte_chat),
+    analitica: conSoloPruebas(configDeAnalitica(v.analitica), v.analitica),
   };
 }
 

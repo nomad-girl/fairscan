@@ -3,7 +3,7 @@ import { i18next, cambiarIdioma, leerPreferencia } from './idiomas/index.js';
 import { MARCA, PALETAS } from './sistema/tokens.js';
 import { PRESETS } from "./lib/presets.js";
 import useGrabadora from "./hooks/useGrabadora.js";
-import { cargarNegocio, comprasActivasEn, NEGOCIO_POR_DEFECTO } from "./lib/negocio.js";
+import { cargarNegocio, comprasActivasEn, paraEstaCuenta, NEGOCIO_POR_DEFECTO } from "./lib/negocio.js";
 import { metaEvento, metaDiagnostico } from "./lib/metaEventos.js";
 import { inicioPrimerUso, marcarEnsayo, marcarPermiso, reiniciarEnsayo, reiniciarPrimerStand, primerStandGuiado, marcarPrimerStand, TARJETA_EJEMPLO, fotoComoDataUrl } from "./lib/ensayo.js";
 import { Ensayo } from "./pantallas/Ensayo.jsx";
@@ -2856,10 +2856,11 @@ export default function App() {
   const [ayudaAbierta, setAyudaAbierta] = useState(false); // Ayuda (26/10): "?" de la cámara y Ajustes
   // PostHog (27/10, bloque D): se enciende con la config del servidor; identifica solo por user_id (sin mail ni nombre)
   useEffect(() => {
-    if (!auth.user || !negocio.analitica) return;
+    const analitica = paraEstaCuenta(negocio, "analitica", auth.user?.id); // puede estar solo para las cuentas de prueba (27/10)
+    if (!auth.user || !analitica) return;
     let feria = null; try { feria = localStorage.getItem("fs_feria_respuesta"); } catch { /* nada */ }
-    iniciarAnalitica(negocio.analitica, { userId: auth.user.id, propiedades: { plataforma: Capacitor.getPlatform(), version: typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev", con_cuenta: !auth.esAnonima, feria_respuesta: feria || undefined } }).catch(() => {});
-  }, [auth.user?.id, auth.esAnonima, negocio.analitica?.key]);
+    iniciarAnalitica(analitica, { userId: auth.user.id, propiedades: { plataforma: Capacitor.getPlatform(), version: typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev", con_cuenta: !auth.esAnonima, feria_respuesta: feria || undefined } }).catch(() => {});
+  }, [auth.user?.id, auth.esAnonima, negocio.analitica?.key, negocio.analitica?.solo_pruebas]);
   // Embudo (26/10): "cuenta_creada" con el método, una vez por cuenta. Cuenta como nueva si su identidad más reciente
   // nació hace menos de 15 minutos (crear cuenta o convertir la sesión sin cuenta); las cuentas viejas solo se marcan.
   useEffect(() => {
@@ -3880,7 +3881,7 @@ export default function App() {
   return (
     <div className="app-pantallas" style={{ height:"100%", background:t.bg, color:t.text, position:"relative", overflow:"hidden", fontFamily:"'DM Sans', -apple-system, sans-serif" }}>
       {/* 30/09 (Nati: "entré a packs y no pude salir"): la hoja de packs se cierra tocando el velo, con la X o con Después */}
-      <HojaAyuda abierta={ayudaAbierta} chat={negocio.soporte_chat || null} cuenta={auth.esAnonima ? null : { email: auth.user?.email || null }} onCerrar={() => setAyudaAbierta(false)} onVerGuia={esEscritorio ? undefined : verEjemplo} />
+      <HojaAyuda abierta={ayudaAbierta} chat={paraEstaCuenta(negocio, "soporte_chat", auth.user?.id)} cuenta={auth.esAnonima ? null : { email: auth.user?.email || null }} onCerrar={() => setAyudaAbierta(false)} onVerGuia={esEscritorio ? undefined : verEjemplo} />
       {paywall && (
         <div role="dialog" onClick={() => setPaywall(null)} style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
           <div onClick={e => e.stopPropagation()} style={{ position:"relative", width:"100%", maxWidth:520, background:t.bg, borderRadius:"22px 22px 0 0", padding:"22px 20px calc(env(safe-area-inset-bottom, 0px) + 20px)", boxShadow:"0 -8px 40px rgba(0,0,0,0.35)" }}>

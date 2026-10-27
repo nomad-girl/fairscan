@@ -48,7 +48,7 @@ describe("Ayuda (26/10)", () => {
     expect(configDeChat({ url: "http://app.chatwoot.com", token: "abc123TOKEN" })).toBeNull();
     expect(configDeChat({ url: "https://app.chatwoot.com", token: "<script>" })).toBeNull();
     expect(normalizarNegocio({}).soporte_chat).toBeNull();
-    expect(normalizarNegocio({ soporte_chat: { url: "https://app.chatwoot.com", token: "abc123TOKEN" } }).soporte_chat).toEqual({ url: "https://app.chatwoot.com", token: "abc123TOKEN" });
+    expect(normalizarNegocio({ soporte_chat: { url: "https://app.chatwoot.com", token: "abc123TOKEN" } }).soporte_chat).toEqual({ url: "https://app.chatwoot.com", token: "abc123TOKEN", solo_pruebas: false });
   });
   it("si el chat no carga a tiempo, avisa que no (y la hoja cae al mail)", async () => {
     const doc = { createElement: () => ({}), body: { appendChild: () => {} }, documentElement: { lang: "es" } };

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizarNegocio, comprasActivasEn, NEGOCIO_POR_DEFECTO } from '../negocio.js';
+import { normalizarNegocio, comprasActivasEn, paraEstaCuenta, NEGOCIO_POR_DEFECTO } from '../negocio.js';
 
 describe('normalizarNegocio', () => {
   it('con nada del servidor usa los valores por defecto', () => {
@@ -37,3 +37,23 @@ describe('compras por plataforma (22/10)', () => {
   });
 });
 
+
+describe('chat y analítica solo para las cuentas de prueba (27/10)', () => {
+  const chat = { url: 'https://app.chatwoot.com', token: 'Y8hPaZ1X451jab912CER3iMh' };
+  it('sin la marca, para todo el mundo', () => {
+    const n = normalizarNegocio({ soporte_chat: chat });
+    expect(paraEstaCuenta(n, 'soporte_chat', 'cualquiera')).toMatchObject(chat);
+  });
+  it('con solo_pruebas, solo para las cuentas de la lista', () => {
+    const n = normalizarNegocio({ soporte_chat: { ...chat, solo_pruebas: true }, compras_pruebas: ['nati'] });
+    expect(paraEstaCuenta(n, 'soporte_chat', 'nati')).toMatchObject(chat);
+    expect(paraEstaCuenta(n, 'soporte_chat', 'otra')).toBe(null);
+    expect(paraEstaCuenta(n, 'soporte_chat', undefined)).toBe(null);
+  });
+  it('sin config, null; la analítica igual que el chat', () => {
+    expect(paraEstaCuenta(normalizarNegocio({}), 'soporte_chat', 'nati')).toBe(null);
+    const n = normalizarNegocio({ analitica: { host: 'https://us.i.posthog.com', key: 'phc_v9eEUm2Had3QGCytBr3mKa6fwcw2a7nvo22VKrwZrYYr', solo_pruebas: true }, compras_pruebas: ['nati'] });
+    expect(paraEstaCuenta(n, 'analitica', 'nati')?.key).toMatch(/^phc_/);
+    expect(paraEstaCuenta(n, 'analitica', 'otra')).toBe(null);
+  });
+});
