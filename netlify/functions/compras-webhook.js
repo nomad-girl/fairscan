@@ -42,6 +42,14 @@ exports.handler = async (event) => {
     console.error("[compras] no se pudo acreditar:", error.message);
     return { statusCode: 500, body: "no se pudo acreditar" }; // RevenueCat reintenta
   }
+  // Se guarda si fue compra de prueba o real (27/10: el revisor de Apple compró en prueba y pareció la primera venta).
+  // Si la columna todavía no existe, no frena nada: la compra ya quedó acreditada.
+  if (compra.entorno) {
+    try {
+      const { error: e2 } = await db.from("compras").update({ entorno: String(compra.entorno).toLowerCase() }).eq("transaccion_id", compra.transaccionId);
+      if (e2) console.warn("[compras] sin entorno:", e2.message);
+    } catch (e) { console.warn("[compras] sin entorno:", e?.message || e); }
+  }
   console.log(`[compras] tx ${compra.transaccionId}: +${escaneos} (${compra.tienda || "?"}, ${compra.entorno || "?"})`);
   return { statusCode: 200, body: JSON.stringify({ ok: true, saldo }) };
 };
