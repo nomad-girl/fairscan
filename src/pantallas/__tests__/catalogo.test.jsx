@@ -65,17 +65,18 @@ describe("Catálogo", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /Eliminar/ }).pop());
     expect(onEliminarVarios).toHaveBeenCalledWith(expect.arrayContaining([1, 4]));
   });
-  it("vacío del todo (primer uso): una sola acción, empezar a escanear, y la cuenta a la vista", () => {
-    const onNavigate = vi.fn(), onEntrar = vi.fn(), onCrearCuenta = vi.fn();
-    con(<Catalogo products={[]} suppliers={[]} districts={districts} activeDistrictId={1} activeDistrict={districts[0]} pestana="todo" onNavigate={onNavigate} sinCuenta onEntrar={onEntrar} onCrearCuenta={onCrearCuenta} />);
-    expect(screen.getAllByRole("button", { name: /Empezar a escanear/ })).toHaveLength(1);
-    fireEvent.click(screen.getByRole("button", { name: /Empezar a escanear/ }));
+  it("vacío del todo (ensayo, 27/10): una frase, abrir la cámara y ver el ejemplo; nada más", () => {
+    const onNavigate = vi.fn(), onVerEjemplo = vi.fn();
+    con(<Catalogo products={[]} suppliers={[]} districts={districts} activeDistrictId={1} activeDistrict={districts[0]} pestana="todo" onNavigate={onNavigate} sinCuenta onEntrar={vi.fn()} onVerEjemplo={onVerEjemplo} />);
+    expect(screen.getByText("Todavía no escaneaste nada")).toBeTruthy();
+    // Nati (27/10): "tiene demasiada información y opciones": sin buscar, pestañas, ejemplo ni cuenta
+    expect(screen.queryByRole("tab")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Crear cuenta" })).toBeNull();
+    expect(screen.queryByText("Ejemplo")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Abrir la cámara/ }));
     expect(onNavigate).toHaveBeenCalledWith("capture");
-    // 25/10 (Nati: "no ofrece crear cuenta"): crear cuenta y entrar, sin bloquear
-    fireEvent.click(screen.getByRole("button", { name: "Crear cuenta" }));
-    expect(onCrearCuenta).toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Ya tengo cuenta" }));
-    expect(onEntrar).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Ver el ejemplo de nuevo" }));
+    expect(onVerEjemplo).toHaveBeenCalled();
   });
 });
 

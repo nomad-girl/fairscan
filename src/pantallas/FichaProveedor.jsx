@@ -18,7 +18,7 @@ import { pedidoDeProveedor, productosParaPedido, totalesDePedido } from "../lib/
 import { useVolverConGesto } from "../sistema/useVolverConGesto.js";
 
 
-export function FichaProveedor({ onCamara, supplier: s, allSuppliers = [], products = [], pedidos = [], districts = [], moneda = "USD", Foto, tLegacy, onBack, onUpdate, onDelete, onNavigateProduct, onNavigateSupplier, onAddProduct, onArmarPedido }) {
+export function FichaProveedor({ onCamara, supplier: s, allSuppliers = [], products = [], pedidos = [], districts = [], moneda = "USD", Foto, tLegacy, onBack, onUpdate, onDelete, onNavigateProduct, onNavigateSupplier, onAddProduct, onArmarPedido, festejo = null, accionUnica = null, soloVer = false }) {
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
   const [datosAbiertos, setDatosAbiertos] = useState(false);
@@ -32,6 +32,12 @@ export function FichaProveedor({ onCamara, supplier: s, allSuppliers = [], produ
   const arrastrandoRef = useRef(false);
   const actualRef = useRef(null);
   useEffect(() => { setPagina(0); setArrastre(0); }, [s.id]);
+  // El cartel amarillo de arriba (ensayo y primer stand, 27/10): el del primer stand se va solo a los 4 segundos o al tocarlo
+  const [festejoVisible, setFestejoVisible] = useState(!!festejo);
+  // El objeto llega nuevo en cada render de App: el temporizador depende de su contenido, no de la referencia
+  useEffect(() => { if (!festejo || festejo.fijo) return; const id = setTimeout(() => setFestejoVisible(false), 4000); return () => clearTimeout(id); }, [festejo?.titulo, festejo?.fijo]);
+  const [copiado, setCopiado] = useState(false);
+  const copiar = async (texto) => { try { await navigator.clipboard.writeText(texto); setCopiado(true); setTimeout(() => setCopiado(false), 1500); } catch { /* sin portapapeles */ } };
 
   const suyos = useMemo(() => productosParaPedido(products, s.id), [products, s.id]);
   const pedido = pedidoDeProveedor(pedidos, s.id);
@@ -69,7 +75,10 @@ export function FichaProveedor({ onCamara, supplier: s, allSuppliers = [], produ
   // El pie: los dos botones (27/09, Nati: "Armar pedido ahí me molesta; nadie arma un pedido desde el celular, e
   // interfiere con dos acciones más importantes: agregar otro producto o ver los datos"). Agregar producto es el
   // principal (naranja); Ver todos los datos, el secundario. Armar pedido vive en la hoja de datos.
-  const botones = (propios) => (
+  const botones = (propios) => accionUnica ? (
+    // El ensayo (27/10): una sola acción, ancho completo
+    <div style={{ marginTop: 12, pointerEvents: "auto" }}><Boton variante="principal" ancho="total" onClick={accionUnica.onClick}>{accionUnica.texto}</Boton></div>
+  ) : (
     <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", pointerEvents: "auto" }}>
       {onAddProduct && <button type="button" onClick={onAddProduct} style={{ minHeight: 44, borderRadius: 999, border: "none", background: paleta.accent, color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 700, padding: "0 16px", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}><Icono nombre="camara" tamano={16} color="#fff" />{propios.length === 0 ? t("proveedor.sacarFotos") : t("proveedor.agregarProducto")}</button>}
       {/* Armar pedido a la vista (Nati, 22/10: "falta botón de hacer pedido en la ficha del proveedor"). Antes solo
@@ -151,9 +160,22 @@ export function FichaProveedor({ onCamara, supplier: s, allSuppliers = [], produ
   // El pie de la tarjeta (nombre, contacto, stand, miniaturas, botones). En la galería se reemplaza por `pieGaleria`.
   const pie = (x, esta, propios) => (esta && pagina === 1 ? pieGaleria(x, propios) :
     <div data-pie style={PIE}>
-      <p style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere", paddingRight: 60 }}>{x.company || t("proveedor.titulo")}</p>
+      <p style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.15, overflowWrap: "anywhere", paddingRight: 60 }}>{x.company || t("proveedor.titulo")}
+        {/* La tarjeta de ejemplo (27/10) queda marcada, para que se sepa que se puede borrar */}
+        {x.cardData?.ejemplo && <span style={{ display: "inline-block", verticalAlign: "middle", marginLeft: 8, background: paleta.sello, color: paleta.selloTexto, borderRadius: 999, padding: "2px 9px", fontSize: 12, fontWeight: 700 }}>{t("catalogo.ejemplo.etiqueta")}</span>}
+      </p>
       {x.contact && <p style={{ margin: 0, fontSize: 17, fontWeight: 500, color: "rgba(255,255,255,0.92)", paddingRight: 60 }}>{x.contact}</p>}
       {subtituloDe(x) && <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.75)", paddingRight: 60 }}>{subtituloDe(x)}</p>}
+      {/* WeChat a la vista y explicado (Nati, 27/10: "quizá la gente no sabe ni qué es WeChat") */}
+      {esta && x.wechat && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginTop: 8, marginRight: contactos.length > 0 ? 60 : 0, background: "rgba(43,18,6,0.72)", borderRadius: 12, padding: "8px 6px 8px 12px", pointerEvents: "auto" }}>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>WeChat {x.wechat}</p>
+            <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.7)" }}>{t("ensayo.wechatExplica")}</p>
+          </div>
+          {!soloVer && <button type="button" onClick={() => copiar(x.wechat)} style={{ minHeight: 44, padding: "0 12px", border: "none", background: "none", color: "rgba(255,255,255,0.85)", fontFamily: "inherit", fontSize: 13, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}>{copiado ? t("ensayo.copiado") : t("ensayo.copiar")}</button>}
+        </div>
+      )}
       {x.minimoDeCompra ? <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.75)" }}>{t("proveedor.minimoDeCompra")} {moneda} {x.minimoDeCompra}</p> : null}
       {/* La tira de miniaturas (Nati, 27/09: "me gustaba más cuando se veían las miniaturas"): tocar una abre el producto */}
       {propios.length > 0 && (
@@ -239,7 +261,7 @@ export function FichaProveedor({ onCamara, supplier: s, allSuppliers = [], produ
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(43,18,6,0.55)", color: "#fff", borderRadius: 999, padding: "6px 12px", fontSize: 13, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
           {guardado ? <><Icono nombre="listo" tamano={14} color="#86EFAC" />{t("proveedor.guardado")}</> : posicion}
         </span>
-        <span style={{ display: "flex", gap: 8 }}>
+        <span style={{ display: "flex", gap: 8, visibility: soloVer ? "hidden" : "visible" }}>
           {onCamara && <BotonCamara oscuro onClick={onCamara} />}
           {redondo("favorito", s.favorito ? t("proveedor.quitarFavorito") : t("proveedor.marcarFavorito"), () => guardar({ favorito: s.favorito ? 0 : 1 }), { activo: !!s.favorito, presionado: !!s.favorito })}
         </span>
@@ -263,12 +285,19 @@ export function FichaProveedor({ onCamara, supplier: s, allSuppliers = [], produ
       {contactos.length > 0 && pagina === 0 && (
         <div style={{ position: "absolute", right: 10, bottom: `calc(230px + env(safe-area-inset-bottom, 0px))`, display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
           {contactos.map(c => (
-            <a key={c.clave} href={c.href} target="_blank" rel="noopener noreferrer" onClick={c.onClick} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: "#fff", textDecoration: "none", width: 56 }}>
+            <a key={c.clave} href={soloVer ? undefined : c.href} target="_blank" rel="noopener noreferrer" onClick={c.onClick} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: "#fff", textDecoration: "none", width: 56 }}>
               <span style={{ width: 48, height: 48, borderRadius: 24, background: "rgba(43,18,6,0.55)", display: "grid", placeItems: "center" }}><Icono nombre={c.icono} tamano={22} color="#fff" /></span>
               <span style={{ fontSize: 11, fontWeight: 600, textShadow: "0 1px 2px rgba(0,0,0,0.6)" }}>{c.texto}</span>
             </a>
           ))}
         </div>
+      )}
+
+      {festejo && festejoVisible && (
+        <button type="button" onClick={() => !festejo.fijo && setFestejoVisible(false)} role="status" style={{ position: "absolute", top: `calc(env(safe-area-inset-top, 0px) + ${suyos.length > 0 ? 132 : 76}px)`, left: 14, right: 14, zIndex: 5, textAlign: "left", border: "none", background: paleta.sello, color: paleta.selloTexto, borderRadius: 18, padding: "14px 16px", boxShadow: "0 10px 26px -12px rgba(0,0,0,0.6)", fontFamily: "inherit", cursor: festejo.fijo ? "default" : "pointer" }}>
+          <span style={{ display: "block", fontFamily: "'Bricolage Grotesque', inherit", fontWeight: 800, fontSize: 26, letterSpacing: "-0.03em", lineHeight: 1.05 }}>{festejo.titulo}</span>
+          {festejo.texto && <span style={{ display: "block", marginTop: 4, fontSize: 15, lineHeight: 1.4 }}>{festejo.texto}</span>}
+        </button>
       )}
 
       {/* Todos los datos, en una hoja */}

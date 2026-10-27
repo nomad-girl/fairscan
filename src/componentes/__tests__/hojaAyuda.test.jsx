@@ -23,7 +23,7 @@ describe("Ayuda (26/10)", () => {
     fireEvent.click(screen.getByText("¿Funciona sin internet?"));
     // verificado contra la app: sin señal se sacan las fotos y la IA las completa al volver
     expect(screen.getByText(/la IA las completa cuando vuelve la señal/)).toBeTruthy();
-    fireEvent.click(screen.getByText("Ver la guía de nuevo"));
+    fireEvent.click(screen.getByText("Ver el ejemplo de nuevo"));
     expect(onVerGuia).toHaveBeenCalled();
     expect(screen.getByRole("button", { name: /Escribinos/ })).toBeTruthy();
   });

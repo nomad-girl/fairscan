@@ -14,7 +14,7 @@ import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
 const scrollGuardado = { todo: 0, proveedores: 0 };
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Chip, FilaDeChips, Segmentado, Fila, Precio, Icono, Esqueleto, Hoja, GrillaDeFotos, CeldaDeFoto, CarruselDeFotos, EstadoDeDatos, esperandoNube } from "../componentes/index.js";
+import { Boton, Chip, FilaDeChips, Segmentado, Fila, Precio, Icono, Esqueleto, Hoja, GrillaDeFotos, CeldaDeFoto, CarruselDeFotos, EstadoDeDatos, esperandoNube, Marca } from "../componentes/index.js";
 import { palabrasDeBusqueda, coincideBusqueda } from "../lib/busqueda.js";
 import { soloDeHoy, resumenDelDia, conEncabezadosDeDia, claveDia } from "../lib/porDia.js";
 import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
@@ -22,7 +22,7 @@ import { estadoIA } from "../lib/aiEstado.js";
 import { proveedorVacio } from "../lib/proveedores.js";
 import { haceCuanto } from "../idiomas/formato.js";
 import { anotar } from "../lib/primerUso.js";
-import { PreguntaFeria, StandDeEjemplo } from "../componentes/PrimerUso.jsx";
+import { PreguntaFeria } from "../componentes/PrimerUso.jsx";
 
 function Iniciales({ texto }) {
   const { paleta } = useSistema();
@@ -34,7 +34,7 @@ export function Catalogo({
   products = [], suppliers = [], districts = [], activeDistrictId, activeDistrict, bajando = null, queueCount = 0, enLinea = true,
   Foto, t: tLegacy,
   onNavigate, onSwitchDistrict, onToggleFavorito, onToggleFavoritoProveedor, onRevisarDia, onEliminarVarios,
-  pestana = "todo", onPestana, sinCuenta = false, onEntrar, onCrearCuenta, onFeriaRespuesta, estadoDatos = null, onReintentar,
+  pestana = "todo", onPestana, sinCuenta = false, onEntrar, onCrearCuenta, onFeriaRespuesta, estadoDatos = null, onReintentar, onVerEjemplo,
 }) {
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
@@ -145,6 +145,25 @@ export function Catalogo({
     : <h3 style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: paleta.dim, margin: "8px 2px 2px" }}>{txt}</h3>;
   const etiquetaNuevo = <span style={{ display: "inline-block", background: paleta.sello, color: paleta.selloTexto, borderRadius: 999, padding: "1px 7px", fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", marginLeft: 6, verticalAlign: "middle" }}>{t("catalogo.nuevo")}</span>;
 
+  // Vacío del todo (wireframe 13 del ensayo, 27/10; Nati: "tiene demasiada información y opciones esta pantalla"):
+  // la marca, ajustes, una frase y un botón. Buscar, pestañas, feria, estrella, ejemplo y cuenta vuelven cuando hay algo.
+  if (products.length === 0 && suppliers.length === 0 && !bajando && !esperandoNube(estadoDatos)) return (
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit", padding: `10px ${espacios.margenLateral}px calc(env(safe-area-inset-bottom, 0px) + 24px)` }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: alturas.tocable }}>
+        <Marca tamano={22} color={paleta.text} />
+        <button type="button" onClick={() => onNavigate?.("settings")} aria-label={t("catalogo.ajustes")} style={{ width: 44, height: 44, borderRadius: 22, border: "none", background: "transparent", display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre="ajustes" tamano={22} color={paleta.muted} /></button>
+      </div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 8, textAlign: "center", padding: "0 8px" }}>
+        <h2 style={{ ...texto("titulo"), margin: 0 }}>{t("ensayo.vacioTitulo")}</h2>
+        <p style={{ ...texto("cuerpo", { fontWeight: 400 }), color: paleta.muted, margin: 0, maxWidth: 320 }}>{t("ensayo.vacioTexto")}</p>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%", maxWidth: 420, alignSelf: "center" }}>
+        <Boton variante="principal" ancho="total" icono="camara" onClick={() => { anotar("empezar", { conCuenta: !sinCuenta }, { unaVez: true }); onNavigate?.("capture"); }}>{t("ensayo.abrirCamara")}</Boton>
+        {onVerEjemplo && <Boton variante="fantasma" ancho="total" onClick={onVerEjemplo}>{t("ensayo.verEjemplo")}</Boton>}
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", background: paleta.bg, color: paleta.text, fontFamily: "inherit" }}>
       {/* Barra superior (27/09, A1 elegida por Nati: "mucha info, muchas tipografías, poca jerarquía"): la feria es el
@@ -223,10 +242,6 @@ export function Catalogo({
                       ? <p style={{ ...texto("cuerpo"), color: paleta.muted, margin: 0 }}>{esperandoNube(estadoDatos) ? t(`datos.${estadoDatos.clave}`, estadoDatos) : t("catalogo.bajando")}</p>
                       : (
                         <>
-                          {/* Primer uso (25/10, Nati: "catálogo primero, cámara después"): la app abre acá hasta la primera foto.
-                              "Empezar a escanear" lleva a la cámara con la guía; la cuenta queda a la vista, sin bloquear. */}
-                          {/* Activación (27/10): el stand de ejemplo muestra el resultado sin bloquear; la pregunta de la feria va después de la primera foto */}
-                          <StandDeEjemplo />
                           <h2 style={{ ...texto("titulo"), color: paleta.text, margin: "10px 0 0", maxWidth: 300 }}>{t("catalogo.vacioTitulo")}</h2>
                           <p style={{ ...texto("cuerpo"), color: paleta.muted, margin: "0 0 6px", maxWidth: 320 }}>{t("catalogo.primerUsoTexto")}</p>
                           <Boton variante="principal" ancho="total" icono="camara" onClick={() => { anotar("empezar", { conCuenta: !sinCuenta }, { unaVez: true }); onNavigate?.("capture"); }} estilo={{ maxWidth: 320, minHeight: 56, fontSize: 17 }}>{t("bienvenida.empezar")}</Boton>

@@ -5,7 +5,8 @@ import { PRESETS } from "./lib/presets.js";
 import useGrabadora from "./hooks/useGrabadora.js";
 import { cargarNegocio, comprasActivasEn, NEGOCIO_POR_DEFECTO } from "./lib/negocio.js";
 import { metaEvento, metaDiagnostico } from "./lib/metaEventos.js";
-import { guardarGuia } from "./lib/guiaPrimeraVez.js";
+import { inicioPrimerUso, marcarEnsayo, marcarPermiso, reiniciarEnsayo, primerStandGuiado, marcarPrimerStand, TARJETA_EJEMPLO, fotoComoDataUrl } from "./lib/ensayo.js";
+import { Ensayo } from "./pantallas/Ensayo.jsx";
 import { estadoInicial, descontarStand, devolverProducto, reconciliar, saldoVisible } from "./lib/creditos.js";
 import { soloDeHoy, resumenDelDia } from "./lib/porDia.js";
 import { evaluarCierreDeStand, packDestacado, FRASE_PAYWALL } from "./lib/paywall.js";
@@ -106,7 +107,7 @@ import { slugify } from './lib/slugify.js';
 import { requestPersistentStorage } from './lib/platform.js';
 import { createAutosave } from './lib/autosave.js';
 import { groupBySupplier } from './lib/supplierGroups.js';
-import { explicarErrorDeCamara, explicarErrorDeMicrofono, abrirAjustesDeLaApp } from './lib/permisos.js';
+import { explicarErrorDeCamara, explicarErrorDeMicrofono, abrirAjustesDeLaApp, instruccionesDeAjustes } from './lib/permisos.js';
 import { palabrasDeBusqueda, coincideBusqueda } from './lib/busqueda.js';
 import { Visor } from './pantallas/Visor.jsx';
 import { CerrarStand } from './pantallas/CerrarStand.jsx';
@@ -407,6 +408,28 @@ function PermisoAviso({ info, onRetry, onAlternativa, alternativaLabel, onClose,
   // Si rechazó la cámara (27/10): recién ahí se explica para qué es, con los ajustes y el catálogo de ejemplo como salida
   useEffect(() => { if (info?.tipo === "denegado" || /permiso|permission/i.test(info?.titulo || "")) anotar("permiso_rechazado_visto", {}, { unaVez: true }); }, [info]);
   if (!info) return null;
+  // Dijo que no a la cámara (wireframe 12 del ensayo, 27/10): una pantalla con el camino exacto y siempre una salida
+  // para seguir (ajustes o una foto del teléfono). Sin "Ahora no" (Nati, 27/10).
+  if (info.tipo === "denegado") {
+    const plataforma = Capacitor.getPlatform();
+    const pasos = plataforma === "android" ? tx("ensayo.pasosAndroid") : plataforma === "ios" ? tx("ensayo.pasosIos") : null;
+    return (
+      <div role="alertdialog" className="pantalla-fija" style={{ position:"fixed", inset:0, zIndex:200, background:t.bg, color:t.text, display:"flex", flexDirection:"column", padding:"calc(env(safe-area-inset-top, 0px) + 28px) 22px calc(env(safe-area-inset-bottom, 0px) + 22px)" }}>
+        <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", gap:12, textAlign:"center" }}>
+          <span style={{ width:76, height:76, borderRadius:38, background:t.accentSoft, display:"grid", placeItems:"center" }}><Icono nombre="camara" tamano={36} color={t.accent} /></span>
+          <p style={{ margin:0, fontSize:22, fontWeight:700, lineHeight:1.25 }}>{tx("ensayo.sinCamaraTitulo")}</p>
+          <p style={{ margin:0, fontSize:16, lineHeight:1.45, color:t.muted, maxWidth:330 }}>{pasos ? tx("ensayo.sinCamaraTexto") : instruccionesDeAjustes("cámara")}</p>
+          {pasos && <p style={{ margin:0, fontSize:15, fontWeight:600, background:t.card, border:`1px solid ${t.border}`, borderRadius:999, padding:"8px 14px" }}>{pasos}</p>}
+        </div>
+        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+          {info.puedeAbrirAjustes
+            ? <Boton variante="principal" ancho="total" onClick={() => { anotar("ajustes_abiertos"); abrirAjustesDeLaApp(); }}>{tx("ensayo.abrirAjustes")}</Boton>
+            : onRetry && <Boton variante="principal" ancho="total" icono="reintentar" onClick={() => { onClose?.(); onRetry(); }}>{tx("comun.reintentar")}</Boton>}
+          {onAlternativa && <Boton variante="secundario" ancho="total" icono="foto" onClick={() => { anotar("foto_del_carrete"); onClose?.(); onAlternativa(); }}>{tx("ensayo.usarFotoTelefono")}</Boton>}
+        </div>
+      </div>
+    );
+  }
   const btn = (extra) => ({ padding:"12px 14px", borderRadius:12, border:"none", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit", ...extra });
   return (
     <div role="alertdialog" style={{ position:"fixed", inset:0, zIndex:200, background:"rgba(0,0,0,0.55)", display:"flex", alignItems:"flex-end", justifyContent:"center" }} onClick={onClose}>
@@ -606,7 +629,7 @@ const parseQRContent = (qrData) => {
  * stand es la tarjeta del proveedor (4.4). El catálogo sube desde abajo con un
  * gesto o con el botón "Catálogo". Un solo modo (4.5).
  */
-function QuickCapture({ onAyuda, onYaTengoCuenta, suppliers, districts, activeDistrictId, settings, onSave, onClose, onCatalogo, t, isDark, initialSupplier = null, products = [], onProductoNuevo, onProductoCambio, onProductoBorrar, soloProveedor = false, saldoCreditos = null, queueCount = 0 }) {
+function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, districts, activeDistrictId, settings, onSave, onClose, onCatalogo, t, isDark, initialSupplier = null, products = [], onProductoNuevo, onProductoCambio, onProductoBorrar, soloProveedor = false, saldoCreditos = null, queueCount = 0 }) {
   const { t: tx } = useTranslation();
   const [cardPhoto, setCardPhoto] = useState(null);
   const [cardData, setCardData] = useState(null);
@@ -640,6 +663,11 @@ function QuickCapture({ onAyuda, onYaTengoCuenta, suppliers, districts, activeDi
   const marcarConsejoVisto = () => { consejoVistoRef.current = true; setConsejoVisible(false); try { localStorage.setItem("fairscan_consejo_tarjeta", "1"); } catch {} };
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  // El primer stand de quien recién instaló (ensayo de feria, 27/10): después de su primera foto se pregunta por la
+  // tarjeta (la suya o la de ejemplo) y, al leerla, el stand se cierra solo y se ve cómo quedó.
+  const [guiado, setGuiado] = useState(() => primerUso && primerStandGuiado());
+  const [propuestaCerrada, setPropuestaCerrada] = useState(false);
+  const [tarjetaEjemplo, setTarjetaEjemplo] = useState(false);
   const [addPhotoToItemId, setAddPhotoToItemId] = useState(null);
   const addPhotoGalleryRef = useRef(null);
   // Live camera state
@@ -745,6 +773,15 @@ function QuickCapture({ onAyuda, onYaTengoCuenta, suppliers, districts, activeDi
       setCameraError({ ...explicarErrorDeCamara(err), modo: mode });
     }
   };
+
+  // Volvió de los ajustes del teléfono con la cámara permitida: sigue solo, sin tocar nada (wireframe 12)
+  useEffect(() => {
+    if (cameraError?.tipo !== "denegado") return;
+    const alVolver = () => { if (document.visibilityState === "visible") openCamera(cameraError.modo); };
+    document.addEventListener("visibilitychange", alVolver);
+    return () => document.removeEventListener("visibilitychange", alVolver);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cameraError]);
 
   const apagarCamara = () => { if (streamRef.current) { streamRef.current.getTracks().forEach(tr => tr.stop()); streamRef.current = null; } };
   const closeCamera = () => {
@@ -902,7 +939,23 @@ function QuickCapture({ onAyuda, onYaTengoCuenta, suppliers, districts, activeDi
   const itemsDesdeIds = (ids) => (ids || []).map(id => products.find(p => p.id === id)).filter(Boolean)
     .map(p => ({ id: p.id, photos: p.photos || [], price: p.price || "", notes: p.notes || "" }));
 
+  // "No tengo, usar una de ejemplo" (wireframe 10): la tarjeta de Nancy Ceramic se "lee" al instante, sin IA, y
+  // queda marcada como ejemplo (card_data.ejemplo) para que se sepa que se puede borrar.
+  const usarTarjetaEjemplo = async () => {
+    setFlashVisible(true); setTimeout(() => setFlashVisible(false), 150); vibrarObturador();
+    try {
+      const foto = await fotoComoDataUrl(TARJETA_EJEMPLO.foto);
+      const { company, contact, phone, wechat, address } = TARJETA_EJEMPLO;
+      setSupplierName(company); setSupplierContact(contact); setSupplierPhone(phone); setSupplierWechat(wechat); setSupplierAddress(address);
+      setCardData({ company, contact, phone, wechat, address, ejemplo: true });
+      setCardPhoto(foto);
+      anotar("tarjeta_ejemplo", {}, { unaVez: true });
+    } catch (err) { console.warn("[ensayo] tarjeta de ejemplo:", err); }
+    setTarjetaEjemplo(false); setCameraMode("product");
+  };
+
   const handleCameraShutter = async () => {
+    if (cameraMode === "card" && tarjetaEjemplo) return usarTarjetaEjemplo();
     // Producto a 1600 px, tarjeta a 2000 (29/09; antes 1200/1600, y antes de eso 800: Nati, 21/09, "que se vea grande y en alta calidad").
     const photo = captureFrame(cameraMode === "card" ? 2000 : 1600);
     if (!photo) return;
@@ -931,6 +984,7 @@ function QuickCapture({ onAyuda, onYaTengoCuenta, suppliers, districts, activeDi
         // Cada disparo crea el producto en la base al instante (4.3): si la app
         // muere antes de cerrar el stand, el producto ya está.
         if (datosRapidos && (Object.values(datosRapidos.valores).some(Boolean))) confirmarPrecio(); else if (datosRapidos) setDatosRapidos(null);
+        if (guiado && items.length >= 1) setPropuestaCerrada(true); // sigue sacando fotos: la pregunta por la tarjeta se va
         crearItem([photo]).then(id => {
           if (id == null) return;
           ofrecerPrecio(id);
@@ -1095,16 +1149,25 @@ function QuickCapture({ onAyuda, onYaTengoCuenta, suppliers, districts, activeDi
   useEffect(() => {
     if (!abierto || cardProcessing || !cardPhoto || guardadoTarjetaRef.current === cardPhoto) return;
     guardadoTarjetaRef.current = cardPhoto;
-    guardarStand({ final: false });
+    const guardando = guardarStand({ final: false });
+    // Primer stand guiado (wireframe 11): con la tarjeta leída y algún producto, el stand se cierra solo y se ve la
+    // ficha del proveedor. Se espera al guardado de arriba para cerrar con ese mismo proveedor (si no, se duplicaba).
+    if (guiado && items.length > 0) guardando.then(r => {
+      if (!r?.supplierId) return;
+      setGuiado(false); marcarPrimerStand();
+      guardarYCerrar({ linkedSupplierId: r.supplierId, primerStand: true });
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [abierto, cardProcessing, cardPhoto]);
 
-  const handleSave = async () => {
+  // `extra` lo usa solo el cierre automático del primer stand. handleSave va directo a onClick (recibe el evento): no se mezcla.
+  const guardarYCerrar = async (extra = {}) => {
     if (saving) return;
     setSaving(true);
     setSaveError(null);
     try {
-      const ok = await onSave(armarPayload());
+      const ok = await onSave({ ...armarPayload(), ...extra });
+      if (guiado) { setGuiado(false); marcarPrimerStand(); } // cerró su primer stand a mano: la guía ya no hace falta
       if (ok === false) throw new Error("el guardado devolvió error");
       await borrarBorrador(); // el stand ya está en la base: el borrador sobra
       // Si salió bien, la pantalla se cierra desde afuera.
@@ -1115,6 +1178,7 @@ function QuickCapture({ onAyuda, onYaTengoCuenta, suppliers, districts, activeDi
       setSaveError(tx("captura.noSePudoGuardar"));
     }
   };
+  const handleSave = () => guardarYCerrar();
 
   const [supplierSearch, setSupplierSearch] = useState(false);
   const [supplierQuery, setSupplierQuery] = useState("");
@@ -1159,7 +1223,13 @@ function QuickCapture({ onAyuda, onYaTengoCuenta, suppliers, districts, activeDi
           onDisparar={handleCameraShutter}
           standAbierto={{ nombre: supplierName, fotos: items.length, tieneTarjeta: !!cardPhoto, leyendo: cardProcessing }}
           onStand={() => closeCamera()} onTarjeta={() => openCamera("card")}
-          onVolverAProductos={() => openCamera("product")}
+          onVolverAProductos={() => { setTarjetaEjemplo(false); openCamera("product"); }}
+          primeraFoto={primerUso && items.length === 0 && !addPhotoToItemId}
+          tarjetaEjemplo={tarjetaEjemplo} primerStand={guiado}
+          propuestaTarjeta={guiado && !propuestaCerrada && items.length >= 1 && !cardPhoto && !cardProcessing && !addPhotoToItemId ? {
+            onEscanear: () => { anotar("tarjeta_propuesta", { eleccion: "propia" }, { unaVez: true }); setPropuestaCerrada(true); openCamera("card"); },
+            onEjemplo: () => { anotar("tarjeta_propuesta", { eleccion: "ejemplo" }, { unaVez: true }); setPropuestaCerrada(true); setTarjetaEjemplo(true); openCamera("card"); },
+          } : null}
           onCancelar={closeCamera}
           onCatalogo={() => { closeCamera(); apagarCamara(); onCatalogo?.(); }}
           onAgregarAngulo={() => { if (!items.length) return; anguloDesdeVisorRef.current = true; setAddPhotoToItemId(items[0].id); setAnguloDisponible(false); }}
@@ -1207,7 +1277,7 @@ function QuickCapture({ onAyuda, onYaTengoCuenta, suppliers, districts, activeDi
 // ═══════════════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════════════
-function SettingsScreen({ onCamara, onAyuda, settings, onSave, onBack, sync, t, products, suppliers, districts, onReload, teams, activeTeam, teamMembers, isAdmin, fetchMembers, inviteMember, onSwitchTeam, userEmail, userId, esAnonima = false, auth, onSignOut, onGoExport, onAccountDeleted, isDark = false, onToggleTheme, onEntrar, saldo = null, onVerPacks = null }) {
+function SettingsScreen({ onCamara, onAyuda, onVerEjemplo, settings, onSave, onBack, sync, t, products, suppliers, districts, onReload, teams, activeTeam, teamMembers, isAdmin, fetchMembers, inviteMember, onSwitchTeam, userEmail, userId, esAnonima = false, auth, onSignOut, onGoExport, onAccountDeleted, isDark = false, onToggleTheme, onEntrar, saldo = null, onVerPacks = null }) {
   const { t: tx } = useTranslation();
   const handleSwitchTeam = async (teamId) => {
     if (onSwitchTeam) await onSwitchTeam(teamId);
@@ -1842,7 +1912,7 @@ function SettingsScreen({ onCamara, onAyuda, settings, onSave, onBack, sync, t, 
         <MenuItem icon={<Icono nombre="nube" tamano={22} color={t.accent} />} title={tx("configuracion.backupYDatos")} subtitle={tx("configuracion.backupSub")} onClick={() => setSubScreen("backup")} />
         {/* La parte paga, a la vista (29/09, Nati: "falta en el menú algo de packs o facturación") */}
         {diagMeta && <pre style={{ fontSize:11, color:t.text, background:t.card, border:`2px solid ${t.accent}`, borderRadius:12, padding:12, whiteSpace:"pre-wrap", wordBreak:"break-all", margin:"0 0 12px" }}>{"Diagnóstico Meta (solo equipo)\n" + JSON.stringify(diagMeta, null, 1)}</pre>}
-        {onCamara && <MenuItem icon={<Icono nombre="camara" tamano={22} color={t.accent} />} title={tx("visor.guia.verDeNuevo")} subtitle={tx("visor.guia.verDeNuevoPista")} onClick={() => { guardarGuia("1"); onCamara(); }} />}
+        {onVerEjemplo && <MenuItem icon={<Icono nombre="camara" tamano={22} color={t.accent} />} title={tx("visor.guia.verDeNuevo")} subtitle={tx("visor.guia.verDeNuevoPista")} onClick={onVerEjemplo} />}
         {onAyuda && <MenuItem icon={<Icono nombre="ayuda" tamano={22} color={t.accent} />} title={tx("ayuda.titulo")} subtitle={tx("ayuda.escribinosPista", { mail: "hola@fairscan.app" })} onClick={onAyuda} />}
         {onVerPacks && <MenuItem icon={<Icono nombre="pedido" tamano={22} color={t.accent} />} title={tx("configuracion.escaneosYPacks")} subtitle={saldo == null ? tx("configuracion.escaneosPista") : tx("configuracion.escaneosQuedan", { count: saldo })} onClick={onVerPacks} />}
 
@@ -3027,6 +3097,8 @@ export default function App() {
       // catálogo, con "Empezar a escanear" y la cuenta a la vista. Desde la primera foto, abre en la cámara como siempre.
       // 27/10 (Nati, con datos: cámara primero 16 % de primera foto, catálogo primero 6 %): la app vuelve a abrir en la cámara
       if (!hayProductosRef.current && !esEscritorio) anotar("primera_apertura", { conCuenta: !auth.esAnonima }, { unaVez: true });
+      // Ensayo de feria (27/10, opción A de Nati): sin productos, la primera vez abre en la bienvenida y el ensayo
+      setPrimerUso(inicioPrimerUso({ hayProductos: hayProductosRef.current, esEscritorio }));
       setReady(true);
       // Config del negocio y saldo (5.1, 5.2), sin bloquear el arranque.
       // Compras (5.4): el SDK de la tienda se configura con el id de la usuaria; en la web no hace nada.
@@ -3223,6 +3295,15 @@ export default function App() {
   const [ordenProveedores, setOrdenProveedores] = useState(null);
   // "Ya tengo cuenta" desde la primera vez: el login se muestra sobre la sesión sin cuenta y se cierra solo al entrar.
   const [mostrarLogin, setMostrarLogin] = useState(false);
+  // Primer uso (27/10): 'bienvenida' (ensayo de feria completo), 'permiso' (solo "Ahora con tu cámara") o null (la cámara)
+  const [primerUso, setPrimerUso] = useState(null);
+  const verEjemplo = () => { reiniciarEnsayo(); setPrimerUso("bienvenida"); setAyudaAbierta(false); navigate("capture"); };
+  // Entró con su cuenta desde la bienvenida: el ensayo sobra; si la cuenta trae productos, tampoco hace falta el permiso
+  useEffect(() => {
+    if (!primerUso) return;
+    if (products.length > 0) { marcarEnsayo(); setPrimerUso(null); return; }
+    if (!auth.esAnonima && primerUso === "bienvenida") { marcarEnsayo(); setPrimerUso("permiso"); }
+  }, [products.length, auth.esAnonima]);
   useEffect(() => { if (auth.user && !auth.esAnonima) setMostrarLogin(false); }, [auth.user, auth.esAnonima]);
   // 27/09 (Nati: "volver siempre a donde estabas"): antes se guardaba una sola pantalla anterior, así que
   // catálogo → producto → proveedor → producto → volver perdía el camino. Ahora es una pila (hasta 12).
@@ -3561,11 +3642,12 @@ export default function App() {
         if (data.quedarse) return { supplierId, createdIds };
         // De vuelta al visor, con un stand nuevo: nunca tocaste "guardar" (4.1).
         setStandKey(k => k + 1);
-        if (verResultadoSinCuenta) { anotar("resultado_primer_stand", { conTarjeta: !!supplierId }); if (supplierId) navigate("supplier", { id: supplierId }); else { setListTab("todo"); navigate("list"); } }
+        if (verResultadoSinCuenta || data.primerStand) { anotar("resultado_primer_stand", { conTarjeta: !!supplierId }); if (supplierId) navigate("supplier", { id: supplierId, festejo: !!data.primerStand }); else { setListTab("todo"); navigate("list"); } }
         else navigate(data.soloProveedor ? "list" : "capture");
         showToast(data.soloProveedor ? tx("avisos.proveedorGuardado") : tx("avisos.standCerrado", { count: createdIds.length }));
         // Guardar las fotos también en el celular (29/09, Nati: ¿molesta? → se configura): preguntar (por defecto), siempre o nunca
-        if (sessionPhotos.length > 0) {
+        // El primer stand guiado (27/10) termina en la ficha con el festejo: la pregunta de la galería queda para el próximo
+        if (sessionPhotos.length > 0 && !data.primerStand) {
           const modo = settings?.fotosAGaleria || "preguntar";
           if (modo === "siempre") setTimeout(async () => { const ok = await sharePhotosToDevice(sessionPhotos); if (ok) showToast(tx("avisos.fotosCompartidas")); }, 600);
           else if (modo !== "nunca") setTimeout(() => setPhotosToShare(sessionPhotos), 600);
@@ -3794,7 +3876,7 @@ export default function App() {
   return (
     <div className="app-pantallas" style={{ height:"100%", background:t.bg, color:t.text, position:"relative", overflow:"hidden", fontFamily:"'DM Sans', -apple-system, sans-serif" }}>
       {/* 30/09 (Nati: "entré a packs y no pude salir"): la hoja de packs se cierra tocando el velo, con la X o con Después */}
-      <HojaAyuda abierta={ayudaAbierta} chat={negocio.soporte_chat || null} cuenta={auth.esAnonima ? null : { email: auth.user?.email || null }} onCerrar={() => setAyudaAbierta(false)} onVerGuia={() => { guardarGuia("1"); setAyudaAbierta(false); navigate("capture"); }} />
+      <HojaAyuda abierta={ayudaAbierta} chat={negocio.soporte_chat || null} cuenta={auth.esAnonima ? null : { email: auth.user?.email || null }} onCerrar={() => setAyudaAbierta(false)} onVerGuia={esEscritorio ? undefined : verEjemplo} />
       {paywall && (
         <div role="dialog" onClick={() => setPaywall(null)} style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
           <div onClick={e => e.stopPropagation()} style={{ position:"relative", width:"100%", maxWidth:520, background:t.bg, borderRadius:"22px 22px 0 0", padding:"22px 20px calc(env(safe-area-inset-bottom, 0px) + 20px)", boxShadow:"0 -8px 40px rgba(0,0,0,0.35)" }}>
@@ -3895,15 +3977,20 @@ export default function App() {
       {!esEscritorio && screen === "list" && (
         <Catalogo products={products} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} activeDistrict={activeDistrict} bajando={sync.bajando}
           queueCount={queueCount} enLinea={typeof navigator === "undefined" ? true : navigator.onLine !== false}
-          Foto={FotoDeProducto} t={t}
+          Foto={FotoDeProducto} t={t} onVerEjemplo={verEjemplo}
           onNavigate={(s, d, lista) => { if (lista) (s === "supplier" ? setOrdenProveedores : setOrdenFicha)(lista.map(x => x.id)); navigate(s, d); }} onSwitchDistrict={switchDistrict}
           onToggleFavorito={(p) => handleUpdateProduct(p.id, { favorito: p.favorito ? 0 : 1 })}
           onToggleFavoritoProveedor={async (s) => { const favorito = s.favorito ? 0 : 1; await dbUpdateSupplier(s.id, { favorito }); setSuppliers(prev => prev.map(x => x.id === s.id ? { ...x, favorito } : x)); }}
           onRevisarDia={() => navigate("revisar")} onEliminarVarios={handleBatchDelete}
           pestana={listTab} onPestana={setListTab} sinCuenta={!!auth.esAnonima} onEntrar={() => setMostrarLogin(true)} onCrearCuenta={() => setMostrarLogin("register")} onFeriaRespuesta={(opcion) => { supabase?.auth.updateUser({ data: { feria_respuesta: opcion } }).catch(() => {}); }} estadoDatos={estadoDatos} onReintentar={sync.forceSync} />
       )}
-      {!esEscritorio && (screen === "capture" || screen === "capture-supplier") && (
-        <QuickCapture key={`${screen}-${standKey}`} onAyuda={() => setAyudaAbierta(true)} onYaTengoCuenta={auth.esAnonima && products.length === 0 ? () => setMostrarLogin(true) : undefined} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings} products={products}
+      {!esEscritorio && screen === "capture" && primerUso && (
+        <Ensayo inicio={primerUso} moneda={monedaActual} Foto={FotoDeProducto} tLegacy={t}
+          onYaTengoCuenta={auth.esAnonima ? () => setMostrarLogin(true) : undefined}
+          onActivarCamara={() => { marcarEnsayo(); marcarPermiso(); setPrimerUso(null); }} />
+      )}
+      {!esEscritorio && (screen === "capture" || screen === "capture-supplier") && !(screen === "capture" && primerUso) && (
+        <QuickCapture key={`${screen}-${standKey}`} primerUso={products.length === 0} onAyuda={() => setAyudaAbierta(true)} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings} products={products}
           onProductoNuevo={crearProductoDesdeCaptura} onProductoCambio={handleUpdateProduct} onProductoBorrar={borrarProductoDesdeCaptura}
           onSave={(data) => handleCaptureSave({ ...data, soloProveedor: screen === "capture-supplier" })} onClose={() => navigate("list")} onCatalogo={() => { setListTab("todo"); navigate("list"); }} t={t} isDark={isDark}
           soloProveedor={screen === "capture-supplier"} saldoCreditos={creditos ? saldoVisible(creditos) : null} queueCount={queueCount}
@@ -3929,7 +4016,7 @@ export default function App() {
           (29/09, Nati: "entro a un producto y no me deja escrollear": el orden guardado era el del catálogo y el
           producto podía no estar ahí, entonces no había vecino arriba ni abajo). */}
       {!esEscritorio && screen === "supplier" && screenData && (
-        <FichaProveedor onCamara={() => navigate("capture")} supplier={suppliers.find(s => s.id === screenData.id) || screenData} allSuppliers={ordenProveedores ? ordenProveedores.map(id => suppliers.find(s => s.id === id)).filter(Boolean) : suppliers.filter(s => !proveedorVacio(s, products))} products={products} pedidos={orders} districts={districts} moneda={monedaActual} Foto={FotoDeProducto} tLegacy={t}
+        <FichaProveedor onCamara={() => navigate("capture")} festejo={screenData.festejo ? { titulo: tx("ensayo.festejoTitulo"), texto: tx("ensayo.festejoTexto") } : null} supplier={suppliers.find(s => s.id === screenData.id) || screenData} allSuppliers={ordenProveedores ? ordenProveedores.map(id => suppliers.find(s => s.id === id)).filter(Boolean) : suppliers.filter(s => !proveedorVacio(s, products))} products={products} pedidos={orders} districts={districts} moneda={monedaActual} Foto={FotoDeProducto} tLegacy={t}
           onBack={goBack} onUpdate={handleUpdateSupplier} onDelete={handleDeleteSupplier} onNavigateSupplier={s => setScreenData(s)}
           onAddProduct={() => navigate("capture", { fromSupplierId: screenData.id })}
           onNavigateProduct={p => { setOrdenFicha(productosParaPedido(products, screenData.id).map(x => x.id)); navigate("detail", p); }} onArmarPedido={(s) => abrirPedido(s)} />
@@ -3952,7 +4039,7 @@ export default function App() {
           onBack={() => navigate("list")} />
       )}
       {!esEscritorio && screen === "settings" && (
-        <SettingsScreen onCamara={() => navigate("capture")} onAyuda={() => setAyudaAbierta(true)} saldo={creditos ? saldoVisible(creditos) : null} onVerPacks={() => setPaywall({ bloqueados: 0, desdeAjustes: true })} settings={settings} onSave={handleSaveSettings} onBack={() => navigate("list")} sync={sync} t={t} isDark={isDark} onToggleTheme={toggleTheme}
+        <SettingsScreen onCamara={() => navigate("capture")} onVerEjemplo={verEjemplo} onAyuda={() => setAyudaAbierta(true)} saldo={creditos ? saldoVisible(creditos) : null} onVerPacks={() => setPaywall({ bloqueados: 0, desdeAjustes: true })} settings={settings} onSave={handleSaveSettings} onBack={() => navigate("list")} sync={sync} t={t} isDark={isDark} onToggleTheme={toggleTheme}
           products={products} suppliers={suppliers} districts={districts} onReload={reloadAll}
           teams={teamsHook.teams} activeTeam={teamsHook.teams.find(tm => tm.id === sync.teamId)} teamMembers={teamsHook.teamMembers}
           isAdmin={teamsHook.isAdmin} fetchMembers={teamsHook.fetchMembers} inviteMember={teamsHook.inviteMember}
