@@ -27,6 +27,9 @@ export const NEGOCIO_POR_DEFECTO = Object.freeze({
   soporte_chat: null,
   // PostHog (27/10, bloque D): { host, key } del proyecto de la app. null = apagado. Se enciende sin publicar versión.
   analitica: null,
+  // Los mismos, pero solo para las cuentas de `compras_pruebas` (27/10): para probar antes de encender para todos.
+  soporte_chat_pruebas: null,
+  analitica_pruebas: null,
   packs: [
     { id: 'pack_500', escaneos: 500, usd: 19.99 },
     { id: 'pack_1000', escaneos: 1000, usd: 29.99, ancla: true },
@@ -45,19 +48,15 @@ export function comprasActivasEn(negocio, plataforma) {
 
 /**
  * Chat y analítica se pueden encender primero solo para las cuentas de prueba (27/10, pedido de Clau: la config es
- * global y pega en producción al instante): `{ ..., "solo_pruebas": true }` las limita a `compras_pruebas`
- * (la lista de cuentas de prueba, de Nati). Sin la marca, para todo el mundo.
+ * global y pega en producción al instante): `soporte_chat_pruebas` y `analitica_pruebas` valen solo para las
+ * cuentas de `compras_pruebas` (la lista de cuentas de prueba, de Nati); `soporte_chat` y `analitica`, para todo
+ * el mundo. Son claves aparte a propósito: las versiones viejas de la app no las conocen y las ignoran, así que
+ * cargar la de prueba nunca enciende nada en producción.
  */
-function conSoloPruebas(config, crudo) {
-  return config ? { ...config, solo_pruebas: crudo?.solo_pruebas === true } : null;
-}
-
-/** La config de `clave` ('soporte_chat' o 'analitica') tal como la ve esta cuenta: null si está limitada a las de prueba y no es una. */
 export function paraEstaCuenta(negocio, clave, userId) {
-  const c = negocio?.[clave];
-  if (!c) return null;
-  if (c.solo_pruebas && !(negocio.compras_pruebas || []).includes(userId)) return null;
-  return c;
+  if (!negocio) return null;
+  if (userId && (negocio.compras_pruebas || []).includes(userId) && negocio[`${clave}_pruebas`]) return negocio[`${clave}_pruebas`];
+  return negocio[clave] || null;
 }
 
 export function normalizarNegocio(valor) {
@@ -77,8 +76,10 @@ export function normalizarNegocio(valor) {
       : false,
     compras_pruebas: Array.isArray(v.compras_pruebas) ? v.compras_pruebas.filter(x => typeof x === 'string') : [],
     packs: packs.length ? packs : NEGOCIO_POR_DEFECTO.packs,
-    soporte_chat: conSoloPruebas(configDeChat(v.soporte_chat), v.soporte_chat),
-    analitica: conSoloPruebas(configDeAnalitica(v.analitica), v.analitica),
+    soporte_chat: configDeChat(v.soporte_chat),
+    analitica: configDeAnalitica(v.analitica),
+    soporte_chat_pruebas: configDeChat(v.soporte_chat_pruebas),
+    analitica_pruebas: configDeAnalitica(v.analitica_pruebas),
   };
 }
 

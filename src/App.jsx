@@ -2860,7 +2860,7 @@ export default function App() {
     if (!auth.user || !analitica) return;
     let feria = null; try { feria = localStorage.getItem("fs_feria_respuesta"); } catch { /* nada */ }
     iniciarAnalitica(analitica, { userId: auth.user.id, propiedades: { plataforma: Capacitor.getPlatform(), version: typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev", con_cuenta: !auth.esAnonima, feria_respuesta: feria || undefined } }).catch(() => {});
-  }, [auth.user?.id, auth.esAnonima, negocio.analitica?.key, negocio.analitica?.solo_pruebas]);
+  }, [auth.user?.id, auth.esAnonima, negocio.analitica?.key, negocio.analitica_pruebas?.key]);
   // Embudo (26/10): "cuenta_creada" con el método, una vez por cuenta. Cuenta como nueva si su identidad más reciente
   // nació hace menos de 15 minutos (crear cuenta o convertir la sesión sin cuenta); las cuentas viejas solo se marcan.
   useEffect(() => {
