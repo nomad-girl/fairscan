@@ -147,8 +147,8 @@
     "empezarOtro": "Start another",
     "retomado": "You're back in the booth from {{hace}}",
     "guia": {
-      "paso1Titulo": "Take a photo of a product",
-      "paso1Texto": "The AI names it and saves it under this booth. You can take several in a row; add the price later.",
+      "paso1Titulo": "Take a photo of anything",
+      "paso1Texto": "A cup, a box, whatever is nearby: the AI names it and saves it. At the fair, same thing with each product.",
       "paso2Titulo": "When you finish the booth, scan the card",
       "paso2Texto": "Tap {{tarjeta}}. Name, WeChat, email and phone get linked to every product from this booth.",
       "paso3Titulo": "Your catalog is here",
@@ -299,8 +299,30 @@
     "primeraFotoPista": "Then, the supplier's card",
     "nuevo": "New",
     "primerUsoTexto": "Take a photo of a product and the AI adds its name, category and materials.",
-    "empezarPista": "Try it with anything nearby. Your phone will ask for permission to use the camera.",
-    "cuentaTexto": "With an account, your catalog is saved in the cloud and you can see it on your computer too."
+    "empezarPista": "Not at a fair? Try it with anything nearby. Your phone will ask for permission to use the camera.",
+    "cuentaTexto": "With an account, your catalog is saved in the cloud and you can see it on your computer too.",
+    "feriaPregunta": "Going to a trade fair soon?",
+    "feriaSaltar": "Skip the question",
+    "feria": {
+      "yaEstoy": "Yes, I'm there",
+      "porIr": "Going soon",
+      "soloMiro": "Just looking"
+    },
+    "ejemplo": {
+      "etiqueta": "Example",
+      "tarjetaAlt": "The supplier's card, read by the AI",
+      "resumen_one": "{{count}} product · card read",
+      "resumen_other": "{{count}} products · card read",
+      "precioMoq": "{{precio}} · MOQ {{moq}}",
+      "pista": "This is a booth after scanning it.",
+      "ocultar": "Hide example",
+      "productos": {
+        "geometricas": "Geometric porcelain cups",
+        "tazaPlato": "Tea cup with saucer",
+        "flores": "Floral cup and saucer",
+        "oro": "Gold tea set"
+      }
+    }
   },
   "revisar": {
     "titulo": "Review today",
@@ -1115,7 +1137,10 @@
     "qrEscaneado": "QR scanned",
     "fotoNoBajo": "Couldn't download the photo. Tap to retry.",
     "abrirAjustesDelTelefono": "Open phone settings",
-    "cargandoCatalogo": "Loading the catalog"
+    "cargandoCatalogo": "Loading the catalog",
+    "prePermisoTitulo": "We need the camera",
+    "prePermisoTexto": "To read products and business cards. It's only used while you scan, and the photos stay in your catalog.",
+    "activarCamara": "Turn on camera"
   },
   "avisos": {
     "packsProximaVersion": "Scan packs arrive with the next version of the app. Supplier cards stay free in the meantime.",
@@ -1171,7 +1196,8 @@
     "productoEliminado": "Product deleted",
     "proveedorEliminado": "Supplier deleted",
     "noPreguntarMas": "Don't ask again (change it in Settings)",
-    "noPreguntarMasListo": "Done. Photos stay only in FairScan; you can change it in Settings."
+    "noPreguntarMasListo": "Done. Photos stay only in FairScan; you can change it in Settings.",
+    "iaPrimera": "The AI recognized it: {{nombre}}"
   },
   "bienvenida": {
     "frase": "Take the photo. The app names it, reads the card and builds the order.",

@@ -171,6 +171,8 @@ export function useSyncWithAI(settings) {
       await updateProduct(product.id, updates);
       primerEscaneo(); // Meta: el primer producto reconocido, una vez por instalación; no se espera ni puede fallar
       anotar('ia_ok', {}, { unaVez: true }); // primer uso (25/10)
+      // La primera vez, el resultado se ve enseguida (27/10, bloque C): la app lo muestra con el nombre que puso la IA
+      try { if (updates.name && !localStorage.getItem('fs_ia_primera_vista')) { localStorage.setItem('fs_ia_primera_vista', '1'); window.dispatchEvent(new CustomEvent('fs:ia-primera', { detail: { nombre: updates.name } })); } } catch { /* sin almacenamiento */ }
       // Las fotos las sube la cola de fotos pendientes (más abajo), con reintentos.
 
       return { success: true, updates };

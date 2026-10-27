@@ -147,8 +147,8 @@
     "empezarOtro": "Empezar otro",
     "retomado": "Seguís en el stand de {{hace}}",
     "guia": {
-      "paso1Titulo": "Sacale una foto a un producto",
-      "paso1Texto": "La IA le pone nombre y lo guarda en este stand. Podés sacar varios seguidos; el precio lo cargás después.",
+      "paso1Titulo": "Sacale una foto a cualquier cosa",
+      "paso1Texto": "Una taza, una caja, lo que tengas cerca: la IA le pone nombre y lo guarda. En la feria, lo mismo con cada producto.",
       "paso2Titulo": "Al terminar el stand, escaneá la tarjeta",
       "paso2Texto": "Tocá {{tarjeta}}. Nombre, WeChat, mail y teléfono quedan atados a todos los productos de este stand.",
       "paso3Titulo": "Tu catálogo está acá",
@@ -299,8 +299,30 @@
     "primeraFotoPista": "Después, la tarjeta del proveedor",
     "nuevo": "Nuevo",
     "primerUsoTexto": "Sacale una foto a un producto y la IA le pone nombre, categoría y materiales.",
-    "empezarPista": "Probalo con cualquier cosa que tengas cerca. El teléfono te va a pedir permiso para usar la cámara.",
-    "cuentaTexto": "Con una cuenta, tu catálogo queda guardado en la nube y lo ves también en la compu."
+    "empezarPista": "¿No estás en una feria? Probalo con cualquier cosa que tengas cerca. El teléfono te va a pedir permiso para usar la cámara.",
+    "cuentaTexto": "Con una cuenta, tu catálogo queda guardado en la nube y lo ves también en la compu.",
+    "feriaPregunta": "¿Vas a una feria pronto?",
+    "feriaSaltar": "Saltar la pregunta",
+    "feria": {
+      "yaEstoy": "Sí, ya estoy",
+      "porIr": "Estoy por ir",
+      "soloMiro": "Solo miro"
+    },
+    "ejemplo": {
+      "etiqueta": "Ejemplo",
+      "tarjetaAlt": "La tarjeta del proveedor, leída por la IA",
+      "resumen_one": "{{count}} producto · tarjeta leída",
+      "resumen_other": "{{count}} productos · tarjeta leída",
+      "precioMoq": "{{precio}} · MOQ {{moq}}",
+      "pista": "Así queda un stand después de escanearlo.",
+      "ocultar": "Ocultar ejemplo",
+      "productos": {
+        "geometricas": "Tazas de porcelana geométricas",
+        "tazaPlato": "Taza de té con plato",
+        "flores": "Taza y platillo con flores",
+        "oro": "Juego de té con oro"
+      }
+    }
   },
   "revisar": {
     "titulo": "Revisar el día",
@@ -1115,7 +1137,10 @@
     "qrEscaneado": "QR escaneado",
     "fotoNoBajo": "No se pudo bajar la foto. Tocá para reintentar.",
     "abrirAjustesDelTelefono": "Abrir ajustes del teléfono",
-    "cargandoCatalogo": "Cargando el catálogo"
+    "cargandoCatalogo": "Cargando el catálogo",
+    "prePermisoTitulo": "Necesitamos la cámara",
+    "prePermisoTexto": "Para leer productos y tarjetas. Solo se usa mientras escaneás, y las fotos quedan en tu catálogo.",
+    "activarCamara": "Activar cámara"
   },
   "avisos": {
     "packsProximaVersion": "Los packs de escaneos llegan con la próxima versión de la app. Mientras tanto, las tarjetas de proveedor siguen siendo gratis.",
@@ -1171,7 +1196,8 @@
     "productoEliminado": "Producto eliminado",
     "proveedorEliminado": "Proveedor eliminado",
     "noPreguntarMas": "No preguntar más (se cambia en Configuración)",
-    "noPreguntarMasListo": "Listo. Las fotos quedan solo en FairScan; lo cambiás en Configuración."
+    "noPreguntarMasListo": "Listo. Las fotos quedan solo en FairScan; lo cambiás en Configuración.",
+    "iaPrimera": "La IA lo reconoció: {{nombre}}"
   },
   "bienvenida": {
     "frase": "Sacá la foto. La app le pone nombre, lee la tarjeta y arma el pedido.",

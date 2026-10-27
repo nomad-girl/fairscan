@@ -22,6 +22,7 @@ import { estadoIA } from "../lib/aiEstado.js";
 import { proveedorVacio } from "../lib/proveedores.js";
 import { haceCuanto } from "../idiomas/formato.js";
 import { anotar } from "../lib/primerUso.js";
+import { PreguntaFeria, StandDeEjemplo } from "../componentes/PrimerUso.jsx";
 
 function Iniciales({ texto }) {
   const { paleta } = useSistema();
@@ -33,7 +34,7 @@ export function Catalogo({
   products = [], suppliers = [], districts = [], activeDistrictId, activeDistrict, bajando = null, queueCount = 0, enLinea = true,
   Foto, t: tLegacy,
   onNavigate, onSwitchDistrict, onToggleFavorito, onToggleFavoritoProveedor, onRevisarDia, onEliminarVarios,
-  pestana = "todo", onPestana, sinCuenta = false, onEntrar, onCrearCuenta, estadoDatos = null, onReintentar,
+  pestana = "todo", onPestana, sinCuenta = false, onEntrar, onCrearCuenta, onFeriaRespuesta, estadoDatos = null, onReintentar,
 }) {
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
@@ -212,7 +213,7 @@ export function Catalogo({
             )}
 
             {filtrados.length === 0 && (
-              <div style={{ textAlign: "center", padding: "40px 16px", display: "flex", flexDirection: "column", gap: 12, alignItems: "center" }}>
+              <div style={{ textAlign: "center", padding: "20px 16px 40px", display: "flex", flexDirection: "column", gap: 12, alignItems: "center" }}>
                 {products.length === 0 ? (
                   <>
                     {/* Idea 2 de Buddy (Nati, 27/09): lo vacío es un botón, no un texto */}
@@ -222,8 +223,10 @@ export function Catalogo({
                         <>
                           {/* Primer uso (25/10, Nati: "catálogo primero, cámara después"): la app abre acá hasta la primera foto.
                               "Empezar a escanear" lleva a la cámara con la guía; la cuenta queda a la vista, sin bloquear. */}
-                          <span style={{ width: 84, height: 84, borderRadius: 42, background: paleta.accentSoft, display: "grid", placeItems: "center" }}><Icono nombre="camara" tamano={36} color={paleta.accentTexto} /></span>
-                          <h2 style={{ ...texto("titulo"), color: paleta.text, margin: "4px 0 0", maxWidth: 300 }}>{t("catalogo.vacioTitulo")}</h2>
+                          {/* Activación (27/10, bloque C): la pregunta de un toque y un stand de ejemplo antes de pedir nada */}
+                          <PreguntaFeria onRespuesta={onFeriaRespuesta} />
+                          <StandDeEjemplo />
+                          <h2 style={{ ...texto("titulo"), color: paleta.text, margin: "10px 0 0", maxWidth: 300 }}>{t("catalogo.vacioTitulo")}</h2>
                           <p style={{ ...texto("cuerpo"), color: paleta.muted, margin: "0 0 6px", maxWidth: 320 }}>{t("catalogo.primerUsoTexto")}</p>
                           <Boton variante="principal" ancho="total" icono="camara" onClick={() => { anotar("empezar", { conCuenta: !sinCuenta }, { unaVez: true }); onNavigate?.("capture"); }} estilo={{ maxWidth: 320, minHeight: 56, fontSize: 17 }}>{t("bienvenida.empezar")}</Boton>
                           <p style={{ ...texto("pie"), color: paleta.dim, margin: 0, maxWidth: 300 }}>{t("catalogo.empezarPista")}</p>
