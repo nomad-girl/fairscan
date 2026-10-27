@@ -39,6 +39,8 @@ export const reiniciarEnsayo = (store) => borrar(CLAVE_ENSAYO, store);
 /** El primer stand se guía (globo de la tarjeta, cierre automático al leerla) una sola vez por instalación. */
 export const primerStandGuiado = (store) => !!guardado(store) && leer(CLAVE_PRIMER_STAND, store) !== 'hecho';
 export const marcarPrimerStand = (store) => escribir(CLAVE_PRIMER_STAND, 'hecho', store);
+/** "Ver el ejemplo de nuevo" repite también el primer stand guiado (Nati, 27/10: probarlo en su teléfono, que ya tiene datos). */
+export const reiniciarPrimerStand = (store) => borrar(CLAVE_PRIMER_STAND, store);
 
 /** La tarjeta de Nancy Ceramic, tal como la lee la IA (sin llamarla). Las fotos viven en public/ejemplo. */
 export const TARJETA_EJEMPLO = {

@@ -5,7 +5,7 @@ import { PRESETS } from "./lib/presets.js";
 import useGrabadora from "./hooks/useGrabadora.js";
 import { cargarNegocio, comprasActivasEn, NEGOCIO_POR_DEFECTO } from "./lib/negocio.js";
 import { metaEvento, metaDiagnostico } from "./lib/metaEventos.js";
-import { inicioPrimerUso, marcarEnsayo, marcarPermiso, reiniciarEnsayo, primerStandGuiado, marcarPrimerStand, TARJETA_EJEMPLO, fotoComoDataUrl } from "./lib/ensayo.js";
+import { inicioPrimerUso, marcarEnsayo, marcarPermiso, reiniciarEnsayo, reiniciarPrimerStand, primerStandGuiado, marcarPrimerStand, TARJETA_EJEMPLO, fotoComoDataUrl } from "./lib/ensayo.js";
 import { Ensayo } from "./pantallas/Ensayo.jsx";
 import { estadoInicial, descontarStand, devolverProducto, reconciliar, saldoVisible } from "./lib/creditos.js";
 import { soloDeHoy, resumenDelDia } from "./lib/porDia.js";
@@ -3297,11 +3297,14 @@ export default function App() {
   const [mostrarLogin, setMostrarLogin] = useState(false);
   // Primer uso (27/10): 'bienvenida' (ensayo de feria completo), 'permiso' (solo "Ahora con tu cámara") o null (la cámara)
   const [primerUso, setPrimerUso] = useState(null);
-  const verEjemplo = () => { reiniciarEnsayo(); setPrimerUso("bienvenida"); setAyudaAbierta(false); navigate("capture"); };
+  // "Ver el ejemplo de nuevo": el recorrido entero, también con productos (así Nati lo prueba en su teléfono sin borrar nada):
+  // el ensayo, la explicación de la cámara, la primera foto con su indicación y el primer stand guiado.
+  const [repetirPrimerUso, setRepetirPrimerUso] = useState(false);
+  const verEjemplo = () => { reiniciarEnsayo(); reiniciarPrimerStand(); setRepetirPrimerUso(true); setPrimerUso("bienvenida"); setAyudaAbierta(false); navigate("capture"); };
   // Entró con su cuenta desde la bienvenida: el ensayo sobra; si la cuenta trae productos, tampoco hace falta el permiso
   useEffect(() => {
     if (!primerUso) return;
-    if (products.length > 0) { marcarEnsayo(); setPrimerUso(null); return; }
+    if (products.length > 0 && !repetirPrimerUso) { marcarEnsayo(); setPrimerUso(null); return; }
     if (!auth.esAnonima && primerUso === "bienvenida") { marcarEnsayo(); setPrimerUso("permiso"); }
   }, [products.length, auth.esAnonima]);
   useEffect(() => { if (auth.user && !auth.esAnonima) setMostrarLogin(false); }, [auth.user, auth.esAnonima]);
@@ -3642,6 +3645,7 @@ export default function App() {
         if (data.quedarse) return { supplierId, createdIds };
         // De vuelta al visor, con un stand nuevo: nunca tocaste "guardar" (4.1).
         setStandKey(k => k + 1);
+        if (data.primerStand) setRepetirPrimerUso(false);
         if (verResultadoSinCuenta || data.primerStand) { anotar("resultado_primer_stand", { conTarjeta: !!supplierId }); if (supplierId) navigate("supplier", { id: supplierId, festejo: !!data.primerStand }); else { setListTab("todo"); navigate("list"); } }
         else navigate(data.soloProveedor ? "list" : "capture");
         showToast(data.soloProveedor ? tx("avisos.proveedorGuardado") : tx("avisos.standCerrado", { count: createdIds.length }));
@@ -3990,7 +3994,7 @@ export default function App() {
           onActivarCamara={() => { marcarEnsayo(); marcarPermiso(); setPrimerUso(null); }} />
       )}
       {!esEscritorio && (screen === "capture" || screen === "capture-supplier") && !(screen === "capture" && primerUso) && (
-        <QuickCapture key={`${screen}-${standKey}`} primerUso={products.length === 0} onAyuda={() => setAyudaAbierta(true)} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings} products={products}
+        <QuickCapture key={`${screen}-${standKey}`} primerUso={products.length === 0 || repetirPrimerUso} onAyuda={() => setAyudaAbierta(true)} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings} products={products}
           onProductoNuevo={crearProductoDesdeCaptura} onProductoCambio={handleUpdateProduct} onProductoBorrar={borrarProductoDesdeCaptura}
           onSave={(data) => handleCaptureSave({ ...data, soloProveedor: screen === "capture-supplier" })} onClose={() => navigate("list")} onCatalogo={() => { setListTab("todo"); navigate("list"); }} t={t} isDark={isDark}
           soloProveedor={screen === "capture-supplier"} saldoCreditos={creditos ? saldoVisible(creditos) : null} queueCount={queueCount}
