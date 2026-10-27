@@ -72,4 +72,16 @@ describe('primer uso', () => {
     expect(pareceChina('Asia/Hong_Kong')).toBe(false);
     expect(pareceChina('America/Argentina/Buenos_Aires')).toBe(false);
   });
+  it('lo que se anota mientras se manda no se pierde (27/10)', async () => {
+    const s = memoria();
+    let soltar; const espera = new Promise(r => { soltar = r; });
+    const insert = vi.fn(async () => { await espera; return { error: null }; });
+    const c = { insert, auth: { getSession: async () => ({ data: { session: {} } }) }, from: () => ({ insert }) };
+    anotar('empezar', {}, { store: s, cliente: null });
+    const envio = vaciarCola({ store: s, cliente: c });
+    await new Promise(r => setTimeout(r, 0));
+    anotar('cuenta_pedida', { motivo: 'stand' }, { store: s, cliente: null }); // llega mientras se manda 'empezar'
+    soltar(); await envio;
+    expect(cola(s).map(e => e.nombre)).toEqual(['cuenta_pedida']);
+  });
 });

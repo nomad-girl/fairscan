@@ -1250,7 +1250,8 @@
     "sinConexion": "You're offline. Try again when you have signal.",
     "errorGenerico": "Couldn't sign in. Try again in a moment.",
     "yaTenesCuenta": "That email already has a FairScan account. Sign in with the button you used to create it: Apple, Google, or email and password.",
-    "enChina": "In China? Google doesn't work without a VPN: sign in with Apple or with your email."
+    "enChina": "In China? Google doesn't work without a VPN: sign in with Apple or with your email.",
+    "avisoOtraCuenta": "If you sign in to another account, what you did without an account on this phone won't move to it."
   },
   "borrador": {
     "tarjetaDe": "the card from {{nombre}}",
@@ -1342,5 +1343,11 @@
   "pedirCuenta": {
     "titulo": "Save your catalog",
     "texto": "Create an account so you don't lose it if you change or lose your phone. It's free and takes a minute."
+  },
+  "cuentaObligatoria": {
+    "pago": "Create your account to keep your purchase, so you don't lose it if you change or lose your phone.",
+    "stand": "Create your account to keep scanning, so you don't lose your catalog if you change or lose your phone.",
+    "rescate": "Keep your purchase: create your account. Without one, you lose it if you change phones or delete the app.",
+    "paywallNota": "You need an account to buy: it keeps your purchase and your catalog."
   }
 }

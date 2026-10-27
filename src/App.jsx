@@ -2762,6 +2762,8 @@ export default function App() {
   };
   // Compras (5.4): la plomería llega con el build subido a las tiendas. Mientras, se explica.
   const comprarPack = async (pk) => {
+    // Sin cuenta no se compra (27/10): la compra queda atada a la cuenta, y una sesión sin cuenta se pierde con el teléfono
+    if (auth.esAnonima && !auth.mailPendiente) { pedirCuentaPor("pago"); return; }
     try {
       const { comprar } = await import("./lib/compras.js");
       const r = await comprar(pk.id);
@@ -2785,9 +2787,17 @@ export default function App() {
     try { if (localStorage.getItem(clave)) return; localStorage.setItem(clave, "1"); } catch { return; }
     const ids = [...(u.identities || [])].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     const nueva = ids[0] && Date.now() - new Date(ids[0].created_at).getTime() < 15 * 60 * 1000;
-    if (nueva) anotar("cuenta_creada", { metodo: ids[0].provider === "email" ? "mail" : ids[0].provider });
+    let motivo = null; try { motivo = localStorage.getItem("fs_motivo_cuenta"); localStorage.removeItem("fs_motivo_cuenta"); } catch { /* nada */ }
+    if (nueva) anotar("cuenta_creada", { metodo: ids[0].provider === "email" ? "mail" : ids[0].provider, motivo: motivo || "propia" });
   }, [auth.user?.id, auth.esAnonima]);
-  const [pedirCuenta, setPedirCuenta] = useState(false);   // "Guardá tu catálogo" al cerrar el 1.º y el 3.er stand sin cuenta (26/10)
+  // Cuenta obligatoria (27/10, Nati: "sí o sí todo el mundo con cuenta"): null | "pago" | "stand" | "rescate".
+  // Siempre CONVIERTE la sesión sin cuenta (mismo user_id): se conservan fotos, saldo y el usuario de RevenueCat.
+  const [cuentaObligatoria, setCuentaObligatoria] = useState(null);
+  const pedirCuentaPor = (motivo) => {
+    try { localStorage.setItem("fs_motivo_cuenta", motivo); } catch { /* sin almacenamiento */ }
+    anotar("cuenta_pedida", { motivo });
+    setCuentaObligatoria(motivo);
+  };
   // ¿Se puede comprar ya en este teléfono? Si no (RevenueCat sin configurar), la hoja lo dice en vez de fallar en silencio.
   const [comprasListas, setComprasListas] = useState(false);
   // Precio real de la tienda en cada pack (25/10, Apple 2.1(b)/3.1.1): se pide al abrir el paywall; si no responde, queda el de la config
@@ -2832,6 +2842,24 @@ export default function App() {
   // `ready` se declara acá porque los efectos de abajo lo leen: si quedara más abajo,
   // el bundle de producción rompe al arrancar ("Cannot access before initialization").
   const [ready, setReady] = useState(false);
+  // Cuenta obligatoria (27/10). Va después de `ready` (si no, el bundle rompe al arrancar, como el 09/09).
+  // 1) Apenas hay cuenta (o el mail quedó pendiente de confirmar, que ya convierte la sesión), se suelta.
+  useEffect(() => { if (!auth.esAnonima || auth.mailPendiente) setCuentaObligatoria(null); }, [auth.esAnonima, auth.mailPendiente]);
+  // 2) Al volver a la cámara sin cuenta, con un stand ya cerrado o 5 productos o más: hay que crearla para seguir.
+  //    Se mira al entrar a la cámara, no a mitad de un stand, para no cortar lo que está escaneando.
+  useEffect(() => {
+    if (!ready || esEscritorio || !auth.esAnonima || auth.mailPendiente || cuentaObligatoria) return;
+    if (screen !== "capture" && screen !== "capture-supplier") return;
+    let stands = 0; try { stands = parseInt(localStorage.getItem("fs_stands_cerrados") || "0", 10) || 0; } catch { /* nada */ }
+    if (stands >= 1 || products.length >= 5) pedirCuentaPor("stand");
+  }, [ready, screen, auth.esAnonima]);
+  // 3) Rescate: quien ya pagó sin cuenta ve "Guardá tu compra" al abrir, sin poder saltearlo.
+  useEffect(() => {
+    if (!ready || !auth.esAnonima || auth.mailPendiente || !supabase || !auth.user) return;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+    supabase.from("compras").select("transaccion_id", { count: "exact", head: true }).eq("user_id", auth.user.id)
+      .then(({ count }) => { if (count > 0) pedirCuentaPor("rescate"); }).catch(() => {});
+  }, [ready, auth.user?.id, auth.esAnonima]);
   // El logo de arranque queda hasta que hay algo para ver (23/10, Nati: "la primera vez tarda un montón"): antes se
   // iba al segundo y medio y quedaba una pantalla cacao vacía mientras se creaba la sesión y se abría la base.
   useEffect(() => {
@@ -3489,10 +3517,10 @@ export default function App() {
         if (uuidsStand.length && !data.sinDescontar) await descontarAlCerrarStand(uuidsStand, idsPorUuid);
         if (uuidsStand.length) {
           anotar("stand_cerrado", { productos: uuidsStand.length, tarjeta: !!(data.cardPhoto || supplierId) }); // embudo (26/10)
-          // Sin cuenta: "Guardá tu catálogo" al cerrar el 1.º stand y, si lo saltó, el 3.º (plan aprobado por Nati, 26/10)
+          // Sin cuenta: al cerrar el primer stand la cuenta pasa a ser obligatoria para seguir (Nati, 27/10)
           if (auth.esAnonima) {
             let n = 0; try { n = (parseInt(localStorage.getItem("fs_stands_cerrados") || "0", 10) || 0) + 1; localStorage.setItem("fs_stands_cerrados", String(n)); } catch { /* sin almacenamiento */ }
-            if (n === 1 || n === 3) { anotar("cuenta_pedida", { stand: n }); setTimeout(() => setPedirCuenta(true), 900); }
+            if (!auth.mailPendiente) setTimeout(() => pedirCuentaPor("stand"), 900);
           }
         }
         // Background: upload card photo
@@ -3723,7 +3751,15 @@ export default function App() {
   const enColumna = (nodo) => (esEscritorio ? <div style={{ height:"100%", background:"#1C0D06", display:"flex", justifyContent:"center" }}><div style={{ width:460, height:"100%", position:"relative" }}>{nodo}</div></div> : nodo);
   if (!auth.user) return enColumna(<LoginScreen t={t} onAuth={auth} />);
 
-  if (mostrarLogin) return enColumna(<LoginScreen t={t} onAuth={auth} modoInicial={mostrarLogin === "register" ? "register" : undefined} onCancel={() => setMostrarLogin(false)} />);
+  if (mostrarLogin) return enColumna(<LoginScreen t={t} onAuth={auth} convertir={!!auth.esAnonima && mostrarLogin === "register"} cancelable modoInicial={mostrarLogin === "register" ? "register" : undefined} onCancel={() => setMostrarLogin(false)} />);
+  // Cuenta obligatoria (27/10): convierte la sesión sin cuenta. Solo la de pago se puede cerrar (y no se compra).
+  // El bloqueo de "stand" se decide acá, antes de montar la cámara (si no, pedía el permiso de cámara un instante antes)
+  const motivoCuenta = cuentaObligatoria || (ready && !esEscritorio && auth.esAnonima && !auth.mailPendiente && (screen === "capture" || screen === "capture-supplier")
+    && (() => { try { return parseInt(localStorage.getItem("fs_stands_cerrados") || "0", 10) || 0; } catch { return 0; } })() >= 1 ? "stand" : null);
+  // (los "5 productos" se miran solo al entrar a la cámara, en el efecto de arriba: acá cortaría un stand a la mitad)
+  if (motivoCuenta && auth.esAnonima && !auth.mailPendiente) return enColumna(
+    <LoginScreen t={t} onAuth={auth} convertir modoInicial="register" frase={tx(`cuentaObligatoria.${motivoCuenta}`)}
+      cancelable={motivoCuenta === "pago"} onCancel={motivoCuenta === "pago" ? () => { anotar("cuenta_salteada", { motivo: "pago" }); setCuentaObligatoria(null); } : undefined} />);
   // 02/10 (Nati: "el logo viejo aparece y desaparece"): mientras carga la base, cacao liso. Antes se mostraba el esqueleto
   // del catálogo en gris claro, y entre el arranque oscuro y la cámara oscura se veía como un parpadeo.
   if (!ready) return <div style={{ height:"100%", background:MARCA.cacao }} aria-busy="true" aria-label={tx("captura.cargandoCatalogo")} />;
@@ -3734,14 +3770,6 @@ export default function App() {
     <div className="app-pantallas" style={{ height:"100%", background:t.bg, color:t.text, position:"relative", overflow:"hidden", fontFamily:"'DM Sans', -apple-system, sans-serif" }}>
       {/* 30/09 (Nati: "entré a packs y no pude salir"): la hoja de packs se cierra tocando el velo, con la X o con Después */}
       <HojaAyuda abierta={ayudaAbierta} chat={negocio.soporte_chat || null} cuenta={auth.esAnonima ? null : { email: auth.user?.email || null }} onCerrar={() => setAyudaAbierta(false)} onVerGuia={() => { guardarGuia("1"); setAyudaAbierta(false); navigate("capture"); }} />
-      {/* Pedir la cuenta en el momento justo (26/10, plan aprobado por Nati): al cerrar el primer stand sin cuenta; nunca bloquea */}
-      <Hoja abierta={pedirCuenta && !!auth.esAnonima} onCerrar={() => setPedirCuenta(false)} titulo={tx("pedirCuenta.titulo")}
-        pie={<div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-          <Boton variante="principal" ancho="total" onClick={() => { anotar("cuenta_abierta", { modo: "register", desde: "stand" }); setPedirCuenta(false); setMostrarLogin("register"); }}>{tx("entrar.crearCuenta")}</Boton>
-          <Boton variante="secundario" ancho="total" onClick={() => { anotar("cuenta_pedida_no"); setPedirCuenta(false); }}>{tx("entrar.ahoraNo")}</Boton>
-        </div>}>
-        <p style={{ fontSize:15, lineHeight:1.5, color:t.text, margin:0 }}>{tx("pedirCuenta.texto")}</p>
-      </Hoja>
       {paywall && (
         <div role="dialog" onClick={() => setPaywall(null)} style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
           <div onClick={e => e.stopPropagation()} style={{ position:"relative", width:"100%", maxWidth:520, background:t.bg, borderRadius:"22px 22px 0 0", padding:"22px 20px calc(env(safe-area-inset-bottom, 0px) + 20px)", boxShadow:"0 -8px 40px rgba(0,0,0,0.35)" }}>
@@ -3751,6 +3779,7 @@ export default function App() {
             {paywall.bloqueados > 0 && <p style={{ fontSize:13, color:t.muted, margin:"0 0 14px" }}>{tx("avisos.bloqueados", { count: paywall.bloqueados })}</p>}
             <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
               {!negocio.compras_activas && <p style={{ fontSize:14, color:t.text, margin:"0 0 6px", lineHeight:1.5, padding:"14px 16px", borderRadius:14, background:t.card, border:`1px solid ${t.border}` }}>{tx("avisos.packsProximaVersion")}</p>}
+              {negocio.compras_activas && auth.esAnonima && !auth.mailPendiente && <p style={{ fontSize:13, color:t.text, margin:"0 0 6px", lineHeight:1.5, padding:"12px 14px", borderRadius:14, background:t.accentSoft || t.card }}>{tx("cuentaObligatoria.paywallNota")}</p>}
               {negocio.compras_activas && (negocio.packs || []).map(pk => { const destacado = packDestacado(negocio.packs)?.id === pk.id; return (
                 <button key={pk.id} onClick={() => comprarPack(pk)} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 16px", borderRadius:14, cursor:"pointer", fontFamily:"inherit", textAlign:"left",
                   border:`2px solid ${destacado ? t.accent : t.border}`, background: destacado ? t.accentSoft : t.card }}>

@@ -59,7 +59,9 @@ export async function vaciarCola({ store, cliente = supabase } = {}) {
     if (error && /network|fetch|timeout/i.test(error.message || '')) return 0; // sin señal real: se reintenta
     // La tabla todavía no existe (la crea Nati con el SQL del 25/10): se guarda la cola (tope 30) para cuando exista
     if (error && (error.code === '42P01' || error.code === 'PGRST205' || /does not exist|could not find the table/i.test(error.message || ''))) return 0;
-    escribirCola(s, []);
+    // Solo se sacan los que se mandaron: lo anotado mientras se enviaba queda para el próximo envío (27/10: se perdía)
+    escribirCola(s, leerCola(s).slice(cola.length));
+    if (leerCola(s).length) setTimeout(() => vaciarCola({ store, cliente }).catch(() => {}), 0);
     return error ? 0 : filas.length;
   } catch { return 0; }
   finally { enviando = false; }

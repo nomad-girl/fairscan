@@ -12,7 +12,7 @@ import { esCuentaYaExistente, esCancelado } from '../lib/entrarCon.js';
  * crea: se completa la que ya tiene, y el catálogo queda donde está.
  */
 import { pareceChina } from '../lib/primerUso.js';
-export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCancel, modoInicial }) {
+export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCancel, modoInicial, frase = null, cancelable = false }) {
   const t = tTema; // tema claro: el oscuro liso quedó vacío (Nati, 22/09: "toda oscura, no dice nada")
   const { t: tx } = useTranslation();
   // modoInicial (25/10, Nati: "no ofrece crear cuenta"): el primer uso abre directo en "Crear cuenta"
@@ -165,13 +165,13 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
   return (
     <div className="pantalla-fija" style={{ position: 'fixed', inset: 0, background: t.bg, color: t.text, fontFamily: 'inherit', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <div style={{ position: 'relative', background: MARCA.cacao, color: MARCA.crema, padding: 'calc(env(safe-area-inset-top, 0px) + 68px) 24px 28px', display: 'flex', flexDirection: 'column', gap: 8, borderRadius: '0 0 32px 32px', flexShrink: 0 }}>
-        {onCancel && !convertir && (
+        {onCancel && (!convertir || cancelable) && (
           <button type="button" onClick={onCancel} aria-label={tx('comun.volver')} style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top, 0px) + 12px)', left: 14, width: 44, height: 44, borderRadius: 22, border: 'none', background: 'rgba(255,255,255,0.2)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
             <Icono nombre="volver" tamano={22} color="#fff" />
           </button>
         )}
         <Marca tamano={36} color={MARCA.crema} conIcono />
-        <p style={{ fontSize: 16, margin: 0, lineHeight: 1.35, color: 'rgba(255,243,234,0.88)', maxWidth: 340 }}>{convertir ? tx('entrar.fraseConvertir') : tx('bienvenida.frase')}</p>
+        <p style={{ fontSize: 16, margin: 0, lineHeight: 1.35, color: 'rgba(255,243,234,0.88)', maxWidth: 340 }}>{frase || (convertir ? tx('entrar.fraseConvertir') : tx('bienvenida.frase'))}</p>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '22px 22px calc(28px + env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {confirmando ? (
@@ -203,6 +203,7 @@ export default function LoginScreen({ t: tTema, onAuth, convertir = false, onCan
           </form>
         ) : (<>
         <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 12px' }}>{mode === 'login' ? tx('entrar.entrar') : tx('entrar.crearCuenta')}</h2>
+        {convertir && mode === 'login' && <p style={{ fontSize: 13, lineHeight: 1.45, color: t.text, margin: '-4px 0 12px', padding: '10px 12px', borderRadius: 12, background: t.accentSoft || '#FFE7A8' }}>{tx('entrar.avisoOtraCuenta')}</p>}
         {botonesProveedor}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

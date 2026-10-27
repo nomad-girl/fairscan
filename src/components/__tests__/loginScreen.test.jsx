@@ -60,3 +60,23 @@ describe("Crear cuenta con un mail que ya tiene cuenta (caso Ganga Home, 25/10)"
     expect(screen.getByRole("heading", { name: "Entrar" })).toBeTruthy();
   });
 });
+
+describe("Cuenta obligatoria (27/10)", () => {
+  it("convierte la sesión sin cuenta: muestra el motivo, crea con convertir y, sin cancelable, no se puede volver", () => {
+    const convertir = vi.fn().mockResolvedValue({ user: { is_anonymous: true, new_email: "a@b.com" } });
+    render(<LoginScreen t={tema} convertir modoInicial="register" frase="Creá tu cuenta para seguir escaneando." onAuth={{ convertir, signIn: vi.fn(), signUp: vi.fn() }} />);
+    expect(screen.getByText("Creá tu cuenta para seguir escaneando.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Volver" })).toBeNull();
+  });
+  it("la de pago se puede cerrar", () => {
+    const onCancel = vi.fn();
+    render(<LoginScreen t={tema} convertir cancelable modoInicial="register" onCancel={onCancel} onAuth={{ convertir: vi.fn(), signIn: vi.fn(), signUp: vi.fn() }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Volver" }));
+    expect(onCancel).toHaveBeenCalled();
+  });
+  it("si elige Ya tengo cuenta, avisa que lo del teléfono sin cuenta no pasa a esa cuenta", () => {
+    render(<LoginScreen t={tema} convertir modoInicial="register" onAuth={{ convertir: vi.fn(), signIn: vi.fn(), signUp: vi.fn() }} />);
+    fireEvent.click(screen.getByText("Ya tengo cuenta"));
+    expect(screen.getByText(/no pasa a esa cuenta/)).toBeTruthy();
+  });
+});
