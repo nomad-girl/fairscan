@@ -20,3 +20,4 @@ export { SeccionDeDatos } from "./Baldosas.jsx";
 export { Marca } from "./Marca.jsx";
 export { GuiaAviso } from "./GuiaAviso.jsx";
 export { HojaAyuda } from "./HojaAyuda.jsx";
+export { TecladoDatos } from "./TecladoDatos.jsx";

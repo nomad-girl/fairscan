@@ -45,7 +45,7 @@ describe("Visor", () => {
   it("un solo obturador con el selector PRODUCTO · TARJETA: elegir TARJETA abre la cámara de tarjeta y el obturador dice qué hace", () => {
     const onTarjeta = vi.fn(), onVolver = vi.fn();
     const { unmount } = con(<Visor videoRef={{ current: null }} modo="product" onTarjeta={onTarjeta} onVolverAProductos={onVolver} />);
-    expect(screen.getByText("Escaneá un producto")).toBeTruthy();
+    expect(screen.getByText("Sacale foto al primer producto")).toBeTruthy(); // la línea de abajo dice el próximo paso (28/10)
     fireEvent.click(screen.getByRole("tab", { name: "TARJETA" }));
     expect(onTarjeta).toHaveBeenCalled();
     unmount();
@@ -57,27 +57,73 @@ describe("Visor", () => {
     fireEvent.click(screen.getByRole("tab", { name: "PRODUCTO" }));
     expect(onVolver).toHaveBeenCalled();
   });
-  it("la barra del pulgar: chips a la vista, se escribe con el teclado del sistema y se guarda solo; se cierra con la X, un gesto o la cámara", () => {
-    const onConsejoVisto = vi.fn(), onEscribir = vi.fn(), onListo = vi.fn(), onConfirmar = vi.fn(), onCampo = vi.fn(), onFavorito = vi.fn();
-    const { rerender } = con(<Visor videoRef={{ current: null }} consejoVisible onConsejoVisto={onConsejoVisto} datos={{ id: 1, campo: "price", valores: {}, moqBase: null, favorito: false, tocado: false, listos: {} }} onEscribirDato={onEscribir} onListoDato={onListo} onConfirmarPrecio={onConfirmar} onCampo={onCampo} onFavorito={onFavorito} />);
-    fireEvent.click(screen.getByRole("status"));
+  it("el teclado propio (28/10): número grande, teclas de la app sin teclado del sistema, Listo guarda y cierra; la cámara también cierra", () => {
+    const onConsejoVisto = vi.fn(), onTecla = vi.fn(), onConfirmar = vi.fn(), onCampo = vi.fn(), onFavorito = vi.fn();
+    const { rerender } = con(<Visor videoRef={{ current: null }} consejoVisible onConsejoVisto={onConsejoVisto} datos={{ id: 1, campo: "price", valores: {}, moqBase: null, favorito: false, tocado: false, listos: {} }} onTeclaPrecio={onTecla} onConfirmarPrecio={onConfirmar} onCampo={onCampo} onFavorito={onFavorito} />);
+    fireEvent.click(screen.getByRole("status", { name: "" }));
     expect(onConsejoVisto).toHaveBeenCalled();
-    const campo = screen.getByRole("textbox", { name: "¿A cuánto estaba?" });
-    expect(campo.getAttribute("inputmode")).toBe("decimal"); // el teclado del iPhone, no uno propio
-    fireEvent.change(campo, { target: { value: "0,85" } });
-    expect(onEscribir).toHaveBeenCalledWith("price", "0.85");
-    expect(screen.getByRole("tab", { name: "MOQ" })).toBeTruthy(); // los chips siempre a la vista; precio por defecto
+    expect(screen.queryByRole("textbox")).toBeNull(); // nunca el teclado del teléfono
+    expect(screen.getByText("¿A cuánto estaba?")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "3" }));
+    fireEvent.click(screen.getByRole("button", { name: "Borrar" }));
+    expect(onTecla).toHaveBeenNthCalledWith(1, "3");
+    expect(onTecla).toHaveBeenNthCalledWith(2, "⌫");
+    expect(screen.getByRole("tab", { name: "MOQ" })).toBeTruthy(); // las pestañas siempre a la vista; precio por defecto
     fireEvent.click(screen.getByRole("button", { name: "Marcar como favorito" }));
     expect(onFavorito).toHaveBeenCalled();
-    rerender(<SistemaProvider modo="claro"><Visor videoRef={{ current: null }} datos={{ id: 1, campo: "moq", valores: { price: "0.85" }, moqBase: null, favorito: false, tocado: true, listos: {}, pista: true }} onEscribirDato={onEscribir} onListoDato={onListo} onConfirmarPrecio={onConfirmar} onCampo={onCampo} /></SistemaProvider>);
-    expect(screen.queryByRole("button", { name: "Listo" })).toBeNull(); // no existe el botón Guardar: se guarda al escribir
-    expect(screen.getByRole("tab", { name: "Precio" })).toBeTruthy(); // texto plano, sin valores ni tildes
-    expect(screen.getByRole("tab", { name: "MOQ", selected: true })).toBeTruthy(); // la activa, marcada
-    fireEvent.click(screen.getByRole("button", { name: "Cerrar" }));
-    expect(onConfirmar).toHaveBeenCalledTimes(2); // una por tocar afuera (el consejo, más arriba) y otra por la X
-    fireEvent.click(screen.getByRole("tab", { name: "Precio" }));
-    expect(onCampo).toHaveBeenCalledWith("price");
-    expect(screen.queryByText("Cerrar sin cargar nada")).toBeNull(); // sin segundo "cerrar"
+    rerender(<SistemaProvider modo="claro"><Visor videoRef={{ current: null }} datos={{ id: 1, campo: "price", valores: { price: "0.85" }, moqBase: null, favorito: false, tocado: true, listos: {} }} onTeclaPrecio={onTecla} onConfirmarPrecio={onConfirmar} onCampo={onCampo} /></SistemaProvider>);
+    expect(screen.getByRole("status", { name: "USD 0.85" })).toBeTruthy(); // el número grande
+    fireEvent.click(screen.getByRole("button", { name: "Listo" }));
+    expect(onConfirmar).toHaveBeenCalledTimes(2); // una por tocar afuera (el consejo, más arriba) y otra por Listo
+    expect(screen.queryByRole("button", { name: "Cerrar" })).toBeNull(); // sin equis: un solo botón que cierra
+    fireEvent.click(screen.getByRole("tab", { name: "MOQ" }));
+    expect(onCampo).toHaveBeenCalledWith("price".replace("price", "moq"));
+  });
+  it("la pestaña Proveedor pregunta de quién es si el stand no tiene tarjeta, y muestra el nombre cuando ya la tiene", () => {
+    const onTarjeta = vi.fn(), onConfirmar = vi.fn(), onElegir = vi.fn(), onEscribir = vi.fn();
+    const datos = { id: 1, campo: "proveedor", valores: {}, moqBase: null, favorito: false, tocado: true, listos: {} };
+    const { unmount } = con(<Visor videoRef={{ current: null }} datos={datos} standAbierto={{ nombre: "", fotos: 1, tieneTarjeta: false, leyendo: false }} onTarjeta={onTarjeta} onConfirmarPrecio={onConfirmar} onElegirProveedor={onElegir} onEscribirProveedor={onEscribir} />);
+    expect(screen.getByText("¿De quién es este producto?")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Elegir uno cargado" }));
+    expect(onElegir).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Escribir el nombre" }));
+    expect(onEscribir).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Escanear tarjeta" }));
+    expect(onConfirmar).toHaveBeenCalled(); // el teclado se cierra y se abre la cámara de tarjeta
+    expect(onTarjeta).toHaveBeenCalled();
+    unmount();
+    con(<Visor videoRef={{ current: null }} datos={datos} standAbierto={{ nombre: "Nancy Ceramic", fotos: 1, tieneTarjeta: true, leyendo: false }} />);
+    expect(screen.getByText("Nancy Ceramic")).toBeTruthy();
+    expect(screen.queryByText("¿De quién es este producto?")).toBeNull();
+  });
+  it("la línea de abajo guía según el stand, y la sugerencia de la tarjeta al principio no bloquea", () => {
+    const onEscanear = vi.fn(), onDespues = vi.fn();
+    const { unmount } = con(<Visor videoRef={{ current: null }} standAbierto={{ nombre: "", fotos: 2, tieneTarjeta: false, leyendo: false }} propuestaInicio={{ onEscanear, onDespues }} />);
+    expect(screen.getByText("Sacar otra · al terminar, escaneá la tarjeta →")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Después" }));
+    expect(onDespues).toHaveBeenCalled();
+    unmount();
+    const r = con(<Visor videoRef={{ current: null }} standAbierto={{ nombre: "Nancy Ceramic", fotos: 0, tieneTarjeta: true, leyendo: false }} />);
+    expect(screen.getByText("Ahora los productos de Nancy Ceramic")).toBeTruthy();
+    r.unmount();
+    con(<Visor videoRef={{ current: null }} standAbierto={{ nombre: "Nancy Ceramic", fotos: 3, tieneTarjeta: true, leyendo: false }} />);
+    expect(screen.getByText("Sacar otra · para cerrar el stand, tocá la miniatura")).toBeTruthy();
+  });
+  it("la tarjeta avisa en grande: leyendo, leída con el nombre, o falló con salida", () => {
+    const onReintentar = vi.fn(), onSeguir = vi.fn();
+    const { unmount } = con(<Visor videoRef={{ current: null }} tarjetaAviso={{ fase: "leyendo" }} />);
+    expect(screen.getByText("Leyendo la tarjeta")).toBeTruthy();
+    expect(screen.getByText(/Seguí sacando productos/)).toBeTruthy();
+    unmount();
+    const r = con(<Visor videoRef={{ current: null }} tarjetaAviso={{ fase: "leida", nombre: "Nancy Ceramic" }} />);
+    expect(screen.getByText("Nancy Ceramic")).toBeTruthy();
+    r.unmount();
+    con(<Visor videoRef={{ current: null }} tarjetaAviso={{ fase: "fallo", onReintentar, onSeguir }} />);
+    expect(screen.getByText("No pude leer la tarjeta")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Escanear de nuevo" }));
+    expect(onReintentar).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Seguir sin leerla" }));
+    expect(onSeguir).toHaveBeenCalled();
   });
   it("en MOQ aparece la base por producto / caja / pedido", () => {
     const onMoqBase = vi.fn();

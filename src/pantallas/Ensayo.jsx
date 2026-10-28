@@ -2,7 +2,10 @@
  * Ensayo de feria: el primer uso (opción A elegida por Nati el 27/10/2026; wireframes aprobados
  * https://claude.ai/artifact/8uLJYQFmbQkvBVWNeFyjeF, pantallas 1 a 6). Ver lib/ensayo.js.
  *
- *   bienvenida → producto 1 → producto 2 → tarjeta → resultado (la ficha del proveedor real) → permiso
+ *   bienvenida → producto → precio (el teclado propio) → tarjeta → resultado (la ficha del proveedor real) → permiso
+ *
+ * 28/10 (Nati): un solo producto ("el segundo ya confunde") y el paso del precio con el mismo teclado de la cámara,
+ * con las teclas 3 · . · 8 · Listo iluminándose en orden: así lo aprenden antes de encontrárselo en serio.
  *
  * Todo pasa sin cámara, sin IA y sin gastar escaneos: las "fotos" son las del stand de ejemplo de Nancy Ceramic
  * (public/ejemplo). Cada pantalla tiene una sola cosa para tocar, y late. "Saltar" lleva directo al permiso.
@@ -12,32 +15,33 @@ import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Capacitor } from "@capacitor/core";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Icono, Marca } from "../componentes/index.js";
+import { Boton, Icono, Marca, TecladoDatos } from "../componentes/index.js";
 import { MARCA, FUENTES } from "../sistema/tokens.js";
-import { vibrarObturador } from "../sistema/vibrar.js";
+import { vibrarObturador, vibrarExito } from "../sistema/vibrar.js";
 import { anotar } from "../lib/primerUso.js";
 import { TARJETA_EJEMPLO, PRODUCTOS_ENSAYO } from "../lib/ensayo.js";
 import { FichaProveedor } from "./FichaProveedor.jsx";
 
-const PASOS = ["bienvenida", "p1", "p2", "tarjeta", "resultado", "permiso"];
+const PASOS = ["bienvenida", "p1", "precio", "tarjeta", "resultado", "permiso"];
+const TECLAS_GUIA = ["3", ".", "8", "listo"];
 const ID_EJEMPLO = "ensayo-nancy";
 
 /** El proveedor y los productos del ensayo, con la forma que espera la ficha. No se guardan en ningún lado. */
-export function standDelEnsayo() {
+export function standDelEnsayo(precio = null) {
   const supplier = { id: ID_EJEMPLO, company: TARJETA_EJEMPLO.company, contact: TARJETA_EJEMPLO.contact, phone: TARJETA_EJEMPLO.phone, wechat: TARJETA_EJEMPLO.wechat, cardPhoto: TARJETA_EJEMPLO.foto, cardData: { ejemplo: true } };
-  const products = PRODUCTOS_ENSAYO.map((p, i) => ({ id: `ensayo-${i}`, photos: [p.foto], price: p.precio, supplierId: ID_EJEMPLO, createdAt: i }));
+  const products = PRODUCTOS_ENSAYO.map((p, i) => ({ id: `ensayo-${i}`, photos: [p.foto], price: (i === 0 && precio) || p.precio, supplierId: ID_EJEMPLO, createdAt: i }));
   return { supplier, products };
 }
 
 /** El obturador del ensayo: el mismo del visor (72 px, borde blanco), latiendo para que se sepa qué tocar. */
-function Obturador({ amarillo = false, onClick, etiqueta }) {
+function Obturador({ amarillo = false, quieto = false, onClick, etiqueta }) {
   const { alturas, reducido } = useSistema();
   const [presionado, setPresionado] = useState(false);
   const halo = amarillo ? "255,197,61" : "255,79,42";
   return (
     <button type="button" onClick={onClick} aria-label={etiqueta} onPointerDown={() => setPresionado(true)} onPointerUp={() => setPresionado(false)} onPointerLeave={() => setPresionado(false)}
       style={{ width: alturas.obturador, height: alturas.obturador, borderRadius: "50%", border: "5px solid #fff", background: amarillo ? MARCA.sello : MARCA.naranja, cursor: "pointer", padding: 0,
-        boxShadow: `0 0 0 10px rgba(${halo},0.28), 0 0 0 22px rgba(${halo},0.12)`, animation: reducido ? "none" : "ensayoLate 1.6s ease-in-out infinite",
+        boxShadow: quieto ? "0 0 0 3px rgba(43,18,6,0.35)" : `0 0 0 10px rgba(${halo},0.28), 0 0 0 22px rgba(${halo},0.12)`, animation: reducido || quieto ? "none" : "ensayoLate 1.6s ease-in-out infinite",
         transform: presionado && !reducido ? "scale(0.92)" : undefined }} />
   );
 }
@@ -60,6 +64,20 @@ export function Ensayo({ inicio = "bienvenida", onYaTengoCuenta, onActivarCamara
   const [paso, setPaso] = useState(PASOS.includes(inicio) ? inicio : "bienvenida");
   const [disparando, setDisparando] = useState(false); // el destello y el visor que se endereza
   const [leyendo, setLeyendo] = useState(false);       // la línea de luz que recorre la tarjeta
+  const [precio, setPrecio] = useState("");             // lo que escribe en el paso del precio (cualquier número vale)
+  const [precioListo, setPrecioListo] = useState(false);
+  const indiceGuia = Math.min(TECLAS_GUIA.length - 1, precio === "3.8" ? 3 : precio === "3." ? 2 : precio === "3" ? 1 : 0);
+  const tocarTecla = (tecla) => setPrecio(v => {
+    if (tecla === "⌫") return v.slice(0, -1);
+    if (tecla === ".") return v.includes(".") ? v : (v || "0") + ".";
+    return v.replace(".", "").length < 7 ? v + tecla : v;
+  });
+  const listoPrecio = () => {
+    if (precioListo) return;
+    vibrarExito(); setPrecioListo(true);
+    anotar("ensayo_paso", { paso: "precio", conPrecio: !!precio }, { unaVez: false });
+    despues(700, () => { setPrecioListo(false); setPaso("tarjeta"); });
+  };
   const temporizadores = useRef([]);
   const despues = (ms, fn) => { temporizadores.current.push(setTimeout(fn, ms)); };
   useEffect(() => () => temporizadores.current.forEach(clearTimeout), []);
@@ -111,7 +129,7 @@ export function Ensayo({ inicio = "bienvenida", onYaTengoCuenta, onActivarCamara
 
   // ── 5 · Así queda: la ficha del proveedor de verdad, con el stand de ejemplo ─────────
   if (paso === "resultado") {
-    const { supplier, products } = standDelEnsayo();
+    const { supplier, products } = standDelEnsayo(precio.replace(/\.$/, ""));
     return (
       <FichaProveedor supplier={supplier} allSuppliers={[supplier]} products={products} moneda={moneda} Foto={Foto} tLegacy={tLegacy}
         onBack={() => setPaso("permiso")} soloVer festejo={{ titulo: t("ensayo.resultadoTitulo"), texto: t("ensayo.resultadoTexto"), fijo: true }}
@@ -141,10 +159,11 @@ export function Ensayo({ inicio = "bienvenida", onYaTengoCuenta, onActivarCamara
 
   // ── 2 a 4 · El visor de ensayo ───────────────────────────────────
   const esTarjeta = paso === "tarjeta";
-  const indice = { p1: 0, p2: 1, tarjeta: 2 }[paso];
-  const foto = esTarjeta ? TARJETA_EJEMPLO.fotoVisor : PRODUCTOS_ENSAYO[indice].foto;
-  const enStand = indice; // fotos ya sacadas en este stand
-  const ultima = indice > 0 ? PRODUCTOS_ENSAYO[indice - 1].foto : null;
+  const esPrecio = paso === "precio";
+  const indice = { p1: 0, precio: 1, tarjeta: 2 }[paso];
+  const foto = esTarjeta ? TARJETA_EJEMPLO.fotoVisor : PRODUCTOS_ENSAYO[0].foto;
+  const enStand = paso === "p1" ? 0 : 1; // fotos ya sacadas en este stand
+  const ultima = PRODUCTOS_ENSAYO[0].foto;
   const BLANCO = "#FFF3EA";
   return (
     <div data-ensayo className="pantalla-fija" style={{ position: "fixed", inset: 0, zIndex: 100, background: MARCA.cacao, color: BLANCO, fontFamily: "inherit", overflow: "hidden", userSelect: "none" }}>
@@ -163,7 +182,7 @@ export function Ensayo({ inicio = "bienvenida", onYaTengoCuenta, onActivarCamara
       </div>
 
       {/* La pastilla de qué es esto, o el aviso de lo que leyó la "IA" del producto anterior */}
-      {paso === "p2" ? (
+      {esPrecio ? (
         <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 66px)", left: 14, right: 14, zIndex: 5, background: "#fff", color: MARCA.cacao, borderRadius: 16, padding: 12, display: "flex", gap: 12, alignItems: "center", boxShadow: "0 8px 24px -10px rgba(0,0,0,0.5)" }}>
           <img src={PRODUCTOS_ENSAYO[0].foto} alt="" style={{ width: 52, height: 52, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
           <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 2, alignItems: "flex-start" }}>
@@ -184,8 +203,22 @@ export function Ensayo({ inicio = "bienvenida", onYaTengoCuenta, onActivarCamara
       {leyendo
         ? <Globo titulo={t("ensayo.leyendo")} />
         : paso === "p1" ? <Globo titulo={t("ensayo.p1Titulo")} texto={t("ensayo.p1Texto")} />
-        : paso === "p2" ? <Globo titulo={t("ensayo.p2Titulo")} texto={t("ensayo.p2Texto")} />
+        : esPrecio ? null
         : <Globo titulo={t("ensayo.tarjetaTitulo")} texto={t("ensayo.tarjetaTexto")} />}
+
+      {/* El paso del precio: la pastilla dice qué hacer y el teclado de la app ya está abierto, vacío */}
+      {esPrecio && (
+        <>
+          <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 166px)", left: 14, right: 14, zIndex: 5, display: "flex", justifyContent: "center" }}>
+            <span role="status" style={{ display: "inline-flex", alignItems: "center", minHeight: 40, padding: "8px 14px", borderRadius: 999, background: MARCA.sello, color: MARCA.cacao, fontSize: 14, fontWeight: 700, textAlign: "center", lineHeight: 1.3 }}>{t("ensayo.precioPastilla")}</span>
+          </div>
+          <TecladoDatos campos={[["price", t("visor.campoPrecio")], ["moq", t("visor.campoMoq")], ["piezasPorCaja", t("visor.campoPiezasCorto")], ["cbmPorCaja", t("visor.campoCbmCorto")]]}
+            campo="price" valores={{ price: precio }} moneda={moneda} campoGuardado={precioListo ? "price" : null} favorito={false}
+            onTecla={tocarTecla} onListo={listoPrecio} onCampo={() => {}} onFavorito={() => {}}
+            guia={precioListo ? null : { teclas: TECLAS_GUIA, indice: indiceGuia }}
+            estilo={{ position: "absolute", left: 12, right: 12, bottom: "calc(196px + env(safe-area-inset-bottom, 0px))", zIndex: 5 }} />
+        </>
+      )}
 
       {/* Abajo: el contador del stand, el obturador y qué hace */}
       <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 5, padding: "18px 18px calc(20px + env(safe-area-inset-bottom, 0px))", display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
@@ -201,9 +234,9 @@ export function Ensayo({ inicio = "bienvenida", onYaTengoCuenta, onActivarCamara
           )}
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-          <Obturador amarillo={esTarjeta} etiqueta={esTarjeta ? t("ensayo.escanearTarjeta") : t("ensayo.sacarFoto")}
-            onClick={() => disparar(paso === "p1" ? "p2" : paso === "p2" ? "tarjeta" : "resultado", { tarjeta: esTarjeta })} />
-          <span style={{ fontSize: 13, fontWeight: 600, textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>{esTarjeta ? t("ensayo.escanearTarjeta") : t("ensayo.sacarFoto")}</span>
+          <Obturador amarillo={esTarjeta} quieto={esPrecio} etiqueta={esTarjeta ? t("ensayo.escanearTarjeta") : t("ensayo.sacarFoto")}
+            onClick={() => (esPrecio ? listoPrecio() : disparar(paso === "p1" ? "precio" : "resultado", { tarjeta: esTarjeta }))} />
+          <span style={{ fontSize: 13, fontWeight: 600, textShadow: "0 1px 3px rgba(0,0,0,0.6)", visibility: esPrecio ? "hidden" : "visible" }}>{esTarjeta ? t("ensayo.escanearTarjeta") : t("ensayo.sacarFoto")}</span>
         </div>
         <div style={{ width: 88 }} />
       </div>

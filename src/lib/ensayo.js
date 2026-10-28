@@ -53,10 +53,9 @@ export const TARJETA_EJEMPLO = {
   address: 'Futian market Zone 4, Gate 76, 23 street',
 };
 
-/** Lo que el ensayo "fotografía": los productos del stand de ejemplo, en orden. */
+/** Lo que el ensayo "fotografía": un solo producto del stand de ejemplo (Nati, 28/10: "el segundo ya confunde"). */
 export const PRODUCTOS_ENSAYO = [
   { clave: 'flores', foto: '/ejemplo/p3.jpg', precio: '3.8' },
-  { clave: 'tazaPlato', foto: '/ejemplo/p2.jpg', precio: '2.5' },
 ];
 
 /** Una foto de public/ como data URL, para guardarla igual que una foto de la cámara (y que suba a la nube). */

@@ -14,7 +14,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Icono, Hoja, Boton } from "../componentes/index.js";
+import { Icono, Hoja, Boton, TecladoDatos } from "../componentes/index.js";
 import { anotar } from "../lib/primerUso.js";
 import { MARCA } from "../sistema/tokens.js";
 import { TARJETA_EJEMPLO } from "../lib/ensayo.js";
@@ -75,6 +75,11 @@ export function Visor({
   propuestaTarjeta = null, // { onEscanear, onEjemplo }: después de su primera foto, "¿Tenés la tarjeta de alguien?"
   primerStand = false, // su primer stand guiado (27/10): arriba solo el "?", como en los wireframes 7 a 10
   tarjetaEjemplo = false, // en modo tarjeta, la de Nancy Ceramic en vez de la cámara (para quien no tiene ninguna a mano)
+  // 28/10 (Nati: "la gente no sabe qué hacer primero"): la tarjeta se sugiere al abrir un stand nuevo, sin bloquear
+  propuestaInicio = null, // { onEscanear, onDespues }: "¿Ya tenés la tarjeta del stand?"
+  onElegirProveedor, onEscribirProveedor, // la pestaña Proveedor del teclado: elegir uno cargado o escribir el nombre
+  barridoTarjeta = null, // la foto de la tarjeta recién sacada: queda quieta y la línea amarilla la recorre (1 s)
+  tarjetaAviso = null, // { fase: "leyendo" | "leida" | "fallo" | "sinSenal", nombre, onReintentar, onSeguir, onCerrar }
 }) {
   const { t } = useTranslation();
   const { alturas, movimiento, curvas, duracion, reducido } = useSistema();
@@ -118,29 +123,72 @@ export function Visor({
   const textoSync = estadoSync === "sincronizando" ? t("visor.sincronizando", { count: pendientesSync }) : estadoSync === "nube" ? t("visor.enLaNube") : t("visor.guardado");
   const colorPunto = estadoSync === "falla" ? "#EF4444" : estadoSync === "nube" ? "#22C55E" : estadoSync === "sincronizando" ? MARCA.naranja : BLANCO_SUAVE;
 
-  // Cuando sube el teclado del iPhone, la barra se sube con él (el visor es fijo y quedaría tapada)
-  const [alturaTeclado, setAlturaTeclado] = useState(0);
-  const inputDatoRef = useRef(null);
-  useEffect(() => {
-    const vv = typeof window !== "undefined" ? window.visualViewport : null;
-    if (!vv) return;
-    const medir = () => setAlturaTeclado(Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)));
-    vv.addEventListener("resize", medir); vv.addEventListener("scroll", medir);
-    return () => { vv.removeEventListener("resize", medir); vv.removeEventListener("scroll", medir); };
-  }, []);
+  // La línea de abajo siempre dice el próximo paso (Nati, 28/10: "yo lo guiaría más"): según lo que tiene el stand
+  const n = standAbierto?.fotos || 0;
+  const conTarjeta = !!(standAbierto?.tieneTarjeta || standAbierto?.nombre);
+  const guiaAbajo = esTarjeta ? t("visor.escaneaTarjeta")
+    : primeraFoto ? t("ensayo.sacarFoto")
+    : modoAngulo ? t("visor.escaneaProducto")
+    : n === 0 && !conTarjeta ? t("visor.guiaPrimerProducto")
+    : n === 0 && conTarjeta ? (standAbierto?.nombre ? t("visor.guiaProductosDe", { nombre: standAbierto.nombre }) : t("visor.guiaProductosDelStand"))
+    : !conTarjeta && !standAbierto?.leyendo ? t("visor.guiaOtraYTarjeta")
+    : t("visor.guiaCerrarStand");
+  const pedirTarjeta = !esTarjeta && !primeraFoto && !primerStand && n > 0 && !conTarjeta && !standAbierto?.leyendo; // la pestaña TARJETA late apenas
 
   return (
-    <div className="pantalla-fija" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} onClick={() => { if (datos && !esTarjeta) { inputDatoRef.current?.blur(); onConfirmarPrecio?.(); } }} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#2B1206", display: "flex", flexDirection: "column", color: BLANCO, fontFamily: "inherit", userSelect: "none" }}>
+    <div className="pantalla-fija" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} onClick={() => { if (datos && !esTarjeta) onConfirmarPrecio?.(); }} style={{ position: "fixed", inset: 0, zIndex: 100, background: "#2B1206", display: "flex", flexDirection: "column", color: BLANCO, fontFamily: "inherit", userSelect: "none" }}>
       {/* 22/10 (Android): el WebView de Samsung dibuja un ícono de "play" gris sobre un <video> sin señal; hasta que
           la cámara realmente emite, el video queda invisible sobre el fondo oscuro. */}
       <video ref={videoRef} autoPlay playsInline muted disablePictureInPicture controls={false} onPlaying={() => setVideoListo(true)} onEmptied={() => setVideoListo(false)}
         style={{ flex: 1, objectFit: "cover", width: "100%", opacity: videoListo ? 1 : 0, transition: "opacity 160ms" }} />
 
       {/* Velo blanco del obturador (80 ms) */}
-      <style>{`@keyframes fairscanGuardado { 0% { transform: scale(0.4); opacity: 0 } 35% { transform: scale(1.15); opacity: 1 } 55% { transform: scale(1) } 100% { transform: scale(1); opacity: 1 } }`}</style>
+      <style>{`@keyframes fairscanGuardado { 0% { transform: scale(0.4); opacity: 0 } 35% { transform: scale(1.15); opacity: 1 } 55% { transform: scale(1) } 100% { transform: scale(1); opacity: 1 } }
+        @keyframes fairscanLate { 0%,100% { opacity: 0.75 } 50% { opacity: 1 } }
+        @keyframes fairscanBarrido { from { top: 30% } to { top: calc(30% + 48vw) } }
+        @keyframes fairscanRueda { to { transform: rotate(360deg) } }
+        @keyframes fairscanCartel { from { opacity: 0; transform: translateY(8px) scale(0.98) } to { opacity: 1; transform: none } }`}</style>
       <div aria-hidden style={{ position: "absolute", inset: 0, background: "#fff", opacity: flash ? 0.75 : 0, pointerEvents: "none", zIndex: 2, transition: `opacity ${duracion(movimiento.obturador.velo)}ms linear` }} />
       {/* La tarjeta de ejemplo tapa la cámara (pantalla 10): se ve como si estuviera adelante */}
       {esTarjeta && tarjetaEjemplo && <img src={TARJETA_EJEMPLO.fotoVisor} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 1 }} />}
+      {/* La tarjeta recién sacada queda quieta y la línea amarilla del ensayo la recorre (Nati, 28/10: "me gusta el efecto") */}
+      {barridoTarjeta && (
+        <div aria-hidden style={{ position: "absolute", inset: 0, zIndex: 3 }}>
+          <img src={barridoTarjeta} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+          <div style={{ position: "absolute", left: "8%", right: "8%", top: "30%", aspectRatio: "1.75", border: `2px dashed ${MARCA.sello}`, borderRadius: 14 }} />
+          <div style={{ position: "absolute", left: "8%", right: "8%", height: 3, background: MARCA.sello, boxShadow: "0 0 18px 4px rgba(255,197,61,0.7)", animation: reducido ? "none" : "fairscanBarrido 1s ease-in-out both" }} />
+          <div style={{ position: "absolute", left: 0, right: 0, top: "calc(30% + 48vw + 14px)", textAlign: "center", fontSize: 15, fontWeight: 700, color: MARCA.sello, textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>{t("visor.leyendoCorto")}</div>
+        </div>
+      )}
+      {/* Qué pasa con la tarjeta, en grande y en el centro: leyendo · leída · falló · sin señal (28/10, "cerrar el loop") */}
+      {tarjetaAviso && !esTarjeta && !barridoTarjeta && (() => {
+        const { fase, nombre } = tarjetaAviso;
+        const verde = fase === "leida";
+        return (
+          <div role="status" aria-live="polite" onClick={e => { e.stopPropagation(); if (fase !== "fallo") tarjetaAviso.onCerrar?.(); }} style={{ position: "absolute", left: 22, right: 22, top: "38%", zIndex: 6, background: verde ? "#DCEFE3" : "#fff", color: MARCA.cacao, borderRadius: 20, padding: "18px 18px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, textAlign: "center", boxShadow: "0 14px 34px -12px rgba(0,0,0,0.6)", animation: reducido ? "none" : "fairscanCartel 220ms ease-out both" }}>
+            {fase === "leyendo" && <span aria-hidden style={{ width: 28, height: 28, borderRadius: 14, border: "3px solid #EAD9CC", borderTopColor: MARCA.naranja, animation: reducido ? "none" : "fairscanRueda 0.9s linear infinite" }} />}
+            {fase === "leida" && <span aria-hidden style={{ width: 44, height: 44, borderRadius: 22, background: "#fff", display: "grid", placeItems: "center" }}><Icono nombre="listo" tamano={24} color="#1F7A45" /></span>}
+            {fase === "fallo" && <span aria-hidden style={{ width: 44, height: 44, borderRadius: 22, background: "#FDE2DC", display: "grid", placeItems: "center" }}><Icono nombre="error" tamano={22} color="#B8341A" /></span>}
+            <p style={{ margin: 0, fontSize: 21, fontWeight: 700, lineHeight: 1.2 }}>{fase === "leyendo" ? t("visor.leyendoTitulo") : fase === "leida" ? (nombre || t("visor.tarjetaGuardada")) : fase === "fallo" ? t("visor.falloTitulo") : t("visor.sinSenalTitulo")}</p>
+            <p style={{ margin: 0, fontSize: 15, lineHeight: 1.4, color: "#5A3522" }}>{fase === "leyendo" ? t("visor.leyendoTexto") : fase === "leida" ? t("visor.leidaTexto") : fase === "fallo" ? t("visor.falloTexto") : t("visor.sinSenalTexto")}</p>
+            {fase === "fallo" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%", marginTop: 6 }}>
+                <button type="button" onClick={tarjetaAviso.onReintentar} style={{ minHeight: 52, borderRadius: 14, border: "none", background: MARCA.naranja, color: MARCA.cacao, fontFamily: "inherit", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>{t("visor.escanearDeNuevo")}</button>
+                <button type="button" onClick={tarjetaAviso.onSeguir} style={{ minHeight: 44, borderRadius: 12, border: "none", background: "none", color: "#5A3522", fontFamily: "inherit", fontSize: 15, fontWeight: 500, cursor: "pointer" }}>{t("visor.seguirSinLeer")}</button>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+      {/* Stand nuevo (Nati, 28/10): la tarjeta se sugiere al principio, sin bloquear; el obturador vale como "Después" */}
+      {propuestaInicio && !esTarjeta && !datos && !ultimasAbiertas && !tarjetaAviso && (
+        <Globo titulo={t("visor.inicioTarjetaTitulo")} texto={t("visor.inicioTarjetaTexto")} pico={false} abajo={176}>
+          <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
+            <button type="button" onClick={propuestaInicio.onEscanear} style={{ flex: 1.4, minHeight: 52, borderRadius: 14, border: "none", background: MARCA.cacao, color: MARCA.crema, fontFamily: "inherit", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Icono nombre="tarjeta" tamano={18} color={MARCA.crema} />{t("visor.escanearTarjetaCorto")}</button>
+            <button type="button" onClick={propuestaInicio.onDespues} style={{ flex: 1, minHeight: 52, borderRadius: 14, border: "none", background: "rgba(43,18,6,0.08)", color: MARCA.cacao, fontFamily: "inherit", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>{t("visor.despues")}</button>
+          </div>
+        </Globo>
+      )}
 
       {/* Primer uso (27/10): una indicación por momento, nunca más de una */}
       {primeraFoto && !esTarjeta && !datos && <InstructivoCamara />}
@@ -201,7 +249,7 @@ export function Visor({
           <span style={{ display: "inline-flex", alignItems: "center", minHeight: 36, padding: "0 14px", borderRadius: 999, background: MARCA.sello, color: MARCA.cacao, fontSize: 13, fontWeight: 700 }}>{t("ensayo.ejemploPastilla")}</span>
         </div>
       )}
-      {esTarjeta && (
+      {esTarjeta && !barridoTarjeta && (
         <>
           {!tarjetaEjemplo && <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 64px)", left: 24, right: 24, zIndex: 3, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, textAlign: "center" }}>
             <span style={{ fontFamily: "'Bricolage Grotesque', inherit", fontWeight: 800, fontSize: 22, letterSpacing: "-0.02em", color: "#fff", textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>{t("visor.encuadraTitulo")}</span>
@@ -229,61 +277,20 @@ export function Visor({
         </div>
       )}
 
-      {/* La barra del pulgar (wireframe del 23/09, opción A): después de la foto, una fila arriba de la miniatura con
-          el dato que se está cargando y la estrella; se escribe con el teclado del iPhone y Listo guarda. Lo cargado
-          queda con tilde; lo que falta, como chips, de a uno. Nunca cuatro campos a la vista. */}
+      {/* El teclado propio (Nati, 28/10; antes, la barra del pulgar del 23/09 con el teclado del teléfono): después de
+          la foto, el número grande y las teclas de la app; Listo guarda y cierra todo de un toque. La pestaña
+          Proveedor pregunta de quién es el producto si el stand todavía no tiene tarjeta. */}
       {datos && !esTarjeta && (() => {
         const campos = [["price", t("visor.campoPrecio")], ["moq", t("visor.campoMoq")], ["piezasPorCaja", t("visor.campoPiezasCorto")], ["cbmPorCaja", t("visor.campoCbmCorto")]].filter(([k]) => k === "price" || datosActivos?.[k] !== false);
-        const etiquetaDe = Object.fromEntries(campos);
-        const campo = datos.campo;
-        const valor = datos.valores[campo] || "";
+        if (standAbierto && !modoAngulo) campos.push(["proveedor", t("visor.campoProveedor")]);
         const listos = datos.listos || {};
-        const hecho = (k) => !!listos[k] || (!!datos.valores[k] && k !== campo);
-        const mostrarChips = campos.length > 1; // siempre a la vista (boceto de Nati, 23/09): se sabe qué se puede cargar; precio por defecto
-        const elegir = (k) => { inputDatoRef.current?.focus(); onCampo?.(k); };
-        const abajo = alturaTeclado > 0 ? `calc(${alturaTeclado + 10}px)` : `calc(196px + env(safe-area-inset-bottom, 0px))`;
-        const cerrarBarra = () => { inputDatoRef.current?.blur(); onConfirmarPrecio?.(); };
-        let y0 = null;
-        const alTocar = e => { y0 = e.touches?.[0]?.clientY ?? null; };
-        const alSoltar = e => { const y1 = e.changedTouches?.[0]?.clientY; if (y0 !== null && y1 !== undefined && y1 - y0 > 40) cerrarBarra(); y0 = null; };
+        const hecho = (k) => !!listos[k] || (!!datos.valores[k] && k !== datos.campo);
         return (
-          <div onClick={e => e.stopPropagation()} onTouchStart={alTocar} onTouchEnd={alSoltar} role="dialog" aria-label={t("visor.datosDelUltimo")} style={{ position: "absolute", left: 12, right: 12, bottom: abajo, zIndex: 5, background: "rgba(43,18,6,0.88)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", color: BLANCO, borderRadius: 16, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6, boxShadow: "0 10px 30px -12px rgba(0,0,0,0.45)" }}>
-            <div aria-label={t("visor.agarradera")} style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,243,234,0.35)", margin: "-2px auto 0" }} />
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <label style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, minHeight: 44, background: campoGuardado === campo ? "rgba(34,197,94,0.25)" : "rgba(255,243,234,0.12)", borderRadius: 12, padding: "0 12px", transition: "background 250ms ease" }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: BLANCO_SUAVE, whiteSpace: "nowrap" }}>{campo === "price" ? moneda : etiquetaDe[campo]}</span>
-                <input ref={inputDatoRef} type="text" inputMode="decimal" enterKeyHint="done" value={valor} placeholder={campo === "price" ? t("visor.aCuanto") : ""} aria-label={campo === "price" ? t("visor.aCuantoEstaba") : etiquetaDe[campo]}
-                  onChange={e => onEscribirDato?.(campo, e.target.value.replace(/,/g, ".").replace(/[^0-9.]/g, "").slice(0, 8))}
-                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
-                  style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", fontSize: 18, fontWeight: 700, color: "#fff", fontFamily: "inherit", outline: "none", fontVariantNumeric: "tabular-nums" }} />
-                {campo === "cbmPorCaja" && <span style={{ fontSize: 12, color: BLANCO_SUAVE }}>CBM</span>}
-                {campoGuardado === campo && <span role="status" aria-label={t("visor.guardado")} style={{ display: "grid", placeItems: "center", width: 22, height: 22, borderRadius: 11, background: "#86EFAC", animation: "fairscanGuardado 1.2s ease-out both" }}><Icono nombre="listo" tamano={14} color="#fff" /></span>}
-              </label>
-              <button type="button" onClick={cerrarBarra} aria-label={t("visor.cerrarBarra")} style={{ width: 36, height: 44, border: "none", background: "transparent", display: "grid", placeItems: "center", cursor: "pointer", padding: 0, order: 3 }}><Icono nombre="cerrar" tamano={20} color="#94A3B8" /></button>
-              {(
-                <button type="button" onClick={onFavorito} aria-pressed={!!datos.favorito} aria-label={datos.favorito ? t("visor.quitarFavorito") : t("visor.marcarFavorito")} style={{ width: 44, height: 44, borderRadius: 12, border: `1px solid ${datos.favorito ? MARCA.sello : "rgba(255,243,234,0.35)"}`, background: datos.favorito ? "rgba(255,197,61,0.22)" : "rgba(255,243,234,0.12)", display: "grid", placeItems: "center", cursor: "pointer" }}>
-                  <Icono nombre="favorito" tamano={20} color={datos.favorito ? MARCA.cacao : BLANCO_SUAVE} relleno={datos.favorito ? MARCA.sello : undefined} />
-                </button>
-              )}
-            </div>
-            {campo === "moq" && (
-              <div role="radiogroup" aria-label={t("visor.campoMoq")} style={{ display: "flex", gap: 2, padding: 3, borderRadius: 10, background: "rgba(255,243,234,0.12)" }}>
-                {[["producto", t("visor.basePorProducto")], ["caja", t("visor.basePorCaja")], ["pedido", t("visor.basePorPedido")]].map(([b, etiqueta]) => (
-                  <button key={b} type="button" role="radio" aria-checked={datos.moqBase === b} onClick={() => onMoqBase?.(b)} style={{ flex: 1, minHeight: 30, borderRadius: 8, border: "none", background: datos.moqBase === b ? MARCA.sello : "transparent", boxShadow: "none", color: datos.moqBase === b ? MARCA.cacao : BLANCO_SUAVE, fontSize: 12, fontWeight: datos.moqBase === b ? 700 : 500, cursor: "pointer", fontFamily: "inherit" }}>{etiqueta}</button>
-                ))}
-              </div>
-            )}
-            {mostrarChips && (
-              <div role="tablist" aria-label={t("visor.otrosDatos")} style={{ display: "flex", gap: 14, flexWrap: "wrap", padding: "0 4px" }}>
-                {/* Texto plano, tipo pestañas (Nati, 23/09: "que no sea todo formato pastilla, eso genera ruido"):
-                    la activa en negrita con una raya naranja; un puntito verde en las que ya tienen dato */}
-                {campos.map(([k, etiqueta]) => {
-                  const activo = k === campo; const ok = hecho(k);
-                  return <button key={k} type="button" role="tab" aria-selected={activo} onClick={() => elegir(k)} style={{ minHeight: 32, padding: "0 4px 4px", border: "none", borderBottom: `2px solid ${activo ? MARCA.sello : "transparent"}`, background: "transparent", color: activo ? "#fff" : BLANCO_SUAVE, fontSize: 13, fontWeight: activo ? 700 : 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 5 }}>{etiqueta}{ok && !activo && <span aria-hidden style={{ display: "inline-block", width: 6, height: 6, borderRadius: 3, background: "#86EFAC" }} />}</button>;
-                })}
-              </div>
-            )}
-          </div>
+          <TecladoDatos campos={campos} campo={datos.campo} valores={datos.valores} moneda={moneda} moqBase={datos.moqBase} favorito={!!datos.favorito} campoGuardado={campoGuardado} hecho={hecho}
+            proveedor={standAbierto && !modoAngulo ? { nombre: standAbierto.nombre, tieneTarjeta: standAbierto.tieneTarjeta, leyendo: standAbierto.leyendo } : null}
+            onTecla={onTeclaPrecio} onListo={onConfirmarPrecio} onCampo={onCampo} onMoqBase={onMoqBase} onFavorito={onFavorito}
+            onEscanearTarjeta={() => { onConfirmarPrecio?.(); onTarjeta?.(); }} onElegirProveedor={onElegirProveedor} onEscribirProveedor={onEscribirProveedor}
+            estilo={{ position: "absolute", left: 12, right: 12, bottom: "calc(196px + env(safe-area-inset-bottom, 0px))", zIndex: 5 }} />
         );
       })()}
 
@@ -310,7 +317,7 @@ export function Visor({
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
           <div role="tablist" aria-label={t("visor.queEscanear")} style={{ display: "flex", gap: 22, visibility: (datos && !esTarjeta) || primeraFoto || tarjetaEjemplo ? "hidden" : "visible" }}>
             {[["product", t("visor.modoProducto")], ["card", t("visor.modoTarjeta")]].map(([m, etiqueta]) => { const activo = (m === "card") === esTarjeta; return (
-              <button key={m} type="button" role="tab" aria-selected={activo} onClick={() => cambiarModo(m)} style={{ minHeight: 28, padding: "0 2px 4px", border: "none", borderBottom: `2px solid ${activo ? MARCA.sello : "transparent"}`, background: "transparent", color: activo ? MARCA.sello : BLANCO_SUAVE, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", fontFamily: "inherit", cursor: "pointer", textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>{etiqueta}</button>
+              <button key={m} type="button" role="tab" aria-selected={activo} onClick={() => cambiarModo(m)} style={{ minHeight: 28, padding: "0 2px 4px", border: "none", borderBottom: `2px solid ${activo ? MARCA.sello : m === "card" && pedirTarjeta ? "rgba(255,197,61,0.6)" : "transparent"}`, background: "transparent", color: activo ? MARCA.sello : m === "card" && pedirTarjeta ? "#fff" : BLANCO_SUAVE, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", fontFamily: "inherit", cursor: "pointer", textShadow: "0 1px 3px rgba(0,0,0,0.6)", animation: m === "card" && pedirTarjeta && !reducido ? "fairscanLate 1.6s ease-in-out infinite" : "none" }}>{etiqueta}</button>
             ); })}
           </div>
           <button
@@ -322,7 +329,7 @@ export function Visor({
             aria-label={esTarjeta ? t("visor.escaneaTarjeta") : t("visor.disparar")}
             style={{ position: "relative", width: alturas.obturador, height: alturas.obturador, borderRadius: "50%", border: "5px solid #fff", background: esTarjeta ? MARCA.sello : MARCA.naranja, boxShadow: primeraFoto || tarjetaEjemplo ? `0 0 0 10px ${esTarjeta ? "rgba(255,197,61,0.30)" : "rgba(255,79,42,0.28)"}, 0 0 0 22px ${esTarjeta ? "rgba(255,197,61,0.12)" : "rgba(255,79,42,0.12)"}` : "0 0 0 3px rgba(43,18,6,0.35)", cursor: "pointer", transform: presionado && !reducido ? "scale(0.92)" : "scale(1)", transition: `transform ${duracion(movimiento.obturador.presion)}ms ${curvas.salida}, background 200ms` }}
           />
-          <span aria-hidden style={{ fontSize: 12, fontWeight: 600, color: BLANCO, textShadow: "0 1px 3px rgba(0,0,0,0.6)", whiteSpace: "nowrap" }}>{esTarjeta ? t("visor.escaneaTarjeta") : primeraFoto ? t("ensayo.sacarFoto") : t("visor.escaneaProducto")}</span>
+          <span aria-hidden style={{ fontSize: 12, fontWeight: 600, color: BLANCO, textShadow: "0 1px 3px rgba(0,0,0,0.6)", textAlign: "center", lineHeight: 1.3, maxWidth: 196, visibility: datos && !esTarjeta ? "hidden" : "visible" }}>{guiaAbajo}</span>
         </div>
 
         <div style={{ width: 88 }} />

@@ -634,6 +634,26 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
   const [cardPhoto, setCardPhoto] = useState(null);
   const [cardData, setCardData] = useState(null);
   const [cardProcessing, setCardProcessing] = useState(false);
+  // Cerrar el loop de la tarjeta (Nati, 28/10): la foto queda quieta con la línea amarilla (1 s), después un cartel
+  // grande dice "leyendo", y al terminar cambia al nombre de la empresa (o a "no pude leerla", con salida).
+  const [tarjetaBarrido, setTarjetaBarrido] = useState(null);
+  const [tarjetaAviso, setTarjetaAviso] = useState(null); // { fase: leyendo|leida|fallo|sinSenal, nombre, minimizado }
+  const tarjetaAvisoTimerRef = useRef(null);
+  const mostrarAvisoTarjeta = (aviso, ms = 0) => {
+    clearTimeout(tarjetaAvisoTimerRef.current);
+    setTarjetaAviso(prev => ({ ...aviso, minimizado: aviso.fase === "leyendo" ? !!prev?.minimizado : false }));
+    if (ms) tarjetaAvisoTimerRef.current = setTimeout(() => setTarjetaAviso(null), ms);
+  };
+  useEffect(() => () => clearTimeout(tarjetaAvisoTimerRef.current), []);
+  // Stand nuevo: se sugiere la tarjeta primero, sin bloquear (Nati, 28/10); el obturador vale como "Después"
+  const [inicioCerrado, setInicioCerrado] = useState(false);
+  // Al irse con fotos sin proveedor se pregunta una sola vez por la tarjeta
+  const [preguntaSalida, setPreguntaSalida] = useState(null); // { seguir }
+  const preguntaHechaRef = useRef(false);
+  const [eligiendoProveedor, setEligiendoProveedor] = useState(false); // la hoja "Elegir uno cargado"
+  const [escribiendoNombre, setEscribiendoNombre] = useState(false);   // la hoja "Escribir el nombre"
+  const [nombreEscrito, setNombreEscrito] = useState("");
+  const pendienteTrasProveedorRef = useRef(null); // lo que se iba a hacer (cerrar, catálogo) cuando se eligió un proveedor desde la pregunta
   const [supplierName, setSupplierName] = useState("");
   const [supplierContact, setSupplierContact] = useState("");
   const [supplierPhone, setSupplierPhone] = useState("");
@@ -966,12 +986,15 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
     if (cameraMode === "card") {
       // La tarjeta se lee en segundo plano y se sigue sacando fotos. Si el stand ya tenía tarjeta y fotos,
       // esta tarjeta casi seguro es del stand siguiente: la app lo propone y la usuaria decide (23/09).
+      if (tarjetaBarrido) return;
       if (cardPhoto && items.length > 0) { setTarjetaPendiente(photo); setCameraMode("product"); return; }
       setCardPhoto(photo);
+      // La foto queda quieta y la línea amarilla la recorre un segundo (28/10); recién después vuelve a productos
+      setTarjetaBarrido(photo);
+      setTimeout(() => { setTarjetaBarrido(null); setCameraMode("product"); }, 1000);
       // 22/10 (Nati, Android: "la pantalla blanca queda mucho tiempo"): el QR se busca recién cuando el velo del
       // obturador ya se fue; si no, el hilo queda ocupado y el blanco se congela en pantalla.
       setTimeout(() => processCardPhoto(photo), 250);
-      setCameraMode("product");
     } else if (cameraMode === "product") {
       if (addPhotoToItemId) {
         // Foto adicional a un producto que ya existe en la base. Desde "+ ángulo"
@@ -985,6 +1008,8 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
         // muere antes de cerrar el stand, el producto ya está.
         if (datosRapidos && (Object.values(datosRapidos.valores).some(Boolean))) confirmarPrecio(); else if (datosRapidos) setDatosRapidos(null);
         if (guiado && items.length >= 1) setPropuestaCerrada(true); // sigue sacando fotos: la pregunta por la tarjeta se va
+        setInicioCerrado(true); // sacó una foto: la sugerencia de la tarjeta al principio ya no corre
+        setTarjetaAviso(a => (a?.fase === "leyendo" ? { ...a, minimizado: true } : a)); // el cartel baja a la pastilla de arriba
         crearItem([photo]).then(id => {
           if (id == null) return;
           ofrecerPrecio(id);
@@ -1030,18 +1055,21 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
 
   const processCardPhoto = async (photo) => {
     setCardProcessing(true);
+    mostrarAvisoTarjeta({ fase: "leyendo" });
+    let leida = false, nombre = null, fallo = null;
     try {
       // QR decode from dataURL
       const qrResult = await decodeQR(photo);
       if (qrResult) {
         const info = parseQRContent(qrResult);
-        if (info) applyContactInfo(info);
+        if (info) { applyContactInfo(info); leida = true; nombre = info.company || null; }
       }
       // AI card processing
       try {
         // La tarjeta va grande a la IA (Nati, 29/09): 1568 px es lo máximo que Claude mira; más no mejora y pesa
         const result = await processCard((await reducirFoto(photo, 1568)) || photo);
         if (result) {
+          leida = true; nombre = result.company || nombre;
           setCardData(result);
           if (result.company) setSupplierName(prev => prev || result.company);
           if (result.contact) setSupplierContact(prev => prev || result.contact);
@@ -1053,10 +1081,14 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
           if (result.address) setSupplierAddress(prev => prev || result.address);
           if (result.products) setSupplierProducts(prev => prev || result.products);
         }
-      } catch (err) { console.warn("Card AI error:", err); }
-    } catch (err) { console.warn("Card processing error:", err); }
+      } catch (err) { console.warn("Card AI error:", err); fallo = err; }
+    } catch (err) { console.warn("Card processing error:", err); fallo = fallo || err; }
     setCardProcessing(false);
+    if (leida) mostrarAvisoTarjeta({ fase: "leida", nombre }, 3000);
+    else if (typeof navigator !== "undefined" && navigator.onLine === false) mostrarAvisoTarjeta({ fase: "sinSenal" }, 4000);
+    else mostrarAvisoTarjeta({ fase: "fallo", error: fallo ? String(fallo.message || fallo).slice(0, 80) : null });
   };
+  const reintentarTarjeta = () => { setTarjetaAviso(null); setCardPhoto(null); setCardData(null); guardadoTarjetaRef.current = null; openCamera("card"); };
 
   const onCardGallery = async (e) => {
     const file = e.target.files?.[0];
@@ -1126,6 +1158,7 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
     setItems([]); setCardPhoto(null); setCardData(null); setCardProcessing(false);
     setSupplierName(""); setSupplierContact(""); setSupplierPhone(""); setSupplierEmail(""); setSupplierWechat(""); setSupplierWhatsapp(""); setSupplierWhatsappLink(""); setSupplierWechatLink(""); setSupplierWebsite(""); setSupplierAddress(""); setSupplierProducts(""); setSupplierNotes(""); setSupplierFavorito(false); setSupplierMinimo(null); setLinkedSupplierId(null);
     setLastCapture(null); setDatosRapidos(null); setAnguloDisponible(false); guardadoTarjetaRef.current = null;
+    setInicioCerrado(false); preguntaHechaRef.current = false; setTarjetaAviso(null); setTarjetaBarrido(null);
     try { nota.descartar?.(); } catch { /* sin nota */ }
   };
   const cerrarYArrancar = async () => {
@@ -1179,6 +1212,18 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
     }
   };
   const handleSave = () => guardarYCerrar();
+  // Al irse con fotos y sin proveedor (cerrar el stand, ir al catálogo) se pregunta una vez por la tarjeta (28/10).
+  // Nunca bloquea: "Seguir sin proveedor" hace lo que se iba a hacer.
+  const sinProveedor = () => items.length > 0 && !cardPhoto && !supplierName.trim() && !linkedSupplierId;
+  const conPreguntaDeTarjeta = (seguir) => {
+    if (sinProveedor() && !preguntaHechaRef.current && !guiado) { preguntaHechaRef.current = true; setPreguntaSalida({ seguir }); }
+    else seguir();
+  };
+  const elegirProveedor = (s) => {
+    linkSupplier(s); setEligiendoProveedor(false); setSupplierQuery("");
+    const seguir = pendienteTrasProveedorRef.current; pendienteTrasProveedorRef.current = null;
+    if (seguir) seguir();
+  };
 
   const [supplierSearch, setSupplierSearch] = useState(false);
   const [supplierQuery, setSupplierQuery] = useState("");
@@ -1206,10 +1251,42 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
       </div>
     </Hoja>
   );
+  const candidatosProveedor = (supplierQuery.trim() ? filteredSuppliers : [...suppliers].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))).slice(0, 12);
+  const hojasDelProveedor = (
+    <>
+      <Hoja abierta={!!preguntaSalida} onCerrar={() => setPreguntaSalida(null)} titulo={tx("visor.salidaTarjetaTitulo")} sobreCamara>
+        <p style={{ fontSize: 15, lineHeight: 1.45, margin: "0 0 14px" }}>{tx("visor.salidaTarjetaTexto")}</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <Boton variante="principal" ancho="total" icono="tarjeta" onClick={() => { setPreguntaSalida(null); openCamera("card"); }}>{tx("visor.escanearTarjetaCorto")}</Boton>
+          <Boton variante="secundario" ancho="total" icono="proveedor" onClick={() => { pendienteTrasProveedorRef.current = preguntaSalida?.seguir || null; setPreguntaSalida(null); setEligiendoProveedor(true); }}>{tx("visor.elegirCargado")}</Boton>
+          <Boton variante="fantasma" ancho="total" onClick={() => { const seguir = preguntaSalida?.seguir; setPreguntaSalida(null); seguir?.(); }}>{tx("visor.seguirSinProveedor")}</Boton>
+        </div>
+      </Hoja>
+      <Hoja abierta={eligiendoProveedor} onCerrar={() => { setEligiendoProveedor(false); pendienteTrasProveedorRef.current = null; }} titulo={tx("visor.elegirProveedorTitulo")} altura="alta" sobreCamara>
+        <input type="search" value={supplierQuery} onChange={e => setSupplierQuery(e.target.value)} placeholder={tx("visor.buscarProveedor")} aria-label={tx("visor.buscarProveedor")} style={{ ...inputStyle, marginBottom: 10 }} />
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {candidatosProveedor.length === 0 && <p style={{ fontSize: 14, color: t.muted, margin: "8px 0" }}>{tx("visor.sinProveedoresCargados")}</p>}
+          {candidatosProveedor.map(s => (
+            <button key={s.id} type="button" onClick={() => elegirProveedor(s)} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2, minHeight: 52, padding: "10px 2px", border: "none", borderBottom: `1px solid ${t.border}`, background: "transparent", color: t.text, fontFamily: "inherit", textAlign: "left", cursor: "pointer" }}>
+              <span style={{ fontSize: 15, fontWeight: 600 }}>{s.company || `#${s.id}`}</span>
+              {s.contact && <span style={{ fontSize: 13, color: t.muted }}>{s.contact}</span>}
+            </button>
+          ))}
+        </div>
+      </Hoja>
+      <Hoja abierta={escribiendoNombre} onCerrar={() => setEscribiendoNombre(false)} titulo={tx("visor.nombreDelProveedor")} sobreCamara>
+        <form onSubmit={e => { e.preventDefault(); const v = nombreEscrito.trim(); if (v) { setSupplierName(v); setLinkedSupplierId(null); } setEscribiendoNombre(false); }} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <input autoFocus type="text" value={nombreEscrito} onChange={e => setNombreEscrito(e.target.value)} aria-label={tx("visor.nombreDelProveedor")} style={inputStyle} />
+          <Boton variante="principal" ancho="total" tipo="submit">{tx("visor.guardarNombre")}</Boton>
+        </form>
+      </Hoja>
+    </>
+  );
   if (cameraMode) {
     return (
       <>
         {hojaTarjetaNueva}
+        {hojasDelProveedor}
         <Visor
           onAyuda={onAyuda} onYaTengoCuenta={onYaTengoCuenta}
           videoRef={videoRef} modo={cameraMode} feria={activeDistrict?.name || null}
@@ -1218,7 +1295,13 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
           datos={datosRapidos} datosActivos={settings?.datosDeCompra} moneda={CURRENCIES[settings?.currency]?.symbol || "USD"} onTeclaPrecio={tocarPrecio} onConfirmarPrecio={confirmarPrecio} onEscribirDato={escribirDato} onListoDato={guardarDatoRapido} modoAngulo={!!addPhotoToItemId} avisoGuardado={avisoGuardado} campoGuardado={campoGuardado}
           onAgregarFotoA={(id) => { anguloDesdeVisorRef.current = true; setAddPhotoToItemId(id); setAnguloDisponible(false); }}
           onPrecioDe={(id) => { const it = items.find(x => x.id === id); if (!it) return; clearTimeout(precioTimerRef.current); setDatosRapidos({ id, campo: "price", valores: { price: it.price || "", moq: it.moq || "", piezasPorCaja: it.piezasPorCaja ? String(it.piezasPorCaja) : "", cbmPorCaja: it.cbmPorCaja ? String(it.cbmPorCaja) : "" }, moqBase: it.moqBase || null, favorito: !!it.favorito, tocado: true, listos: {} }); }}
-          onListoStand={handleSave}
+          onListoStand={() => conPreguntaDeTarjeta(handleSave)}
+          onElegirProveedor={() => setEligiendoProveedor(true)} onEscribirProveedor={() => { setNombreEscrito(supplierName); setEscribiendoNombre(true); }}
+          barridoTarjeta={tarjetaBarrido}
+          tarjetaAviso={tarjetaAviso && !tarjetaAviso.minimizado ? { ...tarjetaAviso, onReintentar: reintentarTarjeta, onSeguir: () => setTarjetaAviso(null), onCerrar: () => setTarjetaAviso(null) } : null}
+          propuestaInicio={!primerUso && !inicioCerrado && !initialSupplier && items.length === 0 && !cardPhoto && !supplierName && !linkedSupplierId && !addPhotoToItemId && !avisoRetomado
+            ? { onEscanear: () => { anotar("tarjeta_inicio", { eleccion: "escanear" }, { unaVez: true }); setInicioCerrado(true); openCamera("card"); }, onDespues: () => { anotar("tarjeta_inicio", { eleccion: "despues" }, { unaVez: true }); setInicioCerrado(true); } }
+            : null}
           onCambiarPrecioDe={(id, texto) => { const v = texto.replace(/\.$/, ""); setItems(prev => prev.map(it => it.id === id ? { ...it, price: v || null } : it)); clearTimeout(precioDeTimerRef.current); precioDeTimerRef.current = setTimeout(() => onProductoCambio?.(id, { price: v || null }), 450); }} onCampo={cambiarCampoRapido} onMoqBase={cambiarMoqBase} onFavorito={alternarFavoritoRapido}
           onDisparar={handleCameraShutter}
           standAbierto={{ nombre: supplierName, fotos: items.length, tieneTarjeta: !!cardPhoto, leyendo: cardProcessing }}
@@ -1231,7 +1314,7 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
             onEjemplo: () => { anotar("tarjeta_propuesta", { eleccion: "ejemplo" }, { unaVez: true }); setPropuestaCerrada(true); setTarjetaEjemplo(true); openCamera("card"); },
           } : null}
           onCancelar={closeCamera}
-          onCatalogo={() => { closeCamera(); apagarCamara(); onCatalogo?.(); }}
+          onCatalogo={() => conPreguntaDeTarjeta(() => { closeCamera(); apagarCamara(); onCatalogo?.(); })}
           onAgregarAngulo={() => { if (!items.length) return; anguloDesdeVisorRef.current = true; setAddPhotoToItemId(items[0].id); setAnguloDisponible(false); }}
           onBorrarFoto={(id) => borrarItem(id)}
           consejoVisible={consejoVisible} onConsejoVisto={marcarConsejoVisto} avisoRetomado={avisoRetomado}
