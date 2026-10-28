@@ -174,11 +174,11 @@
     "escribirNombre": "Type the name",
     "proveedorListo": "This stand's products are saved with this supplier",
     "tarjetaSinLeerAun": "Card not read yet",
-    "guiaPrimerProducto": "Shoot the first product",
-    "guiaOtraYTarjeta": "Shoot another · when done, scan the card →",
-    "guiaProductosDe": "Now the products from {{nombre}}",
-    "guiaProductosDelStand": "Now this stand's products",
-    "guiaCerrarStand": "Shoot another · to close the stand, tap the thumbnail",
+    "guiaPrimerProducto": "Take the first photo",
+    "guiaOtraYTarjeta": "When done, scan the card",
+    "guiaProductosDe": "Now the products",
+    "guiaProductosDelStand": "Now the products",
+    "guiaCerrarStand": "",
     "inicioTarjetaTitulo": "Got the stand's card already?",
     "inicioTarjetaTexto": "Scan it first and the products are saved with the supplier. If not, shoot the products and scan it at the end.",
     "despues": "Later",
@@ -201,7 +201,14 @@
     "buscarProveedor": "Search by name",
     "sinProveedoresCargados": "No suppliers yet.",
     "nombreDelProveedor": "Supplier name",
-    "guardarNombre": "Save"
+    "guardarNombre": "Save",
+    "tarjetaGuardadaCorta": "Card saved",
+    "seguiSacando": "Keep shooting products",
+    "falloTocar": "The photo is kept. Tap to scan it again.",
+    "sinSenalCorto": "It'll be read when the signal is back",
+    "volverAlCatalogo": "Catalog",
+    "datosDe": "Details",
+    "confirmar": "Done"
   },
   "cerrarStand": {
     "titulo": "Close booth",
@@ -359,7 +366,8 @@
         "flores": "Floral cup and saucer",
         "oro": "Gold tea set"
       }
-    }
+    },
+    "seguirEscaneando": "Keep scanning"
   },
   "revisar": {
     "titulo": "Review today",
@@ -1402,7 +1410,17 @@
     },
     "chatear": "Chat with support",
     "escribinosMail": "Email us",
-    "chatearPista": "We reply in this chat. If it doesn't load, email us at {{mail}}."
+    "chatearPista": "We reply in this chat. If it doesn't load, email us at {{mail}}.",
+    "gestosTitulo": "Gestures",
+    "gestos": {
+      "arriba": "In the camera, swipe up: catalog",
+      "derecha": "Swipe right: go back, anywhere in the app",
+      "fotos": "On a product, swipe sideways: its photos",
+      "obturador": "On the shutter, swipe sideways: product or card",
+      "hojas": "Sheets close by dragging them down",
+      "pestanas": "In the catalog, swipe sideways: change tab",
+      "proveedor": "On a supplier, swipe left: their gallery"
+    }
   },
   "pedirCuenta": {
     "titulo": "Save your catalog",
@@ -1474,5 +1492,10 @@
     "usarFotoTelefono": "Use a photo from your phone",
     "precioPastilla": "Now the price: type 3.8 and tap Done",
     "precioGuardado": "Saved"
+  },
+  "gestos": {
+    "arriba": "Swipe up · catalog",
+    "volver": "Swipe to go back",
+    "fotos": "Swipe · more photos"
   }
 }

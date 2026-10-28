@@ -174,11 +174,11 @@
     "escribirNombre": "Escribir el nombre",
     "proveedorListo": "Los productos de este stand quedan con este proveedor",
     "tarjetaSinLeerAun": "Tarjeta sin leer todavía",
-    "guiaPrimerProducto": "Sacale foto al primer producto",
-    "guiaOtraYTarjeta": "Sacar otra · al terminar, escaneá la tarjeta →",
-    "guiaProductosDe": "Ahora los productos de {{nombre}}",
-    "guiaProductosDelStand": "Ahora los productos de este stand",
-    "guiaCerrarStand": "Sacar otra · para cerrar el stand, tocá la miniatura",
+    "guiaPrimerProducto": "Sacá la primera foto",
+    "guiaOtraYTarjeta": "Al terminar, escaneá la tarjeta",
+    "guiaProductosDe": "Ahora los productos",
+    "guiaProductosDelStand": "Ahora los productos",
+    "guiaCerrarStand": "",
     "inicioTarjetaTitulo": "¿Ya tenés la tarjeta del stand?",
     "inicioTarjetaTexto": "Escaneala primero y los productos quedan con el proveedor. Si no, sacá fotos y la escaneás al final.",
     "despues": "Después",
@@ -201,7 +201,14 @@
     "buscarProveedor": "Buscar por nombre",
     "sinProveedoresCargados": "Todavía no hay proveedores cargados.",
     "nombreDelProveedor": "Nombre del proveedor",
-    "guardarNombre": "Guardar"
+    "guardarNombre": "Guardar",
+    "tarjetaGuardadaCorta": "Tarjeta guardada",
+    "seguiSacando": "Seguí sacando productos",
+    "falloTocar": "Quedó la foto. Tocá para escanearla de nuevo.",
+    "sinSenalCorto": "Se lee cuando vuelva la señal",
+    "volverAlCatalogo": "Catálogo",
+    "datosDe": "Datos",
+    "confirmar": "Listo"
   },
   "cerrarStand": {
     "titulo": "Cerrar stand",
@@ -359,7 +366,8 @@
         "flores": "Taza y platillo con flores",
         "oro": "Juego de té con oro"
       }
-    }
+    },
+    "seguirEscaneando": "Seguir escaneando"
   },
   "revisar": {
     "titulo": "Revisar el día",
@@ -1402,7 +1410,17 @@
     },
     "chatear": "Chatear con soporte",
     "escribinosMail": "Escribinos por mail",
-    "chatearPista": "Te respondemos en este chat. Si no carga, escribinos a {{mail}}."
+    "chatearPista": "Te respondemos en este chat. Si no carga, escribinos a {{mail}}.",
+    "gestosTitulo": "Gestos",
+    "gestos": {
+      "arriba": "En la cámara, deslizá hacia arriba: catálogo",
+      "derecha": "Deslizá hacia la derecha: volver, en toda la app",
+      "fotos": "En un producto, deslizá a los lados: sus fotos",
+      "obturador": "Sobre el botón de la cámara, a los lados: producto o tarjeta",
+      "hojas": "Las hojas se cierran arrastrándolas hacia abajo",
+      "pestanas": "En el catálogo, deslizá a los lados: cambia de pestaña",
+      "proveedor": "En un proveedor, deslizá a la izquierda: su galería"
+    }
   },
   "pedirCuenta": {
     "titulo": "Guardá tu catálogo",
@@ -1474,5 +1492,10 @@
     "usarFotoTelefono": "Usar una foto del teléfono",
     "precioPastilla": "Ahora el precio: escribí 3.8 y tocá Listo",
     "precioGuardado": "Guardado"
+  },
+  "gestos": {
+    "arriba": "Deslizá arriba · catálogo",
+    "volver": "Deslizá para volver",
+    "fotos": "Deslizá · más fotos"
   }
 }

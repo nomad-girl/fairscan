@@ -45,7 +45,7 @@ describe("Visor", () => {
   it("un solo obturador con el selector PRODUCTO · TARJETA: elegir TARJETA abre la cámara de tarjeta y el obturador dice qué hace", () => {
     const onTarjeta = vi.fn(), onVolver = vi.fn();
     const { unmount } = con(<Visor videoRef={{ current: null }} modo="product" onTarjeta={onTarjeta} onVolverAProductos={onVolver} />);
-    expect(screen.getByText("Sacale foto al primer producto")).toBeTruthy(); // la línea de abajo dice el próximo paso (28/10)
+    expect(screen.getByText("Sacá la primera foto")).toBeTruthy(); // la línea de abajo dice el próximo paso, corto y en letra grande (28/10)
     fireEvent.click(screen.getByRole("tab", { name: "TARJETA" }));
     expect(onTarjeta).toHaveBeenCalled();
     unmount();
@@ -73,8 +73,8 @@ describe("Visor", () => {
     expect(onFavorito).toHaveBeenCalled();
     rerender(<SistemaProvider modo="claro"><Visor videoRef={{ current: null }} datos={{ id: 1, campo: "price", valores: { price: "0.85" }, moqBase: null, favorito: false, tocado: true, listos: {} }} onTeclaPrecio={onTecla} onConfirmarPrecio={onConfirmar} onCampo={onCampo} /></SistemaProvider>);
     expect(screen.getByRole("status", { name: "USD 0.85" })).toBeTruthy(); // el número grande
-    fireEvent.click(screen.getByRole("button", { name: "Listo" }));
-    expect(onConfirmar).toHaveBeenCalledTimes(2); // una por tocar afuera (el consejo, más arriba) y otra por Listo
+    fireEvent.click(screen.getByLabelText("Listo")); // la tilde redonda (v2)
+    expect(onConfirmar).toHaveBeenCalledTimes(2); // una por tocar afuera (el consejo, más arriba) y otra por la tilde
     expect(screen.queryByRole("button", { name: "Cerrar" })).toBeNull(); // sin equis: un solo botón que cierra
     fireEvent.click(screen.getByRole("tab", { name: "MOQ" }));
     expect(onCampo).toHaveBeenCalledWith("price".replace("price", "moq"));
@@ -99,31 +99,33 @@ describe("Visor", () => {
   it("la línea de abajo guía según el stand, y la sugerencia de la tarjeta al principio no bloquea", () => {
     const onEscanear = vi.fn(), onDespues = vi.fn();
     const { unmount } = con(<Visor videoRef={{ current: null }} standAbierto={{ nombre: "", fotos: 2, tieneTarjeta: false, leyendo: false }} propuestaInicio={{ onEscanear, onDespues }} />);
-    expect(screen.getByText("Sacar otra · al terminar, escaneá la tarjeta →")).toBeTruthy();
+    expect(screen.getByText("Al terminar, escaneá la tarjeta")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Después" }));
     expect(onDespues).toHaveBeenCalled();
     unmount();
     const r = con(<Visor videoRef={{ current: null }} standAbierto={{ nombre: "Nancy Ceramic", fotos: 0, tieneTarjeta: true, leyendo: false }} />);
-    expect(screen.getByText("Ahora los productos de Nancy Ceramic")).toBeTruthy();
+    expect(screen.getByText("Ahora los productos")).toBeTruthy();
     r.unmount();
     con(<Visor videoRef={{ current: null }} standAbierto={{ nombre: "Nancy Ceramic", fotos: 3, tieneTarjeta: true, leyendo: false }} />);
-    expect(screen.getByText("Sacar otra · para cerrar el stand, tocá la miniatura")).toBeTruthy();
+    expect(screen.queryByText(/Sacar otra/)).toBeNull(); // con todo cargado no dice nada (28/10: "nadie lo lee")
+    expect(screen.getByRole("button", { name: "Catálogo" })).toBeTruthy(); // "‹ Catálogo" arriba a la izquierda, en vez de la feria
   });
-  it("la tarjeta avisa en grande: leyendo, leída con el nombre, o falló con salida", () => {
-    const onReintentar = vi.fn(), onSeguir = vi.fn();
-    const { unmount } = con(<Visor videoRef={{ current: null }} tarjetaAviso={{ fase: "leyendo" }} />);
-    expect(screen.getByText("Leyendo la tarjeta")).toBeTruthy();
-    expect(screen.getByText(/Seguí sacando productos/)).toBeTruthy();
+  it("la tarjeta avisa en una franja arriba: guardada al toque, o falló (tocar vuelve a escanear); nunca un cartel en el medio", () => {
+    const onReintentar = vi.fn();
+    const { unmount } = con(<Visor videoRef={{ current: null }} tarjetaAviso={{ fase: "guardada" }} />);
+    expect(screen.getByText("Tarjeta guardada")).toBeTruthy();
+    expect(screen.getByText("Seguí sacando productos")).toBeTruthy();
     unmount();
-    const r = con(<Visor videoRef={{ current: null }} tarjetaAviso={{ fase: "leida", nombre: "Nancy Ceramic" }} />);
-    expect(screen.getByText("Nancy Ceramic")).toBeTruthy();
-    r.unmount();
-    con(<Visor videoRef={{ current: null }} tarjetaAviso={{ fase: "fallo", onReintentar, onSeguir }} />);
-    expect(screen.getByText("No pude leer la tarjeta")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Escanear de nuevo" }));
+    con(<Visor videoRef={{ current: null }} tarjetaAviso={{ fase: "fallo", onReintentar }} />);
+    fireEvent.click(screen.getByText("No pude leer la tarjeta"));
     expect(onReintentar).toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Seguir sin leerla" }));
-    expect(onSeguir).toHaveBeenCalled();
+  });
+  it("el teclado es de tres columnas con la tilde redonda al lado del número (v2, como Buddy)", () => {
+    const onConfirmar = vi.fn();
+    con(<Visor videoRef={{ current: null }} datos={{ id: 1, campo: "price", valores: { price: "3.8" }, moqBase: null, favorito: false, tocado: true, listos: {} }} onConfirmarPrecio={onConfirmar} />);
+    expect(screen.getAllByRole("button", { name: /^[0-9.]$/ })).toHaveLength(11); // 1 a 9, el punto y el 0
+    fireEvent.click(screen.getByLabelText("Listo"));
+    expect(onConfirmar).toHaveBeenCalled();
   });
   it("en MOQ aparece la base por producto / caja / pedido", () => {
     const onMoqBase = vi.fn();

@@ -21,3 +21,4 @@ export { Marca } from "./Marca.jsx";
 export { GuiaAviso } from "./GuiaAviso.jsx";
 export { HojaAyuda } from "./HojaAyuda.jsx";
 export { TecladoDatos } from "./TecladoDatos.jsx";
+export { PistaGesto, marcarPistaVista, reiniciarPistas } from "./PistaGesto.jsx";

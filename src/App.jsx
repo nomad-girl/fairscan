@@ -134,7 +134,7 @@ import i18n from 'i18next';
 // Los textos por clave, para lo que vive en App y todavía usa `t` como paleta de colores.
 const tx = (clave, opciones) => i18n.t(clave, opciones);
 import { useTranslation, Trans } from 'react-i18next';
-import { vibrarObturador, vibrarExito } from './sistema/vibrar.js';
+import { vibrarObturador, vibrarExito, precalentarVibracion } from './sistema/vibrar.js';
 import { Capacitor } from '@capacitor/core';
 import { serializarAudio, urlDeAudio, esPunteroMuerto } from './lib/audioNotes.js';
 import { crearPapelera } from './lib/deshacer.js';
@@ -641,7 +641,7 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
   const tarjetaAvisoTimerRef = useRef(null);
   const mostrarAvisoTarjeta = (aviso, ms = 0) => {
     clearTimeout(tarjetaAvisoTimerRef.current);
-    setTarjetaAviso(prev => ({ ...aviso, minimizado: aviso.fase === "leyendo" ? !!prev?.minimizado : false }));
+    setTarjetaAviso({ ...aviso });
     if (ms) tarjetaAvisoTimerRef.current = setTimeout(() => setTarjetaAviso(null), ms);
   };
   useEffect(() => () => clearTimeout(tarjetaAvisoTimerRef.current), []);
@@ -716,8 +716,11 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
   const onVisorTouchEnd = (e) => {
     const t0 = gestoRef.current, t1 = e.changedTouches?.[0]; gestoRef.current = null;
     if (!t0 || !t1) return;
-    if (t0.y - t1.clientY > 90 && Math.abs(t1.clientX - t0.x) < 80) { closeCamera(); onCatalogo?.(); }
+    if (t0.y - t1.clientY > 90 && Math.abs(t1.clientX - t0.x) < 80) { irAlCatalogo(); return; }
+    // v2 (Nati, 28/10): deslizar hacia la derecha desde el borde izquierdo también va al catálogo (el "volver" de toda la app)
+    if (t0.x < 40 && t1.clientX - t0.x > 90 && Math.abs(t1.clientY - t0.y) < 80) irAlCatalogo();
   };
+  const irAlCatalogo = () => conPreguntaDeTarjeta(() => { closeCamera(); apagarCamara(); onCatalogo?.(); });
   const activeDistrict = districts.find(d => d.id === activeDistrictId);
   useEffect(() => {
     if (!borradorListoRef.current || saving) return;
@@ -1009,7 +1012,7 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
         if (datosRapidos && (Object.values(datosRapidos.valores).some(Boolean))) confirmarPrecio(); else if (datosRapidos) setDatosRapidos(null);
         if (guiado && items.length >= 1) setPropuestaCerrada(true); // sigue sacando fotos: la pregunta por la tarjeta se va
         setInicioCerrado(true); // sacó una foto: la sugerencia de la tarjeta al principio ya no corre
-        setTarjetaAviso(a => (a?.fase === "leyendo" ? { ...a, minimizado: true } : a)); // el cartel baja a la pastilla de arriba
+        setTarjetaAviso(null); // la franja de la tarjeta se va con la próxima foto
         crearItem([photo]).then(id => {
           if (id == null) return;
           ofrecerPrecio(id);
@@ -1055,7 +1058,8 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
 
   const processCardPhoto = async (photo) => {
     setCardProcessing(true);
-    mostrarAvisoTarjeta({ fase: "leyendo" });
+    // v2 (Nati, 28/10): se da por guardada al toque (2,5 s de franja verde) y los datos llegan después, en silencio
+    mostrarAvisoTarjeta({ fase: "guardada" }, 2500);
     let leida = false, nombre = null, fallo = null;
     try {
       // QR decode from dataURL
@@ -1084,7 +1088,7 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
       } catch (err) { console.warn("Card AI error:", err); fallo = err; }
     } catch (err) { console.warn("Card processing error:", err); fallo = fallo || err; }
     setCardProcessing(false);
-    if (leida) mostrarAvisoTarjeta({ fase: "leida", nombre }, 3000);
+    if (leida) { anotar("tarjeta_leida", { conNombre: !!nombre }, { unaVez: false }); } // en silencio: la pastilla del stand ya muestra el nombre
     else if (typeof navigator !== "undefined" && navigator.onLine === false) mostrarAvisoTarjeta({ fase: "sinSenal" }, 4000);
     else mostrarAvisoTarjeta({ fase: "fallo", error: fallo ? String(fallo.message || fallo).slice(0, 80) : null });
   };
@@ -1314,7 +1318,7 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
             onEjemplo: () => { anotar("tarjeta_propuesta", { eleccion: "ejemplo" }, { unaVez: true }); setPropuestaCerrada(true); setTarjetaEjemplo(true); openCamera("card"); },
           } : null}
           onCancelar={closeCamera}
-          onCatalogo={() => conPreguntaDeTarjeta(() => { closeCamera(); apagarCamara(); onCatalogo?.(); })}
+          onCatalogo={irAlCatalogo}
           onAgregarAngulo={() => { if (!items.length) return; anguloDesdeVisorRef.current = true; setAddPhotoToItemId(items[0].id); setAnguloDisponible(false); }}
           onBorrarFoto={(id) => borrarItem(id)}
           consejoVisible={consejoVisible} onConsejoVisto={marcarConsejoVisto} avisoRetomado={avisoRetomado}
@@ -2937,6 +2941,8 @@ export default function App() {
   // Paywall (5.3): al cerrar el stand, si el saldo no alcanza. Nunca al disparar.
   const [paywall, setPaywall] = useState(null); // { bloqueados }
   const [ayudaAbierta, setAyudaAbierta] = useState(false); // Ayuda (26/10): "?" de la cámara y Ajustes
+  const [festejoCatalogo, setFestejoCatalogo] = useState(false); // "Tu primer stand está listo" en el catálogo, con Seguir escaneando (28/10)
+  useEffect(() => { precalentarVibracion(); }, []);
   // PostHog (27/10, bloque D): se enciende con la config del servidor; identifica solo por user_id (sin mail ni nombre)
   useEffect(() => {
     const analitica = paraEstaCuenta(negocio, "analitica", auth.user?.id); // puede estar solo para las cuentas de prueba (27/10)
@@ -3730,7 +3736,8 @@ export default function App() {
         // De vuelta al visor, con un stand nuevo: nunca tocaste "guardar" (4.1).
         setStandKey(k => k + 1);
         if (data.primerStand) setRepetirPrimerUso(false);
-        if (verResultadoSinCuenta || data.primerStand) { anotar("resultado_primer_stand", { conTarjeta: !!supplierId }); if (supplierId) navigate("supplier", { id: supplierId, festejo: !!data.primerStand }); else { setListTab("todo"); navigate("list"); } }
+        // v2 (Nati, 28/10: "la ficha es un bardo; el recorrido termina en el catálogo con una invitación a seguir")
+        if (verResultadoSinCuenta || data.primerStand) { anotar("resultado_primer_stand", { conTarjeta: !!supplierId }); setListTab("todo"); if (data.primerStand) setFestejoCatalogo(true); navigate("list"); }
         else navigate(data.soloProveedor ? "list" : "capture");
         showToast(data.soloProveedor ? tx("avisos.proveedorGuardado") : tx("avisos.standCerrado", { count: createdIds.length }));
         // Guardar las fotos también en el celular (29/09, Nati: ¿molesta? → se configura): preguntar (por defecto), siempre o nunca
@@ -4066,6 +4073,7 @@ export default function App() {
         <Catalogo products={products} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} activeDistrict={activeDistrict} bajando={sync.bajando}
           queueCount={queueCount} enLinea={typeof navigator === "undefined" ? true : navigator.onLine !== false}
           Foto={FotoDeProducto} t={t} onVerEjemplo={verEjemplo}
+          festejo={festejoCatalogo ? { titulo: tx("ensayo.festejoTitulo"), texto: tx("ensayo.festejoTexto"), accion: tx("catalogo.seguirEscaneando"), onAccion: () => { setFestejoCatalogo(false); navigate("capture"); }, onCerrar: () => setFestejoCatalogo(false) } : null}
           onNavigate={(s, d, lista) => { if (lista) (s === "supplier" ? setOrdenProveedores : setOrdenFicha)(lista.map(x => x.id)); navigate(s, d); }} onSwitchDistrict={switchDistrict}
           onToggleFavorito={(p) => handleUpdateProduct(p.id, { favorito: p.favorito ? 0 : 1 })}
           onToggleFavoritoProveedor={async (s) => { const favorito = s.favorito ? 0 : 1; await dbUpdateSupplier(s.id, { favorito }); setSuppliers(prev => prev.map(x => x.id === s.id ? { ...x, favorito } : x)); }}

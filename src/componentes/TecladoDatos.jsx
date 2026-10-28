@@ -16,14 +16,14 @@ import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { MARCA, FUENTES } from "../sistema/tokens.js";
 import { vibrarSeleccion } from "../sistema/vibrar.js";
 import { Icono } from "./Icono.jsx";
-import { Boton } from "./Boton.jsx";
 
 const BLANCO = "#F1F5F9";
 const BLANCO_SUAVE = "rgba(241, 245, 249, 0.72)";
-const TECLA = "rgba(255,243,234,0.12)";
+const TECLA = "rgba(255,243,234,0.18)";
 
-/** Las teclas en el orden de la grilla (4 columnas): la columna derecha es ⌫ arriba y Listo, alto, debajo. */
-const FILAS = [["1", "2", "3"], ["4", "5", "6"], ["7", "8", "9"], [".", "0"]];
+/** Las teclas, 3 columnas como el teléfono (v2, Nati 28/10: la cuarta columna rompía el teclado y el Listo no se veía).
+ *  El confirmar es la tilde redonda a la derecha del número, como en Buddy: fuera de la grilla, al alcance del pulgar. */
+const FILAS = [["1", "2", "3"], ["4", "5", "6"], ["7", "8", "9"], [".", "0", "⌫"]];
 
 export function TecladoDatos({
   campos = [], // [["price", "Precio"], ...] en el orden de las pestañas
@@ -63,6 +63,12 @@ export function TecladoDatos({
     const n = guiaDe(tecla);
     return { position: "relative", minHeight: 46, borderRadius: 12, border: "none", background: TECLA, color: "#fff", fontFamily: FUENTES.marca, fontSize: 22, fontWeight: 600, cursor: "pointer", padding: 0, outline: n ? `3px solid ${MARCA.sello}` : "none", outlineOffset: -3, ...extra };
   };
+  // La tilde redonda que guarda y cierra (48 px, crema con cacao: se ve sobre el panel oscuro y no parece error)
+  const Tilde = () => (
+    <button type="button" onClick={() => { vibrarSeleccion(); onListo?.(); }} aria-label={t("visor.confirmar")} style={{ position: "relative", marginLeft: "auto", alignSelf: "center", width: 48, height: 48, borderRadius: 24, border: "none", background: MARCA.crema, color: MARCA.cacao, display: "grid", placeItems: "center", cursor: "pointer", padding: 0, flexShrink: 0, outline: guiaDe("ok") ? `3px solid ${MARCA.sello}` : "none", outlineOffset: 2 }}>
+      <Icono nombre="listo" tamano={26} color={MARCA.cacao} grosor={2.5} /><Numerito tecla="ok" />
+    </button>
+  );
   const Numerito = ({ tecla }) => { const n = guiaDe(tecla); return n ? <span aria-hidden style={{ position: "absolute", top: -8, right: -8, width: 22, height: 22, borderRadius: 11, background: MARCA.sello, color: MARCA.cacao, fontFamily: FUENTES.interfaz, fontSize: 12, fontWeight: 700, display: "grid", placeItems: "center" }}>{n}</span> : null; };
 
   const placeholder = campo === "price" ? t("visor.aCuantoEstaba") : etiquetaDe[campo] || "";
@@ -100,7 +106,7 @@ export function TecladoDatos({
             <div role="status" style={{ minHeight: 52, display: "flex", alignItems: "center", padding: "0 12px", borderRadius: 12, background: TECLA, fontSize: 15, fontWeight: 600 }}>{t("visor.tarjetaSinLeerAun")}</div>
           ) : (
             <>
-              <p style={{ margin: "2px 4px 0", fontSize: 15, fontWeight: 700 }}>{t("visor.proveedorPregunta")}</p>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}><p style={{ margin: "2px 4px 0", fontSize: 15, fontWeight: 700, flex: 1 }}>{t("visor.proveedorPregunta")}</p><Tilde /></div>
               <button type="button" onClick={() => { vibrarSeleccion(); onEscanearTarjeta?.(); }} style={{ minHeight: 52, borderRadius: 14, border: "none", background: MARCA.sello, color: MARCA.cacao, fontFamily: "inherit", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Icono nombre="tarjeta" tamano={18} color={MARCA.cacao} />{t("visor.escanearTarjetaCorto")}</button>
               <div style={{ display: "flex", gap: 6 }}>
                 <button type="button" onClick={() => { vibrarSeleccion(); onElegirProveedor?.(); }} style={{ flex: 1, minHeight: 44, borderRadius: 12, border: "none", background: TECLA, color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>{t("visor.elegirCargado")}</button>
@@ -108,18 +114,19 @@ export function TecladoDatos({
               </div>
             </>
           )}
-          <Boton variante="principal" ancho="total" onClick={() => { vibrarSeleccion(); onListo?.(); }}>{t("visor.listo")}</Boton>
+          {(proveedor?.nombre || proveedor?.leyendo || proveedor?.tieneTarjeta) && <div style={{ display: "flex", justifyContent: "flex-end" }}><Tilde /></div>}
         </div>
       ) : (
         <>
           {/* El número grande */}
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8, minHeight: 52, padding: "0 12px", borderRadius: 12, background: campoGuardado === campo ? "rgba(34,197,94,0.25)" : TECLA, transition: "background 250ms ease" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 60, padding: "6px 6px 6px 12px", borderRadius: 14, background: campoGuardado === campo ? "rgba(34,197,94,0.25)" : "rgba(255,243,234,0.10)", transition: "background 250ms ease" }}>
             <span style={{ fontSize: 14, fontWeight: 600, color: BLANCO_SUAVE, whiteSpace: "nowrap" }}>{campo === "price" ? moneda : etiquetaDe[campo]}</span>
             {valor
               ? <span role="status" aria-label={`${campo === "price" ? moneda : etiquetaDe[campo]} ${valor}`} style={{ fontFamily: FUENTES.marca, fontWeight: 800, fontSize: 34, letterSpacing: "-0.03em", color: "#fff", fontVariantNumeric: "tabular-nums", lineHeight: 1.2, display: "inline-block", animation: late ? "fairscanTeclaEntra 160ms ease-out" : "none" }}>{valor}</span>
               : <span style={{ fontSize: 18, fontWeight: 500, color: "rgba(255,243,234,0.45)" }}>{placeholder}</span>}
             {campo === "cbmPorCaja" && <span style={{ fontSize: 12, color: BLANCO_SUAVE, marginLeft: "auto" }}>CBM</span>}
-            {campoGuardado === campo && <span role="status" aria-label={t("visor.guardado")} style={{ marginLeft: "auto", alignSelf: "center", display: "grid", placeItems: "center", width: 22, height: 22, borderRadius: 11, background: "#86EFAC" }}><Icono nombre="listo" tamano={14} color="#fff" /></span>}
+            {campoGuardado === campo && <span role="status" aria-label={t("visor.guardado")} style={{ alignSelf: "center", display: "grid", placeItems: "center", width: 22, height: 22, borderRadius: 11, background: "#86EFAC" }}><Icono nombre="listo" tamano={14} color="#fff" /></span>}
+            <Tilde />
           </div>
           {campo === "moq" && (
             <div role="radiogroup" aria-label={t("visor.campoMoq")} style={{ display: "flex", gap: 2, padding: 3, borderRadius: 10, background: TECLA }}>
@@ -129,13 +136,10 @@ export function TecladoDatos({
             </div>
           )}
           {/* Las teclas: 4 columnas; a la derecha ⌫ y, debajo, Listo alto (el pulgar derecho lo tiene al lado del 6, 9 y 0) */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "46px", gap: 6 }}>
-            {FILAS.flatMap((fila, i) => [
-              ...fila.map(tecla => <button key={tecla} type="button" onClick={() => tocar(tecla)} aria-label={tecla} style={estiloTecla(tecla)}>{tecla}<Numerito tecla={tecla} /></button>),
-              i === 0 && <button key="borrar" type="button" onClick={() => tocar("⌫")} aria-label={t("visor.borrarTecla")} style={estiloTecla("⌫", { fontSize: 18, color: BLANCO_SUAVE })}>⌫</button>,
-              i === 1 && <button key="listo" type="button" onClick={() => { vibrarSeleccion(); onListo?.(); }} style={estiloTecla("listo", { gridRow: "2 / span 3", background: MARCA.naranja, color: MARCA.cacao, fontFamily: FUENTES.interfaz, fontSize: 16, fontWeight: 700 })}>{t("visor.listo")}<Numerito tecla="listo" /></button>,
-              i === 3 && <span key="vacio" aria-hidden />,
-            ].filter(Boolean))}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gridAutoRows: "46px", gap: 6 }}>
+            {FILAS.flat().map(tecla => tecla === "⌫"
+              ? <button key="borrar" type="button" onClick={() => tocar("⌫")} aria-label={t("visor.borrarTecla")} style={estiloTecla("⌫", { fontSize: 18, color: BLANCO_SUAVE })}>⌫</button>
+              : <button key={tecla} type="button" onClick={() => tocar(tecla)} aria-label={tecla} style={estiloTecla(tecla)}>{tecla}<Numerito tecla={tecla} /></button>)}
           </div>
         </>
       )}

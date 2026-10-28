@@ -11,7 +11,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Dato, Icono, Hoja, PaginadorVertical, SeccionDeDatos, BotonCamara } from "../componentes/index.js";
+import { Boton, Dato, Icono, Hoja, PaginadorVertical, SeccionDeDatos, BotonCamara, PistaGesto } from "../componentes/index.js";
 import { urlDeAudio } from "../lib/audioNotes.js";
 import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
 import { pedidoDeProveedor, productosParaPedido, totalesDePedido } from "../lib/pedidos.js";
@@ -252,6 +252,7 @@ export function FichaProveedor({ onCamara, supplier: s, allSuppliers = [], produ
 
   return (
     <div ref={raizRef} className="pantalla-fija" style={{ position: "fixed", inset: 0, background: "#000", color: "#fff", fontFamily: "inherit", zIndex: 50, ...estiloGesto }}>
+      {!soloVer && <PistaGesto clave="volver" direccion="derecha" estilo={{ top: "calc(env(safe-area-inset-top, 0px) + 64px)" }} />}
       <PaginadorVertical clave={s.id} anterior={prev ? pantalla(prev, false) : null} actual={pantalla(s, true)} siguiente={next ? pantalla(next, false) : null}
         onAnterior={() => prev && onNavigateSupplier?.(prev)} onSiguiente={() => next && onNavigateSupplier?.(next)} />
 

@@ -14,7 +14,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Icono, Hoja, Boton, TecladoDatos } from "../componentes/index.js";
+import { Icono, Hoja, Boton, TecladoDatos, PistaGesto } from "../componentes/index.js";
 import { anotar } from "../lib/primerUso.js";
 import { MARCA } from "../sistema/tokens.js";
 import { TARJETA_EJEMPLO } from "../lib/ensayo.js";
@@ -88,9 +88,6 @@ export function Visor({
   // 22/10 (Nati): la miniatura vuelve a abrir "Este stand" (los últimos productos con precio rápido, otra foto, borrar),
   // y desde ahí se va al catálogo. Sin fotos en el stand, la miniatura abre el catálogo directo.
   const [ultimasAbiertas, setUltimasAbiertas] = useState(false);
-  const [precioEditando, setPrecioEditando] = useState(null);
-  const [precioGuardado, setPrecioGuardado] = useState(null);
-  const precioGuardadoTimer = useRef(null);
   const [miniaturaVuela, setMiniaturaVuela] = useState(false);
   const consejoTimer = useRef(null);
 
@@ -126,13 +123,14 @@ export function Visor({
   // La línea de abajo siempre dice el próximo paso (Nati, 28/10: "yo lo guiaría más"): según lo que tiene el stand
   const n = standAbierto?.fotos || 0;
   const conTarjeta = !!(standAbierto?.tieneTarjeta || standAbierto?.nombre);
+  // v2 (Nati: "demasiado comprimido, tipografía muy chica"): una sola idea de 3 a 5 palabras, letra de 15, o nada
   const guiaAbajo = esTarjeta ? t("visor.escaneaTarjeta")
     : primeraFoto ? t("ensayo.sacarFoto")
     : modoAngulo ? t("visor.escaneaProducto")
     : n === 0 && !conTarjeta ? t("visor.guiaPrimerProducto")
-    : n === 0 && conTarjeta ? (standAbierto?.nombre ? t("visor.guiaProductosDe", { nombre: standAbierto.nombre }) : t("visor.guiaProductosDelStand"))
+    : n === 0 && conTarjeta ? t("visor.guiaProductosDelStand")
     : !conTarjeta && !standAbierto?.leyendo ? t("visor.guiaOtraYTarjeta")
-    : t("visor.guiaCerrarStand");
+    : "";
   const pedirTarjeta = !esTarjeta && !primeraFoto && !primerStand && n > 0 && !conTarjeta && !standAbierto?.leyendo; // la pestaña TARJETA late apenas
 
   return (
@@ -160,26 +158,25 @@ export function Visor({
           <div style={{ position: "absolute", left: 0, right: 0, top: "calc(30% + 48vw + 14px)", textAlign: "center", fontSize: 15, fontWeight: 700, color: MARCA.sello, textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}>{t("visor.leyendoCorto")}</div>
         </div>
       )}
-      {/* Qué pasa con la tarjeta, en grande y en el centro: leyendo · leída · falló · sin señal (28/10, "cerrar el loop") */}
+      {/* La tarjeta, en una franja arriba (v2, Nati 28/10: "se queda leyendo muchísimo tiempo e interrumpe"): se da por
+          guardada al segundo y los datos llegan después, en silencio, a la pastilla del stand. Si falló, franja roja
+          que se puede ignorar: tocarla vuelve a escanear. Nunca un cartel en el medio. */}
       {tarjetaAviso && !esTarjeta && !barridoTarjeta && (() => {
-        const { fase, nombre } = tarjetaAviso;
-        const verde = fase === "leida";
+        const { fase } = tarjetaAviso;
+        const rojo = fase === "fallo";
+        const fondo = rojo ? "#FDE2DC" : fase === "sinSenal" ? "#FFF3EA" : "#DCEFE3";
+        const color = rojo ? "#B8341A" : fase === "sinSenal" ? MARCA.cacao : "#1F7A45";
+        const titulo = rojo ? t("visor.falloTitulo") : fase === "sinSenal" ? t("visor.sinSenalCorto") : t("visor.tarjetaGuardadaCorta");
+        const texto = rojo ? t("visor.falloTocar") : t("visor.seguiSacando");
         return (
-          <div role="status" aria-live="polite" onClick={e => { e.stopPropagation(); if (fase !== "fallo") tarjetaAviso.onCerrar?.(); }} style={{ position: "absolute", left: 22, right: 22, top: "38%", zIndex: 6, background: verde ? "#DCEFE3" : "#fff", color: MARCA.cacao, borderRadius: 20, padding: "18px 18px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, textAlign: "center", boxShadow: "0 14px 34px -12px rgba(0,0,0,0.6)", animation: reducido ? "none" : "fairscanCartel 220ms ease-out both" }}>
-            {fase === "leyendo" && <span aria-hidden style={{ width: 28, height: 28, borderRadius: 14, border: "3px solid #EAD9CC", borderTopColor: MARCA.naranja, animation: reducido ? "none" : "fairscanRueda 0.9s linear infinite" }} />}
-            {fase === "leida" && <span aria-hidden style={{ width: 44, height: 44, borderRadius: 22, background: "#fff", display: "grid", placeItems: "center" }}><Icono nombre="listo" tamano={24} color="#1F7A45" /></span>}
-            {fase === "fallo" && <span aria-hidden style={{ width: 44, height: 44, borderRadius: 22, background: "#FDE2DC", display: "grid", placeItems: "center" }}><Icono nombre="error" tamano={22} color="#B8341A" /></span>}
-            <p style={{ margin: 0, fontSize: 21, fontWeight: 700, lineHeight: 1.2 }}>{fase === "leyendo" ? t("visor.leyendoTitulo") : fase === "leida" ? (nombre || t("visor.tarjetaGuardada")) : fase === "fallo" ? t("visor.falloTitulo") : t("visor.sinSenalTitulo")}</p>
-            <p style={{ margin: 0, fontSize: 15, lineHeight: 1.4, color: "#5A3522" }}>{fase === "leyendo" ? t("visor.leyendoTexto") : fase === "leida" ? t("visor.leidaTexto") : fase === "fallo" ? t("visor.falloTexto") : t("visor.sinSenalTexto")}</p>
-            {fase === "fallo" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%", marginTop: 6 }}>
-                <button type="button" onClick={tarjetaAviso.onReintentar} style={{ minHeight: 52, borderRadius: 14, border: "none", background: MARCA.naranja, color: MARCA.cacao, fontFamily: "inherit", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>{t("visor.escanearDeNuevo")}</button>
-                <button type="button" onClick={tarjetaAviso.onSeguir} style={{ minHeight: 44, borderRadius: 12, border: "none", background: "none", color: "#5A3522", fontFamily: "inherit", fontSize: 15, fontWeight: 500, cursor: "pointer" }}>{t("visor.seguirSinLeer")}</button>
-              </div>
-            )}
-          </div>
+          <button type="button" role="status" aria-live="polite" onClick={e => { e.stopPropagation(); if (rojo) tarjetaAviso.onReintentar?.(); else tarjetaAviso.onCerrar?.(); }} style={{ position: "absolute", left: 14, right: 14, top: "calc(env(safe-area-inset-top, 0px) + 60px)", zIndex: 6, background: fondo, color, border: "none", borderRadius: 14, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, textAlign: "left", fontFamily: "inherit", cursor: "pointer", boxShadow: "0 10px 26px -12px rgba(0,0,0,0.5)", animation: reducido ? "none" : "fairscanCartel 220ms ease-out both" }}>
+            <Icono nombre={rojo ? "reintentar" : fase === "sinSenal" ? "sinNube" : "listo"} tamano={20} color={color} />
+            <span style={{ minWidth: 0 }}><span style={{ display: "block", fontSize: 15, fontWeight: 700 }}>{titulo}</span><span style={{ display: "block", fontSize: 13, color: MARCA.cacao, opacity: 0.85 }}>{texto}</span></span>
+          </button>
         );
       })()}
+      {/* Pista de gesto, una vez: a la segunda foto, "deslizá arriba · catálogo" (Nati, 28/10) */}
+      {!esTarjeta && !datos && !primeraFoto && !primerStand && <PistaGesto clave="arriba" cuando={n >= 2} direccion="arriba" estilo={{ bottom: "calc(196px + env(safe-area-inset-bottom, 0px))" }} />}
       {/* Stand nuevo (Nati, 28/10): la tarjeta se sugiere al principio, sin bloquear; el obturador vale como "Después" */}
       {propuestaInicio && !esTarjeta && !datos && !ultimasAbiertas && !tarjetaAviso && (
         <Globo titulo={t("visor.inicioTarjetaTitulo")} texto={t("visor.inicioTarjetaTexto")} pico={false} abajo={176}>
@@ -206,7 +203,8 @@ export function Visor({
       <div style={{ position: "absolute", top: "calc(env(safe-area-inset-top, 0px) + 12px)", left: 14, right: 14, zIndex: 3, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <div style={{ display: "flex", gap: 6, alignItems: "center", minWidth: 0 }}>
           {esTarjeta && <button type="button" onClick={() => cambiarModo("product")} style={{ minHeight: 44, padding: "0 14px 0 8px", borderRadius: 999, border: "none", background: VIDRIO, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", color: BLANCO, fontSize: 15, fontWeight: 500, fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer", whiteSpace: "nowrap" }}><Icono nombre="volver" tamano={18} color={BLANCO} />{tarjetaEjemplo ? t("ensayo.volver") : t("ensayo.volverAProductos")}</button>}
-          {feria && !esTarjeta && !primeraFoto && !primerStand && <button type="button" onClick={() => { onCatalogo?.(); }} aria-label={t("visor.irAlCatalogo")} style={{ maxWidth: "46vw", minHeight: 32, padding: "0 12px", borderRadius: 999, border: "none", background: VIDRIO, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", color: BLANCO, fontSize: 12, fontWeight: 600, fontFamily: "inherit", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{feria}</button>}
+          {/* v2 (Nati, 28/10): "‹ Catálogo" grande en vez del nombre de la feria, para que se entienda que vuelve; deslizar a la derecha hace lo mismo */}
+          {!esTarjeta && !primeraFoto && !primerStand && <button type="button" onClick={() => { onCatalogo?.(); }} style={{ minHeight: 44, padding: "0 16px 0 10px", borderRadius: 999, border: "none", background: VIDRIO, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", color: BLANCO, fontSize: 15, fontWeight: 600, fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 4, whiteSpace: "nowrap", cursor: "pointer" }}><Icono nombre="volver" tamano={20} color={BLANCO} />{t("visor.volverAlCatalogo")}</button>}
           {/* El saldo solo cuando está por acabarse; la nube no se muestra: en la cámara distrae (Nati, 22/09) */}
           {textoSaldo && saldoBajo && !esTarjeta && <Pastilla tono="alerta">{textoSaldo}</Pastilla>}
         </div>
@@ -329,7 +327,7 @@ export function Visor({
             aria-label={esTarjeta ? t("visor.escaneaTarjeta") : t("visor.disparar")}
             style={{ position: "relative", width: alturas.obturador, height: alturas.obturador, borderRadius: "50%", border: "5px solid #fff", background: esTarjeta ? MARCA.sello : MARCA.naranja, boxShadow: primeraFoto || tarjetaEjemplo ? `0 0 0 10px ${esTarjeta ? "rgba(255,197,61,0.30)" : "rgba(255,79,42,0.28)"}, 0 0 0 22px ${esTarjeta ? "rgba(255,197,61,0.12)" : "rgba(255,79,42,0.12)"}` : "0 0 0 3px rgba(43,18,6,0.35)", cursor: "pointer", transform: presionado && !reducido ? "scale(0.92)" : "scale(1)", transition: `transform ${duracion(movimiento.obturador.presion)}ms ${curvas.salida}, background 200ms` }}
           />
-          <span aria-hidden style={{ fontSize: 12, fontWeight: 600, color: BLANCO, textShadow: "0 1px 3px rgba(0,0,0,0.6)", textAlign: "center", lineHeight: 1.3, maxWidth: 196, visibility: datos && !esTarjeta ? "hidden" : "visible" }}>{guiaAbajo}</span>
+          <span aria-hidden style={{ fontSize: 15, fontWeight: 600, color: BLANCO, textShadow: "0 1px 3px rgba(0,0,0,0.6)", textAlign: "center", lineHeight: 1.3, maxWidth: 210, minHeight: 20, visibility: datos && !esTarjeta ? "hidden" : "visible" }}>{guiaAbajo}</span>
         </div>
 
         <div style={{ width: 88 }} />
@@ -342,22 +340,11 @@ export function Visor({
             <div key={u.id ?? i} style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <img src={u.foto} alt="" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 12, display: "block", flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-                {precioEditando === u.id ? (
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 40, background: precioGuardado === u.id ? "#DCFCE7" : "#F1F5F9", borderRadius: 10, padding: "0 10px", transition: "background 250ms ease" }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "#64748B" }}>{moneda}</span>
-                    <input autoFocus type="text" inputMode="decimal" enterKeyHint="done" defaultValue={u.precio || ""} aria-label={t("visor.aCuantoEstaba")}
-                      onChange={e => { const v = e.target.value.replace(/,/g, ".").replace(/[^0-9.]/g, "").slice(0, 8); e.target.value = v; onCambiarPrecioDe?.(u.id, v); clearTimeout(precioGuardadoTimer.current); precioGuardadoTimer.current = setTimeout(() => { setPrecioGuardado(u.id); setTimeout(() => setPrecioGuardado(null), 1200); }, 450); }}
-                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); setPrecioEditando(null); } }}
-                      onBlur={() => setPrecioEditando(null)}
-                      style={{ flex: 1, minWidth: 0, border: "none", background: "transparent", fontSize: 17, fontWeight: 700, color: "#0F172A", fontFamily: "inherit", outline: "none" }} />
-                    {precioGuardado === u.id && <Icono nombre="listo" tamano={16} color="#15803D" />}
-                  </label>
-                ) : (
-                  <span style={{ fontSize: 14, fontWeight: 600, color: u.precio ? "#0F172A" : "#64748B" }}>{u.precio ? `${moneda} ${u.precio}` : t("visor.sinPrecioCorto")}{u.fotos > 1 ? <span style={{ fontWeight: 400, color: "#64748B" }}> · {t("cantidades.fotos", { count: u.fotos })}</span> : null}</span>
-                )}
+                <span style={{ fontSize: 14, fontWeight: 600, color: u.precio ? "#0F172A" : "#64748B" }}>{u.precio ? `${moneda} ${u.precio}` : t("visor.sinPrecioCorto")}{u.fotos > 1 ? <span style={{ fontWeight: 400, color: "#64748B" }}> · {t("cantidades.fotos", { count: u.fotos })}</span> : null}</span>
                 <div style={{ display: "flex", gap: 6 }}>
                   <Boton variante="secundario" icono="camara" onClick={() => { setUltimasAbiertas(false); onAgregarFotoA?.(u.id); }}>{t("visor.masFoto")}</Boton>
-                  <Boton variante="secundario" onClick={() => setPrecioEditando(u.id)}>{t("visor.precio")}</Boton>
+                  {/* v2 (Nati, 28/10: "falta editar productos que ya fotografiaste"): Datos abre el mismo teclado para ese producto, con todas las pestañas */}
+                  <Boton variante="secundario" onClick={() => { setUltimasAbiertas(false); onPrecioDe?.(u.id); }}>{t("visor.datosDe")}</Boton>
                   <Boton variante="fantasma" icono="borrar" etiqueta={t("visor.borrarFoto")} onClick={() => { onBorrarFoto?.(u.id); if (ultimas.length <= 1) setUltimasAbiertas(false); }} />
                 </div>
               </div>

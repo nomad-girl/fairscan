@@ -14,6 +14,7 @@ import { abrirChat } from "../lib/chatSoporte.js";
 
 export const PREGUNTAS_AYUDA = ["feria", "sinInternet", "gratis", "pedido", "cuenta", "china"];
 export const MAIL_SOPORTE = "hola@fairscan.app";
+const GESTOS = ["arriba", "derecha", "fotos", "obturador", "hojas", "pestanas", "proveedor"];
 
 /** El mail de soporte, armado (exportado para los tests). */
 export function mailDeAyuda(t, { plataforma, version, instalacion: inst } = {}) {
@@ -65,6 +66,13 @@ export function HojaAyuda({ abierta, onCerrar, onVerGuia, chat = null, cuenta = 
               </div>
             );
           })}
+        </div>
+        {/* Gestos (Nati, 28/10): los siete, para quien quiere saber todo */}
+        <div style={{ background: paleta.card, borderRadius: 16, padding: "12px 14px", boxShadow: paleta.sombraTarjeta }}>
+          <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700 }}>{t("ayuda.gestosTitulo")}</p>
+          <ul style={{ margin: 0, padding: "0 0 0 18px", display: "flex", flexDirection: "column", gap: 4 }}>
+            {GESTOS.map(g => <li key={g} style={{ fontSize: 14, lineHeight: 1.4, color: paleta.muted }}>{t(`ayuda.gestos.${g}`)}</li>)}
+          </ul>
         </div>
         <p style={{ ...texto("pie"), color: paleta.dim, margin: "6px 0 0" }}>{chat ? t("ayuda.chatearPista", { mail: MAIL_SOPORTE }) : t("ayuda.escribinosPista", { mail: MAIL_SOPORTE })}</p>
       </div>

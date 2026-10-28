@@ -30,6 +30,9 @@ async function correr(nativo, fallback) {
   web(fallback);
 }
 
+/** Precalentar al arrancar (28/10, Nati: "nunca funcionó la vibración del obturador"): la primera llamada cargaba el
+ *  plugin de forma diferida y el impacto podía quedar fuera del toque; así el motor ya está listo. */
+export const precalentarVibracion = () => { haptics().then(h => { try { h && h.impact && null; } catch { /* nada */ } }); };
 /** El clic del obturador: la única vibración frecuente justificada. */
 export const vibrarObturador = () => correr(h => h.impact({ style: "MEDIUM" }), 20);
 /** La IA terminó, se guardó, se exportó. */

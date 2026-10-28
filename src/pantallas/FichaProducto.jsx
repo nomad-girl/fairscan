@@ -10,7 +10,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Dato, Segmentado, Fila, Icono, Hoja, Esqueleto, PaginadorVertical, SeccionDeDatos, BotonCamara } from "../componentes/index.js";
+import { Boton, Dato, Segmentado, Fila, Icono, Hoja, Esqueleto, PaginadorVertical, SeccionDeDatos, BotonCamara, PistaGesto } from "../componentes/index.js";
 import { estadoIA, patchReintentoIA, explicarFalloIA } from "../lib/aiEstado.js";
 import { urlDeAudio, esPunteroMuerto } from "../lib/audioNotes.js";
 import { haceCuanto } from "../idiomas/formato.js";
@@ -156,6 +156,9 @@ export function FichaProducto({ onCamara, product: p, allProducts = [], supplier
 
   return (
     <div ref={raizRef} className="pantalla-fija" style={{ position: "fixed", inset: 0, background: "#000", color: "#fff", fontFamily: "inherit", zIndex: 50, ...estiloGesto }}>
+      {/* Pistas de gesto, una vez cada una (28/10): volver deslizando; más fotos deslizando */}
+      <PistaGesto clave="volver" direccion="derecha" estilo={{ top: "calc(env(safe-area-inset-top, 0px) + 64px)" }} />
+      <PistaGesto clave="fotos" cuando={fotosDe(p).length > 1} direccion="izquierda" estilo={{ top: "42%" }} />
       {/* El paginador vertical: anterior · esta · siguiente; al asentarse en una vecina, se navega */}
       <PaginadorVertical clave={p.id} anterior={prev ? pantalla(prev, false) : null} actual={pantalla(p, true)} siguiente={next ? pantalla(next, false) : null}
         onAnterior={() => prev && onNavigateProduct?.(prev)} onSiguiente={() => next && onNavigateProduct?.(next)} />

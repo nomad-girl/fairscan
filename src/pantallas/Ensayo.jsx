@@ -23,7 +23,7 @@ import { TARJETA_EJEMPLO, PRODUCTOS_ENSAYO } from "../lib/ensayo.js";
 import { FichaProveedor } from "./FichaProveedor.jsx";
 
 const PASOS = ["bienvenida", "p1", "precio", "tarjeta", "resultado", "permiso"];
-const TECLAS_GUIA = ["3", ".", "8", "listo"];
+const TECLAS_GUIA = ["3", ".", "8", "ok"];
 const ID_EJEMPLO = "ensayo-nancy";
 
 /** El proveedor y los productos del ensayo, con la forma que espera la ficha. No se guardan en ningún lado. */

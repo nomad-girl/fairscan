@@ -15,6 +15,7 @@ const scrollGuardado = { todo: 0, proveedores: 0 };
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { Boton, Chip, FilaDeChips, Segmentado, Fila, Precio, Icono, Esqueleto, Hoja, GrillaDeFotos, CeldaDeFoto, CarruselDeFotos, EstadoDeDatos, esperandoNube, Marca } from "../componentes/index.js";
+import { MARCA } from "../sistema/tokens.js";
 import { palabrasDeBusqueda, coincideBusqueda } from "../lib/busqueda.js";
 import { soloDeHoy, resumenDelDia, conEncabezadosDeDia, claveDia } from "../lib/porDia.js";
 import { elegirMiniatura, respaldoDe } from "../lib/miniaturas.js";
@@ -35,6 +36,7 @@ export function Catalogo({
   Foto, t: tLegacy,
   onNavigate, onSwitchDistrict, onToggleFavorito, onToggleFavoritoProveedor, onRevisarDia, onEliminarVarios,
   pestana = "todo", onPestana, sinCuenta = false, onEntrar, onCrearCuenta, onFeriaRespuesta, estadoDatos = null, onReintentar, onVerEjemplo,
+  festejo = null, // { titulo, texto, accion, onAccion, onCerrar }: "Tu primer stand está listo" + Seguir escaneando (28/10)
 }) {
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
@@ -200,6 +202,14 @@ export function Catalogo({
 
         {pestana === "todo" && (
           <>
+            {festejo && (
+              <div role="status" style={{ background: paleta.sello, color: paleta.selloTexto, borderRadius: 18, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+                <span style={{ fontFamily: "'Bricolage Grotesque', inherit", fontWeight: 800, fontSize: 24, letterSpacing: "-0.03em", lineHeight: 1.05 }}>{festejo.titulo}</span>
+                {festejo.texto && <span style={{ fontSize: 15, lineHeight: 1.4 }}>{festejo.texto}</span>}
+                {/* Botón cacao, no naranja (Nati, 28/10: "botones grandes rojos no, parece error; ahí no lo ve nadie") */}
+                <button type="button" onClick={festejo.onAccion} style={{ marginTop: 8, minHeight: 52, borderRadius: 999, border: "none", background: MARCA.cacao, color: MARCA.crema, fontFamily: "inherit", fontSize: 16, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Icono nombre="camara" tamano={20} color={MARCA.crema} />{festejo.accion}</button>
+              </div>
+            )}
             {/* Arriba de la grilla, una sola fila (decisión de Nati, 22/09: la lógica del feed; pantalla 3 del
                 wireframe): la pastilla naranja "Revisar el día · N de hoy" reemplaza al cartel de procesando,
                 al botón de vista y a la fila de revisar; favoritos queda como un filtro chico a la derecha. */}
