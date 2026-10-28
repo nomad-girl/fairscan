@@ -304,8 +304,8 @@ const Header = memo(({ title, subtitle, onBack, right, t }) => (
   </div>
 ));
 
-const Toast = memo(({ msg, action, t }) => msg ? (
-  <div style={{ position:"fixed", top:"calc(env(safe-area-inset-top, 0px) + 16px)", left:16, right:16, margin:"0 auto", width:"max-content", background:t.green, color:"#fff", padding:"10px 20px", borderRadius:12, fontWeight:700, fontSize:13, boxShadow:`0 8px 30px ${t.green}60`, zIndex:1000, maxWidth:"calc(100vw - 32px)", boxSizing:"border-box", textAlign:"center", lineHeight:1.4, display:"flex", alignItems:"center", gap:12, overflowWrap:"anywhere" }} className="fade-in">
+const Toast = memo(({ msg, action, t, onTocar }) => msg ? (
+  <div onClick={onTocar} style={{ position:"fixed", top:"calc(env(safe-area-inset-top, 0px) + 16px)", left:16, right:16, margin:"0 auto", width:"max-content", background:t.green, color:"#fff", padding:"10px 20px", borderRadius:12, fontWeight:700, fontSize:13, boxShadow:`0 8px 30px ${t.green}60`, zIndex:1000, maxWidth:"calc(100vw - 32px)", boxSizing:"border-box", textAlign:"center", lineHeight:1.4, display:"flex", alignItems:"center", gap:12, overflowWrap:"anywhere" }} className="fade-in">
     <span>✓ {msg}</span>
     {action && (
       <button onClick={action.onClick} style={{ background:"rgba(255,255,255,0.25)", border:"none", color:"#fff", fontWeight:800, fontSize:13, borderRadius:8, padding:"6px 12px", cursor:"pointer", fontFamily:"inherit" }}>{action.label}</button>
@@ -1309,7 +1309,7 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
           onCambiarPrecioDe={(id, texto) => { const v = texto.replace(/\.$/, ""); setItems(prev => prev.map(it => it.id === id ? { ...it, price: v || null } : it)); clearTimeout(precioDeTimerRef.current); precioDeTimerRef.current = setTimeout(() => onProductoCambio?.(id, { price: v || null }), 450); }} onCampo={cambiarCampoRapido} onMoqBase={cambiarMoqBase} onFavorito={alternarFavoritoRapido}
           onDisparar={handleCameraShutter}
           standAbierto={{ nombre: supplierName, fotos: items.length, tieneTarjeta: !!cardPhoto, leyendo: cardProcessing }}
-          onStand={() => closeCamera()} onTarjeta={() => openCamera("card")}
+          onStand={() => { if (!items.length && !cardPhoto && !supplierName.trim() && !linkedSupplierId) return; closeCamera(); }} onTarjeta={() => openCamera("card")}
           onVolverAProductos={() => { setTarjetaEjemplo(false); openCamera("product"); }}
           primeraFoto={primerUso && items.length === 0 && !addPhotoToItemId}
           tarjetaEjemplo={tarjetaEjemplo} primerStand={guiado}
@@ -4022,8 +4022,8 @@ export default function App() {
       )}
       {/* Solo la primera vez, con el teléfono vacío: con catálogo a la vista el cartel molesta (Nati, 22/09) */}
       <BajandoCatalogo bajando={products.length === 0 ? sync.bajando : null} t={t} />
-      <Toast msg={undo ? undo.mensaje : toast} t={t}
-        action={undo ? { label: tx("comun.deshacer"), onClick: () => { papeleraRef.current.deshacer(); showToast(tx("avisos.restaurado")); } } : null} />
+      <Toast msg={undo ? undo.mensaje : toast} t={t} onTocar={() => { setUndo(null); setToast(""); }}
+        action={undo ? { label: tx("comun.deshacer"), onClick: (e) => { e.stopPropagation(); papeleraRef.current.deshacer(); showToast(tx("avisos.restaurado")); } } : null} />
       {/* #10: Supplier dedup prompt */}
       {dedupPrompt && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>

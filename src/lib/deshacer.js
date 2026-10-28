@@ -16,7 +16,7 @@
  * Lógica pura, sin React ni base: se testea con relojes falsos.
  */
 
-export const VENTANA_DESHACER_MS = 5000;
+export const VENTANA_DESHACER_MS = 3000; // 28/10 (Nati: "tarda un millón de años en irse el cartel"): antes 5 s
 
 /**
  * @param {{ delay?: number, onCambio?: (pendiente: {mensaje: string}|null) => void }} [opts]
