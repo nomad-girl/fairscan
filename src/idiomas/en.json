@@ -369,7 +369,9 @@
         "oro": "Gold tea set"
       }
     },
-    "seguirEscaneando": "Keep scanning"
+    "seguirEscaneando": "Keep scanning",
+    "todoConCuenta": "Products · {{count}}",
+    "proveedoresConCuenta": "Suppliers · {{count}}"
   },
   "revisar": {
     "titulo": "Review today",
@@ -1500,6 +1502,7 @@
   "gestos": {
     "arriba": "Swipe up · catalog",
     "volver": "Swipe to go back",
-    "fotos": "Swipe · more photos"
+    "fotos": "Swipe · more photos",
+    "pestanas": "Swipe sideways · suppliers"
   }
 }

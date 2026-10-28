@@ -14,7 +14,7 @@ import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
 const scrollGuardado = { todo: 0, proveedores: 0 };
 import { useTranslation } from "react-i18next";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Chip, FilaDeChips, Segmentado, Fila, Precio, Icono, Esqueleto, Hoja, GrillaDeFotos, CeldaDeFoto, CarruselDeFotos, EstadoDeDatos, esperandoNube, Marca } from "../componentes/index.js";
+import { Boton, Chip, FilaDeChips, Segmentado, Fila, Precio, Icono, Esqueleto, Hoja, GrillaDeFotos, CeldaDeFoto, CarruselDeFotos, EstadoDeDatos, esperandoNube, Marca, PistaGesto } from "../componentes/index.js";
 import { MARCA } from "../sistema/tokens.js";
 import { palabrasDeBusqueda, coincideBusqueda } from "../lib/busqueda.js";
 import { soloDeHoy, resumenDelDia, conEncabezadosDeDia, claveDia } from "../lib/porDia.js";
@@ -185,16 +185,20 @@ export function Catalogo({
           <input autoFocus value={consulta} onChange={e => setConsulta(e.target.value)} placeholder={t("catalogo.buscar")} aria-label={t("catalogo.buscar")}
             style={{ ...texto("cuerpo", { fontWeight: 400 }), minHeight: alturas.campo, borderRadius: radios.medio, border: `1px solid ${paleta.border}`, background: paleta.surface, color: paleta.text, padding: "0 14px", fontFamily: "inherit", outline: "none", width: "100%" }} />
         )}
-        <div role="tablist" aria-label={t("catalogo.titulo")} style={{ display: "flex", borderBottom: `1px solid ${paleta.border}`, margin: `0 -${espacios.margenLateral}px`, padding: `0 ${espacios.margenLateral}px` }}>
-          {[["todo", t("catalogo.todo")], ["proveedores", t("catalogo.proveedores")]].map(([valor, nombre]) => {
-            const on = pestana === valor;
-            return (
-              <button key={valor} type="button" role="tab" aria-selected={on} onClick={() => onPestana?.(valor)} style={{ flex: 1, minHeight: 44, border: "none", background: "none", padding: 0, fontFamily: "inherit", fontSize: 15, fontWeight: on ? 700 : 500, color: on ? paleta.text : paleta.dim, cursor: "pointer", position: "relative", WebkitTapHighlightColor: "transparent" }}>
-                {nombre}
-                <span aria-hidden style={{ position: "absolute", left: "18%", right: "18%", bottom: -1, height: 3, borderRadius: 2, background: paleta.accent, transform: on ? "scaleX(1)" : "scaleX(0)", transition: "transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1)" }} />
-              </button>
-            );
-          })}
+        {/* 28/10 (Nati): las pestañas son una píldora como la de la ficha del proveedor, con la cuenta de cada una: el
+            botón que se desliza adentro insinúa que se puede deslizar entre productos y proveedores. Una pista, una vez. */}
+        <div style={{ position: "relative", display: "flex", justifyContent: "center", paddingBottom: 10 }}>
+          <div role="tablist" aria-label={t("catalogo.titulo")} style={{ display: "inline-flex", background: paleta.surface, borderRadius: 999, padding: 3, gap: 2 }}>
+            {[["todo", t("catalogo.todoConCuenta", { count: enFeria.length })], ["proveedores", t("catalogo.proveedoresConCuenta", { count: proveedoresBuscados.length })]].map(([valor, nombre]) => {
+              const on = pestana === valor;
+              return (
+                <button key={valor} type="button" role="tab" aria-selected={on} onClick={() => onPestana?.(valor)} style={{ minHeight: 38, border: "none", borderRadius: 999, padding: "0 16px", background: on ? paleta.card : "transparent", color: on ? paleta.text : paleta.muted, boxShadow: on ? paleta.sombraTarjeta : "none", fontFamily: "inherit", fontSize: 15, fontWeight: on ? 700 : 500, cursor: "pointer", transition: "background 200ms, color 200ms, box-shadow 200ms", WebkitTapHighlightColor: "transparent", whiteSpace: "nowrap" }}>
+                  {nombre}
+                </button>
+              );
+            })}
+          </div>
+          <PistaGesto clave="pestanas" cuando={enFeria.length > 0} direccion="izquierda" estilo={{ top: 48 }} />
         </div>
       </div>
 

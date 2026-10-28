@@ -369,7 +369,9 @@
         "oro": "Juego de té con oro"
       }
     },
-    "seguirEscaneando": "Seguir escaneando"
+    "seguirEscaneando": "Seguir escaneando",
+    "todoConCuenta": "Productos · {{count}}",
+    "proveedoresConCuenta": "Proveedores · {{count}}"
   },
   "revisar": {
     "titulo": "Revisar el día",
@@ -1500,6 +1502,7 @@
   "gestos": {
     "arriba": "Deslizá arriba · catálogo",
     "volver": "Deslizá para volver",
-    "fotos": "Deslizá · más fotos"
+    "fotos": "Deslizá · más fotos",
+    "pestanas": "Deslizá a los lados · proveedores"
   }
 }
