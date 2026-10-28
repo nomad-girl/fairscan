@@ -21,4 +21,16 @@
     if (a.href.indexOf("referrer=") >= 0) return;
     a.href += (a.href.indexOf("?") >= 0 ? "&" : "?") + "referrer=" + encodeURIComponent(origen);
   });
+  // iPhone (28/10): Apple no le pasa nada a la app, pero App Store Connect separa las descargas y compras por el
+  // token de campaña `ct` del enlace. Si el anuncio trae utm_content (Meta pone ahí el nombre del anuncio),
+  // el botón de App Store lleva `ct=f3_<anuncio>` en vez del genérico: así en Analíticas → Campañas se ve anuncio por anuncio.
+  // Reglas de Apple para ct: letras, números, guion y guion bajo, hasta 40 caracteres.
+  var contenido = "";
+  try { contenido = new URLSearchParams(origen).get("utm_content") || ""; } catch (e) {}
+  contenido = contenido.replace(/[^A-Za-z0-9_-]/g, "_").replace(/_+/g, "_");
+  if (!contenido) return;
+  Array.prototype.forEach.call(document.querySelectorAll('a[href*="apps.apple.com"]'), function (a) {
+    if (a.href.indexOf("ct=") < 0) return;
+    a.href = a.href.replace(/([?&])ct=[^&]*/, "$1ct=" + ("f3_" + contenido).slice(0, 40));
+  });
 })();
