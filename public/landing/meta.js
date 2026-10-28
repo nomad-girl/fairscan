@@ -10,7 +10,7 @@ window.META_PIXEL_ID = "";
   document.addEventListener("click", function (ev) {
     var a = ev.target && ev.target.closest && ev.target.closest('a[href*="apps.apple.com"], a[href*="play.google.com"]');
     if (!a) return;
-    var tienda = a.href.indexOf("apple") >= 0 ? "App Store" : "Google Play";
+    var tienda = /apps\.apple\.com/.test(a.href) ? "App Store" : "Google Play"; // por el host, no por la palabra: el link de Play ahora lleva el origen (utm) en el referrer
     // "Lead" (estándar, sirve como objetivo de conversión) y "clic_tienda" (propio, con la tienda) por cada botón
     fbq("track", "Lead", { content_name: tienda });
     fbq("trackCustom", "clic_tienda", { tienda: tienda, idioma: document.documentElement.lang || "" });
