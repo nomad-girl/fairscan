@@ -9,6 +9,10 @@ window.META_PIXEL_ID = "";
   fbq("init", id); fbq("track", "PageView");
   document.addEventListener("click", function (ev) {
     var a = ev.target && ev.target.closest && ev.target.closest('a[href*="apps.apple.com"], a[href*="play.google.com"]');
-    if (a) fbq("track", "Lead", { content_name: a.href.indexOf("apple") >= 0 ? "App Store" : "Google Play" });
+    if (!a) return;
+    var tienda = a.href.indexOf("apple") >= 0 ? "App Store" : "Google Play";
+    // "Lead" (estándar, sirve como objetivo de conversión) y "clic_tienda" (propio, con la tienda) por cada botón
+    fbq("track", "Lead", { content_name: tienda });
+    fbq("trackCustom", "clic_tienda", { tienda: tienda, idioma: document.documentElement.lang || "" });
   });
 })();
