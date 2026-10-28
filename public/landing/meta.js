@@ -2,7 +2,7 @@
 // hasta que esté, META_PIXEL_ID queda vacío y este archivo no hace nada.
 // Para activarlo: pegar el id (solo números) entre las comillas y desplegar. Mide "PageView" al abrir
 // y "Lead" al tocar un botón de descarga (App Store o Google Play).
-window.META_PIXEL_ID = "";
+window.META_PIXEL_ID = "1843444180015386"; // conjunto de datos "FairScan landing", creado por Nati el 28/10
 (function () {
   var id = window.META_PIXEL_ID; if (!id) return;
   !function (f, b, e, v, n, t, s) { if (f.fbq) return; n = f.fbq = function () { n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments); }; if (!f._fbq) f._fbq = n; n.push = n; n.loaded = !0; n.version = "2.0"; n.queue = []; t = b.createElement(e); t.async = !0; t.src = v; s = b.getElementsByTagName(e)[0]; s.parentNode.insertBefore(t, s); }(window, document, "script", "https://connect.facebook.net/en_US/fbevents.js");
