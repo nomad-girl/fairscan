@@ -10,15 +10,16 @@ import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { MARCA } from "../sistema/tokens.js";
 
 const PREFIJO = "fs_pista_";
-function vista(clave) { try { return localStorage.getItem(PREFIJO + clave) === "1"; } catch { return true; } }
-export function marcarPistaVista(clave) { try { localStorage.setItem(PREFIJO + clave, "1"); } catch { /* sin almacenamiento */ } }
+const VECES = 3; // se muestra hasta tres veces (28/10: una sola pasaba desapercibida)
+function vista(clave) { try { return (parseInt(localStorage.getItem(PREFIJO + clave) || "0", 10) || 0) >= VECES; } catch { return true; } }
+export function marcarPistaVista(clave) { try { localStorage.setItem(PREFIJO + clave, String((parseInt(localStorage.getItem(PREFIJO + clave) || "0", 10) || 0) + 1)); } catch { /* sin almacenamiento */ } }
 export function reiniciarPistas() { try { ["arriba", "volver", "fotos", "pestanas"].forEach(k => localStorage.removeItem(PREFIJO + k)); } catch { /* sin almacenamiento */ } }
 
 /**
  * `clave`: arriba (deslizá arriba · catálogo) · volver (deslizá para volver) · fotos (deslizá · más fotos).
  * `cuando`: solo se muestra si es true (p. ej., recién a la segunda foto). `arriba`/`abajo`: dónde apoyarla.
  */
-export function PistaGesto({ clave, cuando = true, direccion = "arriba", estilo = {}, duracionMs = 3500 }) {
+export function PistaGesto({ clave, cuando = true, direccion = "arriba", estilo = {}, duracionMs = 5000 }) {
   const { t } = useTranslation();
   const { reducido } = useSistema();
   const [visible, setVisible] = useState(false);
@@ -32,7 +33,7 @@ export function PistaGesto({ clave, cuando = true, direccion = "arriba", estilo 
   const giro = { arriba: "rotate(-90deg)", derecha: "rotate(0deg)", izquierda: "rotate(180deg)", abajo: "rotate(90deg)" }[direccion] || "none";
   const anim = { arriba: "fairscanPistaY", abajo: "fairscanPistaY", derecha: "fairscanPistaX", izquierda: "fairscanPistaX" }[direccion];
   return (
-    <div role="note" onClick={() => setVisible(false)} style={{ position: "absolute", left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 7, pointerEvents: "none", ...estilo }}>
+    <div role="note" onClick={() => setVisible(false)} style={{ position: "absolute", left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 40, pointerEvents: "none", ...estilo }}>
       <style>{`@keyframes fairscanPistaY { 0%,100% { transform: translateY(6px) } 50% { transform: translateY(-6px) } }
         @keyframes fairscanPistaX { 0%,100% { transform: translateX(-6px) } 50% { transform: translateX(6px) } }
         @keyframes fairscanPistaEntra { from { opacity: 0 } to { opacity: 1 } }`}</style>

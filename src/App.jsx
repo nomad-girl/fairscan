@@ -1399,6 +1399,7 @@ function SettingsScreen({ onCamara, onAyuda, onVerEjemplo, settings, onSave, onB
   const [versionNativa, setVersionNativa] = useState("");
   // Diagnóstico escondido de Meta (23/10): 5 toques a la versión. No queda a la vista de las usuarias.
   const [diagMeta, setDiagMeta] = useState(null);
+  const [vibracionEstado, setVibracionEstado] = useState(null); // la fila Vibración del menú (28/10)
   const toquesVersion = useRef(0);
   // 24/10: los 5 toques no respondían en el Android de prueba. Para la cuenta del equipo, el diagnóstico corre solo al abrir Ajustes.
   const EQUIPO_DIAG = ["nataligerstein@gmail.com", "builddigitalthings@gmail.com"];
@@ -2012,7 +2013,7 @@ function SettingsScreen({ onCamara, onAyuda, onVerEjemplo, settings, onSave, onB
         <MenuItem icon={<Icono nombre="equipo" tamano={22} color={t.accent} />} title={tx("configuracion.equipoYSync")} subtitle={activeTeam ? activeTeam.name : tx("configuracion.sinEquipo")} onClick={() => setSubScreen("room")} />
         <MenuItem icon={<Icono nombre="nube" tamano={22} color={t.accent} />} title={tx("configuracion.backupYDatos")} subtitle={tx("configuracion.backupSub")} onClick={() => setSubScreen("backup")} />
         {/* La parte paga, a la vista (29/09, Nati: "falta en el menú algo de packs o facturación") */}
-        {diagMeta && <pre style={{ fontSize:11, color:t.text, background:t.card, border:`2px solid ${t.accent}`, borderRadius:12, padding:12, whiteSpace:"pre-wrap", wordBreak:"break-all", margin:"0 0 12px" }}>{"Diagnóstico Meta (solo equipo)\n" + JSON.stringify(diagMeta, null, 1)}</pre>}
+        <MenuItem icon={<Icono nombre="voz" tamano={22} color={t.accent} />} title={tx("configuracion.vibracion")} subtitle={vibracionEstado || tx("configuracion.vibracionSub")} onClick={async () => { vibrarObturador(); const e = await estadoVibracion(); setVibracionEstado(e.plugin || e.web ? tx("configuracion.vibracionOk") : tx("configuracion.vibracionSinMotor")); }} />
         {onVerEjemplo && <MenuItem icon={<Icono nombre="camara" tamano={22} color={t.accent} />} title={tx("visor.guia.verDeNuevo")} subtitle={tx("visor.guia.verDeNuevoPista")} onClick={onVerEjemplo} />}
         {onAyuda && <MenuItem icon={<Icono nombre="ayuda" tamano={22} color={t.accent} />} title={tx("ayuda.titulo")} subtitle={tx("ayuda.escribinosPista", { mail: "hola@fairscan.app" })} onClick={onAyuda} />}
         {onVerPacks && <MenuItem icon={<Icono nombre="pedido" tamano={22} color={t.accent} />} title={tx("configuracion.escaneosYPacks")} subtitle={saldo == null ? tx("configuracion.escaneosPista") : tx("configuracion.escaneosQuedan", { count: saldo })} onClick={onVerPacks} />}
@@ -2023,6 +2024,7 @@ function SettingsScreen({ onCamara, onAyuda, onVerEjemplo, settings, onSave, onB
             <p style={{ fontSize: 12, color: t.muted, margin: '0 0 12px', textAlign: 'center' }}>
               {tx("configuracion.sesion", { email: userEmail })}
             </p>
+        {diagMeta && <pre style={{ fontSize:11, color:t.text, background:t.card, border:`1px solid ${t.border}`, borderRadius:12, padding:12, whiteSpace:"pre-wrap", wordBreak:"break-all", margin:"12px 0 0" }}>{"Diagnóstico Meta (solo equipo)\n" + JSON.stringify(diagMeta, null, 1)}</pre>}
           )}
           {marketingOptInAt !== undefined && (
             <button onClick={toggleMarketingOptIn} style={{
@@ -4088,7 +4090,7 @@ export default function App() {
       {!esEscritorio && screen === "list" && (
         <Catalogo products={products} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} activeDistrict={activeDistrict} bajando={sync.bajando}
           queueCount={queueCount} enLinea={typeof navigator === "undefined" ? true : navigator.onLine !== false}
-          Foto={FotoDeProducto} t={t} onVerEjemplo={verEjemplo}
+          Foto={FotoDeProducto} t={t} onVerEjemplo={verEjemplo} onAyuda={() => setAyudaAbierta(true)}
           festejo={festejoCatalogo ? { titulo: tx("ensayo.festejoTitulo"), texto: tx("ensayo.festejoTexto"), accion: tx("catalogo.seguirEscaneando"), onAccion: () => { setFestejoCatalogo(false); navigate("capture"); }, onCerrar: () => setFestejoCatalogo(false) } : null}
           onNavigate={(s, d, lista) => { if (lista) (s === "supplier" ? setOrdenProveedores : setOrdenFicha)(lista.map(x => x.id)); navigate(s, d); }} onSwitchDistrict={switchDistrict}
           onToggleFavorito={(p) => handleUpdateProduct(p.id, { favorito: p.favorito ? 0 : 1 })}

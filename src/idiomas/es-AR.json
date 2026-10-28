@@ -207,7 +207,7 @@
     "falloTocar": "Quedó la foto. Tocá para escanearla de nuevo.",
     "sinSenalCorto": "Se lee cuando vuelva la señal",
     "volverAlCatalogo": "Catálogo",
-    "datosDe": "Datos",
+    "datosDe": "Editar",
     "confirmar": "Listo",
     "saltarGuia": "Saltar la guía",
     "guiaChip": "Tu primer stand"
@@ -371,7 +371,8 @@
     },
     "seguirEscaneando": "Seguir escaneando",
     "todoConCuenta": "Productos · {{count}}",
-    "proveedoresConCuenta": "Proveedores · {{count}}"
+    "proveedoresConCuenta": "Proveedores · {{count}}",
+    "ayuda": "Ayuda"
   },
   "revisar": {
     "titulo": "Revisar el día",
@@ -1107,7 +1108,10 @@
     "escaneosQuedan_one": "Te queda {{count}} escaneo",
     "escaneosQuedan_other": "Te quedan {{count}} escaneos",
     "vibracion": "Vibración",
-    "vibracionPista": "Tocá para sentir el clic del obturador. Si no vibra, revisá Ajustes del iPhone → Sonidos y vibraciones → Respuesta háptica del sistema."
+    "vibracionPista": "Tocá para sentir el clic del obturador. Si no vibra, revisá Ajustes del iPhone → Sonidos y vibraciones → Respuesta háptica del sistema.",
+    "vibracionSub": "Tocá para sentir el clic del obturador",
+    "vibracionOk": "Vibró · motor disponible",
+    "vibracionSinMotor": "Sin motor de vibración en este teléfono"
   },
   "equipo": {
     "ahora": "ahora",

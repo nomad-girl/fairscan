@@ -37,6 +37,7 @@ export function Catalogo({
   onNavigate, onSwitchDistrict, onToggleFavorito, onToggleFavoritoProveedor, onRevisarDia, onEliminarVarios,
   pestana = "todo", onPestana, sinCuenta = false, onEntrar, onCrearCuenta, onFeriaRespuesta, estadoDatos = null, onReintentar, onVerEjemplo,
   festejo = null, // { titulo, texto, accion, onAccion, onCerrar }: "Tu primer stand está listo" + Seguir escaneando (28/10)
+  onAyuda, // el "?" también en el catálogo (Nati, 28/10)
 }) {
   const { t } = useTranslation();
   const { paleta, alturas, radios, texto, espacios } = useSistema();
@@ -177,7 +178,7 @@ export function Catalogo({
             <h1 style={{ ...texto("titulo"), fontSize: 22, margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{nombreFeria}</h1>
             <Icono nombre="abajo" tamano={18} color={paleta.dim} />
           </button>
-          {[["buscar", t("comun.buscar"), () => { setBuscando(v => !v); if (buscando) setConsulta(""); }, buscando], ["pedido", t("catalogo.pedidos"), () => onNavigate?.("pedidos"), false], ["ajustes", t("catalogo.ajustes"), () => onNavigate?.("settings"), false]].map(([icono, etiqueta, onClick, activo]) => (
+          {[["buscar", t("comun.buscar"), () => { setBuscando(v => !v); if (buscando) setConsulta(""); }, buscando], ["pedido", t("catalogo.pedidos"), () => onNavigate?.("pedidos"), false], ["ajustes", t("catalogo.ajustes"), () => onNavigate?.("settings"), false], ...(onAyuda ? [["ayuda", t("catalogo.ayuda"), onAyuda, false]] : [])].map(([icono, etiqueta, onClick, activo]) => (
             <button key={icono} type="button" onClick={onClick} aria-label={etiqueta} aria-pressed={icono === "buscar" ? activo : undefined} style={{ width: 40, height: 40, borderRadius: 20, border: "none", background: activo ? paleta.accentSoft : "transparent", display: "grid", placeItems: "center", cursor: "pointer" }}><Icono nombre={icono} tamano={22} color={activo ? paleta.accentTexto : paleta.muted} /></button>
           ))}
         </div>
@@ -188,7 +189,7 @@ export function Catalogo({
         {/* 28/10 (Nati): las pestañas son una píldora como la de la ficha del proveedor, con la cuenta de cada una: el
             botón que se desliza adentro insinúa que se puede deslizar entre productos y proveedores. Una pista, una vez. */}
         <div style={{ position: "relative", display: "flex", justifyContent: "center", paddingBottom: 10 }}>
-          <div role="tablist" aria-label={t("catalogo.titulo")} style={{ display: "inline-flex", background: paleta.surface, borderRadius: 999, padding: 3, gap: 2 }}>
+          <div role="tablist" aria-label={t("catalogo.titulo")} style={{ display: "inline-flex", background: paleta.border, borderRadius: 999, padding: 3, gap: 2 }}>
             {[["todo", t("catalogo.todoConCuenta", { count: enFeria.length })], ["proveedores", t("catalogo.proveedoresConCuenta", { count: proveedoresBuscados.length })]].map(([valor, nombre]) => {
               const on = pestana === valor;
               return (

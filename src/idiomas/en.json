@@ -207,7 +207,7 @@
     "falloTocar": "The photo is kept. Tap to scan it again.",
     "sinSenalCorto": "It'll be read when the signal is back",
     "volverAlCatalogo": "Catalog",
-    "datosDe": "Details",
+    "datosDe": "Edit",
     "confirmar": "Done",
     "saltarGuia": "Skip the guide",
     "guiaChip": "Your first booth"
@@ -371,7 +371,8 @@
     },
     "seguirEscaneando": "Keep scanning",
     "todoConCuenta": "Products · {{count}}",
-    "proveedoresConCuenta": "Suppliers · {{count}}"
+    "proveedoresConCuenta": "Suppliers · {{count}}",
+    "ayuda": "Help"
   },
   "revisar": {
     "titulo": "Review today",
@@ -1107,7 +1108,10 @@
     "escaneosQuedan_one": "{{count}} scan left",
     "escaneosQuedan_other": "{{count}} scans left",
     "vibracion": "Haptics",
-    "vibracionPista": "Tap to feel the shutter click. If nothing happens, check iPhone Settings → Sounds & Haptics → System Haptics."
+    "vibracionPista": "Tap to feel the shutter click. If nothing happens, check iPhone Settings → Sounds & Haptics → System Haptics.",
+    "vibracionSub": "Tap to feel the shutter click",
+    "vibracionOk": "It buzzed · haptics available",
+    "vibracionSinMotor": "No haptics engine on this phone"
   },
   "equipo": {
     "ahora": "just now",
