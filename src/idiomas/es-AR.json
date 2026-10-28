@@ -375,7 +375,8 @@
     "seguirEscaneando": "Seguir escaneando",
     "todoConCuenta": "Productos · {{count}}",
     "proveedoresConCuenta": "Proveedores · {{count}}",
-    "ayuda": "Ayuda"
+    "ayuda": "Ayuda",
+    "ayer": "Ayer"
   },
   "revisar": {
     "titulo": "Revisar el día",

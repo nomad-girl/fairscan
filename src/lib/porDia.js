@@ -1,3 +1,4 @@
+import i18next from 'i18next';
 /**
  * El catálogo como diario de viaje (piezas 7.1 y 7.2).
  *
@@ -18,13 +19,22 @@ export function claveDia(ts) {
 }
 
 export function etiquetaDia(clave, ahora = Date.now()) {
-  if (clave === claveDia(ahora)) return 'Hoy';
-  if (clave === claveDia(ahora - 86400000)) return 'Ayer';
+  // 28/10: las etiquetas siguen al idioma de la app (en inglés salían "HOY" y "JUE 30 ABR")
+  const idioma = idiomaActual();
+  if (clave === claveDia(ahora)) return traducir('catalogo.hoy', 'Hoy');
+  if (clave === claveDia(ahora - 86400000)) return traducir('catalogo.ayer', 'Ayer');
   const [y, m, d] = clave.split('-').map(Number);
   const f = new Date(y, m - 1, d);
   const mismoAnio = f.getFullYear() === new Date(ahora).getFullYear();
-  return `${DIAS[f.getDay()]} ${d} ${MESES[m - 1]}${mismoAnio ? '' : ` ${y}`}`;
+  if (idioma.startsWith('es') || !idioma) return `${DIAS[f.getDay()]} ${d} ${MESES[m - 1]}${mismoAnio ? '' : ` ${y}`}`;
+  try {
+    const dia = new Intl.DateTimeFormat(idioma, { weekday: 'short' }).format(f).replace('.', '').toUpperCase();
+    const mes = new Intl.DateTimeFormat(idioma, { month: 'short' }).format(f).replace('.', '').toUpperCase();
+    return `${dia} ${d} ${mes}${mismoAnio ? '' : ` ${y}`}`;
+  } catch { return `${DIAS[f.getDay()]} ${d} ${MESES[m - 1]}${mismoAnio ? '' : ` ${y}`}`; }
 }
+function idiomaActual() { try { return (i18next.language || '').toLowerCase(); } catch { return ''; } }
+function traducir(clave, porDefecto) { try { const v = i18next.t(clave); return v && v !== clave ? v : porDefecto; } catch { return porDefecto; } }
 
 /** Grupos por día, del más nuevo al más viejo, respetando el orden de entrada dentro del día. */
 export function agruparPorDia(productos, ahora = Date.now()) {

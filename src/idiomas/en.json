@@ -375,7 +375,8 @@
     "seguirEscaneando": "Keep scanning",
     "todoConCuenta": "Products · {{count}}",
     "proveedoresConCuenta": "Suppliers · {{count}}",
-    "ayuda": "Help"
+    "ayuda": "Help",
+    "ayer": "Yesterday"
   },
   "revisar": {
     "titulo": "Review today",
