@@ -925,6 +925,20 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
   const avisoTimerRef = useRef(null);
   const confirmarPrecio = () => {
     clearTimeout(precioTimerRef.current);
+    // 28/10 (Nati: "sigo sin ver la confirmación en verde"): antes de cerrarse, la fila del número se pone verde con la tilde
+    // un instante (350 ms), y abajo queda "✓ USD 3.8" dos segundos y medio.
+    setDatosRapidos(d => {
+      if (d && !d.cerrando && Object.values(d.valores || {}).some(Boolean)) {
+        clearTimeout(campoGuardadoTimerRef.current); setCampoGuardado(d.campo);
+        campoGuardadoTimerRef.current = setTimeout(() => { setCampoGuardado(null); cerrarPrecio(); }, 350);
+        return { ...d, cerrando: true };
+      }
+      if (d?.cerrando) return d;
+      return d; // sin nada escrito: se cierra abajo
+    });
+    setDatosRapidos(d => (d && d.cerrando ? d : null));
+  };
+  const cerrarPrecio = () => {
     setDatosRapidos(d => {
       if (d) {
         const limpiar = x => (x || "").replace(/\.$/, "");
@@ -940,7 +954,7 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
           const simbolo = CURRENCIES[settings?.currency]?.symbol || "USD";
           clearTimeout(avisoTimerRef.current);
           setAvisoGuardado(cambios.price ? `${simbolo} ${cambios.price}` : "✓");
-          avisoTimerRef.current = setTimeout(() => setAvisoGuardado(null), 2000);
+          avisoTimerRef.current = setTimeout(() => setAvisoGuardado(null), 2500);
         }
       }
       return null;
@@ -1008,7 +1022,7 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
       } else {
         // Cada disparo crea el producto en la base al instante (4.3): si la app
         // muere antes de cerrar el stand, el producto ya está.
-        if (datosRapidos && (Object.values(datosRapidos.valores).some(Boolean))) confirmarPrecio(); else if (datosRapidos) setDatosRapidos(null);
+        if (datosRapidos && (Object.values(datosRapidos.valores).some(Boolean))) cerrarPrecio(); else if (datosRapidos) setDatosRapidos(null); // al instante: la foto nueva abre su propio teclado
         if (guiado && items.length >= 1) setPropuestaCerrada(true); // sigue sacando fotos: la pregunta por la tarjeta se va
         setInicioCerrado(true); // sacó una foto: la sugerencia de la tarjeta al principio ya no corre
         setTarjetaAviso(null); // la franja de la tarjeta se va con la próxima foto

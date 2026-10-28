@@ -24,12 +24,13 @@ export function reiniciarPistas() { try { ["arriba", "volver", "fotos", "pestana
  * `clave`: arriba (deslizá arriba · catálogo) · volver (deslizá para volver) · fotos (deslizá · más fotos).
  * `cuando`: solo se muestra si es true (p. ej., recién a la segunda foto). `arriba`/`abajo`: dónde apoyarla.
  */
+const ACTIVAS = false; // 28/10 (Nati, tras probarlas: "ahora son insoportables, me las muestra todo el tiempo; por ahora sacá las flechas")
 export function PistaGesto({ clave, cuando = true, direccion = "arriba", estilo = {}, duracionMs = 5000 }) {
   const { t } = useTranslation();
   const { reducido } = useSistema();
   const [visible, setVisible] = useState(false);
   useEffect(() => {
-    if (!cuando || vista(clave)) return;
+    if (!ACTIVAS || !cuando || vista(clave)) return;
     setVisible(true); marcarPistaVista(clave);
     const id = setTimeout(() => setVisible(false), duracionMs);
     return () => clearTimeout(id);
