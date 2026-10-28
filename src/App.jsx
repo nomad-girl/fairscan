@@ -1399,7 +1399,6 @@ function SettingsScreen({ onCamara, onAyuda, onVerEjemplo, settings, onSave, onB
   const [versionNativa, setVersionNativa] = useState("");
   // Diagnóstico escondido de Meta (23/10): 5 toques a la versión. No queda a la vista de las usuarias.
   const [diagMeta, setDiagMeta] = useState(null);
-  const [vibracionEstado, setVibracionEstado] = useState(null); // la fila Vibración del menú (28/10)
   const toquesVersion = useRef(0);
   // 24/10: los 5 toques no respondían en el Android de prueba. Para la cuenta del equipo, el diagnóstico corre solo al abrir Ajustes.
   const EQUIPO_DIAG = ["nataligerstein@gmail.com", "builddigitalthings@gmail.com"];
@@ -1603,7 +1602,6 @@ function SettingsScreen({ onCamara, onAyuda, onVerEjemplo, settings, onSave, onB
           ))}
         </div>
 
-        <PruebaVibracion t={t} tx={tx} />
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>{tx("configuracion.pantalla")}</p>
         <button type="button" role="switch" aria-checked={!!isDark} onClick={onToggleTheme} style={{ width:"100%", minHeight:44, padding:"10px 12px", borderRadius:10, border:`1.5px solid ${isDark?t.accent:t.border}`, background:isDark?t.accentSoft:"transparent", color:isDark?t.accent:t.muted, fontSize:13, fontWeight:700, cursor:"pointer", textAlign:"left", fontFamily:"inherit", marginBottom:20 }}>
           {isDark ? tx("configuracion.modoOscuroActivado") : tx("configuracion.modoOscuroDesactivado")}
@@ -2013,7 +2011,6 @@ function SettingsScreen({ onCamara, onAyuda, onVerEjemplo, settings, onSave, onB
         <MenuItem icon={<Icono nombre="equipo" tamano={22} color={t.accent} />} title={tx("configuracion.equipoYSync")} subtitle={activeTeam ? activeTeam.name : tx("configuracion.sinEquipo")} onClick={() => setSubScreen("room")} />
         <MenuItem icon={<Icono nombre="nube" tamano={22} color={t.accent} />} title={tx("configuracion.backupYDatos")} subtitle={tx("configuracion.backupSub")} onClick={() => setSubScreen("backup")} />
         {/* La parte paga, a la vista (29/09, Nati: "falta en el menú algo de packs o facturación") */}
-        <MenuItem icon={<Icono nombre="voz" tamano={22} color={t.accent} />} title={tx("configuracion.vibracion")} subtitle={vibracionEstado || tx("configuracion.vibracionSub")} onClick={async () => { vibrarObturador(); const e = await estadoVibracion(); setVibracionEstado(e.plugin || e.web ? tx("configuracion.vibracionOk") : tx("configuracion.vibracionSinMotor")); }} />
         {onVerEjemplo && <MenuItem icon={<Icono nombre="camara" tamano={22} color={t.accent} />} title={tx("visor.guia.verDeNuevo")} subtitle={tx("visor.guia.verDeNuevoPista")} onClick={onVerEjemplo} />}
         {onAyuda && <MenuItem icon={<Icono nombre="ayuda" tamano={22} color={t.accent} />} title={tx("ayuda.titulo")} subtitle={tx("ayuda.escribinosPista", { mail: "hola@fairscan.app" })} onClick={onAyuda} />}
         {onVerPacks && <MenuItem icon={<Icono nombre="pedido" tamano={22} color={t.accent} />} title={tx("configuracion.escaneosYPacks")} subtitle={saldo == null ? tx("configuracion.escaneosPista") : tx("configuracion.escaneosQuedan", { count: saldo })} onClick={onVerPacks} />}

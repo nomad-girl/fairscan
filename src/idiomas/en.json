@@ -210,7 +210,10 @@
     "datosDe": "Edit",
     "confirmar": "Done",
     "saltarGuia": "Skip the guide",
-    "guiaChip": "Your first booth"
+    "guiaChip": "Your first booth",
+    "pistaMoq": "What's the minimum?",
+    "pistaPiezas": "How many per box?",
+    "pistaCbm": "How big is the box?"
   },
   "cerrarStand": {
     "titulo": "Close booth",

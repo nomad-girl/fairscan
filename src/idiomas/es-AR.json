@@ -210,7 +210,10 @@
     "datosDe": "Editar",
     "confirmar": "Listo",
     "saltarGuia": "Saltar la guía",
-    "guiaChip": "Tu primer stand"
+    "guiaChip": "Tu primer stand",
+    "pistaMoq": "¿Cuál es el mínimo?",
+    "pistaPiezas": "¿Cuántas por caja?",
+    "pistaCbm": "¿Cuánto mide la caja?"
   },
   "cerrarStand": {
     "titulo": "Cerrar stand",

@@ -71,7 +71,7 @@ export function TecladoDatos({
   );
   const Numerito = ({ tecla }) => { const n = guiaDe(tecla); return n ? <span aria-hidden style={{ position: "absolute", top: -8, right: -8, width: 22, height: 22, borderRadius: 11, background: MARCA.sello, color: MARCA.cacao, fontFamily: FUENTES.interfaz, fontSize: 12, fontWeight: 700, display: "grid", placeItems: "center" }}>{n}</span> : null; };
 
-  const placeholder = campo === "price" ? t("visor.aCuantoEstaba") : etiquetaDe[campo] || "";
+  const placeholder = campo === "price" ? t("visor.aCuantoEstaba") : campo === "moq" ? t("visor.pistaMoq") : campo === "piezasPorCaja" ? t("visor.pistaPiezas") : campo === "cbmPorCaja" ? t("visor.pistaCbm") : etiquetaDe[campo] || "";
 
   return (
     <div onClick={e => e.stopPropagation()} onTouchStart={alTocar} onTouchEnd={alSoltar} role="dialog" aria-label={t("visor.datosDelUltimo")}
@@ -120,11 +120,11 @@ export function TecladoDatos({
         <>
           {/* El número grande */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 60, padding: "6px 6px 6px 12px", borderRadius: 14, background: campoGuardado === campo ? "rgba(34,197,94,0.25)" : "rgba(255,243,234,0.10)", transition: "background 250ms ease" }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: BLANCO_SUAVE, whiteSpace: "nowrap" }}>{campo === "price" ? moneda : etiquetaDe[campo]}</span>
+            {campo === "price" && <span style={{ fontSize: 14, fontWeight: 600, color: BLANCO_SUAVE, whiteSpace: "nowrap" }}>{moneda}</span>}
             {valor
               ? <span role="status" aria-label={`${campo === "price" ? moneda : etiquetaDe[campo]} ${valor}`} style={{ fontFamily: FUENTES.marca, fontWeight: 800, fontSize: 34, letterSpacing: "-0.03em", color: "#fff", fontVariantNumeric: "tabular-nums", lineHeight: 1.2, display: "inline-block", animation: late ? "fairscanTeclaEntra 160ms ease-out" : "none" }}>{valor}</span>
               : <span style={{ fontSize: 18, fontWeight: 500, color: "rgba(255,243,234,0.45)" }}>{placeholder}</span>}
-            {campo === "cbmPorCaja" && <span style={{ fontSize: 12, color: BLANCO_SUAVE, marginLeft: "auto" }}>CBM</span>}
+            {campo === "cbmPorCaja" && valor && <span style={{ fontSize: 13, fontWeight: 600, color: BLANCO_SUAVE }}>CBM</span>}
             {campoGuardado === campo && <span role="status" aria-label={t("visor.guardado")} style={{ alignSelf: "center", display: "grid", placeItems: "center", width: 22, height: 22, borderRadius: 11, background: "#86EFAC" }}><Icono nombre="listo" tamano={14} color="#fff" /></span>}
             <Tilde />
           </div>

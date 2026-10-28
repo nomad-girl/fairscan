@@ -199,7 +199,7 @@ export function Catalogo({
               );
             })}
           </div>
-          <PistaGesto clave="pestanas" cuando={enFeria.length > 0} direccion="izquierda" estilo={{ top: 48 }} />
+          <PistaGesto clave="pestanas" cuando={enFeria.length > 0} direccion="derecha" estilo={{ top: 48 }} />
         </div>
       </div>
 

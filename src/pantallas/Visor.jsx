@@ -315,7 +315,7 @@ export function Visor({
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-          <div role="tablist" aria-label={t("visor.queEscanear")} style={{ display: "flex", gap: 22, visibility: (datos && !esTarjeta) || primeraFoto || tarjetaEjemplo ? "hidden" : "visible" }}>
+          <div role="tablist" aria-label={t("visor.queEscanear")} style={{ display: "flex", gap: 22, visibility: (datos && !esTarjeta) || primeraFoto || tarjetaEjemplo || (conTarjeta && !esTarjeta) ? "hidden" : "visible" }}>
             {[["product", t("visor.modoProducto")], ["card", t("visor.modoTarjeta")]].map(([m, etiqueta]) => { const activo = (m === "card") === esTarjeta; return (
               <button key={m} type="button" role="tab" aria-selected={activo} onClick={() => cambiarModo(m)} style={{ minHeight: 28, padding: "0 2px 4px", border: "none", borderBottom: `2px solid ${activo ? MARCA.sello : m === "card" && pedirTarjeta ? "rgba(255,197,61,0.6)" : "transparent"}`, background: "transparent", color: activo ? MARCA.sello : m === "card" && pedirTarjeta ? "#fff" : BLANCO_SUAVE, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", fontFamily: "inherit", cursor: "pointer", textShadow: "0 1px 3px rgba(0,0,0,0.6)", animation: m === "card" && pedirTarjeta && !reducido ? "fairscanLate 1.6s ease-in-out infinite" : "none" }}>{etiqueta}</button>
             ); })}

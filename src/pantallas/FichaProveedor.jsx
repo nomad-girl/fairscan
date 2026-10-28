@@ -252,7 +252,7 @@ export function FichaProveedor({ onCamara, supplier: s, allSuppliers = [], produ
 
   return (
     <div ref={raizRef} className="pantalla-fija" style={{ position: "fixed", inset: 0, background: "#000", color: "#fff", fontFamily: "inherit", zIndex: 50, ...estiloGesto }}>
-      {!soloVer && <PistaGesto clave="volver" direccion="derecha" estilo={{ top: "calc(env(safe-area-inset-top, 0px) + 64px)" }} />}
+      {!soloVer && <PistaGesto clave="volver" direccion="izquierda" estilo={{ top: "calc(env(safe-area-inset-top, 0px) + 64px)" }} />}
       <PaginadorVertical clave={s.id} anterior={prev ? pantalla(prev, false) : null} actual={pantalla(s, true)} siguiente={next ? pantalla(next, false) : null}
         onAnterior={() => prev && onNavigateSupplier?.(prev)} onSiguiente={() => next && onNavigateSupplier?.(next)} />
 
