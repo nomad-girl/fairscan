@@ -2024,8 +2024,8 @@ function SettingsScreen({ onCamara, onAyuda, onVerEjemplo, settings, onSave, onB
             <p style={{ fontSize: 12, color: t.muted, margin: '0 0 12px', textAlign: 'center' }}>
               {tx("configuracion.sesion", { email: userEmail })}
             </p>
-        {diagMeta && <pre style={{ fontSize:11, color:t.text, background:t.card, border:`1px solid ${t.border}`, borderRadius:12, padding:12, whiteSpace:"pre-wrap", wordBreak:"break-all", margin:"12px 0 0" }}>{"Diagnóstico Meta (solo equipo)\n" + JSON.stringify(diagMeta, null, 1)}</pre>}
           )}
+        {diagMeta && <pre style={{ fontSize:11, color:t.text, background:t.card, border:`1px solid ${t.border}`, borderRadius:12, padding:12, whiteSpace:"pre-wrap", wordBreak:"break-all", margin:"12px 0 0" }}>{"Diagnóstico Meta (solo equipo)\n" + JSON.stringify(diagMeta, null, 1)}</pre>}
           {marketingOptInAt !== undefined && (
             <button onClick={toggleMarketingOptIn} style={{
               display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%",
