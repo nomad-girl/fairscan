@@ -13,6 +13,10 @@ const ESPERA_MS = 8000;
 let cargando = null;
 
 /** Valida { url, token } de la config: https y token alfanumérico. Si no sirve, null. */
+import { Capacitor } from '@capacitor/core';
+const PAGINA_SOPORTE = 'https://fairscan.app/soporte/chat/';
+function esNativo() { try { return Capacitor.isNativePlatform(); } catch { return false; } }
+
 export function configDeChat(v) {
   if (!v || typeof v !== 'object') return null;
   const url = typeof v.url === 'string' ? v.url.trim().replace(/\/+$/, '') : '';
@@ -49,6 +53,18 @@ export function cargarChat(config, { doc = globalThis.document, win = globalThis
  * cuenta, su mail), para que quien responda sepa desde dónde le escriben sin preguntar. Devuelve false si no cargó.
  */
 export async function abrirChat(config, { atributos = {}, email = null, nombre = null, instalacion = null } = {}, opciones = {}) {
+  // 28/10 (Nati: "cada vez que escribís se abre el teclado y perdés contexto"): en la app instalada el widget vivía en el
+  // WebView y el teclado lo desacomodaba. Se abre la página de soporte en el navegador del sistema (dentro de la app),
+  // que maneja el teclado bien; la conversación es la misma porque va el mismo id de instalación.
+  const c = configDeChat(config);
+  if (c && opciones.nativo !== false && esNativo()) {
+    try {
+      const { Browser } = await import('@capacitor/browser');
+      const q = new URLSearchParams({ t: c.token, u: c.url, i: instalacion ? String(instalacion) : '', e: email || '', p: atributos.plataforma || '', v: atributos.version || '', l: (globalThis.document?.documentElement?.lang || 'es').slice(0, 2) });
+      await Browser.open({ url: `${PAGINA_SOPORTE}?${q.toString()}`, presentationStyle: 'fullscreen' });
+      return true;
+    } catch { /* sigue con el widget adentro */ }
+  }
   const ok = await cargarChat(config, opciones);
   const win = opciones.win || globalThis.window;
   if (!ok || !win?.$chatwoot) return false;

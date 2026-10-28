@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Soporte · FairScan</title>
+<!-- El chat de soporte a pantalla entera (28/10/2026, Nati: "cada vez que escribís se abre el teclado y perdés contexto").
+     Dentro de la app, el widget vivía en el WebView y el teclado lo desacomodaba; la app abre esta página en el navegador
+     del sistema (Safari / Chrome dentro de la app), que maneja el teclado bien. Los datos vienen en la dirección:
+     t (token público de la bandeja), u (dirección de Chatwoot), i (instalación), e (mail), p (plataforma), v (versión), l (idioma). -->
+<style>
+  html, body { margin: 0; height: 100%; background: #FFF3EA; font-family: -apple-system, "DM Sans", sans-serif; color: #2B1206; }
+  .espera { position: fixed; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px; font-size: 16px; line-height: 1.5; }
+  .espera b { display: block; font-size: 22px; margin-bottom: 6px; }
+  .woot-widget-holder, #cw-widget-holder { top: env(safe-area-inset-top, 0px) !important; height: calc(100% - env(safe-area-inset-top, 0px)) !important; max-height: none !important; }
+</style>
+</head>
+<body>
+<div class="espera" id="espera"><div><b>Soporte FairScan</b>Abriendo el chat…</div></div>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var token = q.get("t"), base = q.get("u") || "https://app.chatwoot.com";
+  if (!/^[A-Za-z0-9_-]{8,64}$/.test(token || "") || !/^https:\/\/[a-z0-9.-]+$/i.test(base)) { document.getElementById("espera").innerHTML = "<div><b>Soporte FairScan</b>Escribinos a hola@fairscan.app</div>"; return; }
+  window.chatwootSettings = { hideMessageBubble: true, position: "right", locale: (q.get("l") || "es").slice(0, 2), type: "expanded_bubble" };
+  window.addEventListener("chatwoot:ready", function () {
+    try {
+      var inst = q.get("i"), email = q.get("e") || undefined;
+      if (inst) window.$chatwoot.setUser(inst, { email: email, name: email });
+      window.$chatwoot.setCustomAttributes({ plataforma: q.get("p") || "", version: q.get("v") || "", instalacion: inst || "" });
+      window.$chatwoot.toggle("open");
+      document.getElementById("espera").style.display = "none";
+    } catch (e) { /* queda el aviso */ }
+  }, { once: true });
+  var s = document.createElement("script"); s.src = base + "/packs/js/sdk.js"; s.async = true;
+  s.onload = function () { try { window.chatwootSDK.run({ websiteToken: token, baseUrl: base }); } catch (e) {} };
+  s.onerror = function () { document.getElementById("espera").innerHTML = "<div><b>Soporte FairScan</b>No pudimos abrir el chat. Escribinos a hola@fairscan.app</div>"; };
+  document.body.appendChild(s);
+})();
+</script>
+</body>
+</html>

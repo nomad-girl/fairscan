@@ -344,7 +344,8 @@ export function Catalogo({
       {/* Capturar, siempre a mano. Con el catálogo vacío no: ahí manda "Empezar a escanear" y tapaba "Ya tengo cuenta" (25/10) */}
       {products.length > 0 && (
       <div style={{ position: "fixed", right: espacios.margenLateral, bottom: "calc(20px + env(safe-area-inset-bottom, 0px))", zIndex: 10 }}>
-        <button type="button" onClick={() => onNavigate?.("capture")} style={{ minHeight: 56, padding: "0 22px 0 18px", borderRadius: 999, border: `3px solid ${MARCA.crema}`, background: MARCA.cacao, color: MARCA.crema, fontFamily: "inherit", fontSize: 16, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 10, boxShadow: "0 12px 30px -10px rgba(43,18,6,0.7)" }}><Icono nombre="camara" tamano={22} color={MARCA.crema} />{t("catalogo.capturar")}</button>
+        {/* 28/10 (Nati: "dejalo como está pero con otro color que contraste más"): amarillo sello con letra cacao, el que más se despega de las fotos y del crema */}
+        <button type="button" onClick={() => onNavigate?.("capture")} style={{ minHeight: 56, padding: "0 22px 0 18px", borderRadius: 999, border: `3px solid ${MARCA.cacao}`, background: MARCA.sello, color: MARCA.cacao, fontFamily: "inherit", fontSize: 16, fontWeight: 800, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 10, boxShadow: "0 12px 30px -10px rgba(43,18,6,0.7)" }}><Icono nombre="camara" tamano={22} color={MARCA.cacao} />{t("catalogo.capturar")}</button>
       </div>
       )}
 
