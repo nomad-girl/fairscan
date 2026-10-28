@@ -857,7 +857,11 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
       if (tecla === "⌫") v = v.slice(0, -1);
       else if (tecla === "." || tecla === ",") { if (!v.includes(".")) v = (v || "0") + "."; }
       else if (v.replace(".", "").length < 7) v = v + tecla;
-      return { ...d, tocado: true, valores: { ...d.valores, [d.campo]: v } };
+      const nuevo = { ...d, tocado: true, valores: { ...d.valores, [d.campo]: v } };
+      // Se guarda mientras escribís, con la tilde verde (Nati, 28/10: "falta que se ponga verde"; regla del 23/09)
+      clearTimeout(persistirTimerRef.current);
+      persistirTimerRef.current = setTimeout(() => persistirCampo(nuevo, d.campo), 400);
+      return nuevo;
     });
   };
   // La barra del pulgar (wireframe del 23/09): se escribe con el teclado del iPhone y Listo guarda ese dato
@@ -939,9 +943,11 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
         if (Object.keys(cambios).length) {
           setItems(prev => prev.map(it => it.id === d.id ? { ...it, ...cambios } : it));
           onProductoCambio?.(d.id, cambios);
-          // "Listo es listo": la barra se cierra y un aviso corto dice qué quedó guardado (Nati, 23/09)
-          // La confirmación es una tilde que aparece sobre la miniatura (Nati, 23/09: "una animación que denote guardado", sin texto)
-
+          // Al cerrar, "✓ USD 3.8" bajo la miniatura dos segundos (wireframe C del 28/10)
+          const simbolo = CURRENCIES[settings?.currency]?.symbol || "USD";
+          clearTimeout(avisoTimerRef.current);
+          setAvisoGuardado(cambios.price ? `${simbolo} ${cambios.price}` : "✓");
+          avisoTimerRef.current = setTimeout(() => setAvisoGuardado(null), 2000);
         }
       }
       return null;
