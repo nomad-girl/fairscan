@@ -159,19 +159,19 @@ describe("Visor · stand abierto", () => {
   it("con fotos cuenta las fotos arriba a la derecha; con la tarjeta leída muestra la empresa; tocarla abre el stand", () => {
     const onStand = vi.fn();
     const { unmount } = con(<Visor videoRef={{ current: null }} modo="product" itemsCount={3} standAbierto={{ nombre: "", fotos: 3, tieneTarjeta: false, leyendo: false }} onStand={onStand} />);
-    fireEvent.click(screen.getByText("Stand sin tarjeta · 3 fotos"));
+    fireEvent.click(screen.getByText("Stand · 3 fotos")); // 28/10: la pastilla no habla de la tarjeta
     expect(onStand).toHaveBeenCalledTimes(1);
     unmount();
     con(<Visor videoRef={{ current: null }} modo="product" itemsCount={3} standAbierto={{ nombre: "Yiwu Best Toys", fotos: 3, tieneTarjeta: true, leyendo: false }} onStand={onStand} />);
     fireEvent.click(screen.getByText("Yiwu Best Toys · 3 fotos"));
     expect(onStand).toHaveBeenCalledTimes(2);
   });
-  it("mientras lee la tarjeta lo dice; si la tarjeta no se leyó lo avisa; el aviso de stand retomado ofrece empezar otro", () => {
+  it("mientras lee la tarjeta la pastilla no lo dice (28/10); el aviso de stand retomado ofrece empezar otro", () => {
     const { unmount } = con(<Visor videoRef={{ current: null }} modo="product" itemsCount={1} standAbierto={{ nombre: "", fotos: 1, tieneTarjeta: true, leyendo: true }} />);
-    expect(screen.getByText("Leyendo la tarjeta · seguí sacando")).toBeTruthy();
+    expect(screen.getByText("Stand · 1 foto")).toBeTruthy();
     unmount();
     const r = con(<Visor videoRef={{ current: null }} modo="product" itemsCount={1} standAbierto={{ nombre: "", fotos: 1, tieneTarjeta: true, leyendo: false }} />);
-    expect(screen.getByText("Tarjeta sin leer · 1 foto")).toBeTruthy();
+    expect(screen.getByText("Stand · 1 foto")).toBeTruthy();
     r.unmount();
     const onStand = vi.fn();
     con(<Visor videoRef={{ current: null }} modo="product" avisoRetomado="Seguís en el stand de hace 2 horas" onStand={onStand} />);
