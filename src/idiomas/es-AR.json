@@ -208,7 +208,9 @@
     "sinSenalCorto": "Se lee cuando vuelva la señal",
     "volverAlCatalogo": "Catálogo",
     "datosDe": "Datos",
-    "confirmar": "Listo"
+    "confirmar": "Listo",
+    "saltarGuia": "Saltar la guía",
+    "guiaChip": "Tu primer stand"
   },
   "cerrarStand": {
     "titulo": "Cerrar stand",
@@ -1101,7 +1103,9 @@
     "escaneosYPacks": "Escaneos y packs",
     "escaneosPista": "Cuánto te queda y los packs",
     "escaneosQuedan_one": "Te queda {{count}} escaneo",
-    "escaneosQuedan_other": "Te quedan {{count}} escaneos"
+    "escaneosQuedan_other": "Te quedan {{count}} escaneos",
+    "vibracion": "Vibración",
+    "vibracionPista": "Tocá para sentir el clic del obturador. Si no vibra, revisá Ajustes del iPhone → Sonidos y vibraciones → Respuesta háptica del sistema."
   },
   "equipo": {
     "ahora": "ahora",

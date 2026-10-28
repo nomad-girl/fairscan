@@ -79,7 +79,8 @@ export function Visor({
   propuestaInicio = null, // { onEscanear, onDespues }: "¿Ya tenés la tarjeta del stand?"
   onElegirProveedor, onEscribirProveedor, // la pestaña Proveedor del teclado: elegir uno cargado o escribir el nombre
   barridoTarjeta = null, // la foto de la tarjeta recién sacada: queda quieta y la línea amarilla la recorre (1 s)
-  tarjetaAviso = null, // { fase: "leyendo" | "leida" | "fallo" | "sinSenal", nombre, onReintentar, onSeguir, onCerrar }
+  tarjetaAviso = null, // { fase: "guardada" | "fallo" | "sinSenal", onReintentar, onCerrar }
+  onSaltarGuia, // primer stand guiado (28/10, Nati: "no se entiende cuándo estás en tutorial y cómo salir"): se ve y se puede saltar
 }) {
   const { t } = useTranslation();
   const { alturas, movimiento, curvas, duracion, reducido } = useSistema();
@@ -176,7 +177,7 @@ export function Visor({
         );
       })()}
       {/* Pista de gesto, una vez: a la segunda foto, "deslizá arriba · catálogo" (Nati, 28/10) */}
-      {!esTarjeta && !datos && !primeraFoto && !primerStand && <PistaGesto clave="arriba" cuando={n >= 2} direccion="arriba" estilo={{ bottom: "calc(196px + env(safe-area-inset-bottom, 0px))" }} />}
+      {!esTarjeta && !datos && !primeraFoto && !primerStand && <PistaGesto clave="arriba" cuando={n >= 1} direccion="arriba" estilo={{ bottom: "calc(196px + env(safe-area-inset-bottom, 0px))" }} />}
       {/* Stand nuevo (Nati, 28/10): la tarjeta se sugiere al principio, sin bloquear; el obturador vale como "Después" */}
       {propuestaInicio && !esTarjeta && !datos && !ultimasAbiertas && !tarjetaAviso && (
         <Globo titulo={t("visor.inicioTarjetaTitulo")} texto={t("visor.inicioTarjetaTexto")} pico={false} abajo={176}>
@@ -226,6 +227,7 @@ export function Visor({
           {estadoSync === "falla" && <Pastilla><span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, background: colorPunto, display: "inline-block" }} /><span style={{ fontSize: 12, fontWeight: 500, color: BLANCO_SUAVE }}>{textoSync}</span></Pastilla>}
           {/* "Ya tengo cuenta" (27/10): chico, para que nadie se quede sin poder entrar (caso Ganga Home) */}
           {onYaTengoCuenta && !modoAngulo && !primeraFoto && <button type="button" onClick={onYaTengoCuenta} style={{ minHeight: 32, padding: "0 12px", borderRadius: 999, border: "none", background: VIDRIO, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", color: BLANCO, fontSize: 12, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", whiteSpace: "nowrap" }}>{t("entrar.yaTengoCuenta")}</button>}
+          {primerStand && onSaltarGuia && !esTarjeta && <button type="button" onClick={onSaltarGuia} style={{ minHeight: 32, padding: "0 12px", borderRadius: 999, border: "none", background: MARCA.sello, color: MARCA.cacao, fontSize: 12, fontWeight: 700, fontFamily: "inherit", cursor: "pointer", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>{t("visor.guiaChip")} · <span style={{ textDecoration: "underline", textUnderlineOffset: 2 }}>{t("visor.saltarGuia")}</span></button>}
           {/* Ayuda (26/10, idea de la mamá de Nati): un "?" chico, en la fila de arriba y no flotando sobre la foto */}
           {onAyuda && !modoAngulo && <button type="button" onClick={onAyuda} aria-label={t("ayuda.abrir")} style={{ width: 32, height: 32, borderRadius: 16, border: "none", background: VIDRIO, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", display: "grid", placeItems: "center", padding: 0, cursor: "pointer", flexShrink: 0 }}><Icono nombre="ayuda" tamano={18} color={BLANCO} /></button>}
           {/* 27/09: el botón de Catálogo pasó abajo, junto al obturador, grande y con nombre */}

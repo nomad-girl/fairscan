@@ -134,7 +134,7 @@ import i18n from 'i18next';
 // Los textos por clave, para lo que vive en App y todavía usa `t` como paleta de colores.
 const tx = (clave, opciones) => i18n.t(clave, opciones);
 import { useTranslation, Trans } from 'react-i18next';
-import { vibrarObturador, vibrarExito, precalentarVibracion } from './sistema/vibrar.js';
+import { vibrarObturador, vibrarExito, precalentarVibracion, estadoVibracion } from './sistema/vibrar.js';
 import { Capacitor } from '@capacitor/core';
 import { serializarAudio, urlDeAudio, esPunteroMuerto } from './lib/audioNotes.js';
 import { crearPapelera } from './lib/deshacer.js';
@@ -1313,6 +1313,7 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
           onVolverAProductos={() => { setTarjetaEjemplo(false); openCamera("product"); }}
           primeraFoto={primerUso && items.length === 0 && !addPhotoToItemId}
           tarjetaEjemplo={tarjetaEjemplo} primerStand={guiado}
+          onSaltarGuia={guiado ? () => { anotar("guia_salteada", {}, { unaVez: true }); setGuiado(false); marcarPrimerStand(); setPropuestaCerrada(true); setTarjetaEjemplo(false); } : undefined}
           propuestaTarjeta={guiado && !propuestaCerrada && items.length >= 1 && !cardPhoto && !cardProcessing && !addPhotoToItemId ? {
             onEscanear: () => { anotar("tarjeta_propuesta", { eleccion: "propia" }, { unaVez: true }); setPropuestaCerrada(true); openCamera("card"); },
             onEjemplo: () => { anotar("tarjeta_propuesta", { eleccion: "ejemplo" }, { unaVez: true }); setPropuestaCerrada(true); setTarjetaEjemplo(true); openCamera("card"); },
@@ -1364,6 +1365,18 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
 // ═══════════════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════════════
+/** Probar la vibración (28/10, Nati: "nunca funcionó la vibración del obturador"): el mismo clic del obturador, y dice si el motor está. */
+function PruebaVibracion({ t, tx }) {
+  const [estado, setEstado] = useState(null);
+  const probar = async () => { vibrarObturador(); const e = await estadoVibracion(); setEstado(e); };
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>{tx("configuracion.vibracion")}</p>
+      <button type="button" onClick={probar} style={{ width:"100%", minHeight:44, padding:"10px 12px", borderRadius:10, border:`1.5px solid ${t.border}`, background:t.card, color:t.text, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>{tx("diagnostico.probarVibracion")}</button>
+      <p style={{ fontSize:11, color:t.dim, margin:"6px 0 0", lineHeight:1.5 }}>{estado ? `${estado.nativo ? tx("diagnostico.vibracionNativa") : tx("diagnostico.vibracionWeb")} · ${estado.plugin || estado.web ? tx("diagnostico.vibracionPluginSi") : tx("diagnostico.vibracionPluginNo")}` : tx("configuracion.vibracionPista")}</p>
+    </div>
+  );
+}
 function SettingsScreen({ onCamara, onAyuda, onVerEjemplo, settings, onSave, onBack, sync, t, products, suppliers, districts, onReload, teams, activeTeam, teamMembers, isAdmin, fetchMembers, inviteMember, onSwitchTeam, userEmail, userId, esAnonima = false, auth, onSignOut, onGoExport, onAccountDeleted, isDark = false, onToggleTheme, onEntrar, saldo = null, onVerPacks = null }) {
   const { t: tx } = useTranslation();
   const handleSwitchTeam = async (teamId) => {
@@ -1589,6 +1602,7 @@ function SettingsScreen({ onCamara, onAyuda, onVerEjemplo, settings, onSave, onB
           ))}
         </div>
 
+        <PruebaVibracion t={t} tx={tx} />
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>{tx("configuracion.pantalla")}</p>
         <button type="button" role="switch" aria-checked={!!isDark} onClick={onToggleTheme} style={{ width:"100%", minHeight:44, padding:"10px 12px", borderRadius:10, border:`1.5px solid ${isDark?t.accent:t.border}`, background:isDark?t.accentSoft:"transparent", color:isDark?t.accent:t.muted, fontSize:13, fontWeight:700, cursor:"pointer", textAlign:"left", fontFamily:"inherit", marginBottom:20 }}>
           {isDark ? tx("configuracion.modoOscuroActivado") : tx("configuracion.modoOscuroDesactivado")}
@@ -3390,7 +3404,9 @@ export default function App() {
   // "Ver el ejemplo de nuevo": el recorrido entero, también con productos (así Nati lo prueba en su teléfono sin borrar nada):
   // el ensayo, la explicación de la cámara, la primera foto con su indicación y el primer stand guiado.
   const [repetirPrimerUso, setRepetirPrimerUso] = useState(false);
-  const verEjemplo = () => { reiniciarEnsayo(); reiniciarPrimerStand(); setRepetirPrimerUso(true); setPrimerUso("bienvenida"); setAyudaAbierta(false); navigate("capture"); };
+  // 28/10 (Nati: "el tutorial se mezcla con la real"): con datos, "Ver el ejemplo de nuevo" repite solo el ensayo sin
+  // cámara; el primer stand guiado (que crea un proveedor de ejemplo real) es solo para quien recién instala.
+  const verEjemplo = () => { reiniciarEnsayo(); if (products.length === 0) reiniciarPrimerStand(); setRepetirPrimerUso(true); setPrimerUso("bienvenida"); setAyudaAbierta(false); navigate("capture"); };
   // Entró con su cuenta desde la bienvenida: el ensayo sobra; si la cuenta trae productos, tampoco hace falta el permiso
   useEffect(() => {
     if (!primerUso) return;
@@ -4083,7 +4099,7 @@ export default function App() {
       {!esEscritorio && screen === "capture" && primerUso && (
         <Ensayo inicio={primerUso} moneda={monedaActual} Foto={FotoDeProducto} tLegacy={t}
           onYaTengoCuenta={auth.esAnonima ? () => setMostrarLogin(true) : undefined}
-          onActivarCamara={() => { marcarEnsayo(); marcarPermiso(); setPrimerUso(null); }} />
+          onActivarCamara={() => { marcarEnsayo(); marcarPermiso(); setPrimerUso(null); if (products.length > 0) setRepetirPrimerUso(false); }} />
       )}
       {!esEscritorio && (screen === "capture" || screen === "capture-supplier") && !(screen === "capture" && primerUso) && (
         <QuickCapture key={`${screen}-${standKey}`} primerUso={products.length === 0 || repetirPrimerUso} onAyuda={() => setAyudaAbierta(true)} suppliers={suppliers} districts={districts} activeDistrictId={activeDistrictId} settings={settings} products={products}

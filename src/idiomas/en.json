@@ -208,7 +208,9 @@
     "sinSenalCorto": "It'll be read when the signal is back",
     "volverAlCatalogo": "Catalog",
     "datosDe": "Details",
-    "confirmar": "Done"
+    "confirmar": "Done",
+    "saltarGuia": "Skip the guide",
+    "guiaChip": "Your first booth"
   },
   "cerrarStand": {
     "titulo": "Close booth",
@@ -1101,7 +1103,9 @@
     "escaneosYPacks": "Scans and packs",
     "escaneosPista": "What's left and the packs",
     "escaneosQuedan_one": "{{count}} scan left",
-    "escaneosQuedan_other": "{{count}} scans left"
+    "escaneosQuedan_other": "{{count}} scans left",
+    "vibracion": "Haptics",
+    "vibracionPista": "Tap to feel the shutter click. If nothing happens, check iPhone Settings → Sounds & Haptics → System Haptics."
   },
   "equipo": {
     "ahora": "just now",

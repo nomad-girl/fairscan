@@ -52,6 +52,13 @@ export function HojaAyuda({ abierta, onCerrar, onVerGuia, chat = null, cuenta = 
         : <Boton variante="principal" ancho="total" icono="correo" onClick={escribir}>{t("ayuda.escribinos")}</Boton>}>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {onVerGuia && <Boton variante="secundario" ancho="total" icono="camara" onClick={() => { anotar("ayuda_guia"); onVerGuia(); }}>{t("visor.guia.verDeNuevo")}</Boton>}
+        {/* Gestos (Nati, 28/10): los siete, para quien quiere saber todo */}
+        <div style={{ background: paleta.card, borderRadius: 16, padding: "12px 14px", boxShadow: paleta.sombraTarjeta }}>
+          <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700 }}>{t("ayuda.gestosTitulo")}</p>
+          <ul style={{ margin: 0, padding: "0 0 0 18px", display: "flex", flexDirection: "column", gap: 4 }}>
+            {GESTOS.map(g => <li key={g} style={{ fontSize: 14, lineHeight: 1.4, color: paleta.muted }}>{t(`ayuda.gestos.${g}`)}</li>)}
+          </ul>
+        </div>
         <div role="list" style={{ display: "flex", flexDirection: "column", marginTop: 6 }}>
           {PREGUNTAS_AYUDA.map((clave, i) => {
             const abierto = abiertaN === i;
@@ -66,13 +73,6 @@ export function HojaAyuda({ abierta, onCerrar, onVerGuia, chat = null, cuenta = 
               </div>
             );
           })}
-        </div>
-        {/* Gestos (Nati, 28/10): los siete, para quien quiere saber todo */}
-        <div style={{ background: paleta.card, borderRadius: 16, padding: "12px 14px", boxShadow: paleta.sombraTarjeta }}>
-          <p style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700 }}>{t("ayuda.gestosTitulo")}</p>
-          <ul style={{ margin: 0, padding: "0 0 0 18px", display: "flex", flexDirection: "column", gap: 4 }}>
-            {GESTOS.map(g => <li key={g} style={{ fontSize: 14, lineHeight: 1.4, color: paleta.muted }}>{t(`ayuda.gestos.${g}`)}</li>)}
-          </ul>
         </div>
         <p style={{ ...texto("pie"), color: paleta.dim, margin: "6px 0 0" }}>{chat ? t("ayuda.chatearPista", { mail: MAIL_SOPORTE }) : t("ayuda.escribinosPista", { mail: MAIL_SOPORTE })}</p>
       </div>

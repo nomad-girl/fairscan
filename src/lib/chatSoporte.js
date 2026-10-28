@@ -32,6 +32,8 @@ export function cargarChat(config, { doc = globalThis.document, win = globalThis
     const fin = (ok) => { if (listo) return; listo = true; if (!ok) cargando = null; resolver(ok); };
     win.chatwootSettings = { hideMessageBubble: true, position: 'right', locale: (doc.documentElement?.lang || 'es').slice(0, 2), type: 'expanded_bubble' };
     win.addEventListener?.('chatwoot:ready', () => fin(true), { once: true });
+    // 28/10 (Nati, iPhone: "soporte se ve raro"): el widget se abre a pantalla entera debajo del reloj; se baja a la zona segura
+    try { if (!doc.getElementById?.('fs-chat-css')) { const css = doc.createElement('style'); css.id = 'fs-chat-css'; css.textContent = '.woot-widget-holder, #cw-widget-holder { top: env(safe-area-inset-top, 0px) !important; height: calc(100% - env(safe-area-inset-top, 0px)) !important; max-height: none !important; }'; doc.head?.appendChild(css); } } catch { /* sin documento real (tests) */ }
     const s = doc.createElement('script');
     s.src = `${c.url}/packs/js/sdk.js`; s.async = true; s.defer = true;
     s.onload = () => { try { win.chatwootSDK?.run({ websiteToken: c.token, baseUrl: c.url }); } catch { fin(false); } };
