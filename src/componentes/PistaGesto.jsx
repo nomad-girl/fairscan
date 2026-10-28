@@ -10,7 +10,12 @@ import { useSistema } from "../sistema/SistemaProvider.jsx";
 import { MARCA } from "../sistema/tokens.js";
 
 const PREFIJO = "fs_pista_";
-const VECES = 3; // se muestra hasta tres veces (28/10: una sola pasaba desapercibida)
+const VECES = 5; // se muestra hasta cinco veces (28/10: una sola pasaba desapercibido)
+// Con cada versión nueva de la app las pistas vuelven a contar desde cero (en las pruebas de Nati se agotaban sin que las viera)
+try {
+  const v = typeof __APP_VERSION__ !== "undefined" ? String(__APP_VERSION__) : "dev";
+  if (localStorage.getItem("fs_pistas_version") !== v) { ["arriba", "volver", "fotos", "pestanas"].forEach(k => localStorage.removeItem(PREFIJO + k)); localStorage.setItem("fs_pistas_version", v); }
+} catch { /* sin almacenamiento */ }
 function vista(clave) { try { return (parseInt(localStorage.getItem(PREFIJO + clave) || "0", 10) || 0) >= VECES; } catch { return true; } }
 export function marcarPistaVista(clave) { try { localStorage.setItem(PREFIJO + clave, String((parseInt(localStorage.getItem(PREFIJO + clave) || "0", 10) || 0) + 1)); } catch { /* sin almacenamiento */ } }
 export function reiniciarPistas() { try { ["arriba", "volver", "fotos", "pestanas"].forEach(k => localStorage.removeItem(PREFIJO + k)); } catch { /* sin almacenamiento */ } }

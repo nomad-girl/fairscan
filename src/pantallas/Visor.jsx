@@ -214,10 +214,8 @@ export function Visor({
               La tarjeta ya no es una pastilla sobre el obturador: es un modo del obturador. */}
           {standAbierto && !modoAngulo && !primerStand && (standAbierto.fotos > 0 || standAbierto.tieneTarjeta || standAbierto.leyendo) && (() => {
             const n = standAbierto.fotos || 0; const conNombre = !!standAbierto.nombre;
-            const texto = standAbierto.leyendo ? t("visor.leyendoTarjeta")
-              : conNombre ? t("visor.standConNombre", { nombre: standAbierto.nombre, count: n })
-              : standAbierto.tieneTarjeta ? (n === 0 ? t("visor.standTarjetaSinLeer_zero") : t("visor.standTarjetaSinLeer", { count: n }))
-              : t("visor.standSinTarjeta", { count: n });
+            // 28/10 (Nati): nada de "leyendo la tarjeta" ni "tarjeta sin leer" acá; con nombre, el nombre; si no, "Stand · N fotos"
+            const texto = conNombre ? t("visor.standConNombre", { nombre: standAbierto.nombre, count: n }) : t("visor.standSinTarjeta", { count: n });
             return (
               <button type="button" onClick={() => onStand?.()} aria-label={t("visor.abrirStand")} style={{ maxWidth: "56vw", minHeight: 32, padding: "0 12px 0 10px", borderRadius: 999, border: "none", background: VIDRIO, backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", color: BLANCO, fontSize: 12, fontWeight: 600, fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
                 <Icono nombre={conNombre ? "proveedor" : "camara"} tamano={14} color={MARCA.sello} /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{texto}</span>
@@ -308,8 +306,9 @@ export function Visor({
             </button>
             {itemsCount > 0 && <span aria-label={t("visor.enEsteStand", { count: itemsCount })} style={{ position: "absolute", right: -9, top: -9, minWidth: 24, height: 24, padding: "0 7px", borderRadius: 12, background: MARCA.sello, color: MARCA.cacao, fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", fontVariantNumeric: "tabular-nums", boxShadow: "0 1px 3px rgba(0,0,0,0.35)", pointerEvents: "none" }}>{itemsCount}</span>}
           </div>
-          <span aria-hidden style={{ fontSize: 11, fontWeight: 700, color: BLANCO, letterSpacing: "0.05em", textShadow: "0 1px 3px rgba(0,0,0,0.6)", whiteSpace: "nowrap", visibility: primeraFoto ? "hidden" : "visible" }}>{(itemsCount > 0 && ultimas.length ? t("visor.ultimasFotos") : t("visor.catalogo")).toUpperCase()}</span>
-          {avisoGuardado && <span role="status" style={{ position: "absolute", top: "100%", marginTop: 2, fontSize: 12, fontWeight: 700, color: "#86EFAC", whiteSpace: "nowrap", textShadow: "0 1px 3px rgba(0,0,0,0.6)", animation: "fairscanGuardado 300ms ease-out both" }}>✓ {avisoGuardado}</span>}
+          {avisoGuardado
+            ? <span role="status" style={{ fontSize: 13, fontWeight: 800, color: "#86EFAC", whiteSpace: "nowrap", textShadow: "0 1px 3px rgba(0,0,0,0.6)", animation: "fairscanGuardado 300ms ease-out both" }}>✓ {avisoGuardado}</span>
+            : <span aria-hidden style={{ fontSize: 11, fontWeight: 700, color: BLANCO, letterSpacing: "0.05em", textShadow: "0 1px 3px rgba(0,0,0,0.6)", whiteSpace: "nowrap", visibility: primeraFoto ? "hidden" : "visible" }}>{(itemsCount > 0 && ultimas.length ? t("visor.ultimasFotos") : t("visor.catalogo")).toUpperCase()}</span>}
           {puedeAgregarAngulo && !esTarjeta && !modoAngulo && (
             <button type="button" onClick={onAgregarAngulo} aria-label={t("visor.agregarAngulo")} style={{ position: "absolute", top: -34, left: "50%", transform: "translateX(-50%)", minHeight: 24, padding: "0 8px", borderRadius: 12, border: "none", background: MARCA.sello, color: MARCA.cacao, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", cursor: "pointer", fontFamily: "inherit" }}>{t("visor.masAngulo")}</button>
           )}
