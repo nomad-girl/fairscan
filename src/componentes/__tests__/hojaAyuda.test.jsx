@@ -56,3 +56,11 @@ describe("Ayuda (26/10)", () => {
     expect(await cargarChat({ url: "https://app.chatwoot.com", token: "abc123TOKEN" }, { doc, win, espera: 20 })).toBe(false);
   });
 });
+
+describe("Ayuda sobre la cámara (28/10)", () => {
+  it("la hoja se abre por encima del visor (capa 100): el 27/10 el ? parecía no hacer nada porque quedaba detrás", () => {
+    render(<SistemaProvider modo="claro"><HojaAyuda abierta onCerrar={() => {}} /></SistemaProvider>);
+    const capa = screen.getByRole("presentation");
+    expect(parseInt(capa.style.zIndex, 10)).toBeGreaterThan(100);
+  });
+});

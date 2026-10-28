@@ -168,7 +168,7 @@ export const MOVIMIENTO = {
 // ── Capas ───────────────────────────────────────────────────────────────────
 
 /** Profundidad por capas, no por sombras sueltas. */
-export const CAPAS = { fondo: 0, tarjeta: 1, flotante: 10, hoja: 30, aviso: 40, velo: 20 };
+export const CAPAS = { fondo: 0, tarjeta: 1, flotante: 10, hoja: 30, aviso: 40, velo: 20, sobreCamara: 200 }; // el visor de la cámara vive en 100; lo que debe taparlo (Ayuda) va en sobreCamara
 
 // ── Variables CSS ───────────────────────────────────────────────────────────
 

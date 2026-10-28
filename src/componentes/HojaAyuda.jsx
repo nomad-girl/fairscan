@@ -42,7 +42,7 @@ export function HojaAyuda({ abierta, onCerrar, onVerGuia, chat = null, cuenta = 
     if (ok) onCerrar?.(); else { anotar("ayuda_chat_fallo"); escribir(); }
   };
   return (
-    <Hoja abierta={abierta} onCerrar={onCerrar} titulo={t("ayuda.titulo")} altura="alta"
+    <Hoja abierta={abierta} onCerrar={onCerrar} titulo={t("ayuda.titulo")} altura="alta" sobreCamara
       pie={chat
         ? <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <Boton variante="principal" ancho="total" icono="mensaje" cargando={abriendo} onClick={chatear}>{t("ayuda.chatear")}</Boton>

@@ -29,7 +29,9 @@ export function cerrarHojaSuperior() {
   return true;
 }
 
-export function Hoja({ abierta, onCerrar, titulo, altura = "media", children, pie }) {
+/** `sobreCamara`: la hoja se abre por encima del visor (capa 100). Sin eso queda detrás y parece que el botón no hizo nada:
+ *  así estuvo el "?" de la cámara del 26/10 al 28/10 (Nati: "el ? sigue sin funcionar"). */
+export function Hoja({ abierta, onCerrar, titulo, altura = "media", children, pie, sobreCamara = false }) {
   const { paleta, radios, movimiento, curvas, capas, duracion, reducido, texto } = useSistema();
   const { t } = useTranslation();
   const [visible, setVisible] = useState(abierta);
@@ -107,7 +109,7 @@ export function Hoja({ abierta, onCerrar, titulo, altura = "media", children, pi
   const transicion = arrastrando ? "none" : `transform ${duracion(movimiento.hoja.duracion)}ms ${curvas.hoja}, opacity ${duracion(movimiento.hoja.duracion)}ms ${curvas.estandar}`;
 
   return (
-    <div role="presentation" style={{ position: "fixed", inset: 0, zIndex: capas.hoja, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+    <div role="presentation" style={{ position: "fixed", inset: 0, zIndex: sobreCamara ? capas.sobreCamara : capas.hoja, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
       <div onClick={onCerrar} style={{ position: "absolute", inset: 0, background: paleta.velo, opacity: entrando ? Math.max(0.25, 1 - arrastre / 600) : 0, transition: arrastrando ? "none" : `opacity ${duracion(movimiento.hoja.duracion)}ms ${curvas.estandar}` }} />
       <div
         ref={hojaRef}

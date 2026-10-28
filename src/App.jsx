@@ -1198,7 +1198,7 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
   const esperando = products.filter(p => p.bloqueado).length;
   const hojaTarjetaNueva = (
     // Ojo: en QuickCapture `t` es el tema de colores, no la función de textos (el 23/09 la app arrancó en negro por esto).
-    <Hoja abierta={!!tarjetaPendiente} onCerrar={esLaMismaTarjeta} titulo={tx("captura.tarjetaNueva")}>
+    <Hoja abierta={!!tarjetaPendiente} onCerrar={esLaMismaTarjeta} titulo={tx("captura.tarjetaNueva")} sobreCamara>
       <p style={{ fontSize: 15, lineHeight: 1.45, margin: "0 0 14px" }}>{supplierName ? tx("captura.cerrarYArrancarCon", { nombre: supplierName, fotos: tx("cantidades.fotos", { count: items.length }) }) : tx("captura.cerrarStandAnterior", { fotos: tx("cantidades.fotos", { count: items.length }) })}</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <Boton variante="principal" ancho="total" icono="listo" onClick={cerrarYArrancar}>{tx("captura.siCerrarYSeguir")}</Boton>
