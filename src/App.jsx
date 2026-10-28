@@ -879,16 +879,9 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
     if (campo === "cbmPorCaja") cambios.cbmPorCaja = v ? Number(v) : null;
     setItems(prev => prev.map(it => it.id === d.id ? { ...it, ...cambios } : it));
     onProductoCambio?.(d.id, cambios);
-    // En vivo: el campo se pone verde un instante con una tilde (Nati, 23/09: "escribo un número y algo pasa")
-    clearTimeout(campoGuardadoTimerRef.current);
-    setCampoGuardado(v ? campo : null);
-    campoGuardadoTimerRef.current = setTimeout(() => setCampoGuardado(null), 1200);
-    // Si con este dato quedaron todos cargados, la barra se va sola después de la tilde (Nati, 23/09)
-    const activos = ["price", ...["moq", "piezasPorCaja", "cbmPorCaja"].filter(k => settings?.datosDeCompra?.[k] !== false)];
-    if (v && activos.every(k => (d.valores[k] || "").replace(/\.$/, ""))) {
-      clearTimeout(precioTimerRef.current);
-      precioTimerRef.current = setTimeout(() => { document.activeElement?.blur?.(); confirmarPrecio(); }, 900);
-    }
+    // 28/10 (Nati: "se pone verde mucho antes de que termine de escribir y se va; solo quiero dejar tranquila a la
+    // gente de que su info quedó recordada, puede ser más sutil"): se guarda en silencio; la señal es el "✓ USD 3.8"
+    // bajo la miniatura al cerrar. Y ya no se cierra solo con todos los datos: con el teclado propio, "3" cerraba antes del ".8".
   };
   // Se guarda mientras escribís (Nati, 23/09: "no existe el botón Guardar"): 400 ms después de la última tecla.
   const escribirDato = (campo, texto) => {
@@ -3290,7 +3283,7 @@ export default function App() {
     return () => clearInterval(id);
   }, []);
 
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2500); };
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 1500); }; // 28/10: antes 2,5 s ("molestan y tardan en irse")
   // Primer producto reconocido (27/10): "La IA lo reconoció: …", un poco más largo que un aviso común
   useEffect(() => {
     const alReconocer = (e) => { const nombre = e?.detail?.nombre; if (!nombre) return; setToast(tx("avisos.iaPrimera", { nombre })); setTimeout(() => setToast(""), 4500); };
@@ -3760,7 +3753,7 @@ export default function App() {
         // v2 (Nati, 28/10: "la ficha es un bardo; el recorrido termina en el catálogo con una invitación a seguir")
         if (verResultadoSinCuenta || data.primerStand) { anotar("resultado_primer_stand", { conTarjeta: !!supplierId }); setListTab("todo"); if (data.primerStand) setFestejoCatalogo(true); navigate("list"); }
         else navigate(data.soloProveedor ? "list" : "capture");
-        showToast(data.soloProveedor ? tx("avisos.proveedorGuardado") : tx("avisos.standCerrado", { count: createdIds.length }));
+        if (data.soloProveedor) showToast(tx("avisos.proveedorGuardado")); // 28/10: el aviso "stand cerrado" se va, la pantalla ya muestra el resultado
         // Guardar las fotos también en el celular (29/09, Nati: ¿molesta? → se configura): preguntar (por defecto), siempre o nunca
         // El primer stand guiado (27/10) termina en la ficha con el festejo: la pregunta de la galería queda para el próximo
         if (sessionPhotos.length > 0 && !data.primerStand) {

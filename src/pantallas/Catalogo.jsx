@@ -234,7 +234,7 @@ export function Catalogo({
                 </button>
               ) : <span style={{ ...texto("pie"), color: paleta.dim }}>{t("catalogo.productos", { count: enFeria.length })}</span>}
               <span style={{ flex: 1 }} />
-              {pendientes > 0 && <span role="status" aria-label={enLinea ? t("catalogo.procesandoCorto", { count: pendientes }) : t("catalogo.pendientes", { count: pendientes })} title={enLinea ? t("catalogo.procesandoCorto", { count: pendientes }) : t("catalogo.pendientes", { count: pendientes })} style={{ ...texto("pie"), color: paleta.dim, display: "inline-flex", alignItems: "center", gap: 5, whiteSpace: "nowrap", flexShrink: 0 }}><span aria-hidden style={{ width: 6, height: 6, borderRadius: 3, background: paleta.accent, display: "inline-block" }} />{pendientes}</span>}
+              {/* 28/10 (Nati): el "N procesando" se va; es cosa del servidor y la persona ya lo da por guardado */}
               <button type="button" onClick={() => setFiltro(filtro === "favoritos" ? "todos" : "favoritos")} aria-pressed={filtro === "favoritos"} aria-label={t("catalogo.favoritos")} style={{ width: 36, height: 36, borderRadius: 18, border: `1px solid ${filtro === "favoritos" ? paleta.accent : paleta.border}`, background: filtro === "favoritos" ? paleta.accentSoft : paleta.surface, display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}>
                 <Icono nombre="favorito" tamano={16} color={filtro === "favoritos" ? paleta.selloTexto : paleta.dim} relleno={filtro === "favoritos" ? paleta.sello : undefined} />
               </button>
