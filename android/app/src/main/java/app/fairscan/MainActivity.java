@@ -13,6 +13,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(MetaEventos.class);
+        registerPlugin(InstallReferrer.class); // de dónde vino la instalación (E23, 28/10)
         registerPlugin(EntrarConGoogle.class); // Entrar con Google con la hoja del teléfono, sin navegador (23/10) // eventos para la publicidad de Meta (23/10); carga diferida, falla en silencio
         super.onCreate(savedInstanceState);
         try {

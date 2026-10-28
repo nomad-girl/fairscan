@@ -135,6 +135,7 @@ import i18n from 'i18next';
 const tx = (clave, opciones) => i18n.t(clave, opciones);
 import { useTranslation, Trans } from 'react-i18next';
 import { vibrarObturador, vibrarExito, precalentarVibracion, estadoVibracion } from './sistema/vibrar.js';
+import { leerOrigen } from './lib/origenInstalacion.js';
 import { Capacitor } from '@capacitor/core';
 import { serializarAudio, urlDeAudio, esPunteroMuerto } from './lib/audioNotes.js';
 import { crearPapelera } from './lib/deshacer.js';
@@ -3212,7 +3213,8 @@ export default function App() {
       // Primer uso (25/10, Nati: "catálogo primero, cámara después"): mientras no haya ningún producto, la app abre en el
       // catálogo, con "Empezar a escanear" y la cuenta a la vista. Desde la primera foto, abre en la cámara como siempre.
       // 27/10 (Nati, con datos: cámara primero 16 % de primera foto, catálogo primero 6 %): la app vuelve a abrir en la cámara
-      if (!hayProductosRef.current && !esEscritorio) anotar("primera_apertura", { conCuenta: !auth.esAnonima }, { unaVez: true });
+      // E23 (28/10): con el origen de la instalación (los utm_* del anuncio que trajo a la ficha de Play, o de la URL en la web)
+      if (!hayProductosRef.current && !esEscritorio) leerOrigen().then(origen => anotar("primera_apertura", { conCuenta: !auth.esAnonima, ...(origen ? { origen } : {}) }, { unaVez: true })).catch(() => anotar("primera_apertura", { conCuenta: !auth.esAnonima }, { unaVez: true }));
       // Ensayo de feria (27/10, opción A de Nati): sin productos, la primera vez abre en la bienvenida y el ensayo
       setPrimerUso(inicioPrimerUso({ hayProductos: hayProductosRef.current, esEscritorio }));
       setReady(true);
