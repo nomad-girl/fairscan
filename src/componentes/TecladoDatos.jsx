@@ -102,24 +102,23 @@ export function TecladoDatos({
             </div>
           ) : proveedor?.leyendo ? (
             <div role="status" style={{ minHeight: 52, display: "flex", alignItems: "center", padding: "0 12px", borderRadius: 12, background: TECLA, fontSize: 15, fontWeight: 600 }}>{t("visor.leyendoTitulo")}…</div>
-          ) : proveedor?.tieneTarjeta ? (
-            <div role="status" style={{ minHeight: 52, display: "flex", alignItems: "center", padding: "0 12px", borderRadius: 12, background: TECLA, fontSize: 15, fontWeight: 600 }}>{t("visor.tarjetaSinLeerAun")}</div>
           ) : (
             <>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}><p style={{ margin: "2px 4px 0", fontSize: 15, fontWeight: 700, flex: 1 }}>{t("visor.proveedorPregunta")}</p><Tilde /></div>
-              <button type="button" onClick={() => { vibrarSeleccion(); onEscanearTarjeta?.(); }} style={{ minHeight: 52, borderRadius: 14, border: "none", background: MARCA.sello, color: MARCA.cacao, fontFamily: "inherit", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Icono nombre="tarjeta" tamano={18} color={MARCA.cacao} />{t("visor.escanearTarjetaCorto")}</button>
+              {/* 28/10 (Nati: "no me ofrece escanear tarjeta ni nada"): con tarjeta sacada pero sin nombre (falló o no terminó) también se ofrece volver a escanear, elegir o escribir */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}><p style={{ margin: "2px 4px 0", fontSize: 15, fontWeight: 700, flex: 1 }}>{proveedor?.tieneTarjeta ? t("visor.tarjetaSinLeerAun") : t("visor.proveedorPregunta")}</p><Tilde /></div>
+              <button type="button" onClick={() => { vibrarSeleccion(); onEscanearTarjeta?.(); }} style={{ minHeight: 52, borderRadius: 14, border: "none", background: MARCA.sello, color: MARCA.cacao, fontFamily: "inherit", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8 }}><Icono nombre="tarjeta" tamano={18} color={MARCA.cacao} />{proveedor?.tieneTarjeta ? t("visor.escanearDeNuevo") : t("visor.escanearTarjetaCorto")}</button>
               <div style={{ display: "flex", gap: 6 }}>
                 <button type="button" onClick={() => { vibrarSeleccion(); onElegirProveedor?.(); }} style={{ flex: 1, minHeight: 44, borderRadius: 12, border: "none", background: TECLA, color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>{t("visor.elegirCargado")}</button>
                 <button type="button" onClick={() => { vibrarSeleccion(); onEscribirProveedor?.(); }} style={{ flex: 1, minHeight: 44, borderRadius: 12, border: "none", background: TECLA, color: "#fff", fontFamily: "inherit", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>{t("visor.escribirNombre")}</button>
               </div>
             </>
           )}
-          {(proveedor?.nombre || proveedor?.leyendo || proveedor?.tieneTarjeta) && <div style={{ display: "flex", justifyContent: "flex-end" }}><Tilde /></div>}
+          {(proveedor?.nombre || proveedor?.leyendo) && <div style={{ display: "flex", justifyContent: "flex-end" }}><Tilde /></div>}
         </div>
       ) : (
         <>
           {/* El número grande */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 60, padding: "6px 6px 6px 12px", borderRadius: 14, background: campoGuardado === campo ? "rgba(34,197,94,0.25)" : "rgba(255,243,234,0.10)", transition: "background 250ms ease" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 60, padding: "6px 6px 6px 12px", borderRadius: 14, background: campoGuardado === campo ? "#22C55E" : "rgba(255,243,234,0.10)", transition: "background 200ms ease" }}>
             {campo === "price" && <span style={{ fontSize: 14, fontWeight: 600, color: BLANCO_SUAVE, whiteSpace: "nowrap" }}>{moneda}</span>}
             {valor
               ? <span role="status" aria-label={`${campo === "price" ? moneda : etiquetaDe[campo]} ${valor}`} style={{ fontFamily: FUENTES.marca, fontWeight: 800, fontSize: 34, letterSpacing: "-0.03em", color: "#fff", fontVariantNumeric: "tabular-nums", lineHeight: 1.2, display: "inline-block", animation: late ? "fairscanTeclaEntra 160ms ease-out" : "none" }}>{valor}</span>

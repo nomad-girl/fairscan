@@ -930,7 +930,7 @@ function QuickCapture({ primerUso = false, onAyuda, onYaTengoCuenta, suppliers, 
     setDatosRapidos(d => {
       if (d && !d.cerrando && Object.values(d.valores || {}).some(Boolean)) {
         clearTimeout(campoGuardadoTimerRef.current); setCampoGuardado(d.campo);
-        campoGuardadoTimerRef.current = setTimeout(() => { setCampoGuardado(null); cerrarPrecio(); }, 350);
+        campoGuardadoTimerRef.current = setTimeout(() => { setCampoGuardado(null); cerrarPrecio(); }, 600);
         return { ...d, cerrando: true };
       }
       if (d?.cerrando) return d;
