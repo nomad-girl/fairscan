@@ -25,8 +25,10 @@ export default {
       const de = decodificarCabecera(message.headers.get("from") || message.from || "");
       let resumen = "";
       try { resumen = resumirCuerpo(await new Response(message.raw).text()); } catch { resumen = ""; }
-      const texto = [`📧 *Soporte · mail a hola@*`, `*De:* ${de}`, `*Asunto:* ${asunto}`, resumen ? `>${resumen.replace(/\n/g, "\n>")}` : ""].filter(Boolean).join("\n");
-      await fetch(env.SLACK_WEBHOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: texto }) });
+      // Solo ASCII en los textos propios y el cuerpo codificado a mano en UTF-8: pegado desde el editor del panel, el
+      // "·" y el sobrecito salian como "¬∑" y "üìß" en Slack (29/10)
+      const texto = [":email: *Soporte - mail a hola@*", `*De:* ${de}`, `*Asunto:* ${asunto}`, resumen ? `>${resumen.replace(/\n/g, "\n>")}` : ""].filter(Boolean).join("\n");
+      await fetch(env.SLACK_WEBHOOK, { method: "POST", headers: { "Content-Type": "application/json; charset=utf-8" }, body: new TextEncoder().encode(JSON.stringify({ text: texto })) });
     } catch (e) {
       console.warn("aviso a Slack falló:", e?.message || e);
     }
