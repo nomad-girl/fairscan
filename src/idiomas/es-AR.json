@@ -1518,5 +1518,18 @@
     "volver": "Deslizá para volver",
     "fotos": "Deslizá · más fotos",
     "pestanas": "Deslizá a los lados · proveedores"
+  },
+  "codigo": {
+    "tengo": "Tengo un código",
+    "titulo": "Código de agencia o campaña",
+    "placeholder": "Ej.: INDIGO26",
+    "canjear": "Canjear",
+    "ok": "✓ Se sumaron {{count}} escaneos de {{origen}}",
+    "sinSesion": "Para canjear un código, primero creá tu cuenta: los escaneos quedan en ella.",
+    "noExiste": "Ese código no existe o ya no está activo.",
+    "vencido": "Ese código ya venció.",
+    "yaCanjeado": "Ya usaste este código.",
+    "agotado": "Ese código ya no tiene cupos.",
+    "sinSenal": "Sin señal: probá cuando vuelva la conexión."
   }
 }

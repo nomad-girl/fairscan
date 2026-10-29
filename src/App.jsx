@@ -121,6 +121,8 @@ import { Icono, Hoja, Boton, Marca, cerrarHojaSuperior, HojaAyuda } from './comp
 import { Escritorio } from './escritorio/Escritorio.jsx';
 import { useEsEscritorio } from './escritorio/util.jsx';
 import { useSistema } from './sistema/SistemaProvider.jsx';
+import { CanjearCodigo } from './componentes/CanjearCodigo.jsx';
+import { instalacion as idInstalacion } from './lib/primerUso.js';
 import { ArmarPedido } from './pantallas/ArmarPedido.jsx';
 import { Pedidos } from './pantallas/Pedidos.jsx';
 import { pedidoDeProveedor, pedidoNuevo, textoProforma, nombreDeArchivo, conCantidad, productosParaPedido } from './lib/pedidos.js';
@@ -2965,6 +2967,21 @@ export default function App() {
       else showToast(r.mensaje || tx("avisos.compraNoCompletada"));
     } catch (err) { showToast(err?.message || tx("avisos.compraNoCompletada")); }
   };
+  // Canjear código (E24, 29/10): el servidor valida y acredita como cortesía; acá se pide la cuenta si no hay y se refresca el saldo
+  const canjearCodigo = async (codigo) => {
+    if (auth.esAnonima && !auth.mailPendiente) { pedirCuentaPor("pago"); return { ok: false, motivo: "sin_sesion" }; }
+    if (!supabase || !auth.user) return { ok: false, motivo: "sin_sesion" };
+    if (!navigator.onLine) return { ok: false, motivo: "sin_senal" };
+    const { data, error } = await supabase.rpc("canjear_codigo", { p_codigo: codigo, p_instalacion: idInstalacion() });
+    if (error) { anotar("codigo_canje", { codigo, ok: false, motivo: "error", detalle: String(error.message || "").slice(0, 120) }); throw error; }
+    const r = data || { ok: false, motivo: "no_existe" };
+    anotar("codigo_canje", { codigo, ok: !!r.ok, motivo: r.motivo || null, origen: r.origen || null });
+    if (r.ok) {
+      if (Number.isInteger(r.saldo)) await guardarCreditos(reconciliar(creditosRef.current || estadoInicial(0), { saldoServidor: r.saldo }));
+      else sincronizarCreditos();
+    }
+    return r;
+  };
   // Paywall (5.3): al cerrar el stand, si el saldo no alcanza. Nunca al disparar.
   const [paywall, setPaywall] = useState(null); // { bloqueados }
   const [ayudaAbierta, setAyudaAbierta] = useState(false); // Ayuda (26/10): "?" de la cámara y Ajustes
@@ -4025,6 +4042,8 @@ export default function App() {
                   <span style={{ fontSize:15, fontWeight:800, color: destacado ? t.accent : t.text }}>{preciosTienda[pk.id]?.texto || `USD ${pk.usd.toFixed(2)}`}</span>
                 </button>
               ); })}
+              {/* Canjear código (E24, 29/10): agencias y campañas regalan escaneos con un código */}
+              <CanjearCodigo onCanjear={canjearCodigo} />
               <button onClick={() => setPaywall(null)} style={{ minHeight:48, padding:"12px", borderRadius:14, border:`1px solid ${t.border}`, background:t.card, color:t.text, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>{tx("avisos.despues")}</button>
             </div>
             {negocio.compras_activas && !comprasListas && <p style={{ fontSize:12, color:t.muted, margin:"10px 0 0", textAlign:"center" }}>{tx("avisos.compraProximaVersion")}</p>}

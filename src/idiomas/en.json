@@ -1518,5 +1518,18 @@
     "volver": "Swipe to go back",
     "fotos": "Swipe · more photos",
     "pestanas": "Swipe sideways · suppliers"
+  },
+  "codigo": {
+    "tengo": "I have a code",
+    "titulo": "Agency or campaign code",
+    "placeholder": "E.g.: INDIGO26",
+    "canjear": "Redeem",
+    "ok": "✓ {{count}} scans from {{origen}} added",
+    "sinSesion": "To redeem a code, create your account first: the scans are kept in it.",
+    "noExiste": "That code doesn't exist or is no longer active.",
+    "vencido": "That code has expired.",
+    "yaCanjeado": "You already used this code.",
+    "agotado": "That code has no spots left.",
+    "sinSenal": "No signal: try again when you're back online."
   }
 }
