@@ -1512,7 +1512,8 @@
     "abrirAjustes": "Open settings",
     "usarFotoTelefono": "Use a photo from your phone",
     "precioPastilla": "Now the price: type 3.8 and tap Done",
-    "precioGuardado": "Saved"
+    "precioGuardado": "Saved",
+    "duraUnToque": "One tap and done"
   },
   "gestos": {
     "arriba": "Swipe up · catalog",
