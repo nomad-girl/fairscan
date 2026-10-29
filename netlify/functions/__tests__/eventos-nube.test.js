@@ -15,7 +15,7 @@ describe('eventos-nube · qué sale de cada fila', () => {
     const r = interpretar({ tabla: 'eventos_uso', tipo: 'INSERT', fila: { user_id: 'u1', nombre: 'stand_cerrado', plataforma: 'ios', version: '1.0.3', datos: { productos: 4, tarjeta: true } } });
     expect(r.evento).toBe('stand_cerrado');
     expect(r.propiedades).toMatchObject({ plataforma: 'ios', productos: 4, conTarjeta: true });
-    expect(r.contacto.ultimaActividad).toMatch(/^\d{4}-/);
+    expect(r.contacto.ultimoUso).toMatch(/^\d{4}-/);
     expect(interpretar({ tabla: 'eventos_uso', fila: { user_id: null, nombre: 'primera_foto' } })).toBeNull();
     expect(interpretar({ tabla: 'eventos_uso', fila: { user_id: 'u1', nombre: 'camara_ok' } })).toBeNull();
   });

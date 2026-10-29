@@ -22,18 +22,18 @@ function interpretar({ tabla, tipo, fila = {}, anterior = null } = {}) {
   if (!tabla || !fila) return null;
   if (tabla === "usuarios") {
     if (!fila.email || fila.is_anonymous) return null;
-    return { evento: "alta", userId: fila.id, email: fila.email, propiedades: {}, contacto: { ultimaActividad: ahora() } };
+    return { evento: "alta", userId: fila.id, email: fila.email, propiedades: {}, contacto: { ultimoUso: ahora() } };
   }
   if (tabla === "eventos_uso") {
     if (!fila.user_id || !EVENTOS_USO.has(fila.nombre)) return null;
     const propiedades = { plataforma: fila.plataforma || "", version: String(fila.version || "").slice(0, 40) };
     if (fila.nombre === "stand_cerrado" && fila.datos) { propiedades.productos = Number(fila.datos.productos) || 0; propiedades.conTarjeta = !!fila.datos.tarjeta; }
-    return { evento: fila.nombre, userId: fila.user_id, propiedades, contacto: { ultimaActividad: ahora() } };
+    return { evento: fila.nombre, userId: fila.user_id, propiedades, contacto: { ultimoUso: ahora() } };
   }
   if (tabla === "creditos") {
     const saldo = Number(fila.saldo), antes = anterior ? Number(anterior.saldo) : NaN;
     if (!(saldo <= 0) || !(antes > 0) || Number(fila.comprados) > 0) return null;
-    return { evento: "gratis_agotados", userId: fila.user_id, propiedades: { trial: Number(fila.trial_otorgado) || 0 }, contacto: { ultimaActividad: ahora() },
+    return { evento: "gratis_agotados", userId: fila.user_id, propiedades: { trial: Number(fila.trial_otorgado) || 0 }, contacto: { ultimoUso: ahora() },
       slack: `🟠 *Se quedó sin escaneos gratis* · cuenta ${corto(fila.user_id)} · usó ${Number(fila.consumidos) || 0}` };
   }
   if (tabla === "compras") {
@@ -41,11 +41,11 @@ function interpretar({ tabla, tipo, fila = {}, anterior = null } = {}) {
     const tienda = String(fila.tienda || "").toUpperCase();
     if (!TIENDAS_REALES.has(tienda)) return null; // cortesía y códigos van por `canjes`
     const sandbox = /sandbox|test/i.test(String(fila.entorno || ""));
-    return { evento: sandbox ? null : "compra", userId: fila.user_id, propiedades: { pack: fila.producto_id || "", escaneos: Number(fila.escaneos) || 0, tienda }, contacto: { ultimaActividad: ahora() },
+    return { evento: sandbox ? null : "compra", userId: fila.user_id, propiedades: { pack: fila.producto_id || "", escaneos: Number(fila.escaneos) || 0, tienda }, contacto: { ultimoUso: ahora() },
       slack: sandbox ? null : `💸 *Venta real* · ${fila.producto_id || "pack"} (${Number(fila.escaneos) || 0} escaneos) · ${tienda === "APP_STORE" ? "App Store" : "Google Play"} · cuenta ${corto(fila.user_id)}` };
   }
   if (tabla === "canjes") {
-    return { evento: "codigo_canjeado", userId: fila.user_id, propiedades: { codigo: fila.codigo || "", origen: fila.origen || "" }, contacto: { ultimaActividad: ahora() },
+    return { evento: "codigo_canjeado", userId: fila.user_id, propiedades: { codigo: fila.codigo || "", origen: fila.origen || "" }, contacto: { ultimoUso: ahora() },
       slack: `🎟️ *Código canjeado* · ${fila.codigo || "?"} · ${fila.origen || "sin origen"} · cuenta ${corto(fila.user_id)}` };
   }
   return null;
