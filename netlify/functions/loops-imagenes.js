@@ -23,7 +23,7 @@ async function subirUna(url, key) {
   const buf = Buffer.from(await r.arrayBuffer());
   const contentType = /\.png$/i.test(url) ? "image/png" : "image/jpeg";
   const cab = { Authorization: `Bearer ${key}`, "Content-Type": "application/json" };
-  const a = await fetch(`${LOOPS}/uploads`, { method: "POST", headers: cab, body: JSON.stringify({ contentType, contentLength: buf.length, fileName: url.split("/").pop() }) });
+  const a = await fetch(`${LOOPS}/uploads`, { method: "POST", headers: cab, body: JSON.stringify({ contentType, contentLength: buf.length }) });
   const aj = await a.json().catch(() => ({}));
   if (!a.ok) return { url, error: `crear: ${a.status} ${JSON.stringify(aj).slice(0, 200)}` };
   const presigned = aj.presignedUrl || aj.uploadUrl || aj.url;
