@@ -3318,11 +3318,23 @@ export default function App() {
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 1500); }; // 28/10: antes 2,5 s ("molestan y tardan en irse")
   // Primer producto reconocido (27/10): "La IA lo reconoció: …", un poco más largo que un aviso común
+  const [pedirCuentaWow, setPedirCuentaWow] = useState(false);
   useEffect(() => {
-    const alReconocer = (e) => { const nombre = e?.detail?.nombre; if (!nombre) return; setToast(tx("avisos.iaPrimera", { nombre })); setTimeout(() => setToast(""), 4500); };
+    const alReconocer = (e) => { const nombre = e?.detail?.nombre; if (!nombre) return; setToast(tx("avisos.iaPrimera", { nombre })); setTimeout(() => setToast(""), 4500); setPedirCuentaWow(true); };
     window.addEventListener("fs:ia-primera", alReconocer);
     return () => window.removeEventListener("fs:ia-primera", alReconocer);
   }, []);
+  // La cuenta se pide después del momento "wow" (Nati, 29/10): la IA reconoció la primera foto, se ve el nombre tres
+  // segundos y recién ahí aparece la pantalla de cuenta, que se puede saltar. Una vez por instalación. Con 4 de cada 100
+  // instalaciones con cuenta, los mails por etapa (F19) no llegaban a nadie; acá hay cuatro veces más gente que al cerrar el stand.
+  useEffect(() => {
+    if (!pedirCuentaWow) return;
+    setPedirCuentaWow(false);
+    if (esEscritorio || !auth.esAnonima || auth.mailPendiente || cuentaObligatoria) return;
+    try { if (localStorage.getItem("fs_cuenta_wow")) return; localStorage.setItem("fs_cuenta_wow", "1"); } catch { return; }
+    const id = setTimeout(() => pedirCuentaPor("wow"), 3000);
+    return () => clearTimeout(id);
+  }, [pedirCuentaWow]);
   // ─── Pedidos (decisión 4 del 16/09): un pedido por proveedor, tres entradas ───
   const monedaActual = CURRENCIES[settings?.currency]?.symbol || "USD";
   // El pedido de un proveedor: el que está en curso, o uno nuevo. Lo usan el teléfono (abrirPedido) y el escritorio.
@@ -4001,14 +4013,14 @@ export default function App() {
   if (!auth.user) return enColumna(<LoginScreen t={t} onAuth={auth} />);
 
   if (mostrarLogin) return enColumna(<LoginScreen t={t} onAuth={auth} convertir={!!auth.esAnonima && mostrarLogin === "register"} cancelable modoInicial={mostrarLogin === "register" ? "register" : undefined} onCancel={() => setMostrarLogin(false)} />);
-  // Cuenta obligatoria (27/10): convierte la sesión sin cuenta. Solo la de pago se puede cerrar (y no se compra).
+  // Cuenta obligatoria (27/10): convierte la sesión sin cuenta. La de pago y la del momento "wow" (29/10) se pueden cerrar.
   // El bloqueo de "stand" se decide acá, antes de montar la cámara (si no, pedía el permiso de cámara un instante antes)
   const motivoCuenta = cuentaObligatoria || (ready && !esEscritorio && auth.esAnonima && !auth.mailPendiente && (screen === "capture" || screen === "capture-supplier")
     && (() => { try { return parseInt(localStorage.getItem("fs_stands_cerrados") || "0", 10) || 0; } catch { return 0; } })() >= 1 ? "stand" : null);
   // (los "5 productos" se miran solo al entrar a la cámara, en el efecto de arriba: acá cortaría un stand a la mitad)
   if (motivoCuenta && auth.esAnonima && !auth.mailPendiente) return enColumna(
     <LoginScreen t={t} onAuth={auth} convertir modoInicial="register" frase={tx(`cuentaObligatoria.${motivoCuenta}`)}
-      cancelable={motivoCuenta === "pago"} onCancel={motivoCuenta === "pago" ? () => { anotar("cuenta_salteada", { motivo: "pago" }); setCuentaObligatoria(null); } : undefined} />);
+      cancelable={motivoCuenta === "pago" || motivoCuenta === "wow"} onCancel={motivoCuenta === "pago" || motivoCuenta === "wow" ? () => { anotar("cuenta_salteada", { motivo: motivoCuenta }); setCuentaObligatoria(null); } : undefined} />);
   // 02/10 (Nati: "el logo viejo aparece y desaparece"): mientras carga la base, cacao liso. Antes se mostraba el esqueleto
   // del catálogo en gris claro, y entre el arranque oscuro y la cámara oscura se veía como un parpadeo.
   if (!ready) return <div style={{ height:"100%", background:MARCA.cacao }} aria-busy="true" aria-label={tx("captura.cargandoCatalogo")} />;

@@ -1450,7 +1450,8 @@
     "pago": "Creá tu cuenta para guardar tu compra. Así no la perdés si cambiás o perdés el teléfono.",
     "stand": "Creá tu cuenta para seguir escaneando. Así no perdés tu catálogo si cambiás o perdés el teléfono.",
     "rescate": "Guardá tu compra: creá tu cuenta. Sin cuenta, la perdés si cambiás o borrás la app.",
-    "paywallNota": "Para comprar necesitás una cuenta: guarda tu compra y tu catálogo."
+    "paywallNota": "Para comprar necesitás una cuenta: guarda tu compra y tu catálogo.",
+    "wow": "La IA ya reconoció tu primer producto. Creá tu cuenta para que tu catálogo no se pierda si cambiás o perdés el teléfono."
   },
   "ensayo": {
     "bienvenidaTitulo": "Vos sacás la foto. FairScan arma el catálogo.",

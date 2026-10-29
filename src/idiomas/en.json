@@ -1450,7 +1450,8 @@
     "pago": "Create your account to keep your purchase, so you don't lose it if you change or lose your phone.",
     "stand": "Create your account to keep scanning, so you don't lose your catalog if you change or lose your phone.",
     "rescate": "Keep your purchase: create your account. Without one, you lose it if you change phones or delete the app.",
-    "paywallNota": "You need an account to buy: it keeps your purchase and your catalog."
+    "paywallNota": "You need an account to buy: it keeps your purchase and your catalog.",
+    "wow": "The AI already recognized your first product. Create your account so your catalog isn't lost if you change or lose your phone."
   },
   "ensayo": {
     "bienvenidaTitulo": "You take the photo. FairScan builds the catalog.",
