@@ -68,6 +68,14 @@ async function secreto(db) {
   return secretoCache;
 }
 
+/** Cuántos stands cerró la cuenta (propiedad `standsCerrados` en Loops: el mail 2 sale a los 2 días del alta si sigue en 0). */
+async function standsCerradosDe(db, userId) {
+  if (!userId) return null;
+  const { count, error } = await db.from("eventos_uso").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("nombre", "stand_cerrado");
+  if (error) { console.warn("[eventos] standsCerrados:", error.message); return null; }
+  return count ?? 0;
+}
+
 /** Mail de la cuenta, o null si es anónima o no existe. */
 async function emailDe(userId, url, key) {
   if (!userId) return null;
@@ -113,7 +121,9 @@ exports.handler = async (event) => {
   const email = que.email || await emailDe(que.userId, url, key);
   const hecho = { loops: false, slack: false };
   if (email && que.evento && process.env.LOOPS_API_KEY) {
-    try { await aLoops({ ...que, email }); hecho.loops = true; }
+    const stands = await standsCerradosDe(db, que.userId);
+    const contacto = { ...(que.contacto || {}), ...(stands === null ? {} : { standsCerrados: stands }) };
+    try { await aLoops({ ...que, email, contacto }); hecho.loops = true; }
     catch (e) { console.warn("[eventos] Loops:", e.message); }
   }
   if (que.slack) { await aSlack(que.slack); hecho.slack = !!process.env.SLACK_WEBHOOK; }

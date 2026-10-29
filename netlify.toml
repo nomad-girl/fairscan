@@ -9,6 +9,11 @@
   schedule = "0 6 * * 1"
 
 [[redirects]]
+  from = "/api/loops-imagenes"
+  to = "/.netlify/functions/loops-imagenes"
+  status = 200
+
+[[redirects]]
   from = "/api/eventos-nube"
   to = "/.netlify/functions/eventos-nube"
   status = 200

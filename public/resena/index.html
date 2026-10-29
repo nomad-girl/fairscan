@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Dejá tu reseña · FairScan</title>
+<!-- fairscan.app/resena (29/10/2026, buzón (25)): el botón del mail 6 manda acá y de acá a la tienda del teléfono.
+     Android → Google Play (la ficha, con las reseñas); iPhone/iPad → App Store directo al formulario de reseña;
+     computadora → se muestran los dos botones. Sin JavaScript también funciona: quedan los dos botones. -->
+<style>
+  :root { --cacao:#2B1206; --crema:#FBF7F2; --naranja:#E8613C; }
+  html, body { margin:0; background:var(--crema); color:var(--cacao); font-family:"DM Sans", -apple-system, "Segoe UI", sans-serif; }
+  main { min-height:100svh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:24px max(16px, env(safe-area-inset-left)) 24px max(16px, env(safe-area-inset-right)); text-align:center; }
+  h1 { font-size:26px; margin:0 0 6px; letter-spacing:-.02em; }
+  p { margin:0 0 10px; font-size:16px; line-height:1.4; max-width:30ch; }
+  a.boton { display:block; width:min(100%, 320px); padding:16px 20px; border-radius:16px; background:var(--cacao); color:#fff; text-decoration:none; font-weight:700; font-size:17px; }
+  a.boton.secundario { background:#fff; color:var(--cacao); border:1px solid #DDD6CF; }
+  small { color:#7A6A60; font-size:13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Gracias por usar FairScan</h1>
+  <p>Una reseña de 30 segundos ayuda a que otras compradoras la encuentren.</p>
+  <a class="boton" id="apple" href="https://apps.apple.com/app/id6814305259?action=write-review">Dejar reseña en App Store</a>
+  <a class="boton secundario" id="play" href="https://play.google.com/store/apps/details?id=com.builddigitalthings.fairscan&amp;showAllReviews=true">Dejar reseña en Google Play</a>
+  <small>Te lleva a la tienda de tu teléfono.</small>
+</main>
+<script>
+  (function () {
+    var ua = navigator.userAgent || "";
+    var esIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    var esAndroid = /Android/i.test(ua);
+    if (esIOS) location.replace(document.getElementById("apple").href);
+    else if (esAndroid) location.replace(document.getElementById("play").href);
+  })();
+</script>
+</body>
+</html>
