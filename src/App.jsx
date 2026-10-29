@@ -3454,7 +3454,7 @@ export default function App() {
   useEffect(() => {
     if (!primerUso) return;
     if (products.length > 0 && !repetirPrimerUso) { marcarEnsayo(); setPrimerUso(null); return; }
-    if (!auth.esAnonima && primerUso === "bienvenida") { marcarEnsayo(); setPrimerUso("permiso"); }
+    if (!auth.esAnonima && primerUso === "bienvenida") { marcarEnsayo(); setPrimerUso(null); } // con cuenta, directo a la cámara (29/10: sin pantalla previa al permiso)
   }, [products.length, auth.esAnonima]);
   useEffect(() => { if (auth.user && !auth.esAnonima) setMostrarLogin(false); }, [auth.user, auth.esAnonima]);
   // 27/09 (Nati: "volver siempre a donde estabas"): antes se guardaba una sola pantalla anterior, así que

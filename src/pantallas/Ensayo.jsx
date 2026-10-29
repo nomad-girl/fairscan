@@ -2,29 +2,31 @@
  * Ensayo de feria: el primer uso (opción A elegida por Nati el 27/10/2026; wireframes aprobados
  * https://claude.ai/artifact/8uLJYQFmbQkvBVWNeFyjeF). Ver lib/ensayo.js.
  *
- *   bienvenida → producto (un toque) → resultado (la ficha del proveedor real, "así queda") → permiso
+ *   bienvenida → producto (un toque) → resultado (la ficha del proveedor real, "así queda") → la cámara
  *
  * 29/10 (Nati, buzón (26)): **un solo paso**. Con tres pasos (producto, precio con el teclado, tarjeta) de 32 que
  * empezaban la prueba solo 12 llegaban al pedido de cámara: la gente viene a probar con su cámara y la frenábamos
  * con tareas de mentira. El precio y la tarjeta se enseñan después, con la primera foto real y el primer stand.
  *
  * Todo pasa sin cámara, sin IA y sin gastar escaneos: la "foto" es la del stand de ejemplo de Nancy Ceramic
- * (public/ejemplo). Una sola cosa para tocar, y late. "Saltar" lleva directo al permiso.
- * Al tocar "Activar la cámara", App abre la cámara de verdad y el teléfono pide el permiso.
- * Los eventos quedan iguales para seguir midiendo: ensayo_inicio, ensayo_paso p1, ensayo_fin, pre_permiso_visto.
+ * (public/ejemplo). Una sola cosa para tocar, y late. "Saltar" lleva directo a la cámara.
+ * 29/10 (Nati, hipótesis de Cantón): ya no hay pantalla "Ahora con tu cámara": al tocar "Probar con mi cámara" (o
+ * Saltar) App abre la cámara de verdad y el teléfono pide el permiso en ese momento. Si dice que no, la pantalla
+ * de permiso denegado (App, PermisoAviso) lleva a los ajustes del teléfono en un toque o deja usar una foto de la galería.
+ * Los eventos quedan para seguir midiendo: ensayo_inicio, ensayo_paso p1, ensayo_fin, pre_permiso_visto (ahora
+ * significa "pidió la cámara"), camara_ok.
  */
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Capacitor } from "@capacitor/core";
 import { useSistema } from "../sistema/SistemaProvider.jsx";
-import { Boton, Icono, Marca } from "../componentes/index.js";
+import { Boton, Marca } from "../componentes/index.js";
 import { MARCA, FUENTES } from "../sistema/tokens.js";
 import { vibrarObturador } from "../sistema/vibrar.js";
 import { anotar } from "../lib/primerUso.js";
 import { TARJETA_EJEMPLO, PRODUCTOS_ENSAYO } from "../lib/ensayo.js";
 import { FichaProveedor } from "./FichaProveedor.jsx";
 
-const PASOS = ["bienvenida", "p1", "resultado", "permiso"];
+const PASOS = ["bienvenida", "p1", "resultado"];
 const ID_EJEMPLO = "ensayo-nancy";
 
 /** El proveedor y los productos del ensayo, con la forma que espera la ficha. No se guardan en ningún lado. */
@@ -59,7 +61,7 @@ function Globo({ titulo, texto }) {
 
 export function Ensayo({ inicio = "bienvenida", onYaTengoCuenta, onActivarCamara, moneda = "USD", Foto, tLegacy }) {
   const { t } = useTranslation();
-  const { paleta, reducido } = useSistema();
+  const { reducido } = useSistema();
   const [paso, setPaso] = useState(PASOS.includes(inicio) ? inicio : "bienvenida");
   const [disparando, setDisparando] = useState(false); // el destello y el visor que se endereza
   const temporizadores = useRef([]);
@@ -69,10 +71,11 @@ export function Ensayo({ inicio = "bienvenida", onYaTengoCuenta, onActivarCamara
   useEffect(() => {
     if (paso === "bienvenida") anotar("bienvenida_vista", {}, { unaVez: true });
     if (paso === "resultado") anotar("ensayo_fin", {}, { unaVez: true });
-    if (paso === "permiso") anotar("pre_permiso_visto", {}, { unaVez: true });
   }, [paso]);
 
-  const saltar = () => { anotar("ensayo_saltado", { paso }, { unaVez: true }); setPaso("permiso"); };
+  // A la cámara de verdad: el teléfono pide el permiso ahí mismo
+  const pedirCamara = () => { anotar("pre_permiso_visto", {}, { unaVez: true }); onActivarCamara?.(); };
+  const saltar = () => { anotar("ensayo_saltado", { paso }, { unaVez: true }); pedirCamara(); };
   const disparar = () => {
     if (disparando) return;
     vibrarObturador();
@@ -113,28 +116,8 @@ export function Ensayo({ inicio = "bienvenida", onYaTengoCuenta, onActivarCamara
     const { supplier, products } = standDelEnsayo();
     return (
       <FichaProveedor supplier={supplier} allSuppliers={[supplier]} products={products} moneda={moneda} Foto={Foto} tLegacy={tLegacy}
-        onBack={() => setPaso("permiso")} soloVer festejo={{ titulo: t("ensayo.resultadoTitulo"), texto: t("ensayo.resultadoTexto"), fijo: true }}
-        accionUnica={{ texto: t("ensayo.probarConMiCamara"), onClick: () => setPaso("permiso") }} />
-    );
-  }
-
-  // ── 4 · Antes del permiso ─────────────────────────────────────
-  if (paso === "permiso") {
-    const android = Capacitor.getPlatform() === "android";
-    return (
-      <div data-ensayo className="pantalla-fija" style={{ position: "fixed", inset: 0, zIndex: 100, background: paleta.bg, color: paleta.text, display: "flex", flexDirection: "column", padding: "calc(env(safe-area-inset-top, 0px) + 28px) 22px calc(env(safe-area-inset-bottom, 0px) + 22px)", fontFamily: "inherit" }}>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: 14, textAlign: "center" }}>
-          <span style={{ width: 76, height: 76, borderRadius: 38, background: paleta.accentSoft, display: "grid", placeItems: "center" }}><Icono nombre="camara" tamano={36} color={paleta.accent} /></span>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, lineHeight: 1.25 }}>{t("ensayo.permisoTitulo")}</h1>
-          <p style={{ margin: 0, fontSize: 16, lineHeight: 1.45, color: paleta.muted, maxWidth: 330 }}>{t("ensayo.permisoTexto")}</p>
-          {/* Qué elegir en el cartel que viene, como texto: un dibujo del cartel parecía un botón (Nati, 27/10) */}
-          <p style={{ margin: "8px 0 0", fontSize: 15, lineHeight: 1.45, background: paleta.card, borderRadius: 14, padding: "12px 14px", maxWidth: 340, boxShadow: paleta.sombraTarjeta }}>
-            {t(android ? "ensayo.permisoAndroid" : "ensayo.permisoIos")}<b style={{ display: "block", marginTop: 2 }}>{t(android ? "ensayo.permisoAndroidOpcion" : "ensayo.permisoIosOpcion")}</b>
-          </p>
-        </div>
-        {/* Un solo botón (Nati, 27/10: "¿por qué damos la opción de que no?"): si no quiere, lo dice en el cartel del teléfono */}
-        <Boton variante="principal" ancho="total" icono="camara" onClick={() => onActivarCamara?.()}>{t("ensayo.activarCamara")}</Boton>
-      </div>
+        onBack={pedirCamara} soloVer festejo={{ titulo: t("ensayo.resultadoTitulo"), texto: t("ensayo.resultadoTexto"), fijo: true }}
+        accionUnica={{ texto: t("ensayo.probarConMiCamara"), onClick: pedirCamara }} />
     );
   }
 

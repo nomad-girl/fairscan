@@ -7,11 +7,11 @@ function memoria() {
 }
 
 describe('ensayo de feria (27/10)', () => {
-  it('la primera vez, sin productos, arranca en la bienvenida; después del ensayo, en el permiso; después, en la cámara', () => {
+  it('la primera vez, sin productos, arranca en la bienvenida; después del ensayo, directo en la cámara (29/10: sin pantalla previa al permiso)', () => {
     const s = memoria();
     expect(inicioPrimerUso({ hayProductos: false }, s)).toBe('bienvenida');
     marcarEnsayo(s);
-    expect(inicioPrimerUso({ hayProductos: false }, s)).toBe('permiso');
+    expect(inicioPrimerUso({ hayProductos: false }, s)).toBe(null);
     marcarPermiso(s);
     expect(inicioPrimerUso({ hayProductos: false }, s)).toBe(null);
   });

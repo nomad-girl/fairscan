@@ -20,14 +20,14 @@ function escribir(clave, valor, store) { try { guardado(store)?.setItem(clave, v
 function borrar(clave, store) { try { guardado(store)?.removeItem(clave); } catch { /* sin almacenamiento */ } }
 
 /**
- * ¿Por dónde arranca esta instalación? 'bienvenida' (ensayo completo), 'permiso' (solo la explicación de la
- * cámara) o null (la cámara directa, como siempre). Quien ya tiene productos nunca ve nada de esto.
- * Sin almacenamiento no se puede recordar que ya lo vio: se va directo a la cámara.
+ * ¿Por dónde arranca esta instalación? 'bienvenida' (el ensayo) o null (la cámara directa, que pide el permiso
+ * ahí mismo). Quien ya tiene productos nunca ve nada de esto. Sin almacenamiento no se puede recordar que ya lo
+ * vio: se va directo a la cámara. 29/10: la pantalla previa al permiso ("Ahora con tu cámara") se sacó; la marca
+ * `fs_prepermiso` queda solo por compatibilidad.
  */
 export function inicioPrimerUso({ hayProductos, esEscritorio = false }, store) {
   if (hayProductos || esEscritorio || !guardado(store)) return null;
   if (leer(CLAVE_ENSAYO, store) !== 'hecho') return 'bienvenida';
-  if (leer(CLAVE_PERMISO, store) !== 'visto' && !leer(CAMARA_OK, store)) return 'permiso';
   return null;
 }
 
