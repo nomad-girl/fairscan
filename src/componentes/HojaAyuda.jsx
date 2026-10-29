@@ -17,13 +17,18 @@ export const MAIL_SOPORTE = "hola@fairscan.app";
 const GESTOS = ["arriba", "derecha", "fotos", "obturador", "hojas", "pestanas", "proveedor"];
 
 /** El mail de soporte, armado (exportado para los tests). */
-export function mailDeAyuda(t, { plataforma, version, instalacion: inst } = {}) {
+export function mailDeAyuda(t, { plataforma, version, instalacion: inst, mensaje } = {}) {
   const asunto = t("ayuda.mailAsunto");
-  const cuerpo = t("ayuda.mailCuerpo", { plataforma: plataforma || "-", version: version || "-", instalacion: inst || "-" });
+  const datos = { plataforma: plataforma || "-", version: version || "-", instalacion: inst || "-" };
+  // Con mensaje (29/10): lo que escribió la usuaria va primero, tal cual, y abajo la firma técnica
+  const cuerpo = mensaje ? `${mensaje.trim()}\n\n—\n${t("ayuda.mailFirma", datos)}` : t("ayuda.mailCuerpo", datos);
   return `mailto:${MAIL_SOPORTE}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
 }
 
-export function HojaAyuda({ abierta, onCerrar, onVerGuia, chat = null, cuenta = null }) {
+/** Cuántas letras tiene que tener el mensaje para poder mandarlo (29/10: llegó un mail de ayuda vacío). */
+export const MINIMO_MENSAJE = 3;
+
+export function HojaAyuda({ abierta, onCerrar, onVerGuia, chat = null, cuenta = null, abrirMail = (url) => { window.location.href = url; } }) {
   const { t } = useTranslation();
   const { paleta, texto } = useSistema();
   const [abiertaN, setAbiertaN] = useState(null);
@@ -31,7 +36,17 @@ export function HojaAyuda({ abierta, onCerrar, onVerGuia, chat = null, cuenta = 
     let plataforma = "web"; try { plataforma = Capacitor.getPlatform(); } catch { /* web */ }
     return { plataforma, version: typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev", instalacion: instalacion() };
   };
-  const escribir = () => { anotar("ayuda_escribir"); window.location.href = mailDeAyuda(t, contexto()); };
+  // "Escribinos" ya no abre el correo en blanco (29/10, buzón: el primer mail de ayuda llegó vacío): primero se
+  // escribe acá qué pasó, con un ejemplo, y el botón de enviar se habilita recién con texto.
+  const [escribiendo, setEscribiendo] = useState(false);
+  const [mensaje, setMensaje] = useState("");
+  const puedeEnviar = mensaje.trim().length >= MINIMO_MENSAJE;
+  const escribir = () => { anotar("ayuda_escribir_abre"); setEscribiendo(true); };
+  const enviar = () => {
+    if (!puedeEnviar) return;
+    anotar("ayuda_escribir", { largo: mensaje.trim().length });
+    abrirMail(mailDeAyuda(t, { ...contexto(), mensaje }));
+  };
   // Chat de Chatwoot (26/10): se carga recién acá; si no carga (sin señal, red bloqueada), cae al mail de siempre
   const [abriendo, setAbriendo] = useState(false);
   const chatear = async () => {
@@ -42,6 +57,21 @@ export function HojaAyuda({ abierta, onCerrar, onVerGuia, chat = null, cuenta = 
     setAbriendo(false);
     if (ok) onCerrar?.(); else { anotar("ayuda_chat_fallo"); escribir(); }
   };
+  if (escribiendo) {
+    return (
+      <Hoja abierta={abierta} onCerrar={onCerrar} titulo={t("ayuda.quePaso")} altura="alta" sobreCamara
+        pie={<div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <Boton variante="principal" ancho="total" icono="correo" deshabilitado={!puedeEnviar} onClick={enviar}>{t("ayuda.mailEnviar")}</Boton>
+          <Boton variante="secundario" ancho="total" onClick={() => setEscribiendo(false)}>{t("ayuda.mailVolver")}</Boton>
+        </div>}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <textarea autoFocus rows={5} value={mensaje} onChange={e => setMensaje(e.target.value)} placeholder={t("ayuda.mailEjemplo")} aria-label={t("ayuda.quePaso")}
+            style={{ width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 16, border: `1px solid ${paleta.border}`, background: paleta.card, color: paleta.text, fontFamily: "inherit", fontSize: 16, lineHeight: 1.4, resize: "none", outline: "none" }} />
+          <p style={{ ...texto("pie"), color: paleta.dim, margin: 0 }}>{t("ayuda.mailPista", { mail: MAIL_SOPORTE })}</p>
+        </div>
+      </Hoja>
+    );
+  }
   return (
     <Hoja abierta={abierta} onCerrar={onCerrar} titulo={t("ayuda.titulo")} altura="alta" sobreCamara
       pie={chat

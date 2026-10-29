@@ -22,6 +22,8 @@ const isBase64Photo = esFotoLocal;
 
 // Max retries before giving up on an item (marks as processed to stop retrying)
 const MAX_RETRIES = 3;
+// Espera antes de cada reintento, según cuántas veces ya falló (29/10)
+export const ESPERAS_REINTENTO = [3000, 8000, 20000];
 
 export function useSyncWithAI(settings) {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -148,7 +150,7 @@ export function useSyncWithAI(settings) {
         categories: settings?.categories,
         materials: settings?.materials,
       });
-      console.log(`[AI Sync] Producto ${product.id}: ok`);
+      console.log(`[AI Sync] Producto ${product.id}: ok${result?.sinProducto ? ' (sin producto visible)' : ''}`);
 
       const updates = {};
       if (result.name) updates.name = result.name;
@@ -178,7 +180,8 @@ export function useSyncWithAI(settings) {
       return { success: true, updates };
     } catch (err) {
       console.warn(`[AI Sync] Product ${product.id} failed:`, err.message);
-      anotar('ia_error', { mensaje: String(err?.message || '').slice(0, 80) }, { unaVez: true }); // primer uso (25/10)
+      // primer uso (25/10); con el detalle del servidor y el código desde el 29/10, para saber la causa sin adivinar
+      anotar('ia_error', { mensaje: String(err?.message || '').slice(0, 80), detalle: String(err?.details || '').slice(0, 160), status: err?.status || null }, { unaVez: true });
       const retries = (product.ai_retry_count || 0) + 1;
       if (retries >= MAX_RETRIES) {
         // Give up after MAX_RETRIES — mark as processed so it doesn't block the queue
@@ -303,6 +306,7 @@ export function useSyncWithAI(settings) {
     let processed = 0;
     let failed = 0;
     let anyChanges = false;
+    let peorIntento = 0; // cuántas veces viene fallando el ítem más castigado: marca la espera del próximo intento
 
     try {
       // Process suppliers FIRST so products can link to them
@@ -310,7 +314,7 @@ export function useSyncWithAI(settings) {
         if (!navigator.onLine) break;
         const result = await processSupplier(supplier);
         processed++;
-        if (!result.success) failed++;
+        if (!result.success) { failed++; peorIntento = Math.max(peorIntento, result.retries || 1); }
         else anyChanges = true;
         setProgress({ processed, total });
       }
@@ -320,7 +324,7 @@ export function useSyncWithAI(settings) {
         if (!navigator.onLine) break;
         const result = await processProduct(product);
         processed++;
-        if (!result.success) failed++;
+        if (!result.success) { failed++; peorIntento = Math.max(peorIntento, result.retries || 1); }
         else anyChanges = true;
         setProgress({ processed, total });
       }
@@ -355,9 +359,10 @@ export function useSyncWithAI(settings) {
       setIsSyncing(false);
       syncingRef.current = false;
 
-      // Schedule retry for failed items with exponential backoff
+      // Los reintentos se espacian (29/10): 3 s, 8 s y 20 s. Antes eran tres en nueve segundos, que no alcanzan
+      // para que vuelva la señal ni para que pase un corte corto del servidor; los tres intentos ahora cubren medio minuto.
       if (failed > 0) {
-        const delay = Math.min(10000, 3000 * failed); // 3s per failure, max 10s
+        const delay = ESPERAS_REINTENTO[Math.min(Math.max(peorIntento, 1), ESPERAS_REINTENTO.length) - 1];
         console.log(`[AI Sync] ${failed} items failed, retrying in ${delay / 1000}s...`);
         if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
         retryTimerRef.current = setTimeout(() => {

@@ -1434,7 +1434,13 @@
       "hojas": "Las hojas se cierran arrastrándolas hacia abajo",
       "pestanas": "En el catálogo, deslizá a los lados: cambia de pestaña",
       "proveedor": "En un proveedor, deslizá a la izquierda: su galería"
-    }
+    },
+    "quePaso": "Contanos qué pasó",
+    "mailEjemplo": "Ej.: la foto no se procesa",
+    "mailEnviar": "Enviar por mail",
+    "mailVolver": "Volver",
+    "mailFirma": "Para ayudarte mejor: {{plataforma}} · versión {{version}} · instalación {{instalacion}}",
+    "mailPista": "Se abre tu app de correo con el mensaje listo para {{mail}}."
   },
   "pedirCuenta": {
     "titulo": "Guardá tu catálogo",

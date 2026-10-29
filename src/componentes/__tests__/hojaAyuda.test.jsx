@@ -57,6 +57,28 @@ describe("Ayuda (26/10)", () => {
   });
 });
 
+describe("Escribinos con texto (29/10, buzón: llegó un mail de ayuda vacío)", () => {
+  it("Escribinos abre un campo con ejemplo; enviar se habilita recién con texto y el mail lleva lo escrito", () => {
+    const abrirMail = vi.fn();
+    render(<SistemaProvider modo="claro"><HojaAyuda abierta onCerrar={() => {}} abrirMail={abrirMail} /></SistemaProvider>);
+    fireEvent.click(screen.getByRole("button", { name: /Escribinos/ }));
+    const campo = screen.getByPlaceholderText("Ej.: la foto no se procesa");
+    const enviar = screen.getByRole("button", { name: /Enviar por mail/ });
+    expect(enviar.disabled).toBe(true);
+    fireEvent.click(enviar);
+    expect(abrirMail).not.toHaveBeenCalled();
+    fireEvent.change(campo, { target: { value: "La foto no se procesa & queda girando" } });
+    expect(enviar.disabled).toBe(false);
+    fireEvent.click(enviar);
+    expect(abrirMail).toHaveBeenCalledTimes(1);
+    const cuerpo = decodeURIComponent(abrirMail.mock.calls[0][0].split("body=")[1]);
+    expect(cuerpo.startsWith("La foto no se procesa & queda girando")).toBe(true);
+    expect(cuerpo).toContain("Para ayudarte mejor");
+    fireEvent.click(screen.getByRole("button", { name: /Volver/ }));
+    expect(screen.getByRole("button", { name: /Escribinos/ })).toBeTruthy();
+  });
+});
+
 describe("Ayuda sobre la cámara (28/10)", () => {
   it("la hoja se abre por encima del visor (capa 100): el 27/10 el ? parecía no hacer nada porque quedaba detrás", () => {
     render(<SistemaProvider modo="claro"><HojaAyuda abierta onCerrar={() => {}} /></SistemaProvider>);

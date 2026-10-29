@@ -29,10 +29,11 @@ export const apiUrl = (path) => `${API_BASE}${path}`;
 
 /** Error con el código HTTP a la vista, para que quien llama pueda distinguir casos. */
 export class ApiError extends Error {
-  constructor(message, status) {
+  constructor(message, status, details = null) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.details = details; // el detalle técnico del servidor (29/10): va al evento ia_error, no a la pantalla
   }
 }
 
@@ -73,11 +74,13 @@ async function post(path, payload) {
   });
 
   if (!response.ok) {
-    let detail = null;
+    let detail = null, details = null;
     try {
-      detail = (await response.json())?.error || null;
+      const cuerpo = await response.json();
+      detail = cuerpo?.error || null;
+      details = cuerpo?.details || null;
     } catch { /* respuesta sin JSON */ }
-    throw new ApiError(detail || messageFor(response.status), response.status);
+    throw new ApiError(detail || messageFor(response.status), response.status, details);
   }
 
   return response.json();

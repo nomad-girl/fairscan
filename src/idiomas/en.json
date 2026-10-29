@@ -1434,7 +1434,13 @@
       "hojas": "Sheets close by dragging them down",
       "pestanas": "In the catalog, swipe sideways: change tab",
       "proveedor": "On a supplier, swipe left: their gallery"
-    }
+    },
+    "quePaso": "Tell us what happened",
+    "mailEjemplo": "E.g.: the photo won't process",
+    "mailEnviar": "Send by email",
+    "mailVolver": "Back",
+    "mailFirma": "To help you better: {{plataforma}} · version {{version}} · install {{instalacion}}",
+    "mailPista": "Your mail app opens with the message ready for {{mail}}."
   },
   "pedirCuenta": {
     "titulo": "Save your catalog",
