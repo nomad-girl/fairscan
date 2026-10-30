@@ -231,7 +231,7 @@ export function ArmarPedido({ onCamara, supplier: s, pedido, products = [], mone
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "2px 0 6px" }}>
             <span style={{ ...texto("pie", { fontWeight: 600 }), color: paleta.muted, flexShrink: 0 }}>{t("ajustes.idioma")}</span>
-            <Segmentado etiqueta={t("ajustes.idioma")} valor={idiomaProforma} onChange={elegirIdiomaProforma} opciones={[{ valor: "en", texto: "English" }, { valor: "es-AR", texto: "Español" }]} estilo={{ flex: 1 }} />
+            <Segmentado etiqueta={t("ajustes.idioma")} valor={idiomaProforma} onChange={elegirIdiomaProforma} opciones={[{ valor: "en", texto: "English" }, { valor: "es-AR", texto: "Español" }, { valor: "pt-BR", texto: "Português" }]} estilo={{ flex: 1 }} />
           </div>
           {contactos.whatsapp && <Fila onClick={() => enviar("whatsapp")} flecha miniatura={<Icono nombre="mensaje" tamano={22} color="#25D366" />} titulo={t("pedido.porWhatsapp")} subtitulo={s.whatsapp || s.phone} />}
           {contactos.wechat && <Fila onClick={() => enviar("wechat")} flecha miniatura={<Icono nombre="mensaje" tamano={22} color="#07C160" />} titulo={t("pedido.porWechat")} subtitulo={t("pedido.porWechatPista")} />}

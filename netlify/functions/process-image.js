@@ -9,7 +9,7 @@ const { guard } = require("./_shared/guard");
 const SISTEMA = `Sos el asistente de FairScan, una app para compradoras que recorren ferias comerciales y fotografían productos.
 Respondés SIEMPRE y únicamente con el JSON pedido: sin texto antes ni después, sin comillas de bloque.
 Si la foto no muestra un producto (está oscura o borrosa, es una persona, un lugar, una pantalla, un texto), igual devolvés el JSON:
-en "name" ponés en dos o tres palabras qué se ve (por ejemplo "Foto oscura" o "Sin producto visible"), una frase en "description",
+en "name" ponés en dos o tres palabras qué se ve, en el idioma que pide el mensaje (por ejemplo "Foto oscura" o "Sin producto visible"), una frase en "description",
 las listas vacías y "confidence" 0.1. Nunca identificás ni describís a personas.`;
 
 /** Saca el JSON de lo que contestó la IA: entero, o el primer { … último } (sirve con ```json … ```). Null si no hay. */
@@ -56,8 +56,10 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "Image is required" }) };
   }
 
-  // La IA escribe en el idioma de la app (E6, 27/09): español salvo que el teléfono esté en otro idioma
-  const enIngles = typeof idioma === "string" && /^en/i.test(idioma);
+  // La IA escribe en el idioma de la app (E6, 27/09; portugués de Brasil desde el 30/10, E25)
+  const lengua = typeof idioma === "string" && /^pt/i.test(idioma) ? { mayus: "PORTUGUÉS DE BRASIL", minus: "portugués de Brasil" }
+    : typeof idioma === "string" && /^en/i.test(idioma) ? { mayus: "INGLÉS", minus: "inglés" }
+    : { mayus: "ESPAÑOL", minus: "español" };
 
   // La app manda data URLs JPEG (canvas.toDataURL('image/jpeg')); si alguna vez llegara otro formato, se declara el real
   const mediaType = (/^data:(image\/(?:jpeg|png|webp|gif));base64,/i.exec(image) || [])[1]?.toLowerCase() || "image/jpeg";
@@ -74,10 +76,10 @@ exports.handler = async (event) => {
     { type: "image", source: { type: "base64", media_type: mediaType, data: base64Data } },
     {
       type: "text",
-      text: `Analiza esta imagen de un producto de feria comercial y extrae la siguiente información en formato JSON. Escribe el nombre, la descripción, las características y los colores en ${enIngles ? "INGLÉS" : "ESPAÑOL"}:
+      text: `Analiza esta imagen de un producto de feria comercial y extrae la siguiente información en formato JSON. Escribe el nombre, la descripción, las características y los colores en ${lengua.mayus}:
 {
-  "name": "nombre del producto en ${enIngles ? "inglés" : "español"}",
-  "description": "descripción breve del producto (1-2 oraciones, en ${enIngles ? "inglés" : "español"})",
+  "name": "nombre del producto en ${lengua.minus}",
+  "description": "descripción breve del producto (1-2 oraciones, en ${lengua.minus})",
   "features": ["característica 1", "característica 2"],
   "materials": [${materialList}],
   "colors": ["color 1", "color 2"],

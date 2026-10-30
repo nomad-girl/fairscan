@@ -35,7 +35,7 @@ function idiomaDeLaApp() {
     const pref = typeof localStorage !== 'undefined' ? localStorage.getItem('fairscan.idioma') : null;
     if (pref && pref !== 'auto') return pref;
     const del = (typeof navigator !== 'undefined' && (navigator.languages?.[0] || navigator.language)) || 'es';
-    return /^es\b/i.test(del) ? 'es-AR' : 'en';
+    return /^es\b/i.test(del) ? 'es-AR' : /^pt\b/i.test(del) ? 'pt-BR' : 'en';
   } catch { return 'es-AR'; }
 }
 

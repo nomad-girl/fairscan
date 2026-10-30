@@ -1,7 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, memo } from "react";
 import { i18next, cambiarIdioma, leerPreferencia } from './idiomas/index.js';
 import { MARCA, PALETAS } from './sistema/tokens.js';
-import { PRESETS } from "./lib/presets.js";
+import { presetsDe, PRESETS } from "./lib/presets.js";
 import useGrabadora from "./hooks/useGrabadora.js";
 import { cargarNegocio, comprasActivasEn, paraEstaCuenta, NEGOCIO_POR_DEFECTO } from "./lib/negocio.js";
 import { metaEvento, metaDiagnostico } from "./lib/metaEventos.js";
@@ -1563,7 +1563,7 @@ function SettingsScreen({ onCamara, onAyuda, onVerEjemplo, settings, onSave, onB
       <div style={{ flex:1, overflow:"auto", padding:"16px 20px 40px" }}>
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"0 0 8px", textTransform:"uppercase" }}>{tx("configuracion.presetPorRubro")}</p>
         <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:24 }}>
-          {Object.entries(PRESETS).map(([k,p]) => <button key={k} onClick={() => updateLoc(prev => ({ ...prev, preset:k, ...PRESETS[k] }))} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px", borderRadius:12, cursor:"pointer", background:loc.preset===k?t.accentSoft:t.card, border:`1.5px solid ${loc.preset===k?t.accent:t.border}`, textAlign:"left" }}><span style={{ fontSize:22 }}>{p.icon}</span><span style={{ fontSize:13, fontWeight:600, color:loc.preset===k?t.accent:t.text, flex:1 }}>{p.name}</span>{loc.preset===k && <span style={{ color:t.accent }}>✓</span>}</button>)}
+          {Object.entries(presetsDe(i18next.language)).map(([k,p]) => <button key={k} onClick={() => updateLoc(prev => ({ ...prev, preset:k, ...p }))} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px", borderRadius:12, cursor:"pointer", background:loc.preset===k?t.accentSoft:t.card, border:`1.5px solid ${loc.preset===k?t.accent:t.border}`, textAlign:"left" }}><span style={{ fontSize:22 }}>{p.icon}</span><span style={{ fontSize:13, fontWeight:600, color:loc.preset===k?t.accent:t.text, flex:1 }}>{p.name}</span>{loc.preset===k && <span style={{ color:t.accent }}>✓</span>}</button>)}
         </div>
         <div style={{ height:1, background:t.border, marginBottom:20 }} />
         {sec(tx("configuracion.categorias"),"","categories",t.accent)}
@@ -1634,7 +1634,7 @@ function SettingsScreen({ onCamara, onAyuda, onVerEjemplo, settings, onSave, onB
         {/* Idioma (E6, decisión de Nati del 27/09): sigue al teléfono, o se fija a mano */}
         <p style={{ fontSize:10, fontWeight:700, color:t.muted, margin:"20px 0 8px", textTransform:"uppercase" }}>{tx("ajustes.idioma")}</p>
         <div style={{ display:"flex", gap:6, marginBottom:8 }}>
-          {[["auto", tx("ajustes.idiomaAuto")], ["es-AR", "Español"], ["en", "English"]].map(([k, etiqueta]) => (
+          {[["auto", tx("ajustes.idiomaAuto")], ["es-AR", "Español"], ["en", "English"], ["pt-BR", "Português"]].map(([k, etiqueta]) => (
             <button key={k} type="button" role="radio" aria-checked={prefIdioma===k} onClick={() => { setPrefIdioma(k); const activo = cambiarIdioma(k); try { document.documentElement.lang = activo; } catch {} }} style={{ flex:1, minHeight:44, padding:"10px 8px", borderRadius:10, border:`1.5px solid ${prefIdioma===k?t.accent:t.border}`, background:prefIdioma===k?t.accentSoft:"transparent", color:prefIdioma===k?t.accent:t.muted, fontSize:12, fontWeight:700, cursor:"pointer", textAlign:"center", fontFamily:"inherit" }}>{etiqueta}</button>
           ))}
         </div>
@@ -3208,8 +3208,9 @@ export default function App() {
       // El rubro elegido al crear la cuenta define las etiquetas (4.7). Se aplica una
       // vez por cuenta; después manda lo que la usuaria cambie en Configuración.
       const rubro = auth.user.user_metadata?.rubro;
-      if (rubro && PRESETS[rubro] && previa.rubroAplicado !== rubro) {
-        await dbSaveSettings({ preset: rubro, ...PRESETS[rubro], rubroAplicado: rubro });
+      const presets = presetsDe(i18next.language); // las etiquetas en el idioma de la app (E25, 30/10)
+      if (rubro && presets[rubro] && previa.rubroAplicado !== rubro) {
+        await dbSaveSettings({ preset: rubro, ...presets[rubro], rubroAplicado: rubro });
       }
       // Si venía de una sesión anónima y ahora es otra usuaria, el equipo recordado
       // ya no vale: se conecta al suyo y lo local se muda al sincronizar.

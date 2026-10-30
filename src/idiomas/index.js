@@ -14,23 +14,46 @@ import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
 import esAR from "./es-AR.json";
 import en from "./en.json";
+import ptBR from "./pt-BR.json";
 
 export const IDIOMA_POR_DEFECTO = "es-AR";
-/** La preferencia de la usuaria: "auto" (el idioma del teléfono), "es-AR" o "en". */
+/** La preferencia de la usuaria: "auto" (el idioma del teléfono), "es-AR", "en" o "pt-BR". */
 export const CLAVE_PREFERENCIA = "fairscan.idioma";
+
+/**
+ * En portugués de Brasil las reglas de plural ponen el 0 con el singular ("0 produto"), pero en la app se lee
+ * "0 produtos". i18next usa `clave_zero` cuando count es 0: acá se completa con el plural en cada texto que no
+ * tenga uno propio (30/10, E25).
+ */
+export function conCeroEnPlural(obj) {
+  if (!obj || typeof obj !== "object") return obj;
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) out[k] = v && typeof v === "object" ? conCeroEnPlural(v) : v;
+  for (const k of Object.keys(obj)) {
+    if (!k.endsWith("_other") || typeof obj[k] !== "string") continue;
+    const cero = k.replace(/_other$/, "_zero");
+    if (!(cero in out)) out[cero] = obj[k];
+  }
+  return out;
+}
 
 export const RECURSOS = {
   "es-AR": { translation: esAR },
   "en": { translation: en },
+  "pt-BR": { translation: conCeroEnPlural(ptBR) },
 };
 
 /**
  * Decisión de Nati (27/09/2026): la app sigue al idioma del teléfono. Español (cualquier variante) → es-AR;
- * cualquier otro idioma → inglés. En Configuración se puede fijar uno a mano.
+ * portugués (cualquier variante) → pt-BR (E25, 30/10: ferias de São Paulo en febrero); cualquier otro → inglés.
+ * En Configuración se puede fijar uno a mano.
  */
+export function idiomaDeEtiqueta(del = "es") {
+  return /^es\b/i.test(del) ? "es-AR" : /^pt\b/i.test(del) ? "pt-BR" : "en";
+}
 export function idiomaDelDispositivo() {
   const del = (typeof navigator !== "undefined" && (navigator.languages?.[0] || navigator.language)) || "es";
-  return /^es\b/i.test(del) ? "es-AR" : "en";
+  return idiomaDeEtiqueta(del);
 }
 export function leerPreferencia() {
   try { return localStorage.getItem(CLAVE_PREFERENCIA) || "auto"; } catch { return "auto"; }
