@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('../supabase.js', () => ({ supabase: null }));
 vi.mock('@capacitor/core', () => ({ Capacitor: { getPlatform: () => 'android' } }));
 
-const { anotar, vaciarCola, fila, pareceChina, instalacion } = await import('../primerUso.js');
+const { anotar, vaciarCola, fila, pareceChina, instalacion, dondeEsta } = await import('../primerUso.js');
 
 function memoria() {
   const m = new Map();
@@ -83,5 +83,14 @@ describe('primer uso', () => {
     anotar('cuenta_pedida', { motivo: 'stand' }, { store: s, cliente: null }); // llega mientras se manda 'empezar'
     soltar(); await envio;
     expect(cola(s).map(e => e.nombre)).toEqual(['cuenta_pedida']);
+  });
+});
+
+describe('dondeEsta (31/10): zona e idioma, sin IP', () => {
+  it('una argentina en Cantón: zona de China, región AR', () => {
+    expect(dondeEsta({ zona: 'Asia/Shanghai', idioma: 'es-AR' })).toEqual({ zona: 'Asia/Shanghai', idioma: 'es-AR', region: 'AR', china: true });
+  });
+  it('sin región en el idioma, region queda null', () => {
+    expect(dondeEsta({ zona: 'America/Sao_Paulo', idioma: 'pt' })).toMatchObject({ region: null, china: false });
   });
 });

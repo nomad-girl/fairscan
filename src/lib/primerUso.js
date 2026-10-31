@@ -80,6 +80,18 @@ export function anotar(nombre, datos = {}, { unaVez = false, store, cliente } = 
   return true;
 }
 
+/**
+ * Desde dónde usa la app (31/10, buzón (42)): la zona horaria y el idioma del teléfono, sin IP ni ubicación. Una
+ * compradora argentina en Cantón tiene la zona Asia/Shanghai y el idioma es-AR: así se sabe dónde está y de dónde es.
+ */
+export function dondeEsta({ zona, idioma } = {}) {
+  let z = zona, i = idioma;
+  try { if (!z) z = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { z = ''; }
+  try { if (!i) i = (typeof navigator !== 'undefined' && (navigator.languages?.[0] || navigator.language)) || ''; } catch { i = ''; }
+  const region = (/[-_]([A-Za-z]{2})\b/.exec(i || '') || [])[1]?.toUpperCase() || null;
+  return { zona: String(z || '').slice(0, 40) || null, idioma: String(i || '').slice(0, 16) || null, region, china: pareceChina(z) };
+}
+
 /** ¿Está en China? Ahí Google no funciona sin VPN (caso Ganga Home, 25/10): se sugiere Apple o mail. */
 export function pareceChina(zona) {
   let z = zona;

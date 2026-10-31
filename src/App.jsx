@@ -150,7 +150,7 @@ import { leerBorrador, guardarBorrador, borrarBorrador, describirBorrador, ESPER
 import { elegirMiniatura, miniaturaDe, generarMiniaturasFaltantes, reducirFoto } from './lib/miniaturas.js';
 import { aDataUrl, sinDerivados, tipoDeFoto, productoParaUI } from './lib/fotosBinario.js';
 import { supabase } from './lib/supabase.js';
-import { anotar } from './lib/primerUso.js';
+import { anotar, dondeEsta } from './lib/primerUso.js';
 import { iniciarAnalitica, reiniciarAnalitica } from './lib/analitica.js';
 
 // El catálogo se muestra del más nuevo al más viejo (mismo orden que la base).
@@ -2956,16 +2956,18 @@ export default function App() {
   const comprarPack = async (pk) => {
     // Sin cuenta no se compra (27/10): la compra queda atada a la cuenta, y una sesión sin cuenta se pierde con el teléfono
     if (auth.esAnonima && !auth.mailPendiente) { pedirCuentaPor("pago"); return; }
+    anotar("pack_tocado", { pack: pk.id });
     try {
       const { comprar } = await import("./lib/compras.js");
       const r = await comprar(pk.id);
+      anotar("compra_resultado", { pack: pk.id, ok: !!r.ok, cancelada: !!r.cancelada, mensaje: r.ok ? null : String(r.mensaje || "").slice(0, 80) });
       if (r.ok) {
         showToast(tx("avisos.compraHecha", { cantidad: pk.escaneos })); setPaywall(null);
         // El saldo lo acredita el servidor cuando la tienda confirma; se relee varias veces.
         [2000, 6000, 15000, 40000].forEach(ms => setTimeout(sincronizarCreditos, ms));
       }
       else showToast(r.mensaje || tx("avisos.compraNoCompletada"));
-    } catch (err) { showToast(err?.message || tx("avisos.compraNoCompletada")); }
+    } catch (err) { anotar("compra_resultado", { pack: pk.id, ok: false, mensaje: String(err?.message || "").slice(0, 80) }); showToast(err?.message || tx("avisos.compraNoCompletada")); }
   };
   // Canjear código (E24, 29/10): el servidor valida y acredita como cortesía; acá se pide la cuenta si no hay y se refresca el saldo
   const canjearCodigo = async (codigo) => {
@@ -3019,9 +3021,17 @@ export default function App() {
   // Precio real de la tienda en cada pack (25/10, Apple 2.1(b)/3.1.1): se pide al abrir el paywall; si no responde, queda el de la config
   const [preciosTienda, setPreciosTienda] = useState({});
   useEffect(() => {
-    if (!paywall || !negocio.compras_activas) return;
+    if (!paywall) return;
+    // 31/10 (buzón (42)): el primer usuario que agotó los gratis no compró y no había forma de saber qué vio. Ahora se anota
+    // que se abrió el muro, si la tienda devolvió los precios y qué pasó al tocar un pack (comprarPack).
+    anotar("paywall_visto", { bloqueados: paywall.bloqueados || 0, desdeAjustes: !!paywall.desdeAjustes, saldo: creditosRef.current?.saldo ?? null, comprasActivas: !!negocio.compras_activas });
+    if (!negocio.compras_activas) return;
     const ids = (negocio.packs || []).map(pk => pk.id);
-    import("./lib/compras.js").then(m => m.preciosDeTienda?.(ids)).then(r => { if (r && Object.keys(r).length) setPreciosTienda(r); }).catch(() => {});
+    import("./lib/compras.js").then(async m => {
+      const r = await m.preciosDeTienda?.(ids);
+      anotar("paywall_precios", { configurado: !!m.estaConfigurado?.(), precios: r ? Object.keys(r).length : 0, moneda: (r && Object.values(r)[0]?.moneda) || null });
+      if (r && Object.keys(r).length) setPreciosTienda(r);
+    }).catch(() => {});
   }, [!!paywall, negocio.compras_activas]);
   useEffect(() => { import("./lib/compras.js").then(m => setComprasListas(!!m.estaConfigurado?.())).catch(() => setComprasListas(false)); }, [auth.user, paywall]);
   const bloquearProductos = async (ids) => {
@@ -3232,7 +3242,7 @@ export default function App() {
       // catálogo, con "Empezar a escanear" y la cuenta a la vista. Desde la primera foto, abre en la cámara como siempre.
       // 27/10 (Nati, con datos: cámara primero 16 % de primera foto, catálogo primero 6 %): la app vuelve a abrir en la cámara
       // E23 (28/10): con el origen de la instalación (los utm_* del anuncio que trajo a la ficha de Play, o de la URL en la web)
-      if (!hayProductosRef.current && !esEscritorio) leerOrigen().then(origen => anotar("primera_apertura", { conCuenta: !auth.esAnonima, ...(origen ? { origen } : {}) }, { unaVez: true })).catch(() => anotar("primera_apertura", { conCuenta: !auth.esAnonima }, { unaVez: true }));
+      if (!hayProductosRef.current && !esEscritorio) leerOrigen().then(origen => anotar("primera_apertura", { conCuenta: !auth.esAnonima, ...dondeEsta(), ...(origen ? { origen } : {}) }, { unaVez: true })).catch(() => anotar("primera_apertura", { conCuenta: !auth.esAnonima, ...dondeEsta() }, { unaVez: true }));
       // Ensayo de feria (27/10, opción A de Nati): sin productos, la primera vez abre en la bienvenida y el ensayo
       setPrimerUso(inicioPrimerUso({ hayProductos: hayProductosRef.current, esEscritorio }));
       setReady(true);

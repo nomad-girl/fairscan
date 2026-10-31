@@ -181,8 +181,12 @@ export function useSyncWithAI(settings) {
     } catch (err) {
       console.warn(`[AI Sync] Product ${product.id} failed:`, err.message);
       // primer uso (25/10); con el detalle del servidor y el código desde el 29/10, para saber la causa sin adivinar
-      anotar('ia_error', { mensaje: String(err?.message || '').slice(0, 80), detalle: String(err?.details || '').slice(0, 160), status: err?.status || null }, { unaVez: true });
+      // 31/10 (buzón (42)): "Load failed" sin status es un corte de conexión; con segundoPlano se sabe si fue porque la app
+      // pasó a segundo plano (iOS corta lo que estaba en viaje) y con el intento, si después se recuperó o se rindió.
       const retries = (product.ai_retry_count || 0) + 1;
+      const contexto = { intento: retries, segundoPlano: typeof document !== 'undefined' && document.visibilityState === 'hidden', enLinea: typeof navigator === 'undefined' || navigator.onLine !== false };
+      anotar('ia_error', { mensaje: String(err?.message || '').slice(0, 80), detalle: String(err?.details || '').slice(0, 160), status: err?.status || null, ...contexto }, { unaVez: true });
+      if (retries >= MAX_RETRIES) anotar('ia_rendida', { mensaje: String(err?.message || '').slice(0, 80), status: err?.status || null, ...contexto });
       if (retries >= MAX_RETRIES) {
         // Give up after MAX_RETRIES — mark as processed so it doesn't block the queue
         console.warn(`[AI Sync] Product ${product.id} failed ${MAX_RETRIES} times, giving up`);
