@@ -122,6 +122,9 @@ import { Escritorio } from './escritorio/Escritorio.jsx';
 import { useEsEscritorio } from './escritorio/util.jsx';
 import { useSistema } from './sistema/SistemaProvider.jsx';
 import { CanjearCodigo } from './componentes/CanjearCodigo.jsx';
+import { TrasElMuro } from './componentes/TrasElMuro.jsx';
+import { SinBaseLocal, hayBaseLocal } from './componentes/SinBaseLocal.jsx';
+import { regaloDelMuro, queOfrecerAlCerrar, respuestaMotivo } from './lib/trasElMuro.js';
 import { instalacion as idInstalacion } from './lib/primerUso.js';
 import { ArmarPedido } from './pantallas/ArmarPedido.jsx';
 import { Pedidos } from './pantallas/Pedidos.jsx';
@@ -2986,6 +2989,38 @@ export default function App() {
   };
   // Paywall (5.3): al cerrar el stand, si el saldo no alcanza. Nunca al disparar.
   const [paywall, setPaywall] = useState(null); // { bloqueados }
+  // E26 (buzón 02/11 (46)): al cerrar el muro sin comprar, el regalo de 10 escaneos con un toque y "¿Qué te frenó?".
+  // Solo el muro que aparece por llegar al límite; el de Ajustes y el cierre por compra no lo muestran.
+  const [trasMuro, setTrasMuro] = useState(null); // { regalo, preguntar }
+  const cerrarPaywall = async () => {
+    const p = paywall;
+    setPaywall(null);
+    if (!p || p.desdeAjustes) return;
+    const regalo = regaloDelMuro(negocio);
+    const uid = auth.user?.id || "sin-cuenta";
+    let regaloYaUsado = false, ultimaPregunta = 0;
+    try { regaloYaUsado = !!localStorage.getItem("fs_regalo_muro_" + uid); ultimaPregunta = parseInt(localStorage.getItem("fs_muro_pregunta") || "0", 10) || 0; } catch { /* sin almacenamiento */ }
+    // Si ya lo canjeó por otro lado (el mail 4 manda el mismo código), no se ofrece de nuevo
+    if (regalo && !regaloYaUsado && supabase && auth.user && !auth.esAnonima && navigator.onLine) {
+      try { const { data } = await supabase.from("canjes").select("codigo").eq("codigo", regalo.codigo).eq("user_id", auth.user.id).maybeSingle(); if (data) regaloYaUsado = true; } catch { /* sin señal: se ofrece y el servidor dirá */ }
+    }
+    const oferta = queOfrecerAlCerrar({ paywall: p, regalo, regaloYaUsado, ultimaPregunta });
+    if (!oferta) return;
+    if (oferta.preguntar) { try { localStorage.setItem("fs_muro_pregunta", String(Date.now())); } catch { /* nada */ } }
+    anotar("muro_tras_visto", { regalo: !!oferta.regalo, preguntar: oferta.preguntar, bloqueados: p.bloqueados || 0 });
+    setTrasMuro(oferta);
+  };
+  const pedirRegaloMuro = async (codigo) => {
+    const r = await canjearCodigo(codigo);
+    anotar("muro_regalo", { codigo, ok: !!r?.ok, motivo: r?.motivo || null });
+    if (r?.motivo === "sin_sesion") setTrasMuro(null); // ya se pidió la cuenta
+    if (r?.ok || r?.motivo === "ya_canjeado") { try { localStorage.setItem("fs_regalo_muro_" + (auth.user?.id || "sin-cuenta"), "1"); } catch { /* nada */ } }
+    return r;
+  };
+  const responderMotivoMuro = (motivo, texto) => {
+    const fila = respuestaMotivo(motivo, texto);
+    if (fila) anotar("muro_motivo", { ...fila, saldo: creditosRef.current?.saldo ?? null });
+  };
   const [ayudaAbierta, setAyudaAbierta] = useState(false); // Ayuda (26/10): "?" de la cámara y Ajustes
   const [festejoCatalogo, setFestejoCatalogo] = useState(false); // "Tu primer stand está listo" en el catálogo, con Seguir escaneando (28/10)
   useEffect(() => { precalentarVibracion(); }, []);
@@ -3171,8 +3206,12 @@ export default function App() {
   const aiSync = useSyncWithAI(settings);
 
   // Load from Dexie on mount + resume cloud sync + auto-connect team
+  // Sin base local (02/11, Sentry FAIRSCAN-17): con el Modo de aislamiento del iPhone no hay IndexedDB y la app quedaba
+  // trabada en el arranque sin decir nada. Ahora explica cómo excluir FairScan del modo.
+  const [sinBase, setSinBase] = useState(() => !hayBaseLocal());
+  useEffect(() => { if (sinBase) anotar("sin_base_local", {}, { unaVez: true }); }, [sinBase]);
   useEffect(() => {
-    if (!auth.user) return; // Wait for auth
+    if (!auth.user || sinBase) return; // Wait for auth
     (async () => {
       await initDB();
 
@@ -3264,7 +3303,10 @@ export default function App() {
       if (st.roomId) {
         syncEngine.resumeTeam(st.roomId).catch(console.warn);
       }
-    })();
+    })().catch(err => {
+      if (err?.name === "MissingAPIError" || /indexeddb/i.test(String(err?.message || ""))) { setSinBase(true); return; }
+      throw err;
+    });
   }, [auth.user]);
 
   // Auto-connect to team when user has teams but no active team
@@ -3498,7 +3540,7 @@ export default function App() {
   const atrasRef = useRef(null);
   atrasRef.current = () => {
     if (cerrarHojaSuperior()) return true;
-    if (paywall) { setPaywall(null); return true; }
+    if (paywall) { cerrarPaywall(); return true; }
     if (mostrarLogin) { setMostrarLogin(false); return true; }
     if (pilaRef.current.length) { goBack(); return true; }
     return false;
@@ -4038,14 +4080,16 @@ export default function App() {
   // La bienvenida habla de sacar fotos: en la compu no hay cámara, se pasa directo al escritorio.
   // La bienvenida de un golpe se fue (25/10): el primer uso abre en el catálogo vacío (ver el efecto de arranque).
 
+  if (sinBase) return <SinBaseLocal onReintentar={() => window.location.reload()} />;
   return (
     <div className="app-pantallas" style={{ height:"100%", background:t.bg, color:t.text, position:"relative", overflow:"hidden", fontFamily:"'DM Sans', -apple-system, sans-serif" }}>
       {/* 30/09 (Nati: "entré a packs y no pude salir"): la hoja de packs se cierra tocando el velo, con la X o con Después */}
       <HojaAyuda abierta={ayudaAbierta} chat={paraEstaCuenta(negocio, "soporte_chat", auth.user?.id)} cuenta={auth.esAnonima ? null : { email: auth.user?.email || null }} onCerrar={() => setAyudaAbierta(false)} onVerGuia={esEscritorio ? undefined : verEjemplo} />
+      <TrasElMuro oferta={trasMuro} onRegalo={pedirRegaloMuro} onMotivo={responderMotivoMuro} onCerrar={() => setTrasMuro(null)} />
       {paywall && (
-        <div role="dialog" onClick={() => setPaywall(null)} style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+        <div role="dialog" onClick={cerrarPaywall} style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
           <div onClick={e => e.stopPropagation()} style={{ position:"relative", width:"100%", maxWidth:520, background:t.bg, borderRadius:"22px 22px 0 0", padding:"22px 20px calc(env(safe-area-inset-bottom, 0px) + 20px)", boxShadow:"0 -8px 40px rgba(0,0,0,0.35)" }}>
-            <button type="button" onClick={() => setPaywall(null)} aria-label={tx("comun.cerrar")} style={{ position:"absolute", top:12, right:12, width:40, height:40, borderRadius:20, border:"none", background:t.surface, display:"grid", placeItems:"center", cursor:"pointer" }}><Icono nombre="cerrar" tamano={20} color={t.muted} /></button>
+            <button type="button" onClick={cerrarPaywall} aria-label={tx("comun.cerrar")} style={{ position:"absolute", top:12, right:12, width:40, height:40, borderRadius:20, border:"none", background:t.surface, display:"grid", placeItems:"center", cursor:"pointer" }}><Icono nombre="cerrar" tamano={20} color={t.muted} /></button>
             <p style={{ fontSize:17, fontWeight:800, color:t.text, margin:"0 0 6px", lineHeight:1.35 }}>{paywall.desdeAjustes ? tx("configuracion.escaneosYPacks") : tx("avisos.paywallFrase", { defaultValue: FRASE_PAYWALL })}</p>
             {paywall.desdeAjustes && <p style={{ fontSize:13, color:t.muted, margin:"0 0 14px" }}>{creditos ? tx("configuracion.escaneosQuedan", { count: saldoVisible(creditos) }) : tx("configuracion.escaneosPista")}</p>}
             {paywall.bloqueados > 0 && <p style={{ fontSize:13, color:t.muted, margin:"0 0 14px" }}>{tx("avisos.bloqueados", { count: paywall.bloqueados })}</p>}
@@ -4067,7 +4111,7 @@ export default function App() {
               ); })}
               {/* Canjear código (E24, 29/10): agencias y campañas regalan escaneos con un código */}
               <CanjearCodigo onCanjear={canjearCodigo} />
-              <button onClick={() => setPaywall(null)} style={{ minHeight:48, padding:"12px", borderRadius:14, border:`1px solid ${t.border}`, background:t.card, color:t.text, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>{tx("avisos.despues")}</button>
+              <button onClick={cerrarPaywall} style={{ minHeight:48, padding:"12px", borderRadius:14, border:`1px solid ${t.border}`, background:t.card, color:t.text, fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>{tx("avisos.despues")}</button>
             </div>
             {negocio.compras_activas && !comprasListas && <p style={{ fontSize:12, color:t.muted, margin:"10px 0 0", textAlign:"center" }}>{tx("avisos.compraProximaVersion")}</p>}
             <p style={{ fontSize:11, color:t.dim, margin:"10px 0 0", textAlign:"center" }}>{tx("avisos.tarjetasNoDescuentan")}</p>

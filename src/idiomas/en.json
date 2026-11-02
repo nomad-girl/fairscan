@@ -1533,5 +1533,38 @@
     "yaCanjeado": "You already used this code.",
     "agotado": "That code has no spots left.",
     "sinSenal": "No signal: try again when you're back online."
+  },
+  "muro": {
+    "regaloTitulo_one": "Try {{count}} more scan for free",
+    "regaloTitulo_other": "Try {{count}} more scans for free",
+    "regaloLinea": "A gift so you can keep going at the fair. It's one time only.",
+    "regaloBoton_one": "Add {{count}} free scan",
+    "regaloBoton_other": "Add {{count}} free scans",
+    "regaloListo_one": "Done: we added {{count}} scan.",
+    "regaloListo_other": "Done: we added {{count}} scans.",
+    "frenoTitulo": "What held you back?",
+    "motivos": {
+      "precio": "The price",
+      "noAhora": "I don't need it now",
+      "noConvence": "I'm not convinced",
+      "otra": "Something else"
+    },
+    "otraEtiqueta": "Tell us (optional)",
+    "otraEjemplo": "E.g.: I want to try it a bit more first",
+    "enviar": "Send",
+    "gracias": "Thanks, this really helps.",
+    "ahoraNo": "Not now"
+  },
+  "sinBase": {
+    "titulo": "FairScan can't save on this iPhone",
+    "porque": "Lockdown Mode is turned on, and it stops the app from saving your photos and suppliers. You can keep it on and exclude only FairScan:",
+    "pasos": [
+      "Open Settings → Privacy & Security → Lockdown Mode.",
+      "Tap Configure Web Browsing.",
+      "Exclude FairScan from the list.",
+      "Come back to FairScan and tap Try again."
+    ],
+    "tranquila": "The rest of your phone stays just as protected.",
+    "reintentar": "Try again"
   }
 }

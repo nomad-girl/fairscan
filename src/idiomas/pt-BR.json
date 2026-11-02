@@ -1533,5 +1533,38 @@
     "yaCanjeado": "Você já usou este código.",
     "agotado": "Esse código não tem mais vagas.",
     "sinSenal": "Sem sinal: tente quando a conexão voltar."
+  },
+  "muro": {
+    "regaloTitulo_one": "Experimente mais {{count}} escaneamento grátis",
+    "regaloTitulo_other": "Experimente mais {{count}} escaneamentos grátis",
+    "regaloLinea": "Um presente para você continuar na feira. É uma vez só.",
+    "regaloBoton_one": "Adicionar {{count}} escaneamento grátis",
+    "regaloBoton_other": "Adicionar {{count}} escaneamentos grátis",
+    "regaloListo_one": "Pronto: adicionamos {{count}} escaneamento.",
+    "regaloListo_other": "Pronto: adicionamos {{count}} escaneamentos.",
+    "frenoTitulo": "O que te fez parar?",
+    "motivos": {
+      "precio": "O preço",
+      "noAhora": "Não preciso agora",
+      "noConvence": "Não me convenceu",
+      "otra": "Outra coisa"
+    },
+    "otraEtiqueta": "Conte para a gente (opcional)",
+    "otraEjemplo": "Ex.: quero testar mais um pouco antes",
+    "enviar": "Enviar",
+    "gracias": "Obrigado, isso ajuda muito.",
+    "ahoraNo": "Agora não"
+  },
+  "sinBase": {
+    "titulo": "O FairScan não consegue salvar neste iPhone",
+    "porque": "O Modo de Isolamento do seu iPhone está ativado e não deixa o app salvar suas fotos e fornecedores. Você pode mantê-lo ligado e excluir só o FairScan:",
+    "pasos": [
+      "Abra Ajustes → Privacidade e Segurança → Modo de Isolamento.",
+      "Toque em Configurar Navegação na Web.",
+      "Exclua o FairScan da lista.",
+      "Volte ao FairScan e toque em Tentar de novo."
+    ],
+    "tranquila": "O resto do celular continua protegido do mesmo jeito.",
+    "reintentar": "Tentar de novo"
   }
 }
